@@ -1,35 +1,20 @@
-import Versions from './components/Versions'
-import electronLogo from './assets/electron.svg'
+import { useState } from 'react'
+import { Sidebar, type Screen } from '@/components/Sidebar'
 
-function App(): React.JSX.Element {
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
-
+export default function App(): React.JSX.Element {
+  const [screen, setScreen] = useState<Screen>('setup')
   return (
-    <>
-      <img alt="logo" className="logo" src={electronLogo} />
-      <div className="creator">Powered by electron-vite</div>
-      <div className="text">
-        Build an Electron app with <span className="react">React</span>
-        &nbsp;and <span className="ts">TypeScript</span>
+    <div className="flex h-full flex-col">
+      <div className="flex min-h-0 flex-1">
+        <Sidebar current={screen} onNavigate={setScreen} hasLeague={false} />
+        <main className="min-w-0 flex-1 overflow-auto p-6">
+          <h1 className="text-2xl font-semibold capitalize">{screen}</h1>
+          <p className="text-sm text-muted-foreground">Coming up.</p>
+        </main>
       </div>
-      <p className="tip">
-        Please try pressing <code>F12</code> to open the devTool
-      </p>
-      <div className="actions">
-        <div className="action">
-          <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">
-            Documentation
-          </a>
-        </div>
-        <div className="action">
-          <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Send IPC
-          </a>
-        </div>
-      </div>
-      <Versions></Versions>
-    </>
+      <footer className="flex h-9 shrink-0 items-center border-t bg-sidebar px-4 text-xs text-muted-foreground">
+        status bar
+      </footer>
+    </div>
   )
 }
-
-export default App
