@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { openDatabase } from '@main/db/connection'
+import { openDatabase, withTransaction } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
 
 describe('migrate', () => {
@@ -44,5 +44,29 @@ describe('migrate', () => {
         )
         .run()
     ).toThrow(/FOREIGN KEY/)
+  })
+
+  it('rolls back the transaction when the callback throws', () => {
+    const db = openDatabase(':memory:')
+    migrate(db)
+    expect(() =>
+      withTransaction(db, () => {
+        db.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?)').run('foo', 'bar')
+        throw new Error('boom')
+      })
+    ).toThrow('boom')
+    const row = db.prepare('SELECT COUNT(*) AS n FROM app_settings WHERE key = ?').get('foo') as {
+      n: number
+    }
+    expect(row.n).toBe(0)
+
+    // the connection is not left mid-transaction: a subsequent transaction still works
+    withTransaction(db, () => {
+      db.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?)').run('baz', 'qux')
+    })
+    const row2 = db.prepare('SELECT COUNT(*) AS n FROM app_settings WHERE key = ?').get('baz') as {
+      n: number
+    }
+    expect(row2.n).toBe(1)
   })
 })
