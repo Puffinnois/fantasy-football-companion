@@ -52,6 +52,16 @@ describe('createSleeperClient', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2)
   })
 
+  it('retries once on 501 then succeeds', async () => {
+    const fetchImpl = fakeFetch([
+      { status: 501, body: 'not implemented' },
+      { status: 200, body: [] }
+    ])
+    const client = createSleeperClient({ fetchImpl, retryDelayMs: 0 })
+    expect(await client.getLeagueUsers('123')).toEqual([])
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
   it('throws SleeperHttpError after a second failure', async () => {
     const fetchImpl = fakeFetch([
       { status: 500, body: 'boom' },

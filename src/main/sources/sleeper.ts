@@ -35,7 +35,9 @@ export interface SleeperClientOptions {
   retryDelayMs?: number
 }
 
-const RETRY_STATUSES = new Set([429, 500, 502, 503, 504])
+function isRetryable(status: number): boolean {
+  return status === 429 || status >= 500
+}
 
 export function createSleeperClient(options: SleeperClientOptions = {}): SleeperClient {
   const fetchImpl = options.fetchImpl ?? fetch
@@ -50,7 +52,7 @@ export function createSleeperClient(options: SleeperClientOptions = {}): Sleeper
       if (res.status === 404) return null
       if (res.ok) return (await res.json()) as T | null
       const body = await res.text()
-      if (attempt === 0 && RETRY_STATUSES.has(res.status)) {
+      if (attempt === 0 && isRetryable(res.status)) {
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
         continue
       }
