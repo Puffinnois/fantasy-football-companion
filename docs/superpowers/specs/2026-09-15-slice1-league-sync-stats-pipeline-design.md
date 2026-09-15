@@ -48,7 +48,7 @@ reads from, plus a minimal UI that proves it works end to end.
 | Shell | Electron | Windows installer buildable from Linux; one language end to end |
 | Language | TypeScript (strict) everywhere | |
 | UI | React, Tailwind, shadcn/ui, Recharts | Polished components, charts for later slices |
-| Storage | SQLite via `better-sqlite3` | Data is small (≈5k stat rows/season); synchronous API is simple to test |
+| Storage | SQLite via Node's built-in `node:sqlite` (`DatabaseSync`) | Data is small (≈5k stat rows/season); no native module, so Vitest and the Windows cross-build need no ABI rebuilds. Requires Node ≥ 22.13 in WSL and Electron ≥ 35 |
 | Build/dev | `electron-vite`, `electron-builder` (NSIS target) | Hot reload; cross-build Windows from WSL |
 | Tests | Vitest | Headless; in-memory SQLite |
 | Lint | ESLint + Prettier | |
@@ -56,15 +56,15 @@ reads from, plus a minimal UI that proves it works end to end.
 ### Windows deliverable (hard requirement)
 `npm run build:win` produces `FantasyCompanion-Setup-<version>.exe`. It runs on
 Windows with nothing else installed; data lives in `%APPDATA%\FantasyCompanion`.
-Building from WSL2 uses electron-builder's cross-build; the Windows-native
-`better-sqlite3` binary is fetched via prebuilds for the target platform. Some
-electron-builder versions need `wine` to stamp icon/version resources. Fallbacks,
+Building from WSL2 uses electron-builder's cross-build. There are no native
+modules to rebuild (SQLite is a Node built-in). Some electron-builder versions
+need `wine` to stamp icon/version resources. Fallbacks,
 in order: (a) run `npm run build:win` from Windows PowerShell on the same folder,
 (b) GitHub Actions `windows-latest` runner on tags. **Producing and launching
 the installer on Windows is an early milestone of the implementation plan,
 immediately after the skeleton app exists.**
 
-Dev loop: `npm run dev` runs the Linux build in a WSLg window. Dev and Windows
+Dev loop (Node 22 via nvm, `.nvmrc` pinned): `npm run dev` runs the Linux build in a WSLg window. Dev and Windows
 builds use separate user-data directories.
 
 ## 4. Architecture
