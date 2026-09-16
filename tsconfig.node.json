@@ -8,14 +8,14 @@
     "src/shared/**/*",
     "tests/**/*"
   ],
+  "exclude": ["tests/renderer"],
   "compilerOptions": {
     "composite": true,
     "types": ["electron-vite/node"],
     "baseUrl": ".",
     "paths": {
       "@main/*": ["src/main/*"],
-      "@shared/*": ["src/shared/*"],
-      "@/*": ["src/renderer/src/*"]
+      "@shared/*": ["src/shared/*"]
     }
   }
 }
