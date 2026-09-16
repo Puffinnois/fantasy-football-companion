@@ -1,22 +1,28 @@
-import { contextBridge } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { IPC, type Api } from '@shared/ipc'
+import type { SyncLogEntry } from '@shared/types'
 
-// Custom APIs for renderer
-const api = {}
-
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('api', api)
-  } catch (error) {
-    console.error(error)
+const api: Api = {
+  setup: {
+    findLeagues: (username) => ipcRenderer.invoke(IPC.setupFindLeagues, username),
+    importLeague: (leagueId, userId) => ipcRenderer.invoke(IPC.setupImportLeague, leagueId, userId)
+  },
+  league: {
+    get: () => ipcRenderer.invoke(IPC.leagueGet),
+    teams: () => ipcRenderer.invoke(IPC.leagueTeams),
+    roster: (rosterId) => ipcRenderer.invoke(IPC.leagueRoster, rosterId)
+  },
+  sync: {
+    refresh: (force) => ipcRenderer.invoke(IPC.syncRefresh, force ?? false),
+    status: () => ipcRenderer.invoke(IPC.syncStatus),
+    onProgress: (listener) => {
+      const handler = (_event: IpcRendererEvent, entry: SyncLogEntry): void => listener(entry)
+      ipcRenderer.on(IPC.syncProgress, handler)
+      return () => {
+        ipcRenderer.removeListener(IPC.syncProgress, handler)
+      }
+    }
   }
-} else {
-  // @ts-ignore (define in dts)
-  window.electron = electronAPI
-  // @ts-ignore (define in dts)
-  window.api = api
 }
+
+contextBridge.exposeInMainWorld('api', api)
