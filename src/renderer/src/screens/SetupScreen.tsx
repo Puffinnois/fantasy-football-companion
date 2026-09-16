@@ -44,9 +44,12 @@ export function SetupScreen({ onImported }: SetupScreenProps): React.JSX.Element
     setProgress([])
     try {
       const result = await api.setup.importLeague(leagueId, ownerUserId)
-      const failed = result.steps.find((s) => s.status === 'error')
-      if (failed) setError(`${failed.source}: ${failed.message}`)
-      else onImported()
+      const leagueFailed = result.steps.find(
+        (s) => s.source === 'sleeper:league' && s.status === 'error'
+      )
+      const anyFailed = result.steps.find((s) => s.status === 'error')
+      if (anyFailed) setError(`${anyFailed.source}: ${anyFailed.message}`)
+      if (!leagueFailed) onImported()
     } catch (err) {
       setError(errorMessage(err))
     } finally {
