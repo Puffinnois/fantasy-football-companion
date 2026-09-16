@@ -1,0 +1,139 @@
+import { useEffect, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import { PositionBadge } from '@/components/PositionBadge'
+import { api } from '@/lib/api'
+import { cn } from '@/lib/utils'
+import type { League, RosterPlayer, Team } from '@shared/types'
+
+const SLOT_ORDER = ['starter', 'bench', 'ir', 'taxi'] as const
+const SLOT_LABEL: Record<RosterPlayer['slot'], string> = {
+  starter: 'Starters',
+  bench: 'Bench',
+  ir: 'IR',
+  taxi: 'Taxi'
+}
+
+function teamLabel(t: Team): string {
+  return t.teamName ?? t.displayName
+}
+
+export function LeagueScreen(): React.JSX.Element {
+  const [league, setLeague] = useState<League | null>(null)
+  const [teams, setTeams] = useState<Team[]>([])
+  const [selected, setSelected] = useState<number | null>(null)
+  const [roster, setRoster] = useState<RosterPlayer[]>([])
+
+  useEffect(() => {
+    void api.league.get().then(setLeague)
+    void api.league.teams().then((list) => {
+      setTeams(list)
+      setSelected((current) => current ?? list[0]?.rosterId ?? null)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (selected === null) return
+    void api.league.roster(selected).then(setRoster)
+  }, [selected])
+
+  const selectedTeam = teams.find((t) => t.rosterId === selected) ?? null
+  const groups = SLOT_ORDER.map((slot) => ({
+    slot,
+    players: roster.filter((p) => p.slot === slot)
+  })).filter((g) => g.players.length > 0)
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">{league?.name ?? 'League'}</h1>
+        <p className="text-sm text-muted-foreground">
+          {league ? `${league.season} · ${league.totalRosters} teams` : ''}
+        </p>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="grid content-start gap-3 sm:grid-cols-2">
+          {teams.map((t) => (
+            <button
+              key={t.rosterId}
+              type="button"
+              onClick={() => setSelected(t.rosterId)}
+              className={cn(
+                'rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent/40',
+                selected === t.rosterId && 'border-primary/60 bg-accent/60'
+              )}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="truncate font-medium">{teamLabel(t)}</div>
+                {t.isMe && <Badge variant="secondary">You</Badge>}
+              </div>
+              <div className="truncate text-xs text-muted-foreground">{t.displayName}</div>
+              <div className="mt-3 flex items-baseline justify-between text-sm">
+                <span className="font-semibold tabular-nums">
+                  {t.wins}-{t.losses}
+                  {t.ties ? `-${t.ties}` : ''}
+                </span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  PF {t.fpts.toFixed(1)} · PA {t.fptsAgainst.toFixed(1)}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {selectedTeam ? teamLabel(selectedTeam) : 'Select a team'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {groups.map((g) => (
+              <div key={g.slot}>
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {SLOT_LABEL[g.slot]}
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">Pos</TableHead>
+                      <TableHead>Player</TableHead>
+                      <TableHead className="w-14">Team</TableHead>
+                      <TableHead className="w-24">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {g.players.map((p) => (
+                      <TableRow key={p.playerId}>
+                        <TableCell>
+                          <PositionBadge position={p.position} />
+                        </TableCell>
+                        <TableCell className="font-medium">{p.fullName}</TableCell>
+                        <TableCell className="text-muted-foreground">{p.team ?? 'FA'}</TableCell>
+                        <TableCell className={cn('text-xs', p.injuryStatus && 'text-destructive')}>
+                          {p.injuryStatus ?? ''}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ))}
+            {selectedTeam && groups.length === 0 && (
+              <p className="text-sm text-muted-foreground">No players on this roster.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
