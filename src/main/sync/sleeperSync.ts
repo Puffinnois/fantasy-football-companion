@@ -121,11 +121,14 @@ export async function importLeague(
   leagueId: string,
   myUserId: string | null
 ): Promise<SyncResult> {
-  setSetting(deps.db, SETTING_ACTIVE_LEAGUE, leagueId)
-  if (myUserId) setSetting(deps.db, SETTING_MY_USER, myUserId)
   const steps: SyncLogEntry[] = []
   steps.push(await syncState(deps, true))
-  steps.push(await syncLeague(deps, leagueId, myUserId, true))
+  const leagueEntry = await syncLeague(deps, leagueId, myUserId, true)
+  steps.push(leagueEntry)
+  if (leagueEntry.status === 'ok') {
+    setSetting(deps.db, SETTING_ACTIVE_LEAGUE, leagueId)
+    if (myUserId) setSetting(deps.db, SETTING_MY_USER, myUserId)
+  }
   steps.push(await syncPlayers(deps, false))
   return { steps }
 }

@@ -98,10 +98,13 @@ describe('sleeper sync', () => {
   })
 
   it('a league that does not exist is an error with a clear message', async () => {
+    await importLeague({ db, sleeper: fakeClient(), now }, 'L1', 'u1')
+
     const sleeper = fakeClient({ getLeague: vi.fn(async () => null) })
     const result = await importLeague({ db, sleeper, now }, 'nope', null)
     expect(result.steps[1]).toMatchObject({ status: 'error' })
     expect(result.steps[1].message).toMatch(/not found/i)
+    expect(getSetting(db, SETTING_ACTIVE_LEAGUE)).toBe('L1')
   })
 
   it('refresh without a configured league only syncs state and players', async () => {
