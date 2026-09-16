@@ -12,11 +12,25 @@ export default function App(): React.JSX.Element {
   const bumpData = useCallback(() => setDataVersion((v) => v + 1), [])
 
   useEffect(() => {
-    void api.league.get().then((league) => {
-      setHasLeague(league !== null)
-      if (league === null) setScreen('setup')
-    })
+    void api.league
+      .get()
+      .then((league) => {
+        setHasLeague(league !== null)
+        if (league === null) setScreen('setup')
+      })
+      .catch(() => {
+        setHasLeague(false)
+        setScreen('setup')
+      })
   }, [])
+
+  useEffect(
+    () =>
+      api.sync.onProgress((entry) => {
+        if (entry.source === 'sleeper:league' && entry.status === 'ok') bumpData()
+      }),
+    [bumpData]
+  )
 
   if (hasLeague === null) {
     return (
