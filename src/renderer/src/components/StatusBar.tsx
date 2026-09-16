@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
-import { relativeTime } from '@/lib/format'
+import { errorMessage, relativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { SyncStatus } from '@shared/types'
 
@@ -15,9 +15,16 @@ export function StatusBar({ refreshKey, onRefreshed }: StatusBarProps): React.JS
   const [status, setStatus] = useState<SyncStatus | null>(null)
   const [busy, setBusy] = useState(false)
   const [showError, setShowError] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   const load = useCallback((): void => {
-    void api.sync.status().then(setStatus)
+    void api.sync
+      .status()
+      .then((s) => {
+        setFetchError(null)
+        setStatus(s)
+      })
+      .catch((err) => setFetchError(errorMessage(err)))
   }, [])
 
   useEffect(load, [load, refreshKey])
@@ -27,7 +34,10 @@ export function StatusBar({ refreshKey, onRefreshed }: StatusBarProps): React.JS
     setBusy(true)
     try {
       await api.sync.refresh(true)
+      setShowError(false)
       onRefreshed()
+    } catch (err) {
+      setFetchError(errorMessage(err))
     } finally {
       setBusy(false)
       load()
@@ -55,11 +65,12 @@ export function StatusBar({ refreshKey, onRefreshed }: StatusBarProps): React.JS
           <AlertTriangle className="size-3.5" /> sync error
         </button>
       )}
-      {showError && error && (
+      {errorIsCurrent && showError && error && (
         <span className="truncate text-destructive">
           {error.source}: {error.message}
         </span>
       )}
+      {fetchError && <span className="truncate text-destructive">{fetchError}</span>}
       <Button
         variant="ghost"
         size="sm"

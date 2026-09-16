@@ -1,6 +1,8 @@
 export function relativeTime(iso: string | null | undefined, now: number = Date.now()): string {
   if (!iso) return 'never'
-  const minutes = Math.round((now - new Date(iso).getTime()) / 60_000)
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return 'never'
+  const minutes = Math.round((now - t) / 60_000)
   if (minutes < 1) return 'just now'
   if (minutes < 60) return `${minutes} min ago`
   const hours = Math.round(minutes / 60)
