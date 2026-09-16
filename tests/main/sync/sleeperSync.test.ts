@@ -110,4 +110,13 @@ describe('sleeper sync', () => {
     expect(result.steps.map((s) => s.source)).toEqual([SOURCE_STATE, SOURCE_PLAYERS])
     expect(sleeper.getLeague).not.toHaveBeenCalled()
   })
+
+  it('a throwing onStep callback does not abort the remaining sources', async () => {
+    const onStep = vi.fn(() => {
+      throw new Error('renderer window closed')
+    })
+    const result = await importLeague({ db, sleeper: fakeClient(), now, onStep }, 'L1', 'u1')
+    expect(result.steps.map((s) => s.status)).toEqual(['ok', 'ok', 'ok'])
+    expect(onStep).toHaveBeenCalledTimes(3)
+  })
 })

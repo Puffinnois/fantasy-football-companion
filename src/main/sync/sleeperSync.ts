@@ -65,14 +65,19 @@ async function runStep(
       entry = finishSync(deps.db, id, 'error', nowOf(deps).toISOString(), message, 0)
     }
   }
-  deps.onStep?.(entry)
+  try {
+    deps.onStep?.(entry)
+  } catch {
+    // progress reporting must never affect the sync itself
+  }
   return entry
 }
 
 function syncState(deps: SyncDeps, force: boolean): Promise<SyncLogEntry> {
   return runStep(deps, SOURCE_STATE, force, async () => {
     const state = await deps.sleeper.getNflState()
-    setNflState(deps.db, mapNflState(state, nowOf(deps).toISOString()))
+    const ts = nowOf(deps).toISOString()
+    withTransaction(deps.db, () => setNflState(deps.db, mapNflState(state, ts)))
     return 1
   })
 }
