@@ -1,5 +1,6 @@
 {
   "name": "fantasy-football-companion",
+  "productName": "FantasyCompanion",
   "version": "0.1.0",
   "description": "Desktop companion for Sleeper fantasy football leagues",
   "main": "./out/main/index.js",

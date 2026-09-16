@@ -5,5 +5,6 @@ Windows desktop companion for a Sleeper fantasy football league: league sync, st
 - Design: `docs/superpowers/specs/`
 - Plans: `docs/superpowers/plans/`
 - Dev (WSL2, Node 22 via nvm): `npm install && npm run dev`
+- Dev data (Linux): `~/.config/FantasyCompanion/companion.db`; packaged (Windows): `%APPDATA%\FantasyCompanion\companion.db`
 - Windows installer: `npm run build:win` → `dist/FantasyCompanion-Setup-<version>.exe`
 - Tests: `npm test`
