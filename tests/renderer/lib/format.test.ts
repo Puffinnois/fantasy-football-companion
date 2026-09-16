@@ -36,6 +36,13 @@ describe('errorMessage', () => {
     expect(errorMessage(err)).toBe('league not found')
   })
 
+  it('strips the Electron IPC error prefix with a serialised error class name', () => {
+    const err = new Error(
+      "Error invoking remote method 'setup:importLeague': SleeperHttpError: Sleeper 503 for /league/L1"
+    )
+    expect(errorMessage(err)).toBe('Sleeper 503 for /league/L1')
+  })
+
   it('passes a plain value through String(err)', () => {
     expect(errorMessage('boom')).toBe('boom')
   })

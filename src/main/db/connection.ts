@@ -16,7 +16,11 @@ export function withTransaction<T>(db: Db, fn: () => T): T {
     db.exec('COMMIT')
     return result
   } catch (err) {
-    db.exec('ROLLBACK')
+    try {
+      db.exec('ROLLBACK')
+    } catch {
+      // already rolled back (e.g. SQLITE_FULL); keep the original error
+    }
     throw err
   }
 }

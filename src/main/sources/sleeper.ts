@@ -69,10 +69,14 @@ export function createSleeperClient(options: SleeperClientOptions = {}): Sleeper
   return {
     getUser: (username) => getJson<SleeperUser>(`/user/${encodeURIComponent(username)}`),
     getUserLeagues: (userId, season) =>
-      getJsonRequired<SleeperLeague[]>(`/user/${userId}/leagues/nfl/${season}`),
-    getLeague: (leagueId) => getJson<SleeperLeague>(`/league/${leagueId}`),
-    getLeagueUsers: (leagueId) => getJsonRequired<SleeperLeagueUser[]>(`/league/${leagueId}/users`),
-    getLeagueRosters: (leagueId) => getJsonRequired<SleeperRoster[]>(`/league/${leagueId}/rosters`),
+      getJsonRequired<SleeperLeague[]>(
+        `/user/${encodeURIComponent(userId)}/leagues/nfl/${encodeURIComponent(season)}`
+      ),
+    getLeague: (leagueId) => getJson<SleeperLeague>(`/league/${encodeURIComponent(leagueId)}`),
+    getLeagueUsers: (leagueId) =>
+      getJsonRequired<SleeperLeagueUser[]>(`/league/${encodeURIComponent(leagueId)}/users`),
+    getLeagueRosters: (leagueId) =>
+      getJsonRequired<SleeperRoster[]>(`/league/${encodeURIComponent(leagueId)}/rosters`),
     getAllPlayers: () => getJsonRequired<Record<string, SleeperPlayer>>('/players/nfl'),
     getNflState: () => getJsonRequired<SleeperNflState>('/state/nfl')
   }
