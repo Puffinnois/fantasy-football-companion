@@ -7,3 +7,9 @@ export function relativeTime(iso: string | null | undefined, now: number = Date.
   if (hours < 24) return `${hours} h ago`
   return `${Math.round(hours / 24)} d ago`
 }
+
+export function errorMessage(err: unknown): string {
+  return err instanceof Error
+    ? err.message.replace(/^Error invoking remote method '[^']+': Error: /, '')
+    : String(err)
+}

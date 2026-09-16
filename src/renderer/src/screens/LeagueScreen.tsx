@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table'
 import { PositionBadge } from '@/components/PositionBadge'
 import { api } from '@/lib/api'
+import { errorMessage } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { League, RosterPlayer, Team } from '@shared/types'
 
@@ -31,18 +32,35 @@ export function LeagueScreen(): React.JSX.Element {
   const [teams, setTeams] = useState<Team[]>([])
   const [selected, setSelected] = useState<number | null>(null)
   const [roster, setRoster] = useState<RosterPlayer[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    void api.league.get().then(setLeague)
-    void api.league.teams().then((list) => {
-      setTeams(list)
-      setSelected((current) => current ?? list[0]?.rosterId ?? null)
-    })
+    void api.league
+      .get()
+      .then((l) => {
+        setError(null)
+        setLeague(l)
+      })
+      .catch((err) => setError(errorMessage(err)))
+    void api.league
+      .teams()
+      .then((list) => {
+        setError(null)
+        setTeams(list)
+        setSelected((current) => current ?? list[0]?.rosterId ?? null)
+      })
+      .catch((err) => setError(errorMessage(err)))
   }, [])
 
   useEffect(() => {
     if (selected === null) return
-    void api.league.roster(selected).then(setRoster)
+    void api.league
+      .roster(selected)
+      .then((r) => {
+        setError(null)
+        setRoster(r)
+      })
+      .catch((err) => setError(errorMessage(err)))
   }, [selected])
 
   const selectedTeam = teams.find((t) => t.rosterId === selected) ?? null
@@ -53,6 +71,7 @@ export function LeagueScreen(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
+      {error && <p className="text-destructive text-sm">{error}</p>}
       <div>
         <h1 className="text-2xl font-semibold">{league?.name ?? 'League'}</h1>
         <p className="text-sm text-muted-foreground">

@@ -3,16 +3,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { api } from '@/lib/api'
+import { errorMessage } from '@/lib/format'
 import type { LeagueSummary, SyncLogEntry } from '@shared/types'
 
 interface SetupScreenProps {
   onImported: () => void
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error
-    ? err.message.replace(/^Error invoking remote method '[^']+': Error: /, '')
-    : String(err)
 }
 
 export function SetupScreen({ onImported }: SetupScreenProps): React.JSX.Element {
@@ -31,7 +26,7 @@ export function SetupScreen({ onImported }: SetupScreenProps): React.JSX.Element
     setError(null)
     setLeagues([])
     try {
-      const result = await api.setup.findLeagues(username)
+      const result = await api.setup.findLeagues(username.trim())
       setUserId(result.userId)
       setLeagues(result.leagues)
       if (result.leagues.length === 0)
