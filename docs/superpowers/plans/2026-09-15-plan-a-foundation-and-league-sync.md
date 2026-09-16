@@ -73,7 +73,7 @@ tests/main/sync/{mappers,sleeperSync}.test.ts
 **Interfaces:**
 - Produces: a running `npm run dev` Electron window; `npm run typecheck` passes.
 
-- [ ] **Step 1: Install Node 22 and pin it**
+- [x] **Step 1: Install Node 22 and pin it**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm install 22 && nvm alias default 22 && node -v
@@ -84,7 +84,7 @@ cd /home/yhabie/project/fantasy-football-companion && echo "22" > .nvmrc
 ```
 Every later shell in this plan starts with `source ~/.nvm/nvm.sh && nvm use` from the project root.
 
-- [ ] **Step 2: Scaffold with electron-vite (react-ts) into the project directory**
+- [x] **Step 2: Scaffold with electron-vite (react-ts) into the project directory**
 
 The scaffolder refuses a non-empty directory, so scaffold beside it and copy in:
 ```bash
@@ -94,7 +94,7 @@ cd /home/yhabie/project && npm create @quick-start/electron@latest ffc-scaffold 
 ```
 Expected: `README.md build docs electron-builder.yml electron.vite.config.ts eslint.config.mjs package.json resources src tsconfig.json tsconfig.node.json tsconfig.web.json` plus `.gitignore`, `.prettierrc.yaml`, `.editorconfig`, `.vscode`.
 
-- [ ] **Step 3: Fix package identity and add the test script**
+- [x] **Step 3: Fix package identity and add the test script**
 
 Edit `package.json`: set `"name": "fantasy-football-companion"`, `"version": "0.1.0"`, `"description": "Desktop companion for Sleeper fantasy football leagues"`, `"author": "yhabie"`, delete the `"homepage"` line, and add to `"scripts"`:
 ```json
@@ -114,7 +114,7 @@ Windows desktop companion for a Sleeper fantasy football league: league sync, st
 - Tests: `npm test`
 ```
 
-- [ ] **Step 4: Install and smoke-test the dev window**
+- [x] **Step 4: Install and smoke-test the dev window**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm install 2>&1 | tail -3
@@ -126,7 +126,7 @@ timeout 25 npm run dev > "$LOG" 2>&1; grep -ciE "error|exception" "$LOG" || true
 ```
 Expected: the error count line prints `0` and the dev-server line appears. (Electron opens a WSLg window with the template page and is killed after 25 s — `timeout` exit 124 is fine.)
 
-- [ ] **Step 5: Typecheck and commit**
+- [x] **Step 5: Typecheck and commit**
 
 ```bash
 npm run typecheck && git add -A && git commit -q -m "build: scaffold electron-vite react-ts app
@@ -146,13 +146,13 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>" && git log --oneline | he
 **Interfaces:**
 - Produces: `Screen` type and `Sidebar` component; `cn()` helper; theme tokens `bg-background`, `text-muted-foreground`, `bg-sidebar`, `text-pos-qb` … `text-pos-def`.
 
-- [ ] **Step 1: Install UI and test dependencies**
+- [x] **Step 1: Install UI and test dependencies**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm i -D tailwindcss @tailwindcss/vite class-variance-authority clsx tailwind-merge lucide-react vitest 2>&1 | tail -2
 ```
 
-- [ ] **Step 2: Configure aliases and plugins**
+- [x] **Step 2: Configure aliases and plugins**
 
 Replace `electron.vite.config.ts`:
 ```ts
@@ -237,7 +237,7 @@ Replace `tsconfig.web.json`:
 }
 ```
 
-- [ ] **Step 3: Theme CSS and HTML shell**
+- [x] **Step 3: Theme CSS and HTML shell**
 
 Delete the template assets and component:
 ```bash
@@ -363,7 +363,7 @@ export function cn(...inputs: ClassValue[]): string {
 }
 ```
 
-- [ ] **Step 4: Add shadcn primitives**
+- [x] **Step 4: Add shadcn primitives**
 
 Create `components.json`:
 ```json
@@ -394,7 +394,7 @@ source ~/.nvm/nvm.sh && nvm use && npx shadcn@latest add button input card table
 ```
 Expected: `badge.tsx button.tsx card.tsx input.tsx table.tsx`. The CLI also adds `@radix-ui/react-slot` to `dependencies`. If it reports it cannot resolve the `@/` alias, the root `tsconfig.json` `paths` from Step 2 is missing — re-check it.
 
-- [ ] **Step 5: Sidebar and App shell**
+- [x] **Step 5: Sidebar and App shell**
 
 Create `src/renderer/src/components/Sidebar.tsx`:
 ```tsx
@@ -477,7 +477,7 @@ export default function App(): React.JSX.Element {
 
 `src/renderer/src/main.tsx` stays as generated (it imports `./assets/main.css` and renders `<App />`).
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit** _(human check pending — see progress notes)_
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint && \
@@ -502,7 +502,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `dist/FantasyCompanion-Setup-0.1.0.exe`, verified to install and launch on Windows.
 
-- [ ] **Step 1: Builder config**
+- [x] **Step 1: Builder config**
 
 Replace `electron-builder.yml`:
 ```yaml
@@ -542,7 +542,7 @@ appImage:
 npmRebuild: false
 ```
 
-- [ ] **Step 2: Build the installer from WSL**
+- [~] **Step 2: Build the installer from WSL**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run build:win 2>&1 | tail -15 && ls -la dist/*.exe
@@ -582,7 +582,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `type Db = DatabaseSync`; `openDatabase(path: string): Db`; `withTransaction<T>(db: Db, fn: () => T): T`; `migrate(db: Db): number` (returns schema version).
 
-- [ ] **Step 1: Vitest config and Vite types for main**
+- [x] **Step 1: Vitest config and Vite types for main**
 
 Create `vitest.config.ts`:
 ```ts
@@ -608,7 +608,7 @@ Create `src/main/env.d.ts`:
 /// <reference types="vite/client" />
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `tests/main/db/migrate.test.ts`:
 ```ts
@@ -649,14 +649,14 @@ describe('migrate', () => {
 })
 ```
 
-- [ ] **Step 3: Run it to verify it fails**
+- [x] **Step 3: Run it to verify it fails**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/db/migrate.test.ts 2>&1 | tail -6
 ```
 Expected: FAIL — `Failed to resolve import "@main/db/connection"`.
 
-- [ ] **Step 4: Implement connection, schema, runner**
+- [x] **Step 4: Implement connection, schema, runner**
 
 Create `src/main/db/connection.ts`:
 ```ts
@@ -815,7 +815,7 @@ export function migrate(db: Db): number {
 }
 ```
 
-- [ ] **Step 5: Run tests, typecheck, commit**
+- [x] **Step 5: Run tests, typecheck, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/db/migrate.test.ts 2>&1 | tail -6 && npm run typecheck:node
@@ -838,7 +838,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: all domain types below; `SleeperClient` interface; `createSleeperClient(options?: SleeperClientOptions): SleeperClient`; `SleeperHttpError { status: number; url: string }`.
 
-- [ ] **Step 1: Domain types**
+- [x] **Step 1: Domain types**
 
 Create `src/shared/types.ts`:
 ```ts
@@ -992,7 +992,7 @@ export interface SleeperNflState {
 }
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Create `tests/main/sources/sleeper.test.ts`:
 ```ts
@@ -1061,14 +1061,14 @@ describe('createSleeperClient', () => {
 })
 ```
 
-- [ ] **Step 3: Run to verify failure**
+- [x] **Step 3: Run to verify failure**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/sources/sleeper.test.ts 2>&1 | tail -4
 ```
 Expected: FAIL — `Failed to resolve import "@main/sources/sleeper"`.
 
-- [ ] **Step 4: Implement the client**
+- [x] **Step 4: Implement the client**
 
 Create `src/main/sources/sleeper.ts`:
 ```ts
@@ -1150,7 +1150,7 @@ export function createSleeperClient(options: SleeperClientOptions = {}): Sleeper
 }
 ```
 
-- [ ] **Step 5: Run tests, typecheck, commit**
+- [x] **Step 5: Run tests, typecheck, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/sources/sleeper.test.ts 2>&1 | tail -4 && npm run typecheck:node
@@ -1180,7 +1180,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - teams: `interface RosterPlayerRecord { rosterId; playerId; slot; starterIndex }`, `replaceTeams(db, leagueId, teams: Team[], updatedAt)`, `listTeams(db, leagueId): Team[]`, `replaceRosterPlayers(db, leagueId, rows, updatedAt)`, `listRoster(db, leagueId, rosterId): RosterPlayer[]`
   - players: `interface PlayerRecord`, `upsertPlayers(db, players: PlayerRecord[], updatedAt): number`, `countPlayers(db): number`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/main/db/repos.test.ts`:
 ```ts
@@ -1290,14 +1290,14 @@ describe('repos', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/db/repos.test.ts 2>&1 | tail -4
 ```
 Expected: FAIL — cannot resolve `@main/db/repos/settings`.
 
-- [ ] **Step 3: Implement the repositories**
+- [x] **Step 3: Implement the repositories**
 
 Create `src/main/db/repos/settings.ts`:
 ```ts
@@ -1638,7 +1638,7 @@ export function countPlayers(db: Db): number {
 }
 ```
 
-- [ ] **Step 4: Run tests, typecheck, commit**
+- [x] **Step 4: Run tests, typecheck, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/db/repos.test.ts 2>&1 | tail -4 && npm run typecheck:node
@@ -1662,7 +1662,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: Sleeper raw types, `LeagueRecord`, `RosterPlayerRecord`, `PlayerRecord`, `Team`, `NflState`, `LeagueSummary`.
 - Produces: `mapNflState(s, fetchedAt): NflState`, `mapLeagueSummary(l): LeagueSummary`, `mapLeague(l, syncedAt): LeagueRecord`, `mapTeams(leagueId, rosters, users, myUserId): Team[]`, `mapRosterPlayers(rosters): RosterPlayerRecord[]`, `mapPlayers(players): PlayerRecord[]`.
 
-- [ ] **Step 1: Fixtures**
+- [x] **Step 1: Fixtures**
 
 Create `tests/fixtures/sleeper.ts` (ids and gsis values are illustrative; replace with captures from the user's real league when it is known — the shapes are what matter):
 ```ts
@@ -1715,7 +1715,7 @@ export const players: Record<string, SleeperPlayer> = {
 }
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Create `tests/main/sync/mappers.test.ts`:
 ```ts
@@ -1772,14 +1772,14 @@ describe('mappers', () => {
 })
 ```
 
-- [ ] **Step 3: Run to verify failure**
+- [x] **Step 3: Run to verify failure**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/sync/mappers.test.ts 2>&1 | tail -4
 ```
 Expected: FAIL — cannot resolve `@main/sync/mappers`.
 
-- [ ] **Step 4: Implement mappers**
+- [x] **Step 4: Implement mappers**
 
 Create `src/main/sync/mappers.ts`:
 ```ts
@@ -1884,7 +1884,7 @@ export function mapPlayers(players: Record<string, SleeperPlayer>): PlayerRecord
 }
 ```
 
-- [ ] **Step 5: Run tests, typecheck, commit**
+- [x] **Step 5: Run tests, typecheck, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/sync/mappers.test.ts 2>&1 | tail -4 && npm run typecheck:node
@@ -1908,7 +1908,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: repos, mappers, `SleeperClient`, `withTransaction`.
 - Produces: `SOURCE_STATE = 'sleeper:state'`, `SOURCE_LEAGUE = 'sleeper:league'`, `SOURCE_PLAYERS = 'sleeper:players'`; `interface SyncDeps { db: Db; sleeper: SleeperClient; now?: () => Date; onStep?: (entry: SyncLogEntry) => void }`; `importLeague(deps, leagueId, myUserId: string | null): Promise<SyncResult>`; `refreshSleeper(deps, options?: { force?: boolean }): Promise<SyncResult>`; `isFresh(db, source, freshnessMs, now): boolean`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/main/sync/sleeperSync.test.ts`:
 ```ts
@@ -2011,14 +2011,14 @@ describe('sleeper sync', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/sync/sleeperSync.test.ts 2>&1 | tail -4
 ```
 Expected: FAIL — cannot resolve `@main/sync/sleeperSync`.
 
-- [ ] **Step 3: Implement orchestration**
+- [x] **Step 3: Implement orchestration**
 
 Create `src/main/sync/sleeperSync.ts`:
 ```ts
@@ -2142,7 +2142,7 @@ export async function refreshSleeper(deps: SyncDeps, options: RefreshOptions = {
 }
 ```
 
-- [ ] **Step 4: Run the whole suite, typecheck, commit**
+- [x] **Step 4: Run the whole suite, typecheck, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm test 2>&1 | tail -6 && npm run typecheck:node
@@ -2166,7 +2166,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: repos, sync, `SleeperClient`, `mapLeagueSummary`.
 - Produces: `Api` (renderer-facing), `IPC` channel constants, `registerIpcHandlers(ctx: AppContext)`, `api` singleton in the renderer.
 
-- [ ] **Step 1: Contract**
+- [x] **Step 1: Contract**
 
 Create `src/shared/ipc.ts`:
 ```ts
@@ -2206,7 +2206,7 @@ export const IPC = {
 } as const
 ```
 
-- [ ] **Step 2: Preload bridge**
+- [x] **Step 2: Preload bridge**
 
 Replace `src/preload/index.ts`:
 ```ts
@@ -2260,7 +2260,7 @@ import type { Api } from '@shared/ipc'
 export const api: Api = window.api
 ```
 
-- [ ] **Step 3: Handlers**
+- [x] **Step 3: Handlers**
 
 Create `src/main/ipc/handlers.ts`:
 ```ts
@@ -2334,7 +2334,7 @@ export function registerIpcHandlers(ctx: AppContext): void {
 }
 ```
 
-- [ ] **Step 4: Main bootstrap**
+- [x] **Step 4: Main bootstrap**
 
 Replace `src/main/index.ts`:
 ```ts
@@ -2424,7 +2424,7 @@ app.on('window-all-closed', () => {
 })
 ```
 
-- [ ] **Step 5: Typecheck, lint, smoke-run, commit**
+- [x] **Step 5: Typecheck, lint, smoke-run, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint && \
@@ -2450,7 +2450,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `api.setup.*`, `api.sync.onProgress`, `LeagueSummary`, `SyncLogEntry`.
 - Produces: `SetupScreen({ onImported: () => void })`.
 
-- [ ] **Step 1: Screen**
+- [x] **Step 1: Screen**
 
 Create `src/renderer/src/screens/SetupScreen.tsx`:
 ```tsx
@@ -2604,7 +2604,7 @@ export function SetupScreen({ onImported }: SetupScreenProps): React.JSX.Element
 }
 ```
 
-- [ ] **Step 2: Wire into App**
+- [x] **Step 2: Wire into App**
 
 Replace `src/renderer/src/App.tsx`:
 ```tsx
@@ -2659,7 +2659,7 @@ export default function App(): React.JSX.Element {
 }
 ```
 
-- [ ] **Step 3: Verify with a real import, commit**
+- [x] **Step 3: Verify with a real import, commit** _(human check pending — see progress notes)_
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint
@@ -2688,7 +2688,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `api.league.*`, `League`, `Team`, `RosterPlayer`.
 - Produces: `LeagueScreen()`, `PositionBadge({ position })` (reused by Plan C's Players screen).
 
-- [ ] **Step 1: Position badge**
+- [x] **Step 1: Position badge**
 
 Create `src/renderer/src/components/PositionBadge.tsx`:
 ```tsx
@@ -2718,7 +2718,7 @@ export function PositionBadge({ position }: { position: string | null }): React.
 }
 ```
 
-- [ ] **Step 2: Screen**
+- [x] **Step 2: Screen**
 
 Create `src/renderer/src/screens/LeagueScreen.tsx`:
 ```tsx
@@ -2846,7 +2846,7 @@ export function LeagueScreen(): React.JSX.Element {
 }
 ```
 
-- [ ] **Step 3: Wire into App**
+- [x] **Step 3: Wire into App**
 
 In `src/renderer/src/App.tsx`, add the import
 ```tsx
@@ -2857,7 +2857,7 @@ and replace the `{screen === 'league' && (…placeholder…)}` block with:
           {screen === 'league' && <LeagueScreen key={dataVersion} />}
 ```
 
-- [ ] **Step 4: Verify, commit**
+- [x] **Step 4: Verify, commit** _(human check pending — see progress notes)_
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint
@@ -2882,7 +2882,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `api.sync.*`, `SyncStatus`.
 - Produces: `relativeTime(iso, now?): string`; `StatusBar({ refreshKey: number; onRefreshed: () => void })`.
 
-- [ ] **Step 1: Formatting helper**
+- [x] **Step 1: Formatting helper**
 
 Create `src/renderer/src/lib/format.ts`:
 ```ts
@@ -2897,7 +2897,7 @@ export function relativeTime(iso: string | null | undefined, now: number = Date.
 }
 ```
 
-- [ ] **Step 2: Component**
+- [x] **Step 2: Component**
 
 Create `src/renderer/src/components/StatusBar.tsx`:
 ```tsx
@@ -2975,7 +2975,7 @@ export function StatusBar({ refreshKey, onRefreshed }: StatusBarProps): React.JS
 }
 ```
 
-- [ ] **Step 3: Wire into App**
+- [x] **Step 3: Wire into App**
 
 In `src/renderer/src/App.tsx`, add
 ```tsx
@@ -2986,7 +2986,7 @@ and replace the `<footer …>status bar</footer>` element with:
       <StatusBar refreshKey={dataVersion} onRefreshed={bumpData} />
 ```
 
-- [ ] **Step 4: Verify, commit**
+- [x] **Step 4: Verify, commit** _(human check pending — see progress notes)_
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint && npm test 2>&1 | tail -4
@@ -3028,3 +3028,13 @@ git tag -a v0.1.0 -m "Plan A: foundation and Sleeper league sync" && git tag
 - **Spec coverage (milestones 1–3 + status bar):** skeleton (T1–2), Windows installer (T3, T13), SQLite + migrations + sync_log (T4), Sleeper source (T5), repos (T6), mapping + sync + freshness + transactional per-source writes + independent sources (T7–8), IPC/preload with contextIsolation (T9), Setup with per-step progress and "paste a league ID" (T10), League screen with mine-first and slot grouping (T11), status bar with last sync / NFL week / refresh / error indicator (T12), background refresh on launch when stale (T9 Step 4). Bye weeks and points columns are deliberately absent until Plans B/C provide schedules and scoring.
 - **Deferred to Plan B/C:** `rules`, `scoring_rules`, `roster_slots`, `player_ids`, `player_week_*`, `team_week_stats`, `games` tables (added as migration `002+`); the "Stats: not yet" label in the status bar.
 - **Type consistency:** `SyncLogEntry.status` includes `'running'`; `finishSync` only accepts `SyncStatusKind`. `Api.setup.importLeague` takes `userId: string | null` in both the preload and the handler. `listTeams` orders `is_me DESC` so the UI needs no re-sort.
+
+## Progress notes (2026-09-15)
+
+- Tasks 1–2, 4–12 implemented and reviewed (subagent-driven; per-task review + final whole-branch review: "Ready to merge — Yes"). 41 Vitest tests, typecheck and lint clean. HEAD `cc3c533`.
+- Task 3: `electron-builder.yml` committed; `npm run build:win` needs `wine64` in WSL (`sudo apt-get install -y wine64`), then Steps 2–4.
+- Task 13 pending (needs the Task 3 build + a real Sleeper import on Windows).
+- Deviations from the plan text (all reviewed): shadcn 4.21 emits `radix-ui` (unified) instead of `@radix-ui/react-slot`; scoped ESLint override for generated ui files; `execArgv --disable-warning=ExperimentalWarning` in Vitest; `productName` added to `package.json` so packaged data lands in `%APPDATA%\FantasyCompanion` (dev: `~/.config/FantasyCompanion`); `importLeague` sets `active_league_id` only after the league step succeeds; Setup navigates to League unless the `sleeper:league` step itself failed; commit subjects shortened to ≤ 50 chars.
+- Human checks still pending: T2 dark shell, T10 real import with your Sleeper username, T11/T12 screens, T13 Windows install.
+- Open decision: retry on network errors/timeouts (constraint only mandates 429/5xx) — left as-is.
+- Electron under this WSL needs `npx electron-vite dev -- --no-sandbox --disable-gpu --in-process-gpu` (GPU process crash otherwise); irrelevant to the Windows build.
