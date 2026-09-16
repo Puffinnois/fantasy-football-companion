@@ -16,6 +16,7 @@ export function StatusBar({ refreshKey, onRefreshed }: StatusBarProps): React.JS
   const [busy, setBusy] = useState(false)
   const [showError, setShowError] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
 
   const load = useCallback((): void => {
     void api.sync
@@ -32,12 +33,13 @@ export function StatusBar({ refreshKey, onRefreshed }: StatusBarProps): React.JS
 
   async function refresh(): Promise<void> {
     setBusy(true)
+    setRefreshError(null)
     try {
       await api.sync.refresh(true)
       setShowError(false)
       onRefreshed()
     } catch (err) {
-      setFetchError(errorMessage(err))
+      setRefreshError(errorMessage(err))
     } finally {
       setBusy(false)
       load()
@@ -71,6 +73,7 @@ export function StatusBar({ refreshKey, onRefreshed }: StatusBarProps): React.JS
         </span>
       )}
       {fetchError && <span className="truncate text-destructive">{fetchError}</span>}
+      {refreshError && <span className="truncate text-destructive">{refreshError}</span>}
       <Button
         variant="ghost"
         size="sm"
