@@ -1,5 +1,6 @@
 import type { LeagueRecord } from '@main/db/repos/leagues'
 import type { PlayerRecord } from '@main/db/repos/players'
+import type { ProjectionRecord } from '@main/db/repos/projections'
 import type { RosterPlayerRecord } from '@main/db/repos/teams'
 import type {
   SleeperLeague,
@@ -142,16 +143,6 @@ export function mapRules(l: SleeperLeague, updatedAt: string): Rules {
   if (s.playoff_teams !== undefined) settings.playoffTeams = s.playoff_teams
 
   return { source: 'sleeper', updatedAt, scoring, positionOverrides: {}, rosterSlots, settings }
-}
-
-export interface ProjectionRecord {
-  playerId: string
-  season: number
-  week: number
-  company: string | null
-  team: string | null
-  opponent: string | null
-  stats: Record<string, number>
 }
 
 /** Keeps regular-season items of exactly (season, week) that carry a stats object. */

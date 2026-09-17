@@ -29,6 +29,8 @@ export interface GameRow {
   season: number
   week: number
   gameType: string
+  gameday: string | null
+  gametime: string | null
   homeTeam: string
   awayTeam: string
   homeScore: number | null
@@ -75,6 +77,8 @@ interface GameDbRow {
   season: number
   week: number
   game_type: string
+  gameday: string | null
+  gametime: string | null
   home_team: string
   away_team: string
   home_score: number | null
@@ -195,10 +199,10 @@ export function replaceSnaps(
 /** Games are keyed globally; scores fill in as the season progresses. */
 export function upsertGames(db: Db, records: GameRecord[], updatedAt: string): number {
   const stmt = db.prepare(
-    `INSERT INTO games (game_id, season, week, game_type, gameday, home_team, away_team, home_score, away_score, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO games (game_id, season, week, game_type, gameday, gametime, home_team, away_team, home_score, away_score, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(game_id) DO UPDATE SET season = excluded.season, week = excluded.week,
-       game_type = excluded.game_type, gameday = excluded.gameday, home_team = excluded.home_team,
+       game_type = excluded.game_type, gameday = excluded.gameday, gametime = excluded.gametime, home_team = excluded.home_team,
        away_team = excluded.away_team, home_score = excluded.home_score, away_score = excluded.away_score,
        updated_at = excluded.updated_at`
   )
@@ -210,6 +214,7 @@ export function upsertGames(db: Db, records: GameRecord[], updatedAt: string): n
       g.week,
       g.gameType,
       g.gameday,
+      g.gametime,
       g.homeTeam,
       g.awayTeam,
       g.homeScore,
@@ -253,7 +258,7 @@ export function listTeamWeeks(db: Db): TeamWeekRow[] {
 export function listGames(db: Db): GameRow[] {
   const rows = db
     .prepare(
-      'SELECT game_id, season, week, game_type, home_team, away_team, home_score, away_score FROM games ORDER BY season, week'
+      'SELECT game_id, season, week, game_type, gameday, gametime, home_team, away_team, home_score, away_score FROM games ORDER BY season, week'
     )
     .all() as unknown as GameDbRow[]
   return rows.map((r) => ({
@@ -261,6 +266,8 @@ export function listGames(db: Db): GameRow[] {
     season: r.season,
     week: r.week,
     gameType: r.game_type,
+    gameday: r.gameday,
+    gametime: r.gametime,
     homeTeam: r.home_team,
     awayTeam: r.away_team,
     homeScore: r.home_score,

@@ -105,6 +105,7 @@ describe('parseGames', () => {
       week: 1,
       gameType: 'REG',
       gameday: '2025-09-04',
+      gametime: '20:20',
       homeTeam: 'PHI',
       awayTeam: 'DAL',
       homeScore: 24,

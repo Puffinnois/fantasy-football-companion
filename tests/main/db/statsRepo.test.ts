@@ -101,6 +101,7 @@ describe('stats repos', () => {
   it('upsertGames updates scores on conflict', () => {
     const games = parseGames(fx.gamesCsv).records
     expect(upsertGames(db, games, TS)).toBe(5)
+    expect(listGames(db)[0].gametime).toBe('20:20')
     const played = games.map((g) =>
       g.gameId === '2025_03_DAL_CHI' ? { ...g, homeScore: 31, awayScore: 10 } : g
     )
@@ -122,6 +123,7 @@ describe('stats repos', () => {
           week: 1,
           gameType: 'REG',
           gameday: null,
+          gametime: null,
           homeTeam: 'PHI',
           awayTeam: 'DAL',
           homeScore: null,
@@ -133,6 +135,7 @@ describe('stats repos', () => {
           week: 2,
           gameType: 'REG',
           gameday: null,
+          gametime: null,
           homeTeam: 'KC',
           awayTeam: 'PHI',
           homeScore: null,
@@ -144,6 +147,7 @@ describe('stats repos', () => {
           week: 2,
           gameType: 'REG',
           gameday: null,
+          gametime: null,
           homeTeam: 'DAL',
           awayTeam: 'LA',
           homeScore: null,
@@ -155,6 +159,7 @@ describe('stats repos', () => {
           week: 3,
           gameType: 'REG',
           gameday: null,
+          gametime: null,
           homeTeam: 'PHI',
           awayTeam: 'LA',
           homeScore: null,
@@ -166,6 +171,7 @@ describe('stats repos', () => {
           week: 3,
           gameType: 'REG',
           gameday: null,
+          gametime: null,
           homeTeam: 'KC',
           awayTeam: 'DAL',
           homeScore: null,
@@ -177,6 +183,7 @@ describe('stats repos', () => {
           week: 19,
           gameType: 'WC',
           gameday: null,
+          gametime: null,
           homeTeam: 'KC',
           awayTeam: 'LA',
           homeScore: null,

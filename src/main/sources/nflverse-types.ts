@@ -49,6 +49,8 @@ export interface GameRecord {
   week: number
   gameType: string
   gameday: string | null
+  /** Kickoff wall clock in Eastern time, "HH:MM"; null when unscheduled. */
+  gametime: string | null
   homeTeam: string
   awayTeam: string
   homeScore: number | null

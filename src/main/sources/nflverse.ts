@@ -141,6 +141,7 @@ export function parseGames(text: string): ParseResult<GameRecord> {
       week,
       gameType: row.game_type ?? '',
       gameday: strOrNull(row.gameday),
+      gametime: strOrNull(row.gametime),
       homeTeam,
       awayTeam,
       homeScore: numOrNull(row.home_score),

@@ -27,6 +27,7 @@ const game = (
   week,
   gameType: 'REG',
   gameday: null,
+  gametime: null,
   homeTeam: home,
   awayTeam: away,
   homeScore: null,
