@@ -542,7 +542,7 @@ appImage:
 npmRebuild: false
 ```
 
-- [~] **Step 2: Build the installer from WSL**
+- [x] **Step 2: Build the installer from WSL**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run build:win 2>&1 | tail -15 && ls -la dist/*.exe
@@ -554,7 +554,7 @@ If the log ends with an error mentioning **wine** (used to stamp the icon/versio
 - Windows PowerShell (Node installed on Windows): `cd \\wsl$\Ubuntu\home\yhabie\project\fantasy-football-companion; npm run build:win`
 Record which path worked in `README.md` under "Windows installer".
 
-- [ ] **Step 3: Copy to the Windows Desktop and launch the installer**
+- [x] **Step 3: Copy to the Windows Desktop and launch the installer**
 
 ```bash
 WINUSER=$(cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r'); \
@@ -3032,7 +3032,7 @@ git tag -a v0.1.0 -m "Plan A: foundation and Sleeper league sync" && git tag
 ## Progress notes (2026-09-15)
 
 - Tasks 1–2, 4–12 implemented and reviewed (subagent-driven; per-task review + final whole-branch review: "Ready to merge — Yes"). 41 Vitest tests, typecheck and lint clean. HEAD `cc3c533`.
-- Task 3: `electron-builder.yml` committed; `npm run build:win` needs `wine64` in WSL (`sudo apt-get install -y wine64`), then Steps 2–4.
+- Task 3: built 2026-09-17 from WSL after installing `wine64` + `wine32:i386` (94 MB installer); Steps 2–3 done, Step 4 (README note) in this commit.
 - Task 13 pending (needs the Task 3 build + a real Sleeper import on Windows).
 - Deviations from the plan text (all reviewed): shadcn 4.21 emits `radix-ui` (unified) instead of `@radix-ui/react-slot`; scoped ESLint override for generated ui files; `execArgv --disable-warning=ExperimentalWarning` in Vitest; `productName` added to `package.json` so packaged data lands in `%APPDATA%\FantasyCompanion` (dev: `~/.config/FantasyCompanion`); `importLeague` sets `active_league_id` only after the league step succeeds; Setup navigates to League unless the `sleeper:league` step itself failed; commit subjects shortened to ≤ 50 chars.
 - Human checks still pending: T2 dark shell, T10 real import with your Sleeper username, T11/T12 screens, T13 Windows install.
