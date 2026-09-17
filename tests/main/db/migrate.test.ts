@@ -11,7 +11,7 @@ describe('migrate', () => {
         name: string
       }[]
     ).map((r) => r.name)
-    expect(version).toBe(2)
+    expect(version).toBe(3)
     expect(tables).toEqual(
       expect.arrayContaining([
         'app_settings',
@@ -24,6 +24,13 @@ describe('migrate', () => {
         'rules',
         'scoring_rules',
         'roster_slots',
+        'crosswalk',
+        'player_ids',
+        'player_week_stats',
+        'team_week_stats',
+        'player_week_snaps',
+        'games',
+        'player_week_points',
         'schema_version'
       ])
     )
@@ -34,7 +41,7 @@ describe('migrate', () => {
     migrate(db)
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('SELECT COUNT(*) AS n FROM schema_version').get() as { n: number }
-    expect(row.n).toBe(2)
+    expect(row.n).toBe(3)
   })
 
   it('enforces foreign keys', () => {
