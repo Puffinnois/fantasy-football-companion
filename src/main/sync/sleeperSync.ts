@@ -1,4 +1,4 @@
-import { withTransaction, type Db } from '@main/db/connection'
+import { withTransaction } from '@main/db/connection'
 import { upsertLeague } from '@main/db/repos/leagues'
 import { upsertPlayers } from '@main/db/repos/players'
 import { getRules, saveRules } from '@main/db/repos/rules'
@@ -9,12 +9,14 @@ import {
   setSetting
 } from '@main/db/repos/settings'
 import { setNflState } from '@main/db/repos/state'
-import { finishSync, getLastSync, startSync } from '@main/db/repos/syncLog'
+import { finishSync, startSync } from '@main/db/repos/syncLog'
 import { replaceRosterPlayers, replaceTeams } from '@main/db/repos/teams'
-import type { SleeperClient } from '@main/sources/sleeper'
 import type { Rules } from '@shared/rules'
 import type { SyncLogEntry, SyncResult } from '@shared/types'
 import { mapLeague, mapNflState, mapPlayers, mapRosterPlayers, mapRules, mapTeams } from './mappers'
+import { nowOf, runStep as runSyncStep, type RefreshOptions, type SyncDeps } from './step'
+
+export type { RefreshOptions, SyncDeps } from './step'
 
 export const SOURCE_STATE = 'sleeper:state'
 export const SOURCE_LEAGUE = 'sleeper:league'
@@ -28,52 +30,13 @@ export const FRESHNESS_MS: Record<string, number> = {
   [SOURCE_PLAYERS]: 24 * 60 * MINUTE
 }
 
-export interface SyncDeps {
-  db: Db
-  sleeper: SleeperClient
-  now?: () => Date
-  onStep?: (entry: SyncLogEntry) => void
-}
-
-export interface RefreshOptions {
-  force?: boolean
-}
-
-function nowOf(deps: SyncDeps): Date {
-  return (deps.now ?? (() => new Date()))()
-}
-
-export function isFresh(db: Db, source: string, freshnessMs: number, now: Date): boolean {
-  const last = getLastSync(db, source, 'ok')
-  if (!last?.finishedAt) return false
-  return now.getTime() - new Date(last.finishedAt).getTime() < freshnessMs
-}
-
-async function runStep(
+function runStep(
   deps: SyncDeps,
   source: string,
   force: boolean,
   fn: () => Promise<number>
 ): Promise<SyncLogEntry> {
-  const id = startSync(deps.db, source, nowOf(deps).toISOString())
-  let entry: SyncLogEntry
-  if (!force && isFresh(deps.db, source, FRESHNESS_MS[source], nowOf(deps))) {
-    entry = finishSync(deps.db, id, 'skipped', nowOf(deps).toISOString(), 'fresh', 0)
-  } else {
-    try {
-      const rows = await fn()
-      entry = finishSync(deps.db, id, 'ok', nowOf(deps).toISOString(), null, rows)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      entry = finishSync(deps.db, id, 'error', nowOf(deps).toISOString(), message, 0)
-    }
-  }
-  try {
-    deps.onStep?.(entry)
-  } catch {
-    // progress reporting must never affect the sync itself
-  }
-  return entry
+  return runSyncStep(deps, source, FRESHNESS_MS[source] ?? 0, force, fn)
 }
 
 function syncState(deps: SyncDeps, force: boolean): Promise<SyncLogEntry> {

@@ -9,13 +9,8 @@ import { listRoster, listTeams } from '@main/db/repos/teams'
 import { normalizeRules } from '@main/scoring/normalize'
 import type { SleeperClient } from '@main/sources/sleeper'
 import { mapLeagueSummary } from '@main/sync/mappers'
-import {
-  importLeague,
-  refreshSleeper,
-  reimportRules,
-  SOURCE_LEAGUE,
-  type SyncDeps
-} from '@main/sync/sleeperSync'
+import { importLeague, refreshSleeper, reimportRules, SOURCE_LEAGUE } from '@main/sync/sleeperSync'
+import type { SyncDeps } from '@main/sync/step'
 import { IPC, type FindLeaguesResult } from '@shared/ipc'
 import type { Rules } from '@shared/rules'
 import type { League, RosterPlayer, SyncResult, SyncStatus, Team } from '@shared/types'
