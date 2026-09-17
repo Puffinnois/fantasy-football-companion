@@ -8,6 +8,7 @@ import type {
   SleeperPlayer,
   SleeperRoster
 } from '@main/sources/sleeper-types'
+import { roundPoints, type LeagueSettings, type Rules, type StatKey } from '@shared/rules'
 import type { LeagueSummary, NflState, Team } from '@shared/types'
 
 const EMPTY_STARTER_SLOT = '0'
@@ -112,4 +113,32 @@ export function mapPlayers(players: Record<string, SleeperPlayer>): PlayerRecord
     })
   }
   return out
+}
+
+const SLEEPER_WAIVER_FAAB = 2
+const SLEEPER_NO_TRADE_DEADLINE = 99
+
+export function mapRules(l: SleeperLeague, updatedAt: string): Rules {
+  const scoring: Record<StatKey, number> = {}
+  for (const [key, value] of Object.entries(l.scoring_settings)) {
+    if (typeof value === 'number' && Number.isFinite(value)) scoring[key] = roundPoints(value)
+  }
+
+  const counts = new Map<string, number>()
+  for (const slot of l.roster_positions) counts.set(slot, (counts.get(slot) ?? 0) + 1)
+  const rosterSlots = [...counts].map(([slot, count]) => ({ slot, count }))
+
+  const s: Partial<Record<string, number>> = l.settings
+  const settings: LeagueSettings = {
+    numTeams: s.num_teams ?? l.total_rosters,
+    waiverType: s.waiver_type === SLEEPER_WAIVER_FAAB ? 'faab' : 'priority'
+  }
+  if (settings.waiverType === 'faab' && s.waiver_budget !== undefined)
+    settings.faabBudget = s.waiver_budget
+  if (s.trade_deadline !== undefined && s.trade_deadline !== SLEEPER_NO_TRADE_DEADLINE)
+    settings.tradeDeadlineWeek = s.trade_deadline
+  if (s.playoff_week_start !== undefined) settings.playoffStartWeek = s.playoff_week_start
+  if (s.playoff_teams !== undefined) settings.playoffTeams = s.playoff_teams
+
+  return { source: 'sleeper', updatedAt, scoring, positionOverrides: {}, rosterSlots, settings }
 }

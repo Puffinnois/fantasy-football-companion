@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { mapLeague, mapNflState, mapPlayers, mapRosterPlayers, mapTeams } from '@main/sync/mappers'
+import {
+  mapLeague,
+  mapNflState,
+  mapPlayers,
+  mapRosterPlayers,
+  mapRules,
+  mapTeams
+} from '@main/sync/mappers'
 import * as fx from '../../fixtures/sleeper'
 
 describe('mappers', () => {
@@ -86,5 +93,64 @@ describe('mappers', () => {
     })
     expect(byId['1234'].gsisId).toBeNull()
     expect(byId['8259'].injuryStatus).toBe('Questionable')
+  })
+
+  describe('mapRules', () => {
+    it('maps scoring key-for-key, roster slot counts and settings', () => {
+      const rules = mapRules(fx.league, 'T')
+      expect(rules.source).toBe('sleeper')
+      expect(rules.updatedAt).toBe('T')
+      expect(rules.scoring).toEqual({
+        rec: 1,
+        rush_yd: 0.1,
+        rec_yd: 0.1,
+        rush_td: 6,
+        rec_td: 6,
+        pass_td: 4,
+        pass_yd: 0.04,
+        fum_lost: -2
+      })
+      expect(rules.positionOverrides).toEqual({})
+      expect(rules.rosterSlots).toEqual([
+        { slot: 'QB', count: 1 },
+        { slot: 'RB', count: 2 },
+        { slot: 'WR', count: 2 },
+        { slot: 'TE', count: 1 },
+        { slot: 'FLEX', count: 1 },
+        { slot: 'K', count: 1 },
+        { slot: 'DEF', count: 1 },
+        { slot: 'BN', count: 6 },
+        { slot: 'IR', count: 1 }
+      ])
+      expect(rules.settings).toEqual({
+        numTeams: 2,
+        waiverType: 'faab',
+        faabBudget: 100,
+        tradeDeadlineWeek: 13,
+        playoffStartWeek: 15,
+        playoffTeams: 6
+      })
+    })
+
+    it('rounds float noise and keeps unknown keys', () => {
+      const rules = mapRules(
+        { ...fx.league, scoring_settings: { pass_yd: 0.03999999910593033, def_3_and_out: 1 } },
+        'T'
+      )
+      expect(rules.scoring).toEqual({ pass_yd: 0.04, def_3_and_out: 1 })
+    })
+
+    it('maps priority waivers, "no deadline" (99) and missing settings', () => {
+      const rules = mapRules(
+        { ...fx.league, settings: { num_teams: 10, waiver_type: 0, trade_deadline: 99 } },
+        'T'
+      )
+      expect(rules.settings).toEqual({ numTeams: 10, waiverType: 'priority' })
+    })
+
+    it('falls back to total_rosters when num_teams is missing', () => {
+      const rules = mapRules({ ...fx.league, settings: {} }, 'T')
+      expect(rules.settings.numTeams).toBe(2)
+    })
   })
 })
