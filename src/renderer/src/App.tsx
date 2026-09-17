@@ -3,6 +3,7 @@ import { Sidebar, type Screen } from '@/components/Sidebar'
 import { StatusBar } from '@/components/StatusBar'
 import { SetupScreen } from '@/screens/SetupScreen'
 import { LeagueScreen } from '@/screens/LeagueScreen'
+import { RulesScreen } from '@/screens/RulesScreen'
 import { api } from '@/lib/api'
 
 export default function App(): React.JSX.Element {
@@ -53,6 +54,7 @@ export default function App(): React.JSX.Element {
             />
           )}
           {screen === 'league' && <LeagueScreen key={dataVersion} />}
+          {screen === 'rules' && <RulesScreen />}
         </main>
       </div>
       <StatusBar refreshKey={dataVersion} onRefreshed={bumpData} />
