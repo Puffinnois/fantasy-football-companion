@@ -38,6 +38,12 @@ export interface RosterPlayer {
   injuryStatus: string | null
 }
 
+/** Which season the UI shows points for and which week is "last week" (null = no points yet). */
+export interface PointsContext {
+  season: number
+  lastWeek: number | null
+}
+
 export interface NflState {
   season: string
   week: number
