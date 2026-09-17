@@ -17,7 +17,7 @@ const items: {
 }[] = [
   { id: 'league', label: 'League', icon: Trophy, enabled: (hasLeague) => hasLeague },
   { id: 'rules', label: 'Rules', icon: BookOpen, enabled: (hasLeague) => hasLeague },
-  { id: 'players', label: 'Players', icon: Users, enabled: () => false },
+  { id: 'players', label: 'Players', icon: Users, enabled: (hasLeague) => hasLeague },
   { id: 'setup', label: 'Setup', icon: Settings, enabled: () => true }
 ]
 
@@ -45,9 +45,6 @@ export function Sidebar({ current, onNavigate, hasLeague }: SidebarProps): React
           >
             <Icon className="size-4" />
             {label}
-            {!isEnabled && id === 'players' && (
-              <span className="ml-auto text-[10px] uppercase text-muted-foreground">soon</span>
-            )}
           </button>
         )
       })}

@@ -4,6 +4,7 @@ import { StatusBar } from '@/components/StatusBar'
 import { SetupScreen } from '@/screens/SetupScreen'
 import { LeagueScreen } from '@/screens/LeagueScreen'
 import { RulesScreen } from '@/screens/RulesScreen'
+import { PlayersScreen } from '@/screens/PlayersScreen'
 import { api } from '@/lib/api'
 
 export default function App(): React.JSX.Element {
@@ -59,6 +60,7 @@ export default function App(): React.JSX.Element {
           )}
           {screen === 'league' && <LeagueScreen key={dataVersion} />}
           {screen === 'rules' && <RulesScreen onSaved={bumpData} />}
+          {screen === 'players' && <PlayersScreen key={dataVersion} />}
         </main>
       </div>
       <StatusBar refreshKey={dataVersion} onRefreshed={bumpData} />
