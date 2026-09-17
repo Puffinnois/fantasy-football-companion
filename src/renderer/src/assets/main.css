@@ -79,6 +79,13 @@
   #root {
     height: 100%;
   }
+  /* Dark-only app: native controls (select popups, scrollbars) must render in the dark scheme too. */
+  html {
+    color-scheme: dark;
+  }
+  select option {
+    @apply bg-popover text-popover-foreground;
+  }
   body {
     @apply bg-background text-foreground antialiased;
     font-family:
