@@ -35,6 +35,13 @@ export interface GameRow {
   awayScore: number | null
 }
 
+/** A player as the nflverse stats file names it — the last-resort identity source. */
+export interface NflverseIdentity {
+  gsisId: string
+  name: string
+  position: string | null
+}
+
 export interface SnapRow {
   week: number
   offenseSnaps: number | null
@@ -306,4 +313,14 @@ export function teamByeWeeks(db: Db, season: number): Map<string, number> {
     }
   }
   return byes
+}
+
+export function listNflverseIdentities(db: Db): NflverseIdentity[] {
+  const rows = db
+    .prepare(
+      `SELECT DISTINCT gsis_id, player_name, position FROM player_week_stats
+       WHERE player_name IS NOT NULL ORDER BY gsis_id`
+    )
+    .all() as unknown as { gsis_id: string; player_name: string; position: string | null }[]
+  return rows.map((r) => ({ gsisId: r.gsis_id, name: r.player_name, position: r.position }))
 }

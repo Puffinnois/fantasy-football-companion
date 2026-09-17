@@ -4,6 +4,7 @@ import { migrate } from '@main/db/migrate'
 import {
   listAllPlayerWeeks,
   listGames,
+  listNflverseIdentities,
   listPlayerWeeks,
   listSnaps,
   listTeamWeeks,
@@ -40,6 +41,15 @@ describe('stats repos', () => {
     expect(weeks[0]).toMatchObject({ team: 'PHI', opponent: 'DAL', position: 'RB' })
     expect(weeks[0].stats).toMatchObject({ rushing_yards: 60, receptions: 4 })
     expect(listPlayerWeeks(db, '00-0034844', 2024)).toEqual([])
+  })
+
+  it('listNflverseIdentities lists distinct gsis/name/position triples', () => {
+    replacePlayerWeekStats(db, 2025, reg, TS)
+    expect(listNflverseIdentities(db)).toEqual([
+      { gsisId: '00-0025565', name: 'Nick Folk', position: 'K' },
+      { gsisId: '00-0034844', name: 'Saquon Barkley', position: 'RB' },
+      { gsisId: '00-0036322', name: 'Justin Jefferson', position: 'WR' }
+    ])
   })
 
   it('replacePlayerWeekStats only touches the given season', () => {

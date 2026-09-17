@@ -89,15 +89,15 @@ describe('refreshNflverse', () => {
     const result = await refreshNflverse(deps())
     expect(result.steps.map((s) => [s.source, s.status])).toEqual([
       [SOURCE_CROSSWALK, 'ok'],
-      [SOURCE_IDENTITY, 'ok'],
       [sourceStats(2025), 'ok'],
       [sourceSnaps(2025), 'ok'],
       [sourceStats(2026), 'ok'],
       [sourceSnaps(2026), 'ok'],
       [SOURCE_GAMES, 'ok'],
+      [SOURCE_IDENTITY, 'ok'],
       [SOURCE_POINTS, 'ok']
     ])
-    expect(listCrosswalk(db)).toHaveLength(5)
+    expect(listCrosswalk(db)).toHaveLength(6)
     expect(countPlayerIds(db)).toBe(7) // every fixture player
     expect(getPlayerIds(db, '4866')?.resolution).toBe('crosswalk')
     expect(getPlayerIds(db, 'LAR')?.nflverseTeam).toBe('LA')
@@ -168,12 +168,13 @@ describe('refreshNflverse', () => {
     expect(again.steps.map((s) => s.source)).not.toContain(SOURCE_POINTS)
   })
 
-  it('uses a 7-day window for the previous season and 6 h for the current one', async () => {
+  it('uses a 7-day window for the previous season and 6 h for the current one; new stats re-resolve identities', async () => {
     await refreshNflverse(deps())
     clock = new Date(clock.getTime() + 7 * HOUR)
     const again = await refreshNflverse(deps())
     expect(again.steps.find((s) => s.source === sourceStats(2025))?.status).toBe('skipped')
     expect(again.steps.find((s) => s.source === sourceStats(2026))?.status).toBe('ok')
+    expect(again.steps.find((s) => s.source === SOURCE_IDENTITY)?.status).toBe('ok')
     expect(again.steps.find((s) => s.source === SOURCE_POINTS)?.status).toBe('ok')
   })
 

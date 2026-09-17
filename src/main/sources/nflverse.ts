@@ -150,10 +150,18 @@ export function parseGames(text: string): ParseResult<GameRecord> {
   return { records, skipped }
 }
 
+/** DynastyProcess fills unassigned rookies with placeholders like `WAS569019`; only `00-1234567` is real. */
+export const GSIS_ID = /^00-\d{7}$/
+
+export function validGsis(value: string | null): string | null {
+  const trimmed = value?.trim() ?? ''
+  return GSIS_ID.test(trimmed) ? trimmed : null
+}
+
 export function parseCrosswalk(text: string): ParseResult<CrosswalkRecord> {
   const records = parseCsv(text).map((row) => ({
     sleeperId: strOrNull(row.sleeper_id),
-    gsisId: strOrNull(row.gsis_id)?.trim() ?? null,
+    gsisId: validGsis(strOrNull(row.gsis_id)),
     pfrId: strOrNull(row.pfr_id),
     sportradarId: strOrNull(row.sportradar_id),
     espnId: strOrNull(row.espn_id),

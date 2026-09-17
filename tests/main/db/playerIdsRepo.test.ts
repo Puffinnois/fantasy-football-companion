@@ -34,8 +34,8 @@ describe('playerIds repo', () => {
 
   it('replaceCrosswalk round-trips and is idempotent', () => {
     const rows = parseCrosswalk(crosswalkCsv).records
-    expect(replaceCrosswalk(db, rows, TS)).toBe(5)
-    expect(replaceCrosswalk(db, rows, TS)).toBe(5)
+    expect(replaceCrosswalk(db, rows, TS)).toBe(6)
+    expect(replaceCrosswalk(db, rows, TS)).toBe(6)
     expect(listCrosswalk(db)).toEqual(rows)
   })
 

@@ -35,7 +35,7 @@
 2. **A `crosswalk` table is added** (spec §8 has none) holding the DynastyProcess file, so identities can be re-resolved whenever the Sleeper players DB changes without re-downloading the crosswalk.
 3. **Only regular-season rows are stored** (`season_type = 'REG'` for stats/snaps, `game_type = 'REG'` for games). Fantasy weeks are regular-season weeks; postseason rows would pollute season totals.
 4. **`.csv.gz` is fetched** for the three nflverse release files (gunzipped with `node:zlib`; ~5× fewer bytes per refresh); `games.csv` and the crosswalk are plain CSV. Detection is by gzip magic bytes, not URL.
-5. **Adapter semantics where Sleeper and nflverse vocabularies differ:** `xpmiss` = `pat_missed + pat_blocked`, `fgmiss` = `fg_missed + fg_blocked` (blocked kicks count as misses; the per-distance `fgmiss_*` buckets exclude blocked kicks because nflverse gives no distance for them); `fum` / `fum_lost` = sack + rushing + receiving fumbles; `fum_rec` = own + opponent recoveries for players, opponent recoveries for a team DEF; `idp_tkl` = `def_tackles_solo + def_tackles_with_assist`; `pass_inc` = `attempts − completions`; DEF `yds_allow` = opponent `rushing_yards + passing_yards − sack_yards_lost` (net yards); DEF `pts_allow` = opponent's score from `games`.
+5. **Adapter semantics where Sleeper and nflverse vocabularies differ:** `xpmiss` = `pat_missed + pat_blocked`, `fgmiss` = `fg_missed + fg_blocked` (blocked kicks count as misses; the per-distance `fgmiss_*` buckets exclude blocked kicks because nflverse gives no distance for them); `fum` / `fum_lost` = sack + rushing + receiving fumbles; `fum_rec` = opponent recoveries only, for players and team DEF alike (validated against Sleeper's week-1 `players_points`: Sleeper pays nothing for recovering your own fumble, which nflverse's `fumble_recovery_own` includes); `idp_tkl` = `def_tackles_solo + def_tackles_with_assist`; `pass_inc` = `attempts − completions`; DEF `yds_allow` = opponent `rushing_yards + passing_yards − sack_yards_lost` (net yards); DEF `pts_allow` = opponent's score from `games`.
 6. **`player_ids` is rebuilt for every row of `players`** (~11k Sleeper players) on each identity run; the `sync_log` message counts unresolved players **on league rosters only** (the total includes thousands of inactive players and would be noise).
 7. **"Last week" = the latest week that has any `player_week_points` row for the league's season**, exposed via `league.pointsContext()`. Using `nfl_state.week − 1` would show an empty column on Tuesdays before nflverse publishes.
 8. **Freshness windows:** current-season stats and snaps 6 h (spec), games 6 h, crosswalk 24 h (spec), **previous-season stats and snaps 7 days** (the file never changes). `app:identity` and `app:points` are logged sync steps but run **only when an input changed** (crosswalk or players re-fetched; stats/games re-fetched; empty tables) or on force — no `skipped: fresh` noise every refresh.
@@ -44,6 +44,7 @@
 11. **`listRoster` gains an optional `PointsContext`** (default = no points) so Plan A/B tests keep compiling; the handler passes the real context.
 12. `fantasy_points` / `fantasy_points_ppr` from nflverse are stored in `stats_json` like any other column but never used for scoring — the app's rules are the only source of points.
 13. Plan ends with a `0.3.0` version bump, Windows build and tag, mirroring Plan B's Task 7.
+14. **(Added during execution)** The crosswalk carries placeholder ids such as `WAS569019` for rookies whose GSIS id was unknown when the row was created; `parseCrosswalk` and the resolver accept only `00-1234567`-shaped ids (`validGsis`). A fifth resolution rule — normalized name + position against the nflverse stats file itself (`listNflverseIdentities`) — catches rookies the crosswalk has not caught up with (`resolution = 'name'`), so `app:identity` now runs **after** the stats/games downloads and also re-runs when stats changed. Result on the real league: 256/256 rostered players resolved, 232 exact week-1 matches, 3 DEF within ±1, 0 off.
 
 **The user's real league** (16 teams, 43 scoring keys, no bonus keys, DEF tiers `pts_allow_0..35p` = 10/7/4/1/0/-1/-4, `fum_rec: 2`): after this plan, every rostered player with a `crosswalk` or `sleeper_gsis` resolution shows season and last-week points; the four unsupported ST keys score 0 as before. Task 11's human check reads a few players' week-N points against Sleeper's matchup page — expect matches for offense, K within ±1 (blocked-kick handling) and DEF differences only from the unsupported ST keys.
 
@@ -4246,12 +4247,10 @@ export function PlayersScreen(): React.JSX.Element {
     return () => clearTimeout(handle)
   }, [query, position, team, owner])
 
-  useEffect(() => {
-    if (!selected) {
-      setWeeks([])
-      return
-    }
-    void api.players
+                  onClick={() => {
+                    setSelected(p)
+                    setWeeks([])
+                  }}
       .weeklyStats(selected.playerId)
       .then(setWeeks)
       .catch((err) => setError(errorMessage(err)))
@@ -4322,7 +4321,10 @@ export function PlayersScreen(): React.JSX.Element {
               {rows.map((p) => (
                 <TableRow
                   key={p.playerId}
-                  onClick={() => setSelected(p)}
+                  onClick={() => {
+                    setSelected(p)
+                    setWeeks([])
+                  }}
                   className={cn('cursor-pointer', selected?.playerId === p.playerId && 'bg-accent/60')}
                 >
                   <TableCell>

@@ -11,6 +11,7 @@ import { countPoints } from '@main/db/repos/points'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
 import { getNflState } from '@main/db/repos/state'
 import {
+  listNflverseIdentities,
   replacePlayerWeekStats,
   replaceSnaps,
   replaceTeamWeekStats,
@@ -48,7 +49,8 @@ export interface NflverseRefreshOptions extends RefreshOptions {
 const ok = (entry: SyncLogEntry): boolean => entry.status === 'ok'
 
 /**
- * Spec §9: crosswalk → identity → stats (both seasons) → snaps → games → points. Each step logs to
+ * Spec §9 order, with identity after the downloads so it can fall back on nflverse names:
+ * crosswalk → stats (both seasons) → snaps → games → identity → points. Each step logs to
  * `sync_log` and is independent; `app:identity` / `app:points` run only when an input changed.
  */
 export async function refreshNflverse(
@@ -75,18 +77,6 @@ export async function refreshNflverse(
     }
   )
   steps.push(crosswalk)
-
-  let identityChanged = false
-  if (force || ok(crosswalk) || options.playersChanged || countPlayerIds(deps.db) === 0) {
-    const identity = await runStep(deps, SOURCE_IDENTITY, 0, true, async () => {
-      const records = resolvePlayers(listPlayerIdentitySources(deps.db), listCrosswalk(deps.db))
-      const rows = withTransaction(deps.db, () => replacePlayerIds(deps.db, records, ts()))
-      const unresolved = leagueId ? countUnresolvedRostered(deps.db, leagueId) : 0
-      return { rows, message: unresolved ? `${unresolved} rostered players unresolved` : null }
-    })
-    steps.push(identity)
-    identityChanged = ok(identity)
-  }
 
   let statsChanged = false
   for (const season of seasons) {
@@ -127,6 +117,28 @@ export async function refreshNflverse(
     return withTransaction(deps.db, () => upsertGames(deps.db, wanted, ts()))
   })
   steps.push(games)
+
+  let identityChanged = false
+  if (
+    force ||
+    ok(crosswalk) ||
+    statsChanged ||
+    options.playersChanged ||
+    countPlayerIds(deps.db) === 0
+  ) {
+    const identity = await runStep(deps, SOURCE_IDENTITY, 0, true, async () => {
+      const records = resolvePlayers(
+        listPlayerIdentitySources(deps.db),
+        listCrosswalk(deps.db),
+        listNflverseIdentities(deps.db)
+      )
+      const rows = withTransaction(deps.db, () => replacePlayerIds(deps.db, records, ts()))
+      const unresolved = leagueId ? countUnresolvedRostered(deps.db, leagueId) : 0
+      return { rows, message: unresolved ? `${unresolved} rostered players unresolved` : null }
+    })
+    steps.push(identity)
+    identityChanged = ok(identity)
+  }
 
   if (
     leagueId &&

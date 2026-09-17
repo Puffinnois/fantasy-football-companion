@@ -119,7 +119,7 @@ describe('parseGames', () => {
 describe('parseCrosswalk', () => {
   it('turns NA into null and keeps the ids we join on', () => {
     const { records } = parseCrosswalk(fx.crosswalkCsv)
-    expect(records).toHaveLength(5)
+    expect(records).toHaveLength(6)
     expect(records[0]).toEqual({
       sleeperId: '4866',
       gsisId: '00-0034844',
@@ -131,6 +131,7 @@ describe('parseCrosswalk', () => {
     })
     expect(records[2].sleeperId).toBeNull()
     expect(records[4].gsisId).toBeNull()
+    expect(records[5].gsisId).toBeNull() // placeholder id, not a GSIS id
     const realRows = parseCrosswalk(real('db_playerids.csv')).records
     expect(realRows).toHaveLength(50)
     expect(realRows.some((r) => r.sleeperId !== null && r.gsisId !== null)).toBe(true)

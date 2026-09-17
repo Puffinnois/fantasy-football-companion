@@ -36,4 +36,5 @@ export const crosswalkCsv = `mfl_id,sportradar_id,fantasypros_id,gsis_id,pff_id,
 15281,sr-3,NA,00-0037248,NA,NA,NA,NA,NA,NA,NA,CookJa01,NA,NA,NA,NA,NA,NA,NA,NA,James Cook,james cook,RB,BUF,1999-09-25,27,2022,2,31,63,NA,71,190,Georgia,2026
 16000,NA,NA,00-0036900,NA,NA,NA,NA,NA,NA,NA,ChasJa00,NA,NA,NA,NA,NA,NA,NA,NA,Ja'Marr Chase,jamarr chase,WR,CIN,2000-03-01,26.5,2021,1,5,5,NA,72,201,LSU,2026
 16001,NA,NA,NA,NA,9509,NA,NA,NA,NA,NA,RobiBi01,NA,NA,NA,NA,NA,NA,NA,NA,Bijan Robinson,bijan robinson,RB,ATL,2002-01-30,24.6,2023,1,8,8,NA,71,215,Texas,2026
+16002,NA,NA,WAS569019,NA,13305,NA,NA,NA,NA,NA,WashMi21,NA,NA,NA,NA,NA,NA,NA,NA,Mike Washington Jr.,mike washington,RB,LVR,2003-05-01,23.4,2026,7,230,230,NA,72,220,Ohio,2026
 `

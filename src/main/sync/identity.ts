@@ -1,4 +1,6 @@
 import type { PlayerIdentitySource, PlayerIdRecord, Resolution } from '@main/db/repos/playerIds'
+import type { NflverseIdentity } from '@main/db/repos/stats'
+import { validGsis } from '@main/sources/nflverse'
 import type { CrosswalkRecord } from '@main/sources/nflverse-types'
 import { toNflverseTeam } from '@shared/teams'
 
@@ -21,6 +23,8 @@ export interface CrosswalkIndex {
   bySportradar: Map<string, CrosswalkRecord>
   /** key = `${normalizeName(name)}|${position}` */
   byName: Map<string, CrosswalkRecord>
+  /** Same key, but from the nflverse stats file itself (rookies the crosswalk has not caught up with). */
+  byNflverseName: Map<string, string>
 }
 
 function nameKey(name: string, position: string): string {
@@ -28,12 +32,20 @@ function nameKey(name: string, position: string): string {
 }
 
 /** First row wins per key, so duplicate crosswalk rows never flip a resolution between runs. */
-export function indexCrosswalk(rows: CrosswalkRecord[]): CrosswalkIndex {
+export function indexCrosswalk(
+  rows: CrosswalkRecord[],
+  nflverse: NflverseIdentity[] = []
+): CrosswalkIndex {
   const index: CrosswalkIndex = {
     bySleeper: new Map(),
     byGsis: new Map(),
     bySportradar: new Map(),
-    byName: new Map()
+    byName: new Map(),
+    byNflverseName: new Map()
+  }
+  for (const n of nflverse) {
+    const key = n.position ? nameKey(n.name, n.position) : null
+    if (key && !index.byNflverseName.has(key)) index.byNflverseName.set(key, n.gsisId)
   }
   const put = (
     map: Map<string, CrosswalkRecord>,
@@ -53,7 +65,8 @@ export function indexCrosswalk(rows: CrosswalkRecord[]): CrosswalkIndex {
 
 /**
  * Spec §6 order, first hit wins: crosswalk by sleeper_id → Sleeper's own gsis_id (trimmed) →
- * crosswalk by sportradar_id → normalized name + position. Team defenses map to a team code.
+ * crosswalk by sportradar_id → normalized name + position in the crosswalk → the same in the
+ * nflverse stats file (plan C addition for rookies). Team defenses map to a team code.
  * Whatever crosswalk row was matched also supplies pfr/espn ids for snap counts etc.
  */
 export function resolvePlayer(p: PlayerIdentitySource, index: CrosswalkIndex): PlayerIdRecord {
@@ -68,7 +81,7 @@ export function resolvePlayer(p: PlayerIdentitySource, index: CrosswalkIndex): P
   if (p.position === 'DEF') {
     return { ...base, nflverseTeam: toNflverseTeam(p.playerId), resolution: 'team' }
   }
-  const sleeperGsis = p.gsisId?.trim() || null
+  const sleeperGsis = validGsis(p.gsisId)
   let row = index.bySleeper.get(p.playerId)
   let resolution: Resolution = 'unresolved'
   let gsisId: string | null = null
@@ -81,7 +94,9 @@ export function resolvePlayer(p: PlayerIdentitySource, index: CrosswalkIndex): P
     row ??= index.byGsis.get(sleeperGsis)
   } else {
     const bySr = p.sportradarId ? index.bySportradar.get(p.sportradarId) : undefined
-    const byName = p.position ? index.byName.get(nameKey(p.fullName, p.position)) : undefined
+    const key = p.position ? nameKey(p.fullName, p.position) : null
+    const byName = key ? index.byName.get(key) : undefined
+    const byNflverse = key ? index.byNflverseName.get(key) : undefined
     if (bySr?.gsisId) {
       resolution = 'sportradar'
       gsisId = bySr.gsisId
@@ -90,6 +105,10 @@ export function resolvePlayer(p: PlayerIdentitySource, index: CrosswalkIndex): P
       resolution = 'name'
       gsisId = byName.gsisId
       row = byName
+    } else if (byNflverse) {
+      resolution = 'name'
+      gsisId = byNflverse
+      row = row?.pfrId ? row : index.byGsis.get(byNflverse)
     } else {
       row = undefined
     }
@@ -106,8 +125,9 @@ export function resolvePlayer(p: PlayerIdentitySource, index: CrosswalkIndex): P
 
 export function resolvePlayers(
   players: PlayerIdentitySource[],
-  crosswalk: CrosswalkRecord[]
+  crosswalk: CrosswalkRecord[],
+  nflverse: NflverseIdentity[]
 ): PlayerIdRecord[] {
-  const index = indexCrosswalk(crosswalk)
+  const index = indexCrosswalk(crosswalk, nflverse)
   return players.map((p) => resolvePlayer(p, index))
 }

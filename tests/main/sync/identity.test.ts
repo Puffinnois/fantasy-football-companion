@@ -89,6 +89,41 @@ describe('resolvePlayer', () => {
     expect(wrongPos.resolution).toBe('unresolved')
   })
 
+  it('5. last resort: name + position against the nflverse stats rows (rookies missing from the crosswalk)', () => {
+    const nflverse = [
+      { gsisId: '00-0040878', name: 'Mike Washington Jr.', position: 'RB' },
+      { gsisId: '00-0041000', name: 'Trey Smack', position: 'K' }
+    ]
+    const withStats = indexCrosswalk(parseCrosswalk(crosswalkCsv).records, nflverse)
+    // crosswalk row exists (sleeper_id 13305) but its gsis is a placeholder -> falls through to nflverse by name
+    const washington = resolvePlayer(
+      src({ playerId: '13305', fullName: 'Mike Washington', position: 'RB' }),
+      withStats
+    )
+    expect(washington).toMatchObject({
+      gsisId: '00-0040878',
+      pfrId: 'WashMi21',
+      resolution: 'name'
+    })
+    const smack = resolvePlayer(
+      src({ playerId: '13545', fullName: 'Trey Smack', position: 'K' }),
+      withStats
+    )
+    expect(smack).toMatchObject({ gsisId: '00-0041000', pfrId: null, resolution: 'name' })
+    expect(
+      resolvePlayer(src({ playerId: '13545', fullName: 'Trey Smack', position: 'K' }), index)
+        .resolution
+    ).toBe('unresolved')
+  })
+
+  it('ignores malformed Sleeper gsis ids', () => {
+    const r = resolvePlayer(
+      src({ playerId: '9', fullName: 'Nobody Here', position: 'QB', gsisId: 'WAS123456' }),
+      index
+    )
+    expect(r).toMatchObject({ gsisId: null, resolution: 'unresolved' })
+  })
+
   it('keeps unresolved players with Sleeper-side ids intact', () => {
     const r = resolvePlayer(
       src({
@@ -131,7 +166,8 @@ describe('resolvePlayer', () => {
         src({ playerId: 'LAR', position: 'DEF' }),
         src({ playerId: '4866', fullName: 'Saquon Barkley', position: 'RB' })
       ],
-      parseCrosswalk(crosswalkCsv).records
+      parseCrosswalk(crosswalkCsv).records,
+      []
     )
     expect(out.map((r) => [r.playerId, r.resolution])).toEqual([
       ['LAR', 'team'],
