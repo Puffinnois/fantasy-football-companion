@@ -78,7 +78,7 @@ tests/renderer/lib/rulesView.test.ts
 - Consumes: `SleeperLeague` (`src/main/sources/sleeper-types.ts`: `settings: Record<string, number>`, `scoring_settings: Record<string, number>`, `roster_positions: string[]`, `total_rosters`).
 - Produces: `Rules`, `StatKey`, `Position`, `POSITIONS`, `KNOWN_SLOTS`, `RosterSlotCount`, `LeagueSettings`, `WaiverType`, `RulesSource`, `roundPoints(v: number): number` (all in `@shared/rules`); `STAT_KEYS`, `STAT_KEY_INFO`, `STAT_CATEGORIES`, `StatCategory`, `StatKeyInfo`, `isSupported(key)` (in `@shared/statKeys`); `mapRules(l: SleeperLeague, updatedAt: string): Rules` (in `@main/sync/mappers`).
 
-- [ ] **Step 1: Write the failing mapper tests**
+- [x] **Step 1: Write the failing mapper tests**
 
 Append to `tests/main/sync/mappers.test.ts` inside the existing `describe('mappers', …)` block (and add `mapRules` to the import from `@main/sync/mappers`):
 
@@ -169,12 +169,12 @@ describe('stat key catalogue', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/sync/mappers.test.ts tests/shared/statKeys.test.ts`
 Expected: FAIL — `Failed to resolve import "@shared/statKeys"` and `mapRules is not a function` (or "does not provide an export named 'mapRules'").
 
-- [ ] **Step 3: Create the rules model**
+- [x] **Step 3: Create the rules model**
 
 Create `src/shared/rules.ts`:
 
@@ -247,7 +247,7 @@ export function roundPoints(value: number): number {
 }
 ```
 
-- [ ] **Step 4: Create the stat-key catalogue**
+- [x] **Step 4: Create the stat-key catalogue**
 
 Create `src/shared/statKeys.ts`. `supported: true` means Plan C's nflverse adapters can produce the raw stat (or, for bonus/tier keys, the stat they derive from). Keep `false` entries — they appear on the Rules screen as "unsupported".
 
@@ -436,7 +436,7 @@ export function isSupported(key: StatKey): boolean {
 }
 ```
 
-- [ ] **Step 5: Add `mapRules` to the mappers**
+- [x] **Step 5: Add `mapRules` to the mappers**
 
 In `src/main/sync/mappers.ts`, add to the imports:
 
@@ -476,12 +476,12 @@ export function mapRules(l: SleeperLeague, updatedAt: string): Rules {
 }
 ```
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/sync/mappers.test.ts tests/shared/statKeys.test.ts`
 Expected: all pass (the 4 new `mapRules` cases + 3 catalogue cases + the existing mapper cases).
 
-- [ ] **Step 7: Typecheck, lint, commit**
+- [x] **Step 7: Typecheck, lint, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint && npm test
@@ -505,7 +505,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Rules`, `Position`, `StatKey` from `@shared/rules`; `STAT_KEY_INFO` from `@shared/statKeys`.
 - Produces: `StatLine = Partial<Record<StatKey, number>>`; `DERIVED_STATS: Partial<Record<StatKey, (line: StatLine, position: Position | null) => number>>`; `effectiveScoring(rules, position): Record<StatKey, number>`; `statValue(key, line, position): number`; `scoreStatLine(line: StatLine, rules: Rules, position: Position | null): number` (rounded to 2 dp). Plan C's `toStatLine` adapters must emit `StatLine`s whose keys are the `supported` raw keys of the catalogue, including `pts_allow` and `yds_allow` as raw totals for DEF lines.
 
-- [ ] **Step 1: Create the rules fixture**
+- [x] **Step 1: Create the rules fixture**
 
 Create `tests/fixtures/rules.ts`:
 
@@ -553,7 +553,7 @@ export function rules(overrides: Partial<Rules> = {}): Rules {
 }
 ```
 
-- [ ] **Step 2: Write the failing engine tests**
+- [x] **Step 2: Write the failing engine tests**
 
 Create `tests/main/scoring/engine.test.ts`:
 
@@ -682,12 +682,12 @@ describe('effectiveScoring / statValue', () => {
 })
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/scoring/engine.test.ts`
 Expected: FAIL — `Failed to resolve import "@main/scoring/engine"`.
 
-- [ ] **Step 4: Implement the engine**
+- [x] **Step 4: Implement the engine**
 
 Create `src/main/scoring/engine.ts`:
 
@@ -769,12 +769,12 @@ export function scoreStatLine(line: StatLine, rules: Rules, position: Position |
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/scoring/engine.test.ts`
 Expected: `14 passed`.
 
-- [ ] **Step 6: Typecheck, lint, commit**
+- [x] **Step 6: Typecheck, lint, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint && npm test
@@ -799,7 +799,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Db`, `withTransaction` (`@main/db/connection`); `migrate` (`@main/db/migrate`); `upsertLeague` (`@main/db/repos/leagues`); `Rules` types.
 - Produces: `saveRules(db: Db, leagueId: string, rules: Rules): void` (replaces all rows for the league; **caller wraps in a transaction**); `getRules(db: Db, leagueId: string): Rules | null`.
 
-- [ ] **Step 1: Update the migration test and write the failing repo tests**
+- [x] **Step 1: Update the migration test and write the failing repo tests**
 
 In `tests/main/db/migrate.test.ts`, change `expect(version).toBe(1)` to `expect(version).toBe(2)` and add `'rules', 'scoring_rules', 'roster_slots'` to the `arrayContaining([...])` list. In the `is idempotent` case change `expect(row.n).toBe(1)` to `expect(row.n).toBe(2)`.
 
@@ -879,12 +879,12 @@ describe('rules repo', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/db`
 Expected: FAIL — migrate test expects version 2 (gets 1); rules repo test cannot resolve `@main/db/repos/rules`.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 Create `src/main/db/migrations/002_rules.sql`:
 
@@ -934,7 +934,7 @@ export const migrations: Migration[] = [
 ]
 ```
 
-- [ ] **Step 4: Write the repository**
+- [x] **Step 4: Write the repository**
 
 Create `src/main/db/repos/rules.ts`:
 
@@ -1025,12 +1025,12 @@ export function getRules(db: Db, leagueId: string): Rules | null {
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/db`
 Expected: all pass (migrate: 4, repos: existing, rulesRepo: 5).
 
-- [ ] **Step 6: Typecheck, lint, commit**
+- [x] **Step 6: Typecheck, lint, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint && npm test
@@ -1054,7 +1054,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `getRules`, `saveRules` (`@main/db/repos/rules`); `mapRules` (`./mappers`); `startSync`, `finishSync` (`@main/db/repos/syncLog`); existing `SyncDeps`, `nowOf`, `withTransaction`.
 - Produces: `SOURCE_RULES = 'sleeper:rules'`; `reimportRules(deps: SyncDeps, leagueId: string): Promise<Rules>` — fetches the league, overwrites rules unconditionally, logs one `sync_log` row, rethrows on failure. `syncLeague` now writes Sleeper rules when none exist or `source === 'sleeper'`.
 
-- [ ] **Step 1: Write the failing sync tests**
+- [x] **Step 1: Write the failing sync tests**
 
 In `tests/main/sync/sleeperSync.test.ts`, change these existing import lines and add the two new ones:
 
@@ -1134,12 +1134,12 @@ Then append inside `describe('sleeper sync', …)`:
   })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/sync/sleeperSync.test.ts`
 Expected: FAIL — `reimportRules` / `SOURCE_RULES` not exported; the first case fails with `getRules` returning `null`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/main/sync/sleeperSync.ts`:
 
@@ -1198,12 +1198,12 @@ export async function reimportRules(deps: SyncDeps, leagueId: string): Promise<R
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/sync/sleeperSync.test.ts`
 Expected: all pass (existing cases + 5 new).
 
-- [ ] **Step 5: Typecheck, lint, commit**
+- [x] **Step 5: Typecheck, lint, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint && npm test
@@ -1228,7 +1228,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `saveRules`, `getRules`; `reimportRules`, `syncDeps`; `withTransaction`; `POSITIONS`, `roundPoints`, `Rules`, `LeagueSettings`.
 - Produces: `normalizeRules(input: Rules, updatedAt: string): Rules` (throws `Error` with a user-readable message on invalid input; always returns `source: 'custom'`); `Api.rules.{get, update, reimportFromSleeper}`; channels `IPC.rulesGet = 'rules:get'`, `IPC.rulesUpdate = 'rules:update'`, `IPC.rulesReimport = 'rules:reimport'`.
 
-- [ ] **Step 1: Write the failing normalize tests**
+- [x] **Step 1: Write the failing normalize tests**
 
 Create `tests/main/scoring/normalize.test.ts`:
 
@@ -1309,12 +1309,12 @@ describe('normalizeRules', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/scoring/normalize.test.ts`
 Expected: FAIL — `Failed to resolve import "@main/scoring/normalize"`.
 
-- [ ] **Step 3: Implement `normalizeRules`**
+- [x] **Step 3: Implement `normalizeRules`**
 
 Create `src/main/scoring/normalize.ts`:
 
@@ -1390,12 +1390,12 @@ export function normalizeRules(input: Rules, updatedAt: string): Rules {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/main/scoring/normalize.test.ts`
 Expected: `4 passed`.
 
-- [ ] **Step 5: Extend the IPC contract**
+- [x] **Step 5: Extend the IPC contract**
 
 In `src/shared/ipc.ts`, add `import type { Rules } from './rules'`, add to `Api` after `league`:
 
@@ -1417,7 +1417,7 @@ and add to `IPC`:
   rulesReimport: 'rules:reimport',
 ```
 
-- [ ] **Step 6: Extend the preload bridge**
+- [x] **Step 6: Extend the preload bridge**
 
 In `src/preload/index.ts`, add to the `api` object after `league`:
 
@@ -1429,7 +1429,7 @@ In `src/preload/index.ts`, add to the `api` object after `league`:
   },
 ```
 
-- [ ] **Step 7: Register the handlers**
+- [x] **Step 7: Register the handlers**
 
 In `src/main/ipc/handlers.ts`, change the `@main/db/connection` and `@main/sync/sleeperSync` import lines and add three new imports:
 
@@ -1471,7 +1471,7 @@ and add before the `IPC.syncRefresh` handler:
   })
 ```
 
-- [ ] **Step 8: Typecheck, lint, test, commit**
+- [x] **Step 8: Typecheck, lint, test, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint && npm test
@@ -1496,7 +1496,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `api.rules.*`; `Rules`, `Position`, `StatKey`, `LeagueSettings`, `WaiverType`, `KNOWN_SLOTS`, `RosterSlotCount` (`@shared/rules`); `STAT_KEYS`, `STAT_KEY_INFO`, `STAT_CATEGORIES`, `StatCategory`, `StatKeyInfo` (`@shared/statKeys`); `relativeTime`, `errorMessage` (`@/lib/format`); shadcn `Badge`, `Button`, `Card*`, `Input`, `Table*`.
 - Produces: `scoringGroups(scoring): ScoringGroup[]`, `unsupportedKeys(scoring): StatKey[]`, `addableKeys(scoring): StatKeyInfo[]`, `addableSlots(slots): string[]`, `OVERRIDE_POSITIONS`, `isOverridable(category)` (in `@/lib/rulesView`); `RulesScreen()`.
 
-- [ ] **Step 1: Write the failing view-model tests**
+- [x] **Step 1: Write the failing view-model tests**
 
 Create `tests/renderer/lib/rulesView.test.ts`:
 
@@ -1548,12 +1548,12 @@ describe('rulesView', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/renderer/lib/rulesView.test.ts`
 Expected: FAIL — `Failed to resolve import "@/lib/rulesView"`.
 
-- [ ] **Step 3: Implement the view-model**
+- [x] **Step 3: Implement the view-model**
 
 Create `src/renderer/src/lib/rulesView.ts`:
 
@@ -1632,12 +1632,12 @@ export function addableSlots(slots: RosterSlotCount[]): string[] {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `source ~/.nvm/nvm.sh && nvm use && npx vitest run tests/renderer/lib/rulesView.test.ts`
 Expected: `5 passed`.
 
-- [ ] **Step 5: Build the screen**
+- [x] **Step 5: Build the screen**
 
 Create `src/renderer/src/screens/RulesScreen.tsx`. Inputs are uncontrolled (`defaultValue`) so partially typed numbers never fight React; the editable area is remounted via `key={version}` whenever the draft is reset.
 
@@ -2068,7 +2068,7 @@ export function RulesScreen(): React.JSX.Element {
 }
 ```
 
-- [ ] **Step 6: Enable the screen in the sidebar and App**
+- [x] **Step 6: Enable the screen in the sidebar and App**
 
 In `src/renderer/src/components/Sidebar.tsx`, change the Rules item to `{ id: 'rules', label: 'Rules', icon: BookOpen, enabled: (hasLeague) => hasLeague }` and change the "soon" condition from `!isEnabled && id !== 'league'` to `!isEnabled && id === 'players'`.
 
@@ -2080,7 +2080,7 @@ In `src/renderer/src/App.tsx`, add `import { RulesScreen } from '@/screens/Rules
 
 (No `key={dataVersion}` on purpose: a background refresh must not wipe an in-progress edit.)
 
-- [ ] **Step 7: Verify, human check, commit**
+- [x] **Step 7: Verify, human check, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint && npm test
@@ -2111,7 +2111,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Interfaces:** none — release verification.
 
-- [ ] **Step 1: Bump the version and commit**
+- [x] **Step 1: Bump the version and commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm version 0.2.0 --no-git-tag-version && git add package.json package-lock.json && git commit -q -m "build: bump version to 0.2.0
@@ -2119,21 +2119,21 @@ source ~/.nvm/nvm.sh && nvm use && npm version 0.2.0 --no-git-tag-version && git
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-- [ ] **Step 2: Build the Windows installer**
+- [x] **Step 2: Build the Windows installer**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run build:win 2>&1 | tail -5
 ```
 Expected: `dist/FantasyCompanion-Setup-0.2.0.exe` (~90–110 MB). `wine64` + `wine32:i386` are already installed for the NSIS stamping step (see README).
 
-- [ ] **Step 3: Human check on Windows**
+- [x] **Step 3: Human check on Windows**
 
 Install over the existing 0.1.0 install (data in `%APPDATA%\FantasyCompanion\companion.db` is kept; migration 002 runs on first launch). Then:
 1. The app opens on the League screen with the existing data; the status bar shows no error.
 2. Rules screen shows the real league's scoring imported from Sleeper (compare a few values with Sleeper's league settings page — `pass_yd` 0.04 etc., no float noise).
 3. Edit → Save → relaunch → persisted with the `Customized` badge. Re-import → restored.
 
-- [ ] **Step 4: Tag**
+- [x] **Step 4: Tag**
 
 ```bash
 git tag -a v0.2.0 -m "Plan B: rules model, scoring engine, rules screen" && git log --oneline -1
@@ -2147,3 +2147,11 @@ Expected: the tag points at HEAD. Then append a "Progress notes" section to this
 - **Spec coverage:** §7 rules model (T1: `Rules`, `StatKey` vocabulary, `positionOverrides`, `rosterSlots`, `settings`); §7 import mapping key-for-key with unknown keys kept, `roster_positions` counts, `settings.*` (T1 `mapRules`); §7 `scoreStatLine` with position overrides and bonus thresholds (T2); §7 "unsupported keys score 0 and are listed on the Rules screen" (T1 catalogue `supported`, T2 engine, T6 notice + badges); §8 `rules` / `scoring_rules` / `roster_slots` tables via a versioned migration (T3); §4 IPC `rules.get / update / reimportFromSleeper` (T5) — `update` marks `source=custom`; recompute is Plan C's hook; §9 sync writes rules on first import (T4); §10 Rules screen with editable scoring, per-position override, roster slot counts, settings, `Imported from Sleeper` / `Customized` badge, re-import warning, unsupported list (T6); §11 re-import logs to `sync_log` and surfaces in the status bar (T4/T5); §12 scoring tests for PPR, half-PPR, TE premium, yardage bonuses, K buckets, DEF tiers (T2), repo idempotency (T3), sync with mocked sources (T4).
 - **Deferred to Plan C:** `toStatLine` adapters, `player_week_points`, `recomputePoints` (hook marked in T5), points on League/Players screens, "Stats: not yet" status label.
 - **Type consistency:** `Rules.positionOverrides` is `Partial<Record<Position, Record<StatKey, number>>>` in T1, written/read as such in T3 (`position = ''` = base), validated in T5, edited in T6. `saveRules` never opens a transaction — T4 (`syncLeague`, `reimportRules`) and T5 (`rulesUpdate`) wrap it. `reimportRules` returns the same `Rules` it stored (T4 test asserts `getRules` equality). `normalizeRules(input, updatedAt)` and `mapRules(league, updatedAt)` both return `roundPoints`-rounded values so the T6 dirty check compares like with like after a save.
+
+## Progress notes (2026-09-17)
+
+- All 7 tasks implemented inline (executing-plans) on branch `feat/rules-and-scoring`; 81 Vitest tests, typecheck and lint clean at every commit.
+- Human checks: rules verified correct against the real league in the WSLg dev app (43 keys, 0 differences from Sleeper's response — confirmed by querying the dev DB); full check incl. install-over-0.1.0, edit/save/relaunch and re-import passed on Windows.
+- Windows build: `dist/FantasyCompanion-Setup-0.2.0.exe` (94 MB) built from WSL and copied to the Windows desktop.
+- Deviations from the plan text: `.all()` results cast `as unknown as Row[]` (Plan A's pattern; TS rejects the direct cast); the `rulesView` test uses `weird_key` as its unknown-key example because `def_3_and_out` is a catalogued (unsupported) key; Task 3's commit was amended once to include the cast fix; Prettier reflowed a few long lines.
+- Confirmed with the user: the editable rules stay (what-if scoring, app-owned points, safety valve).
