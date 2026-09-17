@@ -41,7 +41,7 @@ export const PLAYER_STAT_MAP: Record<StatKey, string[]> = {
   // misc offense
   fum: ['sack_fumbles', 'rushing_fumbles', 'receiving_fumbles'],
   fum_lost: ['sack_fumbles_lost', 'rushing_fumbles_lost', 'receiving_fumbles_lost'],
-  fum_rec: ['fumble_recovery_own', 'fumble_recovery_opp'],
+  fum_rec: ['fumble_recovery_opp'], // Sleeper pays nothing for recovering your own fumble
   fum_rec_td: ['fumble_recovery_tds'],
   st_td: ['special_teams_tds'],
   pr_yd: ['punt_return_yards'],

@@ -41,8 +41,8 @@ describe('playerStatLine', () => {
       rush_yd: 22,
       fum: 2,
       fum_lost: 1,
-      fum_rec: 1,
-      idp_fum_rec: 0 // fumble_recovery_opp feeds both keys
+      fum_rec: 0, // own recoveries are not paid by Sleeper
+      idp_fum_rec: 0
     })
   })
 
