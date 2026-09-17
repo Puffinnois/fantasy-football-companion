@@ -1,19 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { openDatabase, type Db } from '@main/db/connection'
+import { openDatabase, withTransaction, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
 import { getLeague } from '@main/db/repos/leagues'
 import { countPlayers } from '@main/db/repos/players'
+import { getRules, saveRules } from '@main/db/repos/rules'
 import { getSetting, SETTING_ACTIVE_LEAGUE, SETTING_MY_USER } from '@main/db/repos/settings'
-import { getLastError } from '@main/db/repos/syncLog'
+import { getLastError, getLastSync } from '@main/db/repos/syncLog'
 import { listRoster, listTeams } from '@main/db/repos/teams'
 import type { SleeperClient } from '@main/sources/sleeper'
 import {
   importLeague,
   refreshSleeper,
+  reimportRules,
   SOURCE_LEAGUE,
   SOURCE_PLAYERS,
+  SOURCE_RULES,
   SOURCE_STATE
 } from '@main/sync/sleeperSync'
+import { rules } from '../../fixtures/rules'
 import * as fx from '../../fixtures/sleeper'
 
 function fakeClient(overrides: Partial<SleeperClient> = {}): SleeperClient {
@@ -121,5 +125,61 @@ describe('sleeper sync', () => {
     const result = await importLeague({ db, sleeper: fakeClient(), now, onStep }, 'L1', 'u1')
     expect(result.steps.map((s) => s.status)).toEqual(['ok', 'ok', 'ok'])
     expect(onStep).toHaveBeenCalledTimes(3)
+  })
+
+  describe('rules', () => {
+    const halfPpr = (): SleeperClient =>
+      fakeClient({
+        getLeague: vi.fn(async () => ({
+          ...fx.league,
+          scoring_settings: { ...fx.league.scoring_settings, rec: 0.5 }
+        }))
+      })
+
+    it('importLeague writes Sleeper-sourced rules', async () => {
+      await importLeague({ db, sleeper: fakeClient(), now }, 'L1', 'u1')
+      const r = getRules(db, 'L1')
+      expect(r?.source).toBe('sleeper')
+      expect(r?.scoring.rec).toBe(1)
+      expect(r?.rosterSlots).toContainEqual({ slot: 'BN', count: 6 })
+      expect(r?.settings.numTeams).toBe(2)
+    })
+
+    it('refresh updates rules that are still Sleeper-sourced', async () => {
+      await importLeague({ db, sleeper: fakeClient(), now }, 'L1', 'u1')
+      await refreshSleeper({ db, sleeper: halfPpr(), now }, { force: true })
+      expect(getRules(db, 'L1')?.scoring.rec).toBe(0.5)
+    })
+
+    it('refresh never overwrites custom rules', async () => {
+      await importLeague({ db, sleeper: fakeClient(), now }, 'L1', 'u1')
+      withTransaction(db, () =>
+        saveRules(db, 'L1', rules({ source: 'custom', scoring: { rec: 2 } }))
+      )
+      await refreshSleeper({ db, sleeper: halfPpr(), now }, { force: true })
+      expect(getRules(db, 'L1')).toMatchObject({ source: 'custom', scoring: { rec: 2 } })
+    })
+
+    it('reimportRules overwrites custom rules and logs the step', async () => {
+      await importLeague({ db, sleeper: fakeClient(), now }, 'L1', 'u1')
+      withTransaction(db, () =>
+        saveRules(db, 'L1', rules({ source: 'custom', scoring: { rec: 2 } }))
+      )
+      const result = await reimportRules({ db, sleeper: halfPpr(), now }, 'L1')
+      expect(result.source).toBe('sleeper')
+      expect(result.scoring.rec).toBe(0.5)
+      expect(getRules(db, 'L1')).toEqual(result)
+      expect(getLastSync(db, SOURCE_RULES)?.status).toBe('ok')
+    })
+
+    it('reimportRules throws and logs an error when the league is gone', async () => {
+      await importLeague({ db, sleeper: fakeClient(), now }, 'L1', 'u1')
+      const client = fakeClient({ getLeague: vi.fn(async () => null) })
+      await expect(reimportRules({ db, sleeper: client, now }, 'L1')).rejects.toThrow(
+        'League L1 not found on Sleeper'
+      )
+      expect(getLastSync(db, SOURCE_RULES)?.status).toBe('error')
+      expect(getRules(db, 'L1')?.scoring.rec).toBe(1)
+    })
   })
 })

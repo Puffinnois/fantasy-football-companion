@@ -1,6 +1,7 @@
 import { withTransaction, type Db } from '@main/db/connection'
 import { upsertLeague } from '@main/db/repos/leagues'
 import { upsertPlayers } from '@main/db/repos/players'
+import { getRules, saveRules } from '@main/db/repos/rules'
 import {
   getSetting,
   SETTING_ACTIVE_LEAGUE,
@@ -11,12 +12,14 @@ import { setNflState } from '@main/db/repos/state'
 import { finishSync, getLastSync, startSync } from '@main/db/repos/syncLog'
 import { replaceRosterPlayers, replaceTeams } from '@main/db/repos/teams'
 import type { SleeperClient } from '@main/sources/sleeper'
+import type { Rules } from '@shared/rules'
 import type { SyncLogEntry, SyncResult } from '@shared/types'
-import { mapLeague, mapNflState, mapPlayers, mapRosterPlayers, mapTeams } from './mappers'
+import { mapLeague, mapNflState, mapPlayers, mapRosterPlayers, mapRules, mapTeams } from './mappers'
 
 export const SOURCE_STATE = 'sleeper:state'
 export const SOURCE_LEAGUE = 'sleeper:league'
 export const SOURCE_PLAYERS = 'sleeper:players'
+export const SOURCE_RULES = 'sleeper:rules'
 
 const MINUTE = 60 * 1000
 export const FRESHNESS_MS: Record<string, number> = {
@@ -102,6 +105,10 @@ function syncLeague(
       upsertLeague(deps.db, mapLeague(league, ts), ts)
       replaceTeams(deps.db, leagueId, teams, ts)
       replaceRosterPlayers(deps.db, leagueId, rosterPlayers, ts)
+      // custom rules belong to the user; only Sleeper-sourced rules follow the commissioner
+      if (getRules(deps.db, leagueId)?.source !== 'custom') {
+        saveRules(deps.db, leagueId, mapRules(league, ts))
+      }
     })
     return teams.length + rosterPlayers.length
   })
@@ -145,4 +152,28 @@ export async function refreshSleeper(
   if (leagueId) steps.push(await syncLeague(deps, leagueId, myUserId, force))
   steps.push(await syncPlayers(deps, force))
   return { steps }
+}
+
+/** Explicit "Re-import from Sleeper": overwrites whatever rules exist, including custom ones. */
+export async function reimportRules(deps: SyncDeps, leagueId: string): Promise<Rules> {
+  const id = startSync(deps.db, SOURCE_RULES, nowOf(deps).toISOString())
+  try {
+    const league = await deps.sleeper.getLeague(leagueId)
+    if (!league) throw new Error(`League ${leagueId} not found on Sleeper`)
+    const rules = mapRules(league, nowOf(deps).toISOString())
+    withTransaction(deps.db, () => saveRules(deps.db, leagueId, rules))
+    finishSync(
+      deps.db,
+      id,
+      'ok',
+      nowOf(deps).toISOString(),
+      null,
+      Object.keys(rules.scoring).length
+    )
+    return rules
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    finishSync(deps.db, id, 'error', nowOf(deps).toISOString(), message, 0)
+    throw err
+  }
 }
