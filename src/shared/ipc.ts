@@ -1,11 +1,15 @@
 import type {
   League,
   LeagueSummary,
+  PlayerFilter,
+  PlayerRow,
+  PointsContext,
   RosterPlayer,
   SyncLogEntry,
   SyncResult,
   SyncStatus,
-  Team
+  Team,
+  WeekStats
 } from './types'
 import type { Rules } from './rules'
 
@@ -23,6 +27,14 @@ export interface Api {
     get(): Promise<League | null>
     teams(): Promise<Team[]>
     roster(rosterId: number): Promise<RosterPlayer[]>
+    /** Season shown and the latest scored week; the League/Players screens label their columns with it. */
+    pointsContext(): Promise<PointsContext>
+  }
+  players: {
+    /** Scored positions only; ordered by season points; at most 200 rows. */
+    search(filter: PlayerFilter): Promise<PlayerRow[]>
+    /** Raw weekly stats + snaps + points for the league's season. [] when the player has no nflverse identity. */
+    weeklyStats(playerId: string): Promise<WeekStats[]>
   }
   rules: {
     get(): Promise<Rules | null>
@@ -44,6 +56,9 @@ export const IPC = {
   leagueGet: 'league:get',
   leagueTeams: 'league:teams',
   leagueRoster: 'league:roster',
+  leaguePointsContext: 'league:pointsContext',
+  playersSearch: 'players:search',
+  playersWeeklyStats: 'players:weeklyStats',
   rulesGet: 'rules:get',
   rulesUpdate: 'rules:update',
   rulesReimport: 'rules:reimport',

@@ -1,5 +1,8 @@
-import type { RosterPlayer, RosterSlot, Team } from '@shared/types'
+import { toNflverseTeam } from '@shared/teams'
+import type { PointsContext, RosterPlayer, RosterSlot, Team } from '@shared/types'
 import type { Db } from '../connection'
+import { NO_POINTS_CONTEXT, POINTS_CTE, round2 } from './points'
+import { teamByeWeeks } from './stats'
 
 export interface RosterPlayerRecord {
   rosterId: number
@@ -32,6 +35,9 @@ interface RosterRow {
   team: string | null
   status: string | null
   injury_status: string | null
+  season_points: number | null
+  last_week_points: number | null
+  stats_available: number
 }
 
 export function replaceTeams(db: Db, leagueId: string, teams: Team[], updatedAt: string): void {
@@ -94,18 +100,29 @@ export function replaceRosterPlayers(
     insert.run(leagueId, r.rosterId, r.playerId, r.slot, r.starterIndex, updatedAt)
 }
 
-export function listRoster(db: Db, leagueId: string, rosterId: number): RosterPlayer[] {
+export function listRoster(
+  db: Db,
+  leagueId: string,
+  rosterId: number,
+  ctx: PointsContext = NO_POINTS_CONTEXT
+): RosterPlayer[] {
+  const byes = teamByeWeeks(db, ctx.season)
   const rows = db
     .prepare(
-      `SELECT rp.player_id, rp.slot, rp.starter_index,
-         COALESCE(p.full_name, rp.player_id) AS full_name, p.position, p.team, p.status, p.injury_status
+      `${POINTS_CTE}
+       SELECT rp.player_id, rp.slot, rp.starter_index,
+         COALESCE(p.full_name, rp.player_id) AS full_name, p.position, p.team, p.status, p.injury_status,
+         pts.season_points, pts.last_week_points,
+         CASE WHEN i.gsis_id IS NOT NULL OR i.nflverse_team IS NOT NULL THEN 1 ELSE 0 END AS stats_available
        FROM roster_players rp
        LEFT JOIN players p ON p.player_id = rp.player_id
+       LEFT JOIN pts ON pts.player_id = rp.player_id
+       LEFT JOIN player_ids i ON i.player_id = rp.player_id
        WHERE rp.league_id = ? AND rp.roster_id = ?
        ORDER BY CASE rp.slot WHEN 'starter' THEN 0 WHEN 'bench' THEN 1 WHEN 'ir' THEN 2 ELSE 3 END,
          rp.starter_index, p.position, full_name`
     )
-    .all(leagueId, rosterId) as unknown as RosterRow[]
+    .all(ctx.lastWeek, leagueId, ctx.season, leagueId, rosterId) as unknown as RosterRow[]
   return rows.map((r) => ({
     playerId: r.player_id,
     slot: r.slot,
@@ -114,6 +131,10 @@ export function listRoster(db: Db, leagueId: string, rosterId: number): RosterPl
     position: r.position,
     team: r.team,
     status: r.status,
-    injuryStatus: r.injury_status
+    injuryStatus: r.injury_status,
+    byeWeek: r.team ? (byes.get(toNflverseTeam(r.team)) ?? null) : null,
+    seasonPoints: round2(r.season_points),
+    lastWeekPoints: round2(r.last_week_points),
+    statsAvailable: r.stats_available === 1
   }))
 }

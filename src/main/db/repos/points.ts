@@ -60,3 +60,18 @@ export function listWeekPoints(
     )
     .all(leagueId, playerId, season) as unknown as { week: number; points: number }[]
 }
+
+/**
+ * CTE giving each player's season total and last-week points. Bind, in order:
+ * `lastWeek` (nullable), `leagueId`, `season` — before the outer query's own parameters.
+ */
+export const POINTS_CTE = `WITH pts AS (
+  SELECT player_id, SUM(points) AS season_points,
+         SUM(CASE WHEN week = ? THEN points END) AS last_week_points
+  FROM player_week_points WHERE league_id = ? AND season = ? GROUP BY player_id
+)`
+
+/** SQL SUMs of 2-decimal values carry float noise (30.200000000000003). */
+export function round2(value: number | null): number | null {
+  return value === null ? null : Math.round(value * 100) / 100
+}

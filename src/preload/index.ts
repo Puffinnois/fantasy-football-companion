@@ -10,7 +10,12 @@ const api: Api = {
   league: {
     get: () => ipcRenderer.invoke(IPC.leagueGet),
     teams: () => ipcRenderer.invoke(IPC.leagueTeams),
-    roster: (rosterId) => ipcRenderer.invoke(IPC.leagueRoster, rosterId)
+    roster: (rosterId) => ipcRenderer.invoke(IPC.leagueRoster, rosterId),
+    pointsContext: () => ipcRenderer.invoke(IPC.leaguePointsContext)
+  },
+  players: {
+    search: (filter) => ipcRenderer.invoke(IPC.playersSearch, filter),
+    weeklyStats: (playerId) => ipcRenderer.invoke(IPC.playersWeeklyStats, playerId)
   },
   rules: {
     get: () => ipcRenderer.invoke(IPC.rulesGet),

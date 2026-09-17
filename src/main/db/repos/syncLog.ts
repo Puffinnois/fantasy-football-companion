@@ -65,3 +65,15 @@ export function getLastError(db: Db): SyncLogEntry | null {
     .get() as Row | undefined
   return row ? toEntry(row) : null
 }
+
+/** Latest entry whose source starts with `prefix` (e.g. every `nflverse:stats:<season>`). */
+export function getLastSyncLike(
+  db: Db,
+  prefix: string,
+  status: SyncStatusKind
+): SyncLogEntry | null {
+  const row = db
+    .prepare('SELECT * FROM sync_log WHERE source LIKE ? AND status = ? ORDER BY id DESC LIMIT 1')
+    .get(`${prefix}%`, status) as Row | undefined
+  return row ? toEntry(row) : null
+}

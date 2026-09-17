@@ -5,9 +5,9 @@ import icon from '../../resources/icon.png?asset'
 import { openDatabase, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
-import { registerIpcHandlers, syncDeps, type AppContext } from '@main/ipc/handlers'
+import { registerIpcHandlers, startRefresh, type AppContext } from '@main/ipc/handlers'
+import { createNflverseClient } from '@main/sources/nflverse'
 import { createSleeperClient } from '@main/sources/sleeper'
-import { refreshSleeper } from '@main/sync/sleeperSync'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -66,13 +66,14 @@ app.whenReady().then(() => {
   const ctx: AppContext = {
     db: openAppDatabase(),
     sleeper: createSleeperClient(),
+    nflverse: createNflverseClient(),
     getWindow: () => mainWindow
   }
   registerIpcHandlers(ctx)
   createWindow()
 
   if (getSetting(ctx.db, SETTING_ACTIVE_LEAGUE)) {
-    refreshSleeper(syncDeps(ctx)).catch((err) => console.error('background refresh failed', err))
+    startRefresh(ctx).catch((err) => console.error('background refresh failed', err))
   }
 
   app.on('activate', () => {
