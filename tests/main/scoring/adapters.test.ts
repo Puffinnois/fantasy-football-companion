@@ -4,7 +4,9 @@ import {
   PLAYER_STAT_MAP,
   playerStatLine,
   TEAM_STAT_MAP,
-  teamStatLine
+  teamStatLine,
+  withDisplayStats,
+  withKickingBuckets
 } from '@main/scoring/adapters'
 import { DERIVED_STATS } from '@main/scoring/engine'
 import { STAT_KEYS } from '@shared/statKeys'
@@ -166,5 +168,19 @@ describe('adapter contract with the stat-key catalogue', () => {
     ]) {
       expect(unsupported.has(key), key).toBe(false)
     }
+  })
+})
+
+describe('display helpers', () => {
+  it('adds attempt columns and the 0-39 bucket', () => {
+    const line = withDisplayStats(
+      playerStatLine({ fg_made: 2, fg_att: 3, pat_made: 1, pat_att: 2 }),
+      { fg_made: 2, fg_att: 3, pat_made: 1, pat_att: 2 }
+    )
+    expect(line).toMatchObject({ fgm: 2, fga: 3, xpm: 1, xpa: 2 })
+    expect(
+      withKickingBuckets({ fgm_0_19: 0, fgm_20_29: 1, fgm_30_39: 1, fgm_40_49: 1 })
+    ).toMatchObject({ fgm_0_39: 2 })
+    expect(withKickingBuckets({ rush_yd: 5 })).toEqual({ rush_yd: 5 })
   })
 })

@@ -1,8 +1,9 @@
 import type {
   League,
   LeagueSummary,
-  PlayerFilter,
-  PlayerRow,
+  PlayersOptions,
+  PlayersQuery,
+  PlayersTable,
   PointsContext,
   RosterPlayer,
   SyncLogEntry,
@@ -31,10 +32,14 @@ export interface Api {
     pointsContext(): Promise<PointsContext>
   }
   players: {
-    /** Scored positions only; ordered by season points; at most 200 rows. */
-    search(filter: PlayerFilter): Promise<PlayerRow[]>
-    /** Raw weekly stats + snaps + points for the league's season. [] when the player has no nflverse identity. */
+    options(): Promise<PlayersOptions>
+    /** One row per candidate player for (season, week); sorted server-side; at most 250 rows (`total` says how many matched). */
+    table(query: PlayersQuery): Promise<PlayersTable>
     weeklyStats(playerId: string): Promise<WeekStats[]>
+  }
+  watchlist: {
+    /** Returns the new state. */
+    toggle(playerId: string): Promise<boolean>
   }
   rules: {
     get(): Promise<Rules | null>
@@ -57,8 +62,10 @@ export const IPC = {
   leagueTeams: 'league:teams',
   leagueRoster: 'league:roster',
   leaguePointsContext: 'league:pointsContext',
-  playersSearch: 'players:search',
+  playersOptions: 'players:options',
+  playersTable: 'players:table',
   playersWeeklyStats: 'players:weeklyStats',
+  watchlistToggle: 'watchlist:toggle',
   rulesGet: 'rules:get',
   rulesUpdate: 'rules:update',
   rulesReimport: 'rules:reimport',

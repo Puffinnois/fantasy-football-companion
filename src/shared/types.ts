@@ -45,31 +45,78 @@ export interface RosterPlayer {
   statsAvailable: boolean
 }
 
-export type OwnerFilter = 'all' | 'fa' | number
+export type TableMode = 'proj' | 'stats'
 
-export interface PlayerFilter {
-  /** Case-insensitive substring of the full name. */
-  query?: string
-  position?: string
-  /** Sleeper NFL team code. */
-  team?: string
-  /** 'fa' = free agents only; a number = that roster id. */
-  owner?: OwnerFilter
+export interface PositionTab {
+  id: string
+  label: string
+  positions: string[]
 }
 
-export interface PlayerRow {
+export interface PlayersOptions {
+  seasons: number[]
+  currentWeek: number
+  lastScoredWeek: number | null
+  tabs: PositionTab[]
+  projectionWeeks: { season: number; week: number }[]
+}
+
+export interface TableSort {
+  /** 'points' | 'delta' | 'name' | 'snapPct' | 'targetShare' | `stat:<sleeperKey>` */
+  key: string
+  dir: 'asc' | 'desc'
+}
+
+export interface PlayersQuery {
+  season: number
+  week: number
+  mode: TableMode
+  tab: string
+  search?: string
+  freeAgents?: boolean
+  watchlist?: boolean
+  rookies?: boolean
+  owner?: number
+  sort: TableSort
+}
+
+export interface GameInfo {
+  /** Sleeper team code of the opponent. */
+  opponent: string
+  home: boolean
+  /** ISO UTC kickoff; null when the schedule has no time. */
+  kickoff: string | null
+  homeScore: number | null
+  awayScore: number | null
+  final: boolean
+}
+
+export interface PlayerTableRow {
   playerId: string
   fullName: string
   position: string | null
   team: string | null
-  status: string | null
+  byeWeek: number | null
   injuryStatus: string | null
+  rookie: boolean
+  watched: boolean
   ownerRosterId: number | null
   ownerName: string | null
-  byeWeek: number | null
-  seasonPoints: number | null
-  lastWeekPoints: number | null
+  /** null = bye (team known) or no team. */
+  game: GameInfo | null
+  points: number | null
+  projected: number | null
+  delta: number | null
+  /** Sleeper stat keys (+ fga, xpa, fgm_0_39); the projection line in 'proj' mode. */
+  stats: Record<string, number>
+  snapPct: number | null
+  targetShare: number | null
   statsAvailable: boolean
+}
+
+export interface PlayersTable {
+  rows: PlayerTableRow[]
+  total: number
 }
 
 export interface WeekSnaps {

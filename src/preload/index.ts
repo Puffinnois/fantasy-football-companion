@@ -14,8 +14,12 @@ const api: Api = {
     pointsContext: () => ipcRenderer.invoke(IPC.leaguePointsContext)
   },
   players: {
-    search: (filter) => ipcRenderer.invoke(IPC.playersSearch, filter),
+    options: () => ipcRenderer.invoke(IPC.playersOptions),
+    table: (query) => ipcRenderer.invoke(IPC.playersTable, query),
     weeklyStats: (playerId) => ipcRenderer.invoke(IPC.playersWeeklyStats, playerId)
+  },
+  watchlist: {
+    toggle: (playerId) => ipcRenderer.invoke(IPC.watchlistToggle, playerId)
   },
   rules: {
     get: () => ipcRenderer.invoke(IPC.rulesGet),

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Db } from '@main/db/connection'
 import { replacePlayerIds } from '@main/db/repos/playerIds'
-import { playerWeeklyStats, searchPlayers } from '@main/db/repos/playersQuery'
+import { playerWeeklyStats } from '@main/db/repos/playersQuery'
 import { replacePoints } from '@main/db/repos/points'
 import {
   replacePlayerWeekStats,
@@ -157,38 +157,6 @@ describe('points-aware queries', () => {
     expect(
       listRoster(db, 'L1', 1).every((p) => p.seasonPoints === null && p.byeWeek === null)
     ).toBe(true)
-  })
-
-  it('searchPlayers orders by season points and joins the owner', () => {
-    const rows = searchPlayers(db, 'L1', ctx, {})
-    expect(rows.map((r) => r.playerId)).toEqual(['4866', '7564', 'LAR', '6794', '9509', '8259'])
-    expect(rows[0]).toMatchObject({
-      fullName: 'Saquon Barkley',
-      ownerRosterId: 1,
-      ownerName: 'Cook Book',
-      seasonPoints: 30.2,
-      lastWeekPoints: 11.8,
-      byeWeek: 2
-    })
-    expect(rows.map((r) => r.playerId)).not.toContain('1234') // Inactive, no team, not rostered
-  })
-
-  it('searchPlayers filters by position, team, owner and name', () => {
-    expect(searchPlayers(db, 'L1', ctx, { position: 'WR' }).map((r) => r.playerId)).toEqual([
-      '7564',
-      '6794'
-    ])
-    expect(searchPlayers(db, 'L1', ctx, { team: 'PHI' }).map((r) => r.playerId)).toEqual(['4866'])
-    expect(searchPlayers(db, 'L1', ctx, { owner: 2 }).map((r) => r.playerId)).toEqual([
-      '7564',
-      '9509'
-    ])
-    expect(searchPlayers(db, 'L1', ctx, { query: 'jeff' }).map((r) => r.playerId)).toEqual(['6794'])
-    expect(searchPlayers(db, 'L1', ctx, { query: '%_\\' })).toEqual([])
-    db.prepare("DELETE FROM roster_players WHERE player_id = '9509'").run()
-    expect(searchPlayers(db, 'L1', ctx, { owner: 'fa' })).toMatchObject([
-      { playerId: '9509', ownerRosterId: null, ownerName: null }
-    ])
   })
 
   it('playerWeeklyStats merges stats, snaps and points for a player, team rows for a DEF', () => {

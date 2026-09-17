@@ -1,0 +1,229 @@
+import {
+  offensiveYards,
+  playerStatLine,
+  teamStatLine,
+  withDisplayStats,
+  withKickingBuckets
+} from '@main/scoring/adapters'
+import { scoreStatLine, type StatLine } from '@main/scoring/engine'
+import { pointsAllowedIndex } from '@main/scoring/recompute'
+import { POSITIONS, type Position, type RosterSlotCount } from '@shared/rules'
+import { toNflverseTeam, toSleeperTeam } from '@shared/teams'
+import { kickoffIso } from '@shared/time'
+import type {
+  GameInfo,
+  PlayersOptions,
+  PlayersQuery,
+  PlayersTable,
+  PlayerTableRow,
+  PositionTab
+} from '@shared/types'
+import type { Db } from '../connection'
+import { getLeague } from './leagues'
+import { latestPointsWeek, listPointsByWeek, round2 } from './points'
+import { listProjections, listProjectionWeeks } from './projections'
+import { getRules } from './rules'
+import { getNflState } from './state'
+import {
+  listGamesByWeek,
+  listPlayerWeeksByWeek,
+  listSnapsByWeek,
+  listTeamWeeksByWeek,
+  teamByeWeeks
+} from './stats'
+
+export const TABLE_LIMIT = 250
+const ALL_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']
+const FLEX_SLOTS: Record<string, string[]> = {
+  FLEX: ['RB', 'WR', 'TE'],
+  SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'],
+  REC_FLEX: ['WR', 'TE'],
+  WRRB_FLEX: ['RB', 'WR']
+}
+
+interface CandidateRow {
+  player_id: string
+  full_name: string
+  pos: string | null
+  team: string | null
+  injury_status: string | null
+  years_exp: number | null
+  owner_roster_id: number | null
+  owner_name: string | null
+  watched: string | null
+  gsis_id: string | null
+  pfr_id: string | null
+  nflverse_team: string | null
+}
+
+/** ALL, one tab per scored position, then the league's flex slots in roster order. */
+export function tabsForSlots(slots: RosterSlotCount[]): PositionTab[] {
+  const tabs: PositionTab[] = [{ id: 'ALL', label: 'All', positions: ALL_POSITIONS }]
+  for (const p of ALL_POSITIONS) tabs.push({ id: p, label: p, positions: [p] })
+  for (const s of slots) {
+    const positions = FLEX_SLOTS[s.slot]
+    if (positions && !tabs.some((t) => t.id === s.slot)) {
+      tabs.push({ id: s.slot, label: s.slot.replace('_', ' '), positions })
+    }
+  }
+  return tabs
+}
+
+export function playersOptions(db: Db, leagueId: string): PlayersOptions {
+  const league = getLeague(db, leagueId)
+  const state = getNflState(db)
+  const season = league ? Number(league.season) : state ? Number(state.season) : 0
+  return {
+    seasons: [season, season - 1],
+    currentWeek: state ? Math.min(Math.max(state.displayWeek, 1), 18) : 1,
+    lastScoredWeek: latestPointsWeek(db, leagueId, season),
+    tabs: tabsForSlots(getRules(db, leagueId)?.rosterSlots ?? []),
+    projectionWeeks: listProjectionWeeks(db)
+  }
+}
+
+function asPosition(value: string | null): Position | null {
+  return (POSITIONS as readonly string[]).includes(value ?? '') ? (value as Position) : null
+}
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&')
+}
+
+function sortValue(
+  row: PlayerTableRow,
+  key: string,
+  mode: PlayersQuery['mode']
+): number | string | null {
+  if (key === 'points') return mode === 'proj' ? row.projected : row.points
+  if (key === 'delta') return row.delta
+  if (key === 'name') return row.fullName
+  if (key === 'snapPct') return row.snapPct
+  if (key === 'targetShare') return row.targetShare
+  if (key.startsWith('stat:')) return row.stats[key.slice(5)] ?? null
+  return null
+}
+
+/** Candidate players (SQL) + one week of data attached from map lookups (JS); sorted, then capped. */
+export function playersTable(db: Db, leagueId: string, q: PlayersQuery): PlayersTable {
+  const rules = getRules(db, leagueId)
+  const tabs = tabsForSlots(rules?.rosterSlots ?? [])
+  const tab = tabs.find((t) => t.id === q.tab) ?? tabs[0]
+  const where = [
+    `pos IN (${tab.positions.map(() => '?').join(', ')})`,
+    "(owner_roster_id IS NOT NULL OR watched IS NOT NULL OR (team IS NOT NULL AND COALESCE(status, '') != 'Inactive'))"
+  ]
+  const params: (string | number)[] = [leagueId, ...tab.positions]
+  if (q.search?.trim()) {
+    where.push("full_name LIKE ? ESCAPE '\\'")
+    params.push(`%${escapeLike(q.search.trim())}%`)
+  }
+  if (q.freeAgents) where.push('owner_roster_id IS NULL')
+  if (q.watchlist) where.push('watched IS NOT NULL')
+  if (q.rookies) where.push('years_exp = 0')
+  if (typeof q.owner === 'number') {
+    where.push('owner_roster_id = ?')
+    params.push(q.owner)
+  }
+  const candidates = db
+    .prepare(
+      `SELECT * FROM (
+         SELECT p.player_id, p.full_name, CASE WHEN p.position = 'FB' THEN 'RB' ELSE p.position END AS pos,
+           p.team, p.status, p.injury_status, p.years_exp,
+           rp.roster_id AS owner_roster_id, COALESCE(t.team_name, t.display_name) AS owner_name,
+           w.player_id AS watched, i.gsis_id, i.pfr_id, i.nflverse_team
+         FROM players p
+         LEFT JOIN roster_players rp ON rp.player_id = p.player_id AND rp.league_id = ?
+         LEFT JOIN teams t ON t.league_id = rp.league_id AND t.roster_id = rp.roster_id
+         LEFT JOIN watchlist w ON w.player_id = p.player_id
+         LEFT JOIN player_ids i ON i.player_id = p.player_id
+       ) WHERE ${where.join(' AND ')}`
+    )
+    .all(...params) as unknown as CandidateRow[]
+
+  const { season, week } = q
+  const statsByGsis = new Map(listPlayerWeeksByWeek(db, season, week).map((r) => [r.gsisId, r]))
+  const teamWeeks = listTeamWeeksByWeek(db, season, week)
+  const teamByCode = new Map(teamWeeks.map((t) => [t.team, t]))
+  const games = listGamesByWeek(db, season, week)
+  const allowed = pointsAllowedIndex(games)
+  const gameByTeam = new Map<string, GameInfo>()
+  for (const g of games) {
+    const shared = {
+      kickoff: kickoffIso(g.gameday, g.gametime),
+      homeScore: g.homeScore,
+      awayScore: g.awayScore,
+      final: g.homeScore !== null && g.awayScore !== null
+    }
+    gameByTeam.set(g.homeTeam, { ...shared, opponent: toSleeperTeam(g.awayTeam), home: true })
+    gameByTeam.set(g.awayTeam, { ...shared, opponent: toSleeperTeam(g.homeTeam), home: false })
+  }
+  const points = listPointsByWeek(db, leagueId, season, week)
+  const projections = new Map(listProjections(db, season, week).map((p) => [p.playerId, p.stats]))
+  const snaps = listSnapsByWeek(db, season, week)
+  const byes = teamByeWeeks(db, season)
+
+  const rows: PlayerTableRow[] = candidates.map((r) => {
+    const position = asPosition(r.pos)
+    const projLine = projections.get(r.player_id) ?? null
+    const projected = projLine && rules ? scoreStatLine(projLine, rules, position) : null
+    let actual: StatLine | null = null
+    let targetShare: number | null = null
+    let snapPct: number | null = null
+    if (r.nflverse_team) {
+      const t = teamByCode.get(r.nflverse_team)
+      if (t) {
+        const opp = t.opponent ? teamByCode.get(t.opponent) : undefined
+        actual = teamStatLine(t.stats, {
+          pointsAllowed: allowed.get(`${t.team}|${season}|${week}`) ?? null,
+          yardsAllowed: opp ? offensiveYards(opp.stats) : null
+        })
+      }
+    } else if (r.gsis_id) {
+      const s = statsByGsis.get(r.gsis_id)
+      if (s) {
+        actual = withDisplayStats(playerStatLine(s.stats), s.stats)
+        targetShare = s.stats.target_share ?? null
+      }
+      if (r.pfr_id) snapPct = snaps.get(r.pfr_id) ?? null
+    }
+    const pts = points.get(r.player_id) ?? null
+    const line = q.mode === 'proj' ? projLine : actual
+    const nflverseTeam = r.team ? toNflverseTeam(r.team) : null
+    return {
+      playerId: r.player_id,
+      fullName: r.full_name,
+      position: r.pos,
+      team: r.team,
+      byeWeek: nflverseTeam ? (byes.get(nflverseTeam) ?? null) : null,
+      injuryStatus: r.injury_status,
+      rookie: r.years_exp === 0,
+      watched: r.watched !== null,
+      ownerRosterId: r.owner_roster_id,
+      ownerName: r.owner_name,
+      game: nflverseTeam ? (gameByTeam.get(nflverseTeam) ?? null) : null,
+      points: pts,
+      projected,
+      delta: pts !== null && projected !== null ? round2(pts - projected) : null,
+      stats: line ? (withKickingBuckets(line) as Record<string, number>) : {},
+      snapPct,
+      targetShare,
+      statsAvailable: r.gsis_id !== null || r.nflverse_team !== null
+    }
+  })
+
+  const dir = q.sort.dir === 'asc' ? 1 : -1
+  rows.sort((a, b) => {
+    const va = sortValue(a, q.sort.key, q.mode)
+    const vb = sortValue(b, q.sort.key, q.mode)
+    if (va === null && vb === null) return a.fullName.localeCompare(b.fullName)
+    if (va === null) return 1
+    if (vb === null) return -1
+    const cmp =
+      typeof va === 'string' || typeof vb === 'string'
+        ? String(va).localeCompare(String(vb))
+        : va - vb
+    return cmp !== 0 ? cmp * dir : a.fullName.localeCompare(b.fullName)
+  })
+  return { rows: rows.slice(0, TABLE_LIMIT), total: rows.length }
+}

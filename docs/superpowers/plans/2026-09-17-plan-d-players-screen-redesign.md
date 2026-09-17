@@ -680,8 +680,9 @@ describe('playersTable', () => {
 
   it('projection mode: points are the scored projection, stats are the projection line, usage absent', () => {
     const { rows } = playersTable(db, 'L1', { ...base, mode: 'proj' })
-    expect(rows[0].playerId).toBe('4866')
-    expect(rows[0].stats).toMatchObject({ rush_att: 18.2, rec_tgt: 4 })
+    // Jefferson projects 18.91 under the fixture rules, Barkley 18.58
+    expect(rows.slice(0, 2).map((r) => r.playerId)).toEqual(['6794', '4866'])
+    expect(rows[1].stats).toMatchObject({ rush_att: 18.2, rec_tgt: 4 })
     expect(rows.find((r) => r.playerId === 'LAR')?.stats).toMatchObject({ sack: 2.4, pts_allow: 20.5 })
     expect(rows.find((r) => r.playerId === '7564')?.projected).toBeNull()
   })

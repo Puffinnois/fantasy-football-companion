@@ -40,3 +40,11 @@ export const SLEEPER_TO_NFLVERSE_TEAM: Record<string, string> = { LAR: 'LA' }
 export function toNflverseTeam(sleeperTeam: string): string {
   return SLEEPER_TO_NFLVERSE_TEAM[sleeperTeam] ?? sleeperTeam
 }
+
+const NFLVERSE_TO_SLEEPER_TEAM: Record<string, string> = Object.fromEntries(
+  Object.entries(SLEEPER_TO_NFLVERSE_TEAM).map(([sleeper, nflverse]) => [nflverse, sleeper])
+)
+
+export function toSleeperTeam(nflverseTeam: string): string {
+  return NFLVERSE_TO_SLEEPER_TEAM[nflverseTeam] ?? nflverseTeam
+}

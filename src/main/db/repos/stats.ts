@@ -331,3 +331,37 @@ export function listNflverseIdentities(db: Db): NflverseIdentity[] {
     .all() as unknown as { gsis_id: string; player_name: string; position: string | null }[]
   return rows.map((r) => ({ gsisId: r.gsis_id, name: r.player_name, position: r.position }))
 }
+
+export function listPlayerWeeksByWeek(db: Db, season: number, week: number): PlayerWeekRow[] {
+  const rows = db
+    .prepare(`${PLAYER_WEEK_SELECT} WHERE season = ? AND week = ?`)
+    .all(season, week) as unknown as PlayerWeekDbRow[]
+  return rows.map(toPlayerWeek)
+}
+
+export function listTeamWeeksByWeek(db: Db, season: number, week: number): TeamWeekRow[] {
+  const rows = db
+    .prepare(
+      'SELECT team, season, week, opponent, stats_json FROM team_week_stats WHERE season = ? AND week = ?'
+    )
+    .all(season, week) as unknown as TeamWeekDbRow[]
+  return rows.map((r) => ({
+    team: r.team,
+    season: r.season,
+    week: r.week,
+    opponent: r.opponent,
+    stats: JSON.parse(r.stats_json) as Record<string, number>
+  }))
+}
+
+/** pfr id → offensive snap share for one week. */
+export function listSnapsByWeek(db: Db, season: number, week: number): Map<string, number | null> {
+  const rows = db
+    .prepare('SELECT pfr_id, offense_pct FROM player_week_snaps WHERE season = ? AND week = ?')
+    .all(season, week) as unknown as { pfr_id: string; offense_pct: number | null }[]
+  return new Map(rows.map((r) => [r.pfr_id, r.offense_pct]))
+}
+
+export function listGamesByWeek(db: Db, season: number, week: number): GameRow[] {
+  return listGames(db).filter((g) => g.season === season && g.week === week)
+}

@@ -75,3 +75,18 @@ export const POINTS_CTE = `WITH pts AS (
 export function round2(value: number | null): number | null {
   return value === null ? null : Math.round(value * 100) / 100
 }
+
+/** player id → points for one week of the league's season. */
+export function listPointsByWeek(
+  db: Db,
+  leagueId: string,
+  season: number,
+  week: number
+): Map<string, number> {
+  const rows = db
+    .prepare(
+      'SELECT player_id, points FROM player_week_points WHERE league_id = ? AND season = ? AND week = ?'
+    )
+    .all(leagueId, season, week) as unknown as { player_id: string; points: number }[]
+  return new Map(rows.map((r) => [r.player_id, r.points]))
+}

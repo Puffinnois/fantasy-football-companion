@@ -1,13 +1,15 @@
 import { ipcMain, type BrowserWindow } from 'electron'
 import { withTransaction, type Db } from '@main/db/connection'
 import { getLeague } from '@main/db/repos/leagues'
-import { playerWeeklyStats, searchPlayers } from '@main/db/repos/playersQuery'
+import { playerWeeklyStats } from '@main/db/repos/playersQuery'
+import { playersOptions, playersTable } from '@main/db/repos/playersTable'
 import { latestPointsWeek, NO_POINTS_CONTEXT } from '@main/db/repos/points'
 import { getRules, saveRules } from '@main/db/repos/rules'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
 import { getNflState } from '@main/db/repos/state'
 import { getLastError, getLastSync, getLastSyncLike } from '@main/db/repos/syncLog'
 import { listRoster, listTeams } from '@main/db/repos/teams'
+import { toggleWatch } from '@main/db/repos/watchlist'
 import { normalizeRules } from '@main/scoring/normalize'
 import { recomputePoints } from '@main/scoring/recompute'
 import type { NflverseClient } from '@main/sources/nflverse'
@@ -21,8 +23,9 @@ import { IPC, type FindLeaguesResult } from '@shared/ipc'
 import type { Rules } from '@shared/rules'
 import type {
   League,
-  PlayerFilter,
-  PlayerRow,
+  PlayersOptions,
+  PlayersQuery,
+  PlayersTable,
   PointsContext,
   RosterPlayer,
   SyncResult,
@@ -131,10 +134,20 @@ export function registerIpcHandlers(ctx: AppContext): void {
     return reimportRules(syncDeps(ctx), id)
   })
 
-  ipcMain.handle(IPC.playersSearch, (_event, filter: PlayerFilter): PlayerRow[] => {
+  ipcMain.handle(IPC.playersOptions, (): PlayersOptions => {
     const id = activeLeagueId()
-    return id ? searchPlayers(ctx.db, id, pointsContext(ctx, id), filter ?? {}) : []
+    if (!id) throw new Error('No league imported')
+    return playersOptions(ctx.db, id)
   })
+
+  ipcMain.handle(IPC.playersTable, (_event, query: PlayersQuery): PlayersTable => {
+    const id = activeLeagueId()
+    return id ? playersTable(ctx.db, id, query) : { rows: [], total: 0 }
+  })
+
+  ipcMain.handle(IPC.watchlistToggle, (_event, playerId: string): boolean =>
+    toggleWatch(ctx.db, playerId, new Date().toISOString())
+  )
 
   ipcMain.handle(IPC.playersWeeklyStats, (_event, playerId: string): WeekStats[] => {
     const id = activeLeagueId()

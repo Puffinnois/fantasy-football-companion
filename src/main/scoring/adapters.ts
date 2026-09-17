@@ -131,3 +131,22 @@ export function teamStatLine(stats: Stats, ctx: TeamContext): StatLine {
 export function offensiveYards(stats: Stats): number {
   return sum(stats, ['rushing_yards', 'passing_yards']) - sum(stats, ['sack_yards_lost'])
 }
+
+/** Display-only keys (not scoring keys): attempts behind the K columns. */
+export const DISPLAY_STAT_MAP: Record<string, string[]> = { fga: ['fg_att'], xpa: ['pat_att'] }
+
+export function withDisplayStats(line: StatLine, raw: Stats): StatLine {
+  const out: StatLine = { ...line }
+  for (const [key, cols] of Object.entries(DISPLAY_STAT_MAP)) {
+    if (cols.some((c) => c in raw)) out[key] = sum(raw, cols)
+  }
+  return out
+}
+
+const SHORT_FG = ['fgm_0_19', 'fgm_20_29', 'fgm_30_39']
+
+/** Adds `fgm_0_39` (Sleeper's screen groups short field goals). Works for actual and projected lines. */
+export function withKickingBuckets(line: StatLine): StatLine {
+  if (!SHORT_FG.some((c) => c in line)) return line
+  return { ...line, fgm_0_39: sum(line as Stats, SHORT_FG) }
+}
