@@ -477,7 +477,7 @@ export default function App(): React.JSX.Element {
 
 `src/renderer/src/main.tsx` stays as generated (it imports `./assets/main.css` and renders `<App />`).
 
-- [x] **Step 6: Verify and commit** _(human check pending — see progress notes)_
+- [x] **Step 6: Verify and commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint && \
@@ -563,7 +563,7 @@ powershell.exe -NoProfile -Command "Start-Process \"\$env:USERPROFILE\Desktop\Fa
 ```
 **Human check:** the NSIS installer appears on Windows; install; the app opens from the Start Menu / Desktop shortcut with the same dark shell as Task 2. (SmartScreen may warn because the exe is unsigned — "More info → Run anyway".)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add electron-builder.yml README.md && git commit -q -m "build: configure windows nsis installer
@@ -2659,7 +2659,7 @@ export default function App(): React.JSX.Element {
 }
 ```
 
-- [x] **Step 3: Verify with a real import, commit** _(human check pending — see progress notes)_
+- [x] **Step 3: Verify with a real import, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint
@@ -2857,7 +2857,7 @@ and replace the `{screen === 'league' && (…placeholder…)}` block with:
           {screen === 'league' && <LeagueScreen key={dataVersion} />}
 ```
 
-- [x] **Step 4: Verify, commit** _(human check pending — see progress notes)_
+- [x] **Step 4: Verify, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint
@@ -2986,7 +2986,7 @@ and replace the `<footer …>status bar</footer>` element with:
       <StatusBar refreshKey={dataVersion} onRefreshed={bumpData} />
 ```
 
-- [x] **Step 4: Verify, commit** _(human check pending — see progress notes)_
+- [x] **Step 4: Verify, commit**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm run typecheck && npm run lint && npm test 2>&1 | tail -4
@@ -3005,7 +3005,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Files:** none new.
 
-- [ ] **Step 1: Build and install on Windows**
+- [x] **Step 1: Build and install on Windows**
 
 ```bash
 source ~/.nvm/nvm.sh && nvm use && npm test 2>&1 | tail -3 && npm run build:win 2>&1 | tail -5 && \
@@ -3015,7 +3015,7 @@ powershell.exe -NoProfile -Command "Start-Process \"\$env:USERPROFILE\Desktop\Fa
 ```
 **Human check on Windows:** install over the Task 3 build, launch, run Setup with your username, import, browse the League screen, press Refresh. Data file exists at `%APPDATA%\FantasyCompanion\companion.db`.
 
-- [ ] **Step 2: Tag**
+- [x] **Step 2: Tag**
 
 ```bash
 git tag -a v0.1.0 -m "Plan A: foundation and Sleeper league sync" && git tag
@@ -3033,8 +3033,8 @@ git tag -a v0.1.0 -m "Plan A: foundation and Sleeper league sync" && git tag
 
 - Tasks 1–2, 4–12 implemented and reviewed (subagent-driven; per-task review + final whole-branch review: "Ready to merge — Yes"). 41 Vitest tests, typecheck and lint clean. HEAD `cc3c533`.
 - Task 3: built 2026-09-17 from WSL after installing `wine64` + `wine32:i386` (94 MB installer); Steps 2–3 done, Step 4 (README note) in this commit.
-- Task 13 pending (needs the Task 3 build + a real Sleeper import on Windows).
+- Task 13: done 2026-09-17 — installed on Windows, real import with the user's Sleeper account verified (league, own team first, matchups), tagged v0.1.0.
 - Deviations from the plan text (all reviewed): shadcn 4.21 emits `radix-ui` (unified) instead of `@radix-ui/react-slot`; scoped ESLint override for generated ui files; `execArgv --disable-warning=ExperimentalWarning` in Vitest; `productName` added to `package.json` so packaged data lands in `%APPDATA%\FantasyCompanion` (dev: `~/.config/FantasyCompanion`); `importLeague` sets `active_league_id` only after the league step succeeds; Setup navigates to League unless the `sleeper:league` step itself failed; commit subjects shortened to ≤ 50 chars.
-- Human checks still pending: T2 dark shell, T10 real import with your Sleeper username, T11/T12 screens, T13 Windows install.
+- Human checks: all passed on Windows 2026-09-17.
 - Open decision: retry on network errors/timeouts (constraint only mandates 429/5xx) — left as-is.
 - Electron under this WSL needs `npx electron-vite dev -- --no-sandbox --disable-gpu --in-process-gpu` (GPU process crash otherwise); irrelevant to the Windows build.
