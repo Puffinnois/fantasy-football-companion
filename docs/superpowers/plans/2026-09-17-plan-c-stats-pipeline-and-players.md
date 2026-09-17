@@ -109,7 +109,7 @@ tests/renderer/lib/{format,playersView}.test.ts
 - Consumes: nothing from earlier tasks.
 - Produces: `parseCsv(text): Record<string, string>[]`, `numOrNull`, `strOrNull`; record types `PlayerWeekStatsRecord`, `TeamWeekStatsRecord`, `SnapCountRecord`, `GameRecord`, `CrosswalkRecord`; `ParseResult<T> = { records: T[]; skipped: number }`; `parsePlayerWeekStats`, `parseTeamWeekStats`, `parseSnapCounts`, `parseGames`, `parseCrosswalk`; `NflverseClient` (`getPlayerWeekStats(season) | null`, `getTeamWeekStats(season) | null`, `getSnapCounts(season) | null`, `getGames()`, `getCrosswalk()`), `createNflverseClient(options)`, `NflverseHttpError`. Test fixtures `playerStatsCsv`, `teamStatsCsv`, `snapCountsCsv`, `gamesCsv`, `crosswalkCsv` (strings).
 
-- [ ] **Step 1: Write the failing CSV parser tests**
+- [x] **Step 1: Write the failing CSV parser tests**
 
 `tests/main/sources/csv.test.ts`:
 
@@ -161,12 +161,12 @@ describe('numOrNull / strOrNull', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/sources/csv.test.ts`
 Expected: FAIL — cannot resolve `@main/sources/csv`.
 
-- [ ] **Step 3: Write the CSV parser**
+- [x] **Step 3: Write the CSV parser**
 
 `src/main/sources/csv.ts`:
 
@@ -228,12 +228,12 @@ export function strOrNull(value: string | undefined): string | null {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/sources/csv.test.ts`
 Expected: 6 passed.
 
-- [ ] **Step 5: Write the inline fixtures and the capture script**
+- [x] **Step 5: Write the inline fixtures and the capture script**
 
 `tests/fixtures/nflverse.ts` — small hand-written files with the real column names. Rows are chosen so later tasks can assert exact numbers (Barkley week 1 = 18.4 PPR points under the `rules()` fixture; LA DEF week 1 allows 9 points):
 
@@ -298,7 +298,7 @@ wc -l "$dir"/*.csv
 
 Run it once now: `tests/fixtures/nflverse/capture.sh` — expected: five files of 51 lines each. Commit the captured files with the task (they are test fixtures, ~150 KB total).
 
-- [ ] **Step 6: Write the failing nflverse source tests**
+- [x] **Step 6: Write the failing nflverse source tests**
 
 `tests/main/sources/nflverse.test.ts`:
 
@@ -476,12 +476,12 @@ describe('createNflverseClient', () => {
 })
 ```
 
-- [ ] **Step 7: Run the tests to verify they fail**
+- [x] **Step 7: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/sources/nflverse.test.ts`
 Expected: FAIL — cannot resolve `@main/sources/nflverse`.
 
-- [ ] **Step 8: Write the record types**
+- [x] **Step 8: Write the record types**
 
 `src/main/sources/nflverse-types.ts`:
 
@@ -555,7 +555,7 @@ export interface CrosswalkRecord {
 }
 ```
 
-- [ ] **Step 9: Write the parsers and the client**
+- [x] **Step 9: Write the parsers and the client**
 
 `src/main/sources/nflverse.ts`:
 
@@ -817,12 +817,12 @@ export function createNflverseClient(options: NflverseClientOptions = {}): Nflve
 }
 ```
 
-- [ ] **Step 10: Run the tests to verify they pass**
+- [x] **Step 10: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/sources`
 Expected: all pass (6 csv + 11 nflverse).
 
-- [ ] **Step 11: Typecheck, lint, commit**
+- [x] **Step 11: Typecheck, lint, commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -846,7 +846,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `startSync`, `finishSync`, `getLastSync` (`@main/db/repos/syncLog`), `SleeperClient`.
 - Produces: `SyncDeps { db, sleeper, now?, onStep? }`, `RefreshOptions { force? }`, `class SkipStep extends Error`, `type StepOutcome = number | { rows: number; message: string | null }`, `nowOf(deps): Date`, `isFresh(db, source, freshnessMs, now): boolean`, `runStep(deps, source, freshnessMs, force, fn: () => Promise<StepOutcome>): Promise<SyncLogEntry>`. `sleeperSync.ts` keeps exporting `SOURCE_STATE`, `SOURCE_LEAGUE`, `SOURCE_PLAYERS`, `SOURCE_RULES`, `FRESHNESS_MS`, `importLeague`, `refreshSleeper`, `reimportRules` and re-exports `SyncDeps` / `RefreshOptions` types.
 
-- [ ] **Step 1: Write the failing step-runner tests**
+- [x] **Step 1: Write the failing step-runner tests**
 
 `tests/main/sync/step.test.ts`:
 
@@ -926,12 +926,12 @@ describe('runStep', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/sync/step.test.ts`
 Expected: FAIL — cannot resolve `@main/sync/step`.
 
-- [ ] **Step 3: Create `step.ts`**
+- [x] **Step 3: Create `step.ts`**
 
 `src/main/sync/step.ts`:
 
@@ -1010,7 +1010,7 @@ export async function runStep(
 }
 ```
 
-- [ ] **Step 4: Point `sleeperSync.ts` at it**
+- [x] **Step 4: Point `sleeperSync.ts` at it**
 
 In `src/main/sync/sleeperSync.ts`:
 
@@ -1039,12 +1039,12 @@ import { importLeague, refreshSleeper, reimportRules, SOURCE_LEAGUE } from '@mai
 import type { SyncDeps } from '@main/sync/step'
 ```
 
-- [ ] **Step 5: Run all tests to verify they pass**
+- [x] **Step 5: Run all tests to verify they pass**
 
 Run: `npm test`
 Expected: the 7 new step tests pass and the 81 existing tests (including `sleeperSync.test.ts`) still pass — 88 total.
 
-- [ ] **Step 6: Typecheck, lint, commit**
+- [x] **Step 6: Typecheck, lint, commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1069,7 +1069,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: record types from Task 1 (`PlayerWeekStatsRecord`, `TeamWeekStatsRecord`, `SnapCountRecord`, `GameRecord`), `parse*` functions for test setup.
 - Produces: tables `crosswalk`, `player_ids`, `player_week_stats`, `team_week_stats`, `player_week_snaps`, `games`, `player_week_points`; repo functions `replacePlayerWeekStats(db, season, records, updatedAt): number`, `replaceTeamWeekStats(db, season, records, updatedAt): number`, `replaceSnaps(db, season, records, updatedAt): number`, `upsertGames(db, records, updatedAt): number`, `listPlayerWeeks(db, gsisId, season): PlayerWeekRow[]`, `listAllPlayerWeeks(db): PlayerWeekRow[]`, `listTeamWeeks(db): TeamWeekRow[]`, `listGames(db): GameRow[]`, `listSnaps(db, pfrId, season): SnapRow[]`, `teamByeWeeks(db, season): Map<string, number>`. Row types `PlayerWeekRow { gsisId, season, week, team, opponent, position, stats }`, `TeamWeekRow { team, season, week, opponent, stats }`, `GameRow { gameId, season, week, gameType, homeTeam, awayTeam, homeScore, awayScore }`, `SnapRow { week, offenseSnaps, offensePct, defenseSnaps, defensePct, stSnaps, stPct }`. (The `crosswalk`, `player_ids` and `player_week_points` repos are Tasks 4 and 6.)
 
-- [ ] **Step 1: Update the migration test and write the failing repo tests**
+- [x] **Step 1: Update the migration test and write the failing repo tests**
 
 In `tests/main/db/migrate.test.ts`: change `expect(version).toBe(2)` to `expect(version).toBe(3)`, `expect(row.n).toBe(2)` to `expect(row.n).toBe(3)`, and add to the `arrayContaining` list:
 
@@ -1187,12 +1187,12 @@ describe('stats repos', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/db`
 Expected: `migrate.test.ts` fails on version 2 ≠ 3; `statsRepo.test.ts` fails to resolve `@main/db/repos/stats`.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 `src/main/db/migrations/003_stats.sql`:
 
@@ -1298,7 +1298,7 @@ CREATE INDEX idx_player_week_points_week ON player_week_points(league_id, season
 
 `src/main/db/migrations/index.ts` — add `import statsSql from './003_stats.sql?raw'` and `{ version: 3, name: 'stats', sql: statsSql }` to the array.
 
-- [ ] **Step 4: Write the repository**
+- [x] **Step 4: Write the repository**
 
 `src/main/db/repos/stats.ts`:
 
@@ -1612,12 +1612,12 @@ export function teamByeWeeks(db: Db, season: number): Map<string, number> {
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/db`
 Expected: all pass (migrate 3 + repos + rulesRepo + statsRepo 6).
 
-- [ ] **Step 6: Typecheck, lint, commit**
+- [x] **Step 6: Typecheck, lint, commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1641,7 +1641,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `CrosswalkRecord` (Task 1); tables `crosswalk`, `player_ids` (Task 3); `upsertPlayers`, `PlayerRecord` (Plan A) and `replaceTeams` / `replaceRosterPlayers` (Plan A) in tests.
 - Produces: `SLEEPER_TO_NFLVERSE_TEAM`, `toNflverseTeam(sleeperTeam): string`, `NFL_TEAMS: readonly string[]` (`src/shared/teams.ts`); `Resolution` union, `PlayerIdRecord { playerId, gsisId, pfrId, sportradarId, espnId, nflverseTeam, resolution }`, `PlayerIdentitySource { playerId, fullName, position, gsisId, sportradarId, espnId }`, `ScoringIdentity { playerId, position, gsisId, nflverseTeam }`; repo functions `replaceCrosswalk(db, records, updatedAt): number`, `listCrosswalk(db): CrosswalkRecord[]`, `replacePlayerIds(db, records, updatedAt): number`, `getPlayerIds(db, playerId): PlayerIdRecord | null`, `countPlayerIds(db): number`, `listPlayerIdentitySources(db): PlayerIdentitySource[]`, `listScoringIdentities(db): ScoringIdentity[]`, `countUnresolvedRostered(db, leagueId): number`; pure `normalizeName(name): string`, `indexCrosswalk(rows): CrosswalkIndex`, `resolvePlayer(p, index): PlayerIdRecord`, `resolvePlayers(players, crosswalk): PlayerIdRecord[]`.
 
-- [ ] **Step 1: Write the failing resolver tests**
+- [x] **Step 1: Write the failing resolver tests**
 
 `tests/main/sync/identity.test.ts`:
 
@@ -1820,12 +1820,12 @@ describe('playerIds repo', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/sync/identity.test.ts tests/main/db/playerIdsRepo.test.ts`
 Expected: FAIL — cannot resolve `@main/sync/identity`, `@main/db/repos/playerIds`, `@shared/teams`.
 
-- [ ] **Step 3: Write the shared team helpers**
+- [x] **Step 3: Write the shared team helpers**
 
 `src/shared/teams.ts`:
 
@@ -1845,7 +1845,7 @@ export function toNflverseTeam(sleeperTeam: string): string {
 }
 ```
 
-- [ ] **Step 4: Write the repository**
+- [x] **Step 4: Write the repository**
 
 `src/main/db/repos/playerIds.ts`:
 
@@ -2043,7 +2043,7 @@ export function countUnresolvedRostered(db: Db, leagueId: string): number {
 }
 ```
 
-- [ ] **Step 5: Write the resolver**
+- [x] **Step 5: Write the resolver**
 
 `src/main/sync/identity.ts`:
 
@@ -2161,12 +2161,12 @@ export function resolvePlayers(
 
 Note on test "1.": Barkley's Sleeper `gsisId` is deliberately wrong (`00-9999999`) to prove the crosswalk row wins. Note on "keeps unresolved…": `row` is reset to `undefined` in the unresolved branch so a sleeper_id row without gsis does not leak its (possibly stale) pfr id — but in "2b." the same row *is* used because Sleeper supplied the gsis.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/sync/identity.test.ts tests/main/db/playerIdsRepo.test.ts`
 Expected: 8 + 3 pass.
 
-- [ ] **Step 7: Typecheck, lint, commit**
+- [x] **Step 7: Typecheck, lint, commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -2188,7 +2188,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `StatLine`, `DERIVED_STATS` (`@main/scoring/engine`), `STAT_KEYS` (`@shared/statKeys`).
 - Produces: `PLAYER_STAT_MAP: Record<StatKey, string[]>`, `TEAM_STAT_MAP: Record<StatKey, string[]>`, `playerStatLine(stats: Record<string, number>): StatLine`, `TeamContext { pointsAllowed: number | null; yardsAllowed: number | null }`, `teamStatLine(stats, ctx): StatLine`, `offensiveYards(stats): number`.
 
-- [ ] **Step 1: Write the failing adapter tests**
+- [x] **Step 1: Write the failing adapter tests**
 
 `tests/main/scoring/adapters.test.ts`:
 
@@ -2341,12 +2341,12 @@ describe('adapter contract with the stat-key catalogue', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/scoring/adapters.test.ts`
 Expected: FAIL — cannot resolve `@main/scoring/adapters`.
 
-- [ ] **Step 3: Write the adapters**
+- [x] **Step 3: Write the adapters**
 
 `src/main/scoring/adapters.ts`:
 
@@ -2486,12 +2486,12 @@ export function offensiveYards(stats: Stats): number {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/scoring/adapters.test.ts`
 Expected: 8 pass. If the contract test lists a missing key, add it to the right map — do not change the catalogue.
 
-- [ ] **Step 5: Typecheck, lint, commit**
+- [x] **Step 5: Typecheck, lint, commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -2516,7 +2516,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `getRules` (Plan B), `scoreStatLine` (Plan B), `POSITIONS` (`@shared/rules`), `playerStatLine` / `teamStatLine` / `offensiveYards` (Task 5), `listScoringIdentities` (Task 4), `listAllPlayerWeeks` / `listTeamWeeks` / `listGames` (Task 3).
 - Produces: `PointsContext { season: number; lastWeek: number | null }` (in `@shared/types`), `NO_POINTS_CONTEXT`, `PointsRecord { playerId, season, week, points }`, `replacePoints(db, leagueId, records, updatedAt): number`, `countPoints(db, leagueId): number`, `latestPointsWeek(db, leagueId, season): number | null`, `listWeekPoints(db, leagueId, playerId, season): { week; points }[]`; `recomputePoints(db, leagueId, updatedAt): number` (caller wraps in `withTransaction`); `pointsAllowedIndex(games): Map<string, number>` keyed `team|season|week`. Test helper `seedLeague(): Db` — migrated in-memory DB with league `L1`, teams, rosters, all fixture players and the `rules()` fixture saved.
 
-- [ ] **Step 1: Write the shared DB fixture**
+- [x] **Step 1: Write the shared DB fixture**
 
 `tests/fixtures/db.ts`:
 
@@ -2555,7 +2555,7 @@ export function seedLeague(leagueRules: Rules = rules()): Db {
 
 (`fx.league.season` is `'2026'` in the Sleeper fixture — check `tests/fixtures/sleeper.ts`; the recompute tests below use season 2025 stats and pass the season explicitly, so it does not matter here. Task 8's query tests use `Number(league.season)` and insert stats under that season.)
 
-- [ ] **Step 2: Write the failing recompute tests**
+- [x] **Step 2: Write the failing recompute tests**
 
 `tests/main/scoring/recompute.test.ts`:
 
@@ -2651,12 +2651,12 @@ describe('recomputePoints', () => {
 })
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/scoring/recompute.test.ts`
 Expected: FAIL — cannot resolve `@main/db/repos/points` / `@main/scoring/recompute`.
 
-- [ ] **Step 4: Write the points repository**
+- [x] **Step 4: Write the points repository**
 
 First add the context type to `src/shared/types.ts` (after `RosterPlayer`):
 
@@ -2733,7 +2733,7 @@ export function listWeekPoints(
 }
 ```
 
-- [ ] **Step 5: Write `recomputePoints`**
+- [x] **Step 5: Write `recomputePoints`**
 
 `src/main/scoring/recompute.ts`:
 
@@ -2813,12 +2813,12 @@ export function recomputePoints(db: Db, leagueId: string, updatedAt: string): nu
 }
 ```
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/scoring/recompute.test.ts`
 Expected: 5 pass.
 
-- [ ] **Step 7: Typecheck, lint, commit**
+- [x] **Step 7: Typecheck, lint, commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -2841,7 +2841,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `runStep`, `SkipStep`, `nowOf`, `SyncDeps`, `RefreshOptions` (Task 2); `NflverseClient` (Task 1); repos from Tasks 3, 4, 6; `getNflState`, `getSetting`/`SETTING_ACTIVE_LEAGUE`; `importLeague`, `refreshSleeper`, `SOURCE_PLAYERS` (Plan A/B); `recomputePoints` (Task 6); `resolvePlayers` (Task 4).
 - Produces: `SOURCE_CROSSWALK = 'nflverse:crosswalk'`, `SOURCE_GAMES = 'nflverse:games'`, `SOURCE_IDENTITY = 'app:identity'`, `SOURCE_POINTS = 'app:points'`, `sourceStats(season)`, `sourceSnaps(season)`, `STATS_SOURCE_PREFIX = 'nflverse:stats:'`, `NflverseSyncDeps extends SyncDeps { nflverse: NflverseClient }`, `NflverseRefreshOptions extends RefreshOptions { playersChanged?: boolean }`, `refreshNflverse(deps, options?): Promise<SyncResult>`; `refreshAll(deps, options?): Promise<SyncResult>`, `importAll(deps, leagueId, myUserId): Promise<SyncResult>`.
 
-- [ ] **Step 1: Write the failing sync tests**
+- [x] **Step 1: Write the failing sync tests**
 
 `tests/main/sync/nflverseSync.test.ts`:
 
@@ -3010,12 +3010,12 @@ describe('refreshNflverse', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/sync/nflverseSync.test.ts`
 Expected: FAIL — cannot resolve `@main/sync/nflverseSync`.
 
-- [ ] **Step 3: Write the orchestration**
+- [x] **Step 3: Write the orchestration**
 
 `src/main/sync/nflverseSync.ts`:
 
@@ -3189,12 +3189,12 @@ export async function importAll(
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/sync/nflverseSync.test.ts`
 Expected: 10 pass. If the "runs … in order" test's `countPlayerIds` expectation differs, count the players in `tests/fixtures/sleeper.ts` (`Object.keys(fx.players).length`) and use that number.
 
-- [ ] **Step 5: Typecheck, lint, commit**
+- [x] **Step 5: Typecheck, lint, commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -3222,7 +3222,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `PointsContext`, `NO_POINTS_CONTEXT`, `latestPointsWeek`, `listWeekPoints` (Task 6); `teamByeWeeks`, `listPlayerWeeks`, `listSnaps`, `listTeamWeeks` (Task 3); `getPlayerIds` (Task 4); `toNflverseTeam` (Task 4); `recomputePoints` (Task 6); `refreshAll`, `importAll`, `NflverseSyncDeps`, `STATS_SOURCE_PREFIX` (Task 7); `createNflverseClient` (Task 1).
 - Produces: shared `RosterPlayer` (+ `byeWeek`, `seasonPoints`, `lastWeekPoints`, `statsAvailable`), `OwnerFilter = 'all' | 'fa' | number`, `PlayerFilter { query?, position?, team?, owner? }`, `PlayerRow`, `WeekSnaps`, `WeekStats`, `SyncStatus.lastNflverseSync`; `Api.league.pointsContext()`, `Api.players.search(filter)`, `Api.players.weeklyStats(playerId)`; IPC channels `league:pointsContext`, `players:search`, `players:weeklyStats`; repo `searchPlayers(db, leagueId, ctx, filter, limit?)`, `playerWeeklyStats(db, leagueId, playerId, season)`, `POINTS_CTE`, `round2`; `startRefresh(ctx, options?)` (in-flight guarded) and `AppContext.nflverse`.
 
-- [ ] **Step 1: Extend the shared types and the IPC contract**
+- [x] **Step 1: Extend the shared types and the IPC contract**
 
 `src/shared/types.ts` — replace the `RosterPlayer` interface and `SyncStatus`, and add the new types:
 
@@ -3315,7 +3315,7 @@ and in `SyncStatus` add `lastNflverseSync: SyncLogEntry | null` after `lastSleep
   playersWeeklyStats: 'players:weeklyStats',
 ```
 
-- [ ] **Step 2: Write the failing query tests**
+- [x] **Step 2: Write the failing query tests**
 
 `tests/main/db/playersQuery.test.ts`:
 
@@ -3429,12 +3429,12 @@ describe('points-aware queries', () => {
 
 (`'Cook Book'` is roster 1's `metadata.team_name` in `tests/fixtures/sleeper.ts`; `ownerName` is `COALESCE(team_name, display_name)`, so roster 2 — no team name — shows `'Rival'`.)
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/db/playersQuery.test.ts`
 Expected: FAIL — cannot resolve `@main/db/repos/playersQuery`.
 
-- [ ] **Step 4: Add the shared CTE and rounding to the points repo**
+- [x] **Step 4: Add the shared CTE and rounding to the points repo**
 
 Append to `src/main/db/repos/points.ts`:
 
@@ -3455,7 +3455,7 @@ export function round2(value: number | null): number | null {
 }
 ```
 
-- [ ] **Step 5: Extend `listRoster`**
+- [x] **Step 5: Extend `listRoster`**
 
 In `src/main/db/repos/teams.ts` add imports:
 
@@ -3509,7 +3509,7 @@ export function listRoster(
 }
 ```
 
-- [ ] **Step 6: Write the players query repo**
+- [x] **Step 6: Write the players query repo**
 
 `src/main/db/repos/playersQuery.ts`:
 
@@ -3665,12 +3665,12 @@ export function getLastSyncLike(db: Db, prefix: string, status: SyncStatusKind):
 }
 ```
 
-- [ ] **Step 7: Run the tests to verify they pass**
+- [x] **Step 7: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/db`
 Expected: all pass, including the 5 new `playersQuery` tests and the untouched `repos.test.ts` / `rulesRepo.test.ts`.
 
-- [ ] **Step 8: Wire the handlers, main entry and preload**
+- [x] **Step 8: Wire the handlers, main entry and preload**
 
 `src/main/ipc/handlers.ts` — full replacement of the imports/context/handlers that change (keep `setupFindLeagues`, `leagueGet`, `leagueTeams`, `rulesGet`, `rulesReimport` as they are):
 
@@ -3814,7 +3814,7 @@ and the handler bodies that change or are new:
   },
 ```
 
-- [ ] **Step 9: Typecheck, lint, test, commit**
+- [x] **Step 9: Typecheck, lint, test, commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -3840,7 +3840,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `api.league.pointsContext()`, `RosterPlayer` fields, `SyncStatus.lastNflverseSync` (Task 8).
 - Produces: `fmtPoints(value: number | null): string` (`'—'` for null, else 1 decimal), `fmtPct(value: number | null): string` (`'—'` or `'83%'`); `RulesScreen` accepts `onSaved?: () => void`.
 
-- [ ] **Step 1: Write the failing format tests**
+- [x] **Step 1: Write the failing format tests**
 
 Append to `tests/renderer/lib/format.test.ts` (add `fmtPct, fmtPoints` to the existing import from `@/lib/format`):
 
@@ -3861,12 +3861,12 @@ describe('fmtPoints / fmtPct', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/lib/format.test.ts`
 Expected: FAIL — `fmtPoints` is not exported.
 
-- [ ] **Step 3: Implement the formatters**
+- [x] **Step 3: Implement the formatters**
 
 Append to `src/renderer/src/lib/format.ts`:
 
@@ -3881,12 +3881,12 @@ export function fmtPct(value: number | null): string {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/lib/format.test.ts`
 Expected: all pass.
 
-- [ ] **Step 5: Add the columns to the League screen**
+- [x] **Step 5: Add the columns to the League screen**
 
 In `src/renderer/src/screens/LeagueScreen.tsx`:
 
@@ -3954,7 +3954,7 @@ In `src/renderer/src/screens/LeagueScreen.tsx`:
                   </TableBody>
 ```
 
-- [ ] **Step 6: Status bar and App wiring**
+- [x] **Step 6: Status bar and App wiring**
 
 `src/renderer/src/components/StatusBar.tsx`: replace `<span>Stats: not yet</span>` with
 
@@ -3999,7 +3999,7 @@ and in `save()` change `adopt(await api.rules.update(draft))` to
 
 `SetupScreen` needs no change: it already lists every progress entry by `source`, so the nflverse steps appear during the first import.
 
-- [ ] **Step 7: Verify, human check, commit**
+- [x] **Step 7: Verify, human check, commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -4037,7 +4037,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `api.players.search`, `api.players.weeklyStats`, `api.league.pointsContext`, `api.league.teams` (Task 8); `NFL_TEAMS` (`@shared/teams`); `fmtPoints`, `fmtPct` (Task 9); `PositionBadge`, shadcn `Input`, `Card`, `Table`.
 - Produces: pure `weekColumns(position: string | null): WeekColumn[]` (`WeekColumn { key: string; label: string; format?: 'pct' }`), `formatStat(value: number | undefined, format?: 'pct'): string`, `parseOwner(value: string): OwnerFilter`; `PlayersScreen` component (no props).
 
-- [ ] **Step 1: Write the failing view-model tests**
+- [x] **Step 1: Write the failing view-model tests**
 
 `tests/renderer/lib/playersView.test.ts`:
 
@@ -4078,12 +4078,12 @@ describe('parseOwner', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/lib/playersView.test.ts`
 Expected: FAIL — cannot resolve `@/lib/playersView`.
 
-- [ ] **Step 3: Implement the view-model**
+- [x] **Step 3: Implement the view-model**
 
 `src/renderer/src/lib/playersView.ts`:
 
@@ -4171,12 +4171,12 @@ export function parseOwner(value: string): OwnerFilter {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/lib/playersView.test.ts`
 Expected: 3 pass.
 
-- [ ] **Step 5: Build the screen**
+- [x] **Step 5: Build the screen**
 
 `src/renderer/src/screens/PlayersScreen.tsx`:
 
@@ -4440,7 +4440,7 @@ export function PlayersScreen(): React.JSX.Element {
 }
 ```
 
-- [ ] **Step 6: Enable the screen in the sidebar and App**
+- [x] **Step 6: Enable the screen in the sidebar and App**
 
 `src/renderer/src/components/Sidebar.tsx`: change the Players item to `enabled: (hasLeague) => hasLeague` and delete the `{!isEnabled && id === 'players' && (…soon…)}` block.
 
@@ -4450,7 +4450,7 @@ export function PlayersScreen(): React.JSX.Element {
           {screen === 'players' && <PlayersScreen key={dataVersion} />}
 ```
 
-- [ ] **Step 7: Verify, human check, commit**
+- [x] **Step 7: Verify, human check, commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -4474,7 +4474,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Modify: `package.json` (`"version": "0.3.0"`)
 - Modify: this plan (progress notes)
 
-- [ ] **Step 1: Bump the version and commit**
+- [x] **Step 1: Bump the version and commit**
 
 Change `"version": "0.2.0"` to `"version": "0.3.0"` in `package.json` (and `package-lock.json`'s two top-level `version` fields via `npm install --package-lock-only`).
 
@@ -4486,7 +4486,7 @@ git commit -m "build: bump version to 0.3.0
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-- [ ] **Step 2: Build the Windows installer**
+- [x] **Step 2: Build the Windows installer**
 
 ```bash
 npm run build:win
@@ -4496,7 +4496,7 @@ cp dist/FantasyCompanion-Setup-0.3.0.exe /mnt/c/Users/habie/OneDrive/Bureau/
 
 Expected: the installer exists (~95 MB; wine is already installed for the NSIS step per Plan A/B).
 
-- [ ] **Step 3: Human check on Windows**
+- [x] **Step 3: Human check on Windows**
 
 Install **over** 0.2.0 (the existing `%APPDATA%\FantasyCompanion\companion.db` must migrate to schema version 3 on launch — no dialog, no data loss: League and Rules screens still show the imported league). Then:
 
@@ -4508,7 +4508,7 @@ Install **over** 0.2.0 (the existing `%APPDATA%\FantasyCompanion\companion.db` m
 
 Record the three comparison values (player, week, app points, Sleeper points) in the progress notes.
 
-- [ ] **Step 4: Tag, progress notes, merge**
+- [x] **Step 4: Tag, progress notes, merge**
 
 Append a `## Progress notes (YYYY-MM-DD)` section to this plan (deviations, human-check results, the comparison values, the build path), commit it as `docs(plan): mark plan C complete`, then:
 
@@ -4525,3 +4525,18 @@ Merge `feat/stats-pipeline-and-players` into `main` with a regular merge (the re
 - **Spec coverage:** §5 nflverse files and the crosswalk (T1; `.csv.gz` decision 4), "NA" → null and trimmed ids (T1 `numOrNull`/`strOrNull`, `parseCrosswalk` trims gsis); §6 resolution order, `resolution` recorded, DEF team-code exception table, unresolved players kept with a `sync_log` count and "stats unavailable" in the UI (T4 resolver, T7 identity message, T9/T10 UI); §7 `toStatLine` adapters (T5, contract test against the catalogue's `supported` flags), `recomputePoints` after every stats sync and rules change (T6, T7 `app:points`, T8 `rules.update`); §8 tables `player_ids`, `player_week_stats`, `player_week_snaps`, `team_week_stats`, `games`, `player_week_points` (T3; JSON columns per decision 1, plus `crosswalk` per decision 2); §9 first import runs the full pipeline (T7 `importAll`), refresh honours freshness windows with force override (T2/T7), on-launch background refresh (T8 `startRefresh`), one transaction per source (every step wraps its writes in `withTransaction`), no network on the render path (all new IPC handlers read SQLite); §10 League roster with bye / season / last-week points (T9), Players table with position / team / owner-or-FA / season / last-week and a side panel with raw weekly stats + snaps (T10), status bar `Stats` label (T9); §11 `skipped` for unpublished files (T7 `SkipStep`), per-row parse failures counted (T1 `skipped`, surfaced in the step message), retry once on 429/5xx, 30 s timeout (T1); §12 parser fixtures from the real files (T1 capture script), repo idempotency (T3, T4, T6), identity order and flags (T4), sync orchestration with mocked sources — success, per-source failure, freshness skip (T7); milestone 8 Windows build (T11).
 - **Placeholder scan:** none — every step has code or an exact command; UI polish is explicitly optional and after the human check.
 - **Type consistency:** `ParseResult<T>` (T1) is what `NflverseClient` returns and what the T7 fakes build; `PlayerIdRecord.resolution: Resolution` matches the SQL `CHECK` list (T3/T4); `PointsContext` is defined once in `@shared/types` (T6) and consumed by `points.ts`, `teams.ts`, `playersQuery.ts`, handlers and both screens; `runStep`'s `StepOutcome` (T2) is what T7 returns (`number` or `{ rows, message }`); `listRoster(db, leagueId, rosterId, ctx?)` keeps the three-argument calls in Plan A/B tests compiling (T8); `STATS_SOURCE_PREFIX` (T7) is what `getLastSyncLike` matches (T8); `NflverseSyncDeps` (T7) is what `syncDeps` returns (T8), and it extends `SyncDeps` so the Sleeper functions accept it; `toNflverseTeam` lives in `@shared/teams` (T4) so both `identity.ts` (sync layer) and the repos (db layer) use it without a layering inversion.
+
+## Progress notes (2026-09-17)
+
+- All 11 tasks implemented inline (executing-plans) on branch `feat/stats-pipeline-and-players`; 159 Vitest tests, typecheck and lint clean at every commit. Code blocks were extracted from this plan verbatim (a scratch `extract.py`), so the plan text is the code except where noted below.
+- **Deviations (both prompted by validating against Sleeper's official week-1 `players_points` for all 256 rostered players — first run: 222 exact, 8 off by exactly the league's `fum_rec: 2`, 2 rostered players with no stats):**
+  - `fum_rec` for players = `fumble_recovery_opp` only (decision 5 updated); commit `f4978d8`.
+  - Crosswalk placeholder GSIS ids (`WAS569019`) are rejected (`validGsis`), and a fifth resolution rule matches name + position against the nflverse stats rows (`listNflverseIdentities`); `app:identity` therefore runs after the downloads and re-runs when stats changed (decision 14); commit `d609c9d`. Task 4/7 tests extended accordingly (`resolvePlayers` takes a third argument; sync step order is crosswalk → stats → snaps → games → identity → points).
+  - Task 5 test: `fumble_recovery_opp` in the sample row also emits `idp_fum_rec: 0` (expectation updated, not the adapter).
+  - Task 10: `PlayersScreen` clears the side panel in the row click handler instead of in the effect (`react-hooks/set-state-in-effect`).
+  - Extra commit `672a506`: `color-scheme: dark` + `select option` styling in `main.css` — native `<select>` popups rendered white-on-white on Windows (reported by the user during the check; affects the Rules screen too).
+- **Second validation run (after the fixes): 232/256 exact, 3 DEF within ±1 (CHI +1, KC −1, TB −1 — unsupported ST keys / Sleeper's points-allowed semantics), 0 off; the 21 remaining "missing" all scored 0 on Sleeper (did not play).** Every rostered player resolved: 242 `crosswalk`, 2 `name` (Mike Washington Jr., Trey Smack — 2026 rookies), 18 `team`. The 22/1 "unparseable rows" per season are blank lines in the nflverse files.
+- Real-data pipeline timings (WSL, dev DB): full first refresh of both seasons < 45 s; `listRoster` 3 ms, three `searchPlayers` calls 117 ms, `playerWeeklyStats` 16 ms.
+- Human checks: dev app (WSLg) — status bar, League points, Players screen, Rules re-import → recompute all confirmed by the user; **Windows: install over 0.2.0 migrated the existing DB to schema 3, points/Players/Rules/relaunch all confirmed by the user ("works great")**. The dev DB still carried a `pass_yd = 4` custom edit from Plan B's save test (source `custom`), which explained inflated QB totals until re-import — not a Plan C defect.
+- Windows build: `dist/FantasyCompanion-Setup-0.3.0.exe` (94 MB) built from WSL and copied to `C:\Users\habie\OneDrive\Bureau`.
+- Follow-up requested by the user after the check: a Sleeper-like Players screen (position tabs incl. FLEX, projections vs stats, per-week view, free agents / rookies filters) — next plan.
