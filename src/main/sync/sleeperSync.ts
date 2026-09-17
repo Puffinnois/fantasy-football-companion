@@ -8,13 +8,22 @@ import {
   SETTING_MY_USER,
   setSetting
 } from '@main/db/repos/settings'
-import { setNflState } from '@main/db/repos/state'
+import { replaceProjections } from '@main/db/repos/projections'
+import { getNflState, setNflState } from '@main/db/repos/state'
 import { finishSync, startSync } from '@main/db/repos/syncLog'
 import { replaceRosterPlayers, replaceTeams } from '@main/db/repos/teams'
 import type { Rules } from '@shared/rules'
 import type { SyncLogEntry, SyncResult } from '@shared/types'
-import { mapLeague, mapNflState, mapPlayers, mapRosterPlayers, mapRules, mapTeams } from './mappers'
-import { nowOf, runStep as runSyncStep, type RefreshOptions, type SyncDeps } from './step'
+import {
+  mapLeague,
+  mapNflState,
+  mapPlayers,
+  mapProjections,
+  mapRosterPlayers,
+  mapRules,
+  mapTeams
+} from './mappers'
+import { nowOf, runStep as runSyncStep, SkipStep, type RefreshOptions, type SyncDeps } from './step'
 
 export type { RefreshOptions, SyncDeps } from './step'
 
@@ -29,6 +38,11 @@ export const FRESHNESS_MS: Record<string, number> = {
   [SOURCE_LEAGUE]: 10 * MINUTE,
   [SOURCE_PLAYERS]: 24 * 60 * MINUTE
 }
+
+export const SOURCE_PROJECTIONS_PREFIX = 'sleeper:projections:'
+export const sourceProjections = (season: number, week: number): string =>
+  `${SOURCE_PROJECTIONS_PREFIX}${season}:${week}`
+export const PROJECTIONS_FRESHNESS_MS = 6 * 60 * MINUTE
 
 function runStep(
   deps: SyncDeps,
@@ -86,6 +100,32 @@ function syncPlayers(deps: SyncDeps, force: boolean): Promise<SyncLogEntry> {
   })
 }
 
+/** Unofficial endpoint: only the NFL display week of the current regular season; gone → skipped. */
+function syncProjections(deps: SyncDeps, force: boolean): Promise<SyncLogEntry> {
+  const state = getNflState(deps.db)
+  const season = state ? Number(state.season) : 0
+  const week = state?.displayWeek ?? 0
+  return runSyncStep(
+    deps,
+    sourceProjections(season, week),
+    PROJECTIONS_FRESHNESS_MS,
+    force,
+    async () => {
+      if (!state) throw new SkipStep('no NFL state yet')
+      if (state.seasonType !== 'regular')
+        throw new SkipStep('projections only during the regular season')
+      const items = await deps.sleeper.getProjections(state.season, week)
+      if (!Array.isArray(items)) throw new SkipStep('projections endpoint unavailable')
+      const { records, skipped } = mapProjections(items, season, week)
+      const ts = nowOf(deps).toISOString()
+      const rows = withTransaction(deps.db, () =>
+        replaceProjections(deps.db, season, week, records, ts)
+      )
+      return { rows, message: skipped ? `${skipped} items skipped` : null }
+    }
+  )
+}
+
 export async function importLeague(
   deps: SyncDeps,
   leagueId: string,
@@ -100,6 +140,7 @@ export async function importLeague(
     if (myUserId) setSetting(deps.db, SETTING_MY_USER, myUserId)
   }
   steps.push(await syncPlayers(deps, false))
+  steps.push(await syncProjections(deps, false))
   return { steps }
 }
 
@@ -114,6 +155,7 @@ export async function refreshSleeper(
   steps.push(await syncState(deps, force))
   if (leagueId) steps.push(await syncLeague(deps, leagueId, myUserId, force))
   steps.push(await syncPlayers(deps, force))
+  steps.push(await syncProjections(deps, force))
   return { steps }
 }
 
