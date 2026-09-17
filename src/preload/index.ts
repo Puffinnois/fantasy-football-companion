@@ -12,6 +12,11 @@ const api: Api = {
     teams: () => ipcRenderer.invoke(IPC.leagueTeams),
     roster: (rosterId) => ipcRenderer.invoke(IPC.leagueRoster, rosterId)
   },
+  rules: {
+    get: () => ipcRenderer.invoke(IPC.rulesGet),
+    update: (rules) => ipcRenderer.invoke(IPC.rulesUpdate, rules),
+    reimportFromSleeper: () => ipcRenderer.invoke(IPC.rulesReimport)
+  },
   sync: {
     refresh: (force) => ipcRenderer.invoke(IPC.syncRefresh, force ?? false),
     status: () => ipcRenderer.invoke(IPC.syncStatus),

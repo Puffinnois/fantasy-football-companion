@@ -1,14 +1,23 @@
 import { ipcMain, type BrowserWindow } from 'electron'
-import type { Db } from '@main/db/connection'
+import { withTransaction, type Db } from '@main/db/connection'
 import { getLeague } from '@main/db/repos/leagues'
+import { getRules, saveRules } from '@main/db/repos/rules'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
 import { getNflState } from '@main/db/repos/state'
 import { getLastError, getLastSync } from '@main/db/repos/syncLog'
 import { listRoster, listTeams } from '@main/db/repos/teams'
+import { normalizeRules } from '@main/scoring/normalize'
 import type { SleeperClient } from '@main/sources/sleeper'
 import { mapLeagueSummary } from '@main/sync/mappers'
-import { importLeague, refreshSleeper, SOURCE_LEAGUE, type SyncDeps } from '@main/sync/sleeperSync'
+import {
+  importLeague,
+  refreshSleeper,
+  reimportRules,
+  SOURCE_LEAGUE,
+  type SyncDeps
+} from '@main/sync/sleeperSync'
 import { IPC, type FindLeaguesResult } from '@shared/ipc'
+import type { Rules } from '@shared/rules'
 import type { League, RosterPlayer, SyncResult, SyncStatus, Team } from '@shared/types'
 
 export interface AppContext {
@@ -61,6 +70,26 @@ export function registerIpcHandlers(ctx: AppContext): void {
   ipcMain.handle(IPC.leagueRoster, (_event, rosterId: number): RosterPlayer[] => {
     const id = activeLeagueId()
     return id ? listRoster(ctx.db, id, rosterId) : []
+  })
+
+  ipcMain.handle(IPC.rulesGet, (): Rules | null => {
+    const id = activeLeagueId()
+    return id ? getRules(ctx.db, id) : null
+  })
+
+  ipcMain.handle(IPC.rulesUpdate, (_event, input: Rules): Rules => {
+    const id = activeLeagueId()
+    if (!id) throw new Error('No league imported')
+    const rules = normalizeRules(input, new Date().toISOString())
+    withTransaction(ctx.db, () => saveRules(ctx.db, id, rules))
+    // Plan C: recomputePoints(ctx.db, id) goes here (spec §7: rules change → rebuild player_week_points)
+    return rules
+  })
+
+  ipcMain.handle(IPC.rulesReimport, (): Promise<Rules> => {
+    const id = activeLeagueId()
+    if (!id) throw new Error('No league imported')
+    return reimportRules(syncDeps(ctx), id)
   })
 
   ipcMain.handle(IPC.syncRefresh, (_event, force: boolean): Promise<SyncResult> =>
