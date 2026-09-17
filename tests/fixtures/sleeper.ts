@@ -3,6 +3,7 @@ import type {
   SleeperLeagueUser,
   SleeperNflState,
   SleeperPlayer,
+  SleeperProjection,
   SleeperRoster,
   SleeperUser
 } from '@main/sources/sleeper-types'
@@ -222,3 +223,74 @@ export const players: Record<string, SleeperPlayer> = {
     gsis_id: ''
   }
 }
+
+/** Week-1 projections in Sleeper's stat vocabulary (values invented). */
+export const projections: SleeperProjection[] = [
+  {
+    player_id: '4866',
+    season: '2026',
+    week: 1,
+    season_type: 'regular',
+    company: 'rotowire',
+    team: 'PHI',
+    opponent: 'DAL',
+    stats: {
+      rush_att: 18.2,
+      rush_yd: 84.5,
+      rush_td: 0.7,
+      rec: 3.1,
+      rec_tgt: 4,
+      rec_yd: 22.3,
+      rec_td: 0.1,
+      pts_ppr: 20.1
+    }
+  },
+  {
+    player_id: '6794',
+    season: '2026',
+    week: 1,
+    season_type: 'regular',
+    company: 'rotowire',
+    team: 'MIN',
+    opponent: 'CHI',
+    stats: { rec: 6.5, rec_tgt: 9.8, rec_yd: 88.1, rec_td: 0.6, pts_ppr: 18.9 }
+  },
+  {
+    player_id: 'LAR',
+    season: '2026',
+    week: 1,
+    season_type: 'regular',
+    company: 'rotowire',
+    team: 'LAR',
+    opponent: 'HOU',
+    stats: {
+      sack: 2.4,
+      int: 0.8,
+      ff: 0.6,
+      fum_rec: 0.5,
+      def_td: 0.1,
+      pts_allow: 20.5,
+      yds_allow: 330
+    }
+  },
+  {
+    player_id: '9999',
+    season: '2026',
+    week: 1,
+    season_type: 'regular',
+    company: 'rotowire',
+    team: null,
+    opponent: null,
+    stats: null
+  },
+  {
+    player_id: '1234',
+    season: '2026',
+    week: 2,
+    season_type: 'regular',
+    company: 'rotowire',
+    team: 'FA',
+    opponent: null,
+    stats: { pass_yd: 1 }
+  }
+]

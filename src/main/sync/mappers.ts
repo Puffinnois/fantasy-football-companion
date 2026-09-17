@@ -6,6 +6,7 @@ import type {
   SleeperLeagueUser,
   SleeperNflState,
   SleeperPlayer,
+  SleeperProjection,
   SleeperRoster
 } from '@main/sources/sleeper-types'
 import { roundPoints, type LeagueSettings, type Rules, type StatKey } from '@shared/rules'
@@ -141,4 +142,46 @@ export function mapRules(l: SleeperLeague, updatedAt: string): Rules {
   if (s.playoff_teams !== undefined) settings.playoffTeams = s.playoff_teams
 
   return { source: 'sleeper', updatedAt, scoring, positionOverrides: {}, rosterSlots, settings }
+}
+
+export interface ProjectionRecord {
+  playerId: string
+  season: number
+  week: number
+  company: string | null
+  team: string | null
+  opponent: string | null
+  stats: Record<string, number>
+}
+
+/** Keeps regular-season items of exactly (season, week) that carry a stats object. */
+export function mapProjections(
+  items: SleeperProjection[],
+  season: number,
+  week: number
+): { records: ProjectionRecord[]; skipped: number } {
+  const records: ProjectionRecord[] = []
+  let skipped = 0
+  for (const it of items) {
+    if (
+      !it.player_id ||
+      !it.stats ||
+      it.season_type !== 'regular' ||
+      Number(it.season) !== season ||
+      it.week !== week
+    ) {
+      skipped++
+      continue
+    }
+    records.push({
+      playerId: it.player_id,
+      season,
+      week,
+      company: it.company ?? null,
+      team: it.team ?? null,
+      opponent: it.opponent ?? null,
+      stats: it.stats
+    })
+  }
+  return { records, skipped }
 }

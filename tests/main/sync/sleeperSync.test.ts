@@ -29,6 +29,7 @@ function fakeClient(overrides: Partial<SleeperClient> = {}): SleeperClient {
     getLeagueRosters: vi.fn(async () => fx.rosters),
     getAllPlayers: vi.fn(async () => fx.players),
     getNflState: vi.fn(async () => fx.nflState),
+    getProjections: vi.fn(async () => fx.projections),
     ...overrides
   }
 }

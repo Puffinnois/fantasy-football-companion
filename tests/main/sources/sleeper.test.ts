@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createSleeperClient, SleeperHttpError } from '@main/sources/sleeper'
+import * as fx from '../../fixtures/sleeper'
 
 function fakeFetch(responses: Array<{ status: number; body?: unknown }>): typeof fetch {
   const queue = [...responses]
@@ -89,5 +90,23 @@ describe('createSleeperClient', () => {
     const client = createSleeperClient({ fetchImpl, baseUrl: 'https://example.test/v1' })
     await client.getUser('a b')
     expect(fetchImpl).toHaveBeenCalledWith('https://example.test/v1/user/a%20b', expect.anything())
+  })
+
+  it('getProjections hits the un-versioned host with every scored position', async () => {
+    const fetchImpl = fakeFetch([{ status: 200, body: fx.projections }])
+    const items = await createSleeperClient({ fetchImpl }).getProjections('2026', 1)
+    expect(items).toHaveLength(5)
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.sleeper.app/projections/nfl/2026/1?season_type=regular&position[]=QB&position[]=RB&position[]=WR&position[]=TE&position[]=K&position[]=DEF',
+      expect.anything()
+    )
+  })
+
+  it('getProjections returns null when the endpoint is gone (404/410) and throws otherwise', async () => {
+    const gone = createSleeperClient({ fetchImpl: fakeFetch([{ status: 404 }, { status: 410 }]) })
+    expect(await gone.getProjections('2026', 1)).toBeNull()
+    expect(await gone.getProjections('2026', 1)).toBeNull()
+    const denied = createSleeperClient({ fetchImpl: fakeFetch([{ status: 403, body: 'nope' }]) })
+    await expect(denied.getProjections('2026', 1)).rejects.toThrow(/403/)
   })
 })

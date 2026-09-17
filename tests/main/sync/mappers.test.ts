@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   mapLeague,
   mapNflState,
   mapPlayers,
+  mapProjections,
   mapRosterPlayers,
   mapRules,
   mapTeams
@@ -151,6 +153,50 @@ describe('mappers', () => {
     it('falls back to total_rosters when num_teams is missing', () => {
       const rules = mapRules({ ...fx.league, settings: {} }, 'T')
       expect(rules.settings.numTeams).toBe(2)
+    })
+  })
+})
+
+describe('mapProjections', () => {
+  it('keeps regular-season items of the requested week with a stats object', () => {
+    const { records, skipped } = mapProjections(fx.projections, 2026, 1)
+    expect(records.map((r) => r.playerId)).toEqual(['4866', '6794', 'LAR'])
+    expect(skipped).toBe(2) // null stats; wrong week
+    expect(records[0]).toEqual({
+      playerId: '4866',
+      season: 2026,
+      week: 1,
+      company: 'rotowire',
+      team: 'PHI',
+      opponent: 'DAL',
+      stats: {
+        rush_att: 18.2,
+        rush_yd: 84.5,
+        rush_td: 0.7,
+        rec: 3.1,
+        rec_tgt: 4,
+        rec_yd: 22.3,
+        rec_td: 0.1,
+        pts_ppr: 20.1
+      }
+    })
+  })
+
+  it('maps the captured real payload', () => {
+    const real = JSON.parse(
+      readFileSync(new URL('../../fixtures/sleeper/projections.json', import.meta.url), 'utf8')
+    )
+    const { records, skipped } = mapProjections(real, 2026, 2)
+    expect(skipped).toBe(0)
+    expect(records).toHaveLength(20)
+    expect(records.find((r) => r.playerId === '7042')?.stats).toMatchObject({
+      fgm: 1.82,
+      fga: 2.14,
+      xpm: 2.79
+    })
+    expect(records.find((r) => r.playerId === 'BUF')?.stats).toMatchObject({
+      sack: 2.65,
+      pts_allow: 24.5
     })
   })
 })

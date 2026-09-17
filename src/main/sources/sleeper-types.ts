@@ -72,3 +72,15 @@ export interface SleeperNflState {
   season_type: string
   league_season: string
 }
+
+/** One item of the unofficial `/projections/nfl/{season}/{week}` endpoint. `stats` uses Sleeper's stat keys. */
+export interface SleeperProjection {
+  player_id: string
+  season: string
+  week: number
+  season_type: string
+  company: string | null
+  team: string | null
+  opponent: string | null
+  stats: Record<string, number> | null
+}
