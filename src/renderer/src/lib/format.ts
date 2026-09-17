@@ -15,3 +15,12 @@ export function errorMessage(err: unknown): string {
     ? err.message.replace(/^Error invoking remote method '[^']+': (?:\w*Error: )?/, '')
     : String(err)
 }
+
+export function fmtPoints(value: number | null): string {
+  return value === null ? '—' : value.toFixed(1)
+}
+
+/** nflverse percentages are 0–1 fractions. */
+export function fmtPct(value: number | null): string {
+  return value === null ? '—' : `${Math.round(value * 100)}%`
+}

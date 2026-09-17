@@ -93,7 +93,12 @@ function RemoveButton({
   )
 }
 
-export function RulesScreen(): React.JSX.Element {
+interface RulesScreenProps {
+  /** Called after rules are saved (points were recomputed) so other screens reload. */
+  onSaved?: () => void
+}
+
+export function RulesScreen({ onSaved }: RulesScreenProps = {}): React.JSX.Element {
   const [saved, setSaved] = useState<Rules | null>(null)
   const [draft, setDraft] = useState<Rules | null>(null)
   const [version, setVersion] = useState(0)
@@ -155,6 +160,7 @@ export function RulesScreen(): React.JSX.Element {
     setError(null)
     try {
       adopt(await api.rules.update(draft))
+      onSaved?.()
     } catch (err) {
       setError(errorMessage(err))
     } finally {

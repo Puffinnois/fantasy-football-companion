@@ -11,9 +11,9 @@ import {
 } from '@/components/ui/table'
 import { PositionBadge } from '@/components/PositionBadge'
 import { api } from '@/lib/api'
-import { errorMessage } from '@/lib/format'
+import { errorMessage, fmtPoints } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { League, RosterPlayer, Team } from '@shared/types'
+import type { League, PointsContext, RosterPlayer, Team } from '@shared/types'
 
 const SLOT_ORDER = ['starter', 'bench', 'ir', 'taxi'] as const
 const SLOT_LABEL: Record<RosterPlayer['slot'], string> = {
@@ -33,8 +33,13 @@ export function LeagueScreen(): React.JSX.Element {
   const [selected, setSelected] = useState<number | null>(null)
   const [roster, setRoster] = useState<RosterPlayer[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [ctx, setCtx] = useState<PointsContext | null>(null)
 
   useEffect(() => {
+    void api.league
+      .pointsContext()
+      .then(setCtx)
+      .catch((err) => setError(errorMessage(err)))
     void api.league
       .get()
       .then((l) => {
@@ -127,7 +132,12 @@ export function LeagueScreen(): React.JSX.Element {
                       <TableHead className="w-12">Pos</TableHead>
                       <TableHead>Player</TableHead>
                       <TableHead className="w-14">Team</TableHead>
+                      <TableHead className="w-12 text-right">Bye</TableHead>
                       <TableHead className="w-24">Status</TableHead>
+                      <TableHead className="w-16 text-right">Pts</TableHead>
+                      <TableHead className="w-16 text-right">
+                        {ctx?.lastWeek ? `Wk ${ctx.lastWeek}` : 'Last'}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -138,9 +148,30 @@ export function LeagueScreen(): React.JSX.Element {
                         </TableCell>
                         <TableCell className="font-medium">{p.fullName}</TableCell>
                         <TableCell className="text-muted-foreground">{p.team ?? 'FA'}</TableCell>
+                        <TableCell className="text-right text-muted-foreground tabular-nums">
+                          {p.byeWeek ?? '—'}
+                        </TableCell>
                         <TableCell className={cn('text-xs', p.injuryStatus && 'text-destructive')}>
                           {p.injuryStatus ?? ''}
                         </TableCell>
+                        {p.statsAvailable ? (
+                          <>
+                            <TableCell className="text-right font-medium tabular-nums">
+                              {fmtPoints(p.seasonPoints)}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground tabular-nums">
+                              {fmtPoints(p.lastWeekPoints)}
+                            </TableCell>
+                          </>
+                        ) : (
+                          <TableCell
+                            colSpan={2}
+                            className="text-right text-xs text-muted-foreground"
+                            title="This player could not be matched to nflverse data"
+                          >
+                            stats unavailable
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>

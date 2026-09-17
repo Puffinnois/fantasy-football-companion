@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { errorMessage, relativeTime } from '@/lib/format'
+import { errorMessage, fmtPct, fmtPoints, relativeTime } from '@/lib/format'
 
 describe('relativeTime', () => {
   const now = new Date('2024-01-01T12:00:00Z').getTime()
@@ -45,5 +45,20 @@ describe('errorMessage', () => {
 
   it('passes a plain value through String(err)', () => {
     expect(errorMessage('boom')).toBe('boom')
+  })
+})
+
+describe('fmtPoints / fmtPct', () => {
+  it('formats points with one decimal and null as a dash', () => {
+    expect(fmtPoints(null)).toBe('—')
+    expect(fmtPoints(0)).toBe('0.0')
+    expect(fmtPoints(18.4)).toBe('18.4')
+    expect(fmtPoints(11.75)).toBe('11.8')
+  })
+
+  it('formats 0-1 fractions as whole percentages', () => {
+    expect(fmtPct(null)).toBe('—')
+    expect(fmtPct(0.83)).toBe('83%')
+    expect(fmtPct(1)).toBe('100%')
   })
 })

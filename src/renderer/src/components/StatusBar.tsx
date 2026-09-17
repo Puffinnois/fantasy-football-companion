@@ -57,7 +57,7 @@ export function StatusBar({ refreshKey, onRefreshed }: StatusBarProps): React.JS
         {status?.nflState ? `${status.nflState.season} · week ${status.nflState.displayWeek}` : '—'}
       </span>
       <span>Sleeper: {relativeTime(status?.lastSleeperSync?.finishedAt)}</span>
-      <span>Stats: not yet</span>
+      <span>Stats: {relativeTime(status?.lastNflverseSync?.finishedAt)}</span>
       {errorIsCurrent && (
         <button
           type="button"

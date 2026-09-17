@@ -28,7 +28,11 @@ export default function App(): React.JSX.Element {
   useEffect(
     () =>
       api.sync.onProgress((entry) => {
-        if (entry.source === 'sleeper:league' && entry.status === 'ok') bumpData()
+        if (
+          (entry.source === 'sleeper:league' || entry.source === 'app:points') &&
+          entry.status === 'ok'
+        )
+          bumpData()
       }),
     [bumpData]
   )
@@ -54,7 +58,7 @@ export default function App(): React.JSX.Element {
             />
           )}
           {screen === 'league' && <LeagueScreen key={dataVersion} />}
-          {screen === 'rules' && <RulesScreen />}
+          {screen === 'rules' && <RulesScreen onSaved={bumpData} />}
         </main>
       </div>
       <StatusBar refreshKey={dataVersion} onRefreshed={bumpData} />
