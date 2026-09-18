@@ -68,7 +68,7 @@ tests/main/sources/sleeper.test.ts, tests/main/sync/{mappers,sleeperSync}.test.t
 **Interfaces:**
 - Produces: `SleeperProjection { player_id; season; week; season_type; company; team; opponent; stats: Record<string, number> | null }`; `SleeperClient.getProjections(season: string, week: number): Promise<SleeperProjection[] | null>` (`null` = endpoint unavailable); `SleeperClientOptions.projectionsBaseUrl` (default `https://api.sleeper.app`); `ProjectionRecord { playerId; season; week; company; team; opponent; stats }` (defined in `@main/db/repos/projections` in Task 2 — Task 1 defines it in `mappers.ts` and Task 2 moves it; see Task 2 step 3); `mapProjections(items, season, week): { records: ProjectionRecord[]; skipped: number }`; fixture `fx.projections: SleeperProjection[]`.
 
-- [ ] **Step 1: Fixture and failing tests**
+- [x] **Step 1: Fixture and failing tests**
 
 Append to `tests/fixtures/sleeper.ts` (add `SleeperProjection` to its type import from `@main/sources/sleeper-types`):
 
@@ -130,11 +130,11 @@ describe('mapProjections', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/sources/sleeper.test.ts tests/main/sync/mappers.test.ts` — expected: FAIL (`getProjections` / `mapProjections` missing; TS may also flag the fixture type).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/main/sources/sleeper-types.ts` — append:
 
@@ -235,7 +235,7 @@ export function mapProjections(
 
 Any existing fake `SleeperClient` in tests (`tests/main/sync/sleeperSync.test.ts` `fakeClient`) must gain `getProjections: vi.fn(async () => fx.projections)` to keep typechecking.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 `npx vitest run tests/main/sources/sleeper.test.ts tests/main/sync/mappers.test.ts` → pass; then `npm run typecheck && npm run lint && npm test`.
 
@@ -258,7 +258,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `ProjectionRecord` (moved here), `replaceProjections(db, season, week, records, updatedAt): number`, `listProjections(db, season, week): ProjectionRecord[]`, `listProjectionWeeks(db): { season: number; week: number }[]`; `toggleWatch(db, playerId, now): boolean`, `listWatched(db): string[]`; `GameRecord.gametime: string | null`, `GameRow.gametime`.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 `tests/main/db/projectionsRepo.test.ts`:
 
@@ -314,11 +314,11 @@ describe('watchlist repo', () => {
 
 `tests/main/db/migrate.test.ts`: version `3` → `4` (both places), add `'player_week_projections', 'watchlist',` to the table list. `tests/main/sources/nflverse.test.ts`: in the `parseGames` `toEqual`, add `gametime: '20:20'` after `gameday`. `tests/main/db/statsRepo.test.ts`: add `gametime: null,` to each of the six `GameRecord` literals in the `teamByeWeeks` test and assert the round-trip in `upsertGames`: after `upsertGames(db, games, TS)` add `expect(listGames(db)[0].gametime).toBe('20:20')`. `tests/main/db/playersQuery.test.ts`: add `gametime: null,` to the `game()` helper's object.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 `npx vitest run tests/main/db tests/main/sources/nflverse.test.ts` — expected: migrate version 3 ≠ 4, unresolved repos, `gametime` missing.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/main/db/migrations/004_projections.sql`:
 
@@ -448,7 +448,7 @@ export function listWatched(db: Db): string[] {
 
 `src/main/db/repos/stats.ts`: `GameRow` gains `gametime: string | null`; `GameDbRow` gains `gametime: string | null`; `upsertGames` inserts it (add the column to the INSERT list, a `?`, `g.gametime` after `g.gameday`, and `gametime = excluded.gametime` to the update set); `listGames` selects it and maps `gametime: r.gametime`.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 `npm run typecheck && npm run lint && npm test` all clean.
 
@@ -471,7 +471,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `getNflState`, `replaceProjections` (Task 2), `mapProjections` (Task 1), `runStep`/`SkipStep`/`nowOf` (`./step`).
 - Produces: `SOURCE_PROJECTIONS_PREFIX = 'sleeper:projections:'`, `sourceProjections(season, week)`, `PROJECTIONS_FRESHNESS_MS` (6 h); `importLeague` and `refreshSleeper` gain the step after `sleeper:players`.
 
-- [ ] **Step 1: Update and add tests**
+- [x] **Step 1: Update and add tests**
 
 In `tests/main/sync/sleeperSync.test.ts`:
 - `fakeClient`: add `getProjections: vi.fn(async () => fx.projections),`.
@@ -504,9 +504,9 @@ Add:
 
 (`listProjections` imported from `@main/db/repos/projections`.)
 
-- [ ] **Step 2: Run to verify failure** — `npx vitest run tests/main/sync/sleeperSync.test.ts`: the updated step counts fail.
+- [x] **Step 2: Run to verify failure** — `npx vitest run tests/main/sync/sleeperSync.test.ts`: the updated step counts fail.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/main/sync/sleeperSync.ts`: merge imports — `import { getNflState, setNflState } from '@main/db/repos/state'`, `import { replaceProjections } from '@main/db/repos/projections'`, add `mapProjections` to the `./mappers` import, add `SkipStep` to the `./step` import. Add after `FRESHNESS_MS`:
 
@@ -540,7 +540,7 @@ function syncProjections(deps: SyncDeps, force: boolean): Promise<SyncLogEntry> 
 
 `importLeague`: after `steps.push(await syncPlayers(deps, false))` add `steps.push(await syncProjections(deps, false))`. `refreshSleeper`: after `steps.push(await syncPlayers(deps, force))` add `steps.push(await syncProjections(deps, force))`.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -563,7 +563,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Produces (shared): `TableMode`, `PositionTab`, `PlayersOptions`, `TableSort`, `PlayersQuery`, `GameInfo`, `PlayerTableRow`, `PlayersTable`; `Api.players.options()`, `Api.players.table(query)`, `Api.watchlist.toggle(playerId)`; channels `players:options`, `players:table`, `watchlist:toggle` (`players:search` removed). `kickoffIso(gameday, gametime): string | null`; `toSleeperTeam(code)`.
 - Produces (main): `tabsForSlots(slots)`, `playersOptions(db, leagueId)`, `playersTable(db, leagueId, query)`, `TABLE_LIMIT = 250`; `withDisplayStats(line, raw)`, `withKickingBuckets(line)`; `listPlayerWeeksByWeek`, `listTeamWeeksByWeek`, `listSnapsByWeek` (→ `Map<pfrId, number | null>`), `listGamesByWeek`, `listPointsByWeek` (→ `Map<playerId, number>`).
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 `tests/shared/time.test.ts`:
 
@@ -724,9 +724,9 @@ describe('playersTable', () => {
 
 In `tests/main/db/playersQuery.test.ts` delete the two `searchPlayers` tests and its import (keep `listRoster` and `playerWeeklyStats` cases).
 
-- [ ] **Step 2: Run to verify failure** — `npx vitest run tests/shared tests/main/db/playersTable.test.ts tests/main/scoring/adapters.test.ts`: unresolved modules / missing exports.
+- [x] **Step 2: Run to verify failure** — `npx vitest run tests/shared tests/main/db/playersTable.test.ts tests/main/scoring/adapters.test.ts`: unresolved modules / missing exports.
 
-- [ ] **Step 3: Shared code**
+- [x] **Step 3: Shared code**
 
 `src/shared/time.ts`:
 
@@ -869,7 +869,7 @@ export interface PlayersTable {
 
 channels: replace `playersSearch: 'players:search',` with `playersOptions: 'players:options',` and `playersTable: 'players:table',`; add `watchlistToggle: 'watchlist:toggle',`.
 
-- [ ] **Step 4: Main-process code**
+- [x] **Step 4: Main-process code**
 
 `src/main/scoring/adapters.ts` — append:
 
@@ -1200,7 +1200,7 @@ export function PlayersScreen(): React.JSX.Element {
 }
 ```
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1223,7 +1223,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `api.players.options/table/weeklyStats`, `api.watchlist.toggle`, `api.league.teams`; shared types from Task 4; `fmtPct`, `fmtPoints`, `errorMessage`; `PositionBadge`; shadcn `Input`, `Badge`, `Button`, `Table*`; lucide `Search`, `Star`, `X`.
 - Produces: `Column`, `ColumnGroup`, `columnGroups(tabId, mode)`, `cellValue(row, col, mode)`, `cellText(value, col, mode)`, `kickoffLabel(iso, timeZone?, locale?)`, `gameLabel(row, timeZone?)`, `subLabel(row, timeZone?)`; `<SlideOver open title onClose>`; `PlayersScreen` (no props; remounted by `App` on `dataVersion`).
 
-- [ ] **Step 1: Failing view-model tests**
+- [x] **Step 1: Failing view-model tests**
 
 `tests/renderer/lib/playersTableView.test.ts`:
 
@@ -1300,9 +1300,9 @@ describe('labels', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify failure** — `npx vitest run tests/renderer/lib/playersTableView.test.ts`.
+- [x] **Step 2: Run to verify failure** — `npx vitest run tests/renderer/lib/playersTableView.test.ts`.
 
-- [ ] **Step 3: View-model**
+- [x] **Step 3: View-model**
 
 `src/renderer/src/lib/playersTableView.ts`:
 
@@ -1442,7 +1442,7 @@ export function subLabel(row: PlayerTableRow, timeZone?: string): string {
 }
 ```
 
-- [ ] **Step 4: Run to verify the view-model tests pass**, then build the components.
+- [x] **Step 4: Run to verify the view-model tests pass**, then build the components.
 
 `src/renderer/src/components/SlideOver.tsx`:
 
@@ -1936,7 +1936,7 @@ function weekStatKey(sleeperKey: string): string {
 
 `App.tsx` needs no change (`PlayersScreen` is already routed with `key={dataVersion}`).
 
-- [ ] **Step 5: Verify, human check, commit**
+- [x] **Step 5: Verify, human check, commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1958,13 +1958,24 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 Only after the user has checked Task 5 in the dev app and asked for the build.
 
-- [ ] **Step 1:** `package.json` / `package-lock.json` version `0.3.0` → `0.4.0`; verify; commit `build: bump version to 0.4.0`.
-- [ ] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.4.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
-- [ ] **Step 3:** User installs over 0.3.0 (migration 004 on the existing DB), confirms the Players screen and that a Refresh writes `sleeper:projections:<season>:<week>` (status bar: no error).
-- [ ] **Step 4:** Progress notes in this plan, commit `docs(plan): mark plan D complete`, tag `v0.4.0`, fast-forward `main`, delete the branch.
+- [x] **Step 1:** `package.json` / `package-lock.json` version `0.3.0` → `0.4.0`; verify; commit `build: bump version to 0.4.0`.
+- [x] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.4.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
+- [x] **Step 3:** User installs over 0.3.0 (migration 004 on the existing DB), confirms the Players screen and that a Refresh writes `sleeper:projections:<season>:<week>` (status bar: no error).
+- [x] **Step 4:** Progress notes in this plan, commit `docs(plan): mark plan D complete`, tag `v0.4.0`, fast-forward `main`, delete the branch.
 
 ## Self-review notes
 
 - **Spec coverage:** §2.1 endpoint, vocabulary, scored on read, 404/410 → skipped (T1, T3); §2.2 `gametime` (T2); §3 tables (T2); §4 sync step placement, freshness, regular-season guard, full-week replace, message (T3); §5 IPC trio, `PlayersQuery`/`PlayerTableRow`/`GameInfo`, tabs from roster slots, FB→RB, candidate rule, four map lookups, display keys, `Δ`, JS sort + cap (T4); §6 two toolbar rows, groups per tab, row anatomy, slide-over, empty states, local kickoff time (T5); §7 unavailable projections → skipped + empty state (T3, T5); `statsAvailable` (T4/T5); §8 tests listed per task; §9 files match the file map.
 - **Placeholder scan:** none.
 - **Type consistency:** `ProjectionRecord` defined once (T2 repo; T1 defines it locally then T2 moves it — both spellings identical); `PlayersQuery.sort: TableSort` (T4) is what `PlayersScreen` holds in state (T5) and what `Column.key` produces (T5); `PlayerTableRow.stats` is `Record<string, number>` in both modes (T4) and `cellValue` reads it by `statKey` (T5); `GameInfo.opponent` is a Sleeper code (T4 `toSleeperTeam`) so `gameLabel` prints it verbatim (T5); `kickoffIso` (T4) → `kickoffLabel` (T5); `listSnapsByWeek` returns `Map<string, number | null>` and the row's `snapPct` is `number | null` (T4).
+
+## Progress notes (2026-09-17)
+
+- Tasks 1–6 implemented inline on `feat/players-screen-redesign`; 178 Vitest tests, typecheck and lint clean at every commit. Windows install over 0.3.0 migrated to schema 4; user check: "all good".
+- **Follow-ups after the user's dev-app check (both requested by the user):**
+  - **Projections for every regular-season week** (`eb02961`): `syncProjections` loops weeks 1–18 (past weeks 30-day window, display week 6 h, future weeks 24 h; stops after the first 404/410). Sleeper serves every week (~450 projected players each, ~235 KB compressed). `mapProjections` keeps only items with a point projection (`pts_ppr`/`pts_std`/`pts_half_ppr`), dropping ~2,850 ADP-only stubs per week. `sync_log` is pruned to 30 days at the start of `refreshAll`, keeping the newest row per (source, status). Task 3's step/test text describes the single-week version; the code is the loop.
+  - **Reactivity** (`7b55e70`): `players.table(query)` became `players.week({ season, week })` returning every candidate with **both** `actual` and `projection` lines (`PlayerWeekRow`, `PlayersWeek`; repo `playersWeek.ts`); the main process caches up to 8 assembled weeks and clears the cache on any `ok` sync step, rules save/re-import and watchlist toggle. Tabs, chips, search, owner, sorting and the Projection/Stats toggle run in the renderer (`filterRows`, `sortRows`, `TABLE_LIMIT` in `playersTableView.ts`), so Task 4's server-side `PlayersQuery`/sort and Task 5's debounce are gone; `PlayersScreen` takes a `dataVersion` prop instead of being remounted, so its state survives syncs.
+  - `rules.reimportFromSleeper` now recomputes points (`19b59fe`) — it only saved the rules before.
+- Other deviations: `PlayersScreen` clears the slide-over rows in the click handler (react-hooks rule); the projection-mode ordering assertion in the repo test was corrected (Jefferson 18.91 > Barkley 18.58 under the fixture rules).
+- Real-data numbers (dev DB): 828 candidates per week; `playersWeek` 93–167 ms uncached (ALL); first launch after the change fetched 18 projection weeks in ~10 s.
+- Windows build: `dist/FantasyCompanion-Setup-0.4.0.exe` (94 MB), copied to `C:\Users\habie\OneDrive\Bureau`.
