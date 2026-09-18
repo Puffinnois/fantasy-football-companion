@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Search, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -14,17 +14,19 @@ import { PositionBadge } from '@/components/PositionBadge'
 import { SlideOver } from '@/components/SlideOver'
 import { api } from '@/lib/api'
 import { errorMessage, fmtPct, fmtPoints } from '@/lib/format'
-import { cellText, cellValue, columnGroups, subLabel, type Column } from '@/lib/playersTableView'
+import {
+  cellText,
+  cellValue,
+  columnGroups,
+  filterRows,
+  sortRows,
+  subLabel,
+  TABLE_LIMIT,
+  type Column,
+  type TableSort
+} from '@/lib/playersTableView'
 import { cn } from '@/lib/utils'
-import type {
-  PlayersOptions,
-  PlayersQuery,
-  PlayerTableRow,
-  TableMode,
-  TableSort,
-  Team,
-  WeekStats
-} from '@shared/types'
+import type { PlayersOptions, PlayerWeekRow, TableMode, Team, WeekStats } from '@shared/types'
 
 const selectClass =
   'h-8 rounded-md border border-input bg-transparent px-2 text-sm text-foreground dark:bg-input/30'
@@ -55,11 +57,16 @@ function Chip({
   )
 }
 
-export function PlayersScreen(): React.JSX.Element {
+interface PlayersScreenProps {
+  /** Bumped by App when a sync or a rules save changed the data; the screen refetches but keeps its state. */
+  dataVersion: number
+}
+
+export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.Element {
   const [options, setOptions] = useState<PlayersOptions | null>(null)
   const [teams, setTeams] = useState<Team[]>([])
   const [tab, setTab] = useState('ALL')
-  const [mode, setMode] = useState<TableMode>('stats')
+  const [mode, setMode] = useState<TableMode | null>(null)
   const [season, setSeason] = useState<number | null>(null)
   const [week, setWeek] = useState<number | null>(null)
   const [search, setSearch] = useState('')
@@ -68,9 +75,8 @@ export function PlayersScreen(): React.JSX.Element {
   const [rookies, setRookies] = useState(false)
   const [owner, setOwner] = useState('')
   const [sort, setSort] = useState<TableSort>({ key: 'points', dir: 'desc' })
-  const [rows, setRows] = useState<PlayerTableRow[]>([])
-  const [total, setTotal] = useState(0)
-  const [selected, setSelected] = useState<PlayerTableRow | null>(null)
+  const [rows, setRows] = useState<PlayerWeekRow[]>([])
+  const [selected, setSelected] = useState<PlayerWeekRow | null>(null)
   const [weeks, setWeeks] = useState<WeekStats[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -81,42 +87,32 @@ export function PlayersScreen(): React.JSX.Element {
         setOptions(o)
         setSeason((s) => s ?? o.seasons[0])
         setWeek((w) => w ?? o.currentWeek)
-        // default to Projection when the current week has not been scored yet
-        setMode(o.lastScoredWeek !== null && o.lastScoredWeek >= o.currentWeek ? 'stats' : 'proj')
+        // first load: Projection when the current week has not been scored yet
+        setMode((m) =>
+          m === null
+            ? o.lastScoredWeek !== null && o.lastScoredWeek >= o.currentWeek
+              ? 'stats'
+              : 'proj'
+            : m
+        )
       })
       .catch((err) => setError(errorMessage(err)))
     void api.league
       .teams()
       .then(setTeams)
       .catch((err) => setError(errorMessage(err)))
-  }, [])
+  }, [dataVersion])
 
   useEffect(() => {
     if (season === null || week === null) return
-    const query: PlayersQuery = {
-      season,
-      week,
-      mode,
-      tab,
-      search: search.trim() || undefined,
-      freeAgents: freeAgents || undefined,
-      watchlist: watchlist || undefined,
-      rookies: rookies || undefined,
-      owner: owner ? Number(owner) : undefined,
-      sort
-    }
-    const handle = setTimeout(() => {
-      void api.players
-        .table(query)
-        .then((t) => {
-          setError(null)
-          setRows(t.rows)
-          setTotal(t.total)
-        })
-        .catch((err) => setError(errorMessage(err)))
-    }, 150)
-    return () => clearTimeout(handle)
-  }, [season, week, mode, tab, search, freeAgents, watchlist, rookies, owner, sort])
+    void api.players
+      .week({ season, week })
+      .then((w) => {
+        setError(null)
+        setRows(w.rows)
+      })
+      .catch((err) => setError(errorMessage(err)))
+  }, [season, week, dataVersion])
 
   useEffect(() => {
     if (!selected) return
@@ -128,7 +124,7 @@ export function PlayersScreen(): React.JSX.Element {
 
   const closePanel = useCallback(() => setSelected(null), [])
 
-  async function toggleWatch(row: PlayerTableRow): Promise<void> {
+  async function toggleWatch(row: PlayerWeekRow): Promise<void> {
     try {
       const watched = await api.watchlist.toggle(row.playerId)
       setRows((list) => list.map((r) => (r.playerId === row.playerId ? { ...r, watched } : r)))
@@ -145,17 +141,30 @@ export function PlayersScreen(): React.JSX.Element {
     )
   }
 
-  const groups = columnGroups(tab, mode)
+  const effectiveMode: TableMode = mode ?? 'stats'
+  const visible = useMemo(() => {
+    const currentTab = options?.tabs.find((t) => t.id === tab)
+    const filtered = filterRows(rows, currentTab, {
+      search,
+      freeAgents,
+      watchlist,
+      rookies,
+      owner: owner ? Number(owner) : null
+    })
+    return sortRows(filtered, sort, effectiveMode)
+  }, [rows, options, tab, search, freeAgents, watchlist, rookies, owner, sort, effectiveMode])
+  const shown = visible.slice(0, TABLE_LIMIT)
+  const groups = columnGroups(tab, effectiveMode)
   const columns = groups.flatMap((g) => g.columns)
   const weekPlayed =
     options?.lastScoredWeek !== null && week !== null && (options?.lastScoredWeek ?? 0) >= week
   const projectionsStored =
     options?.projectionWeeks.some((p) => p.season === season && p.week === week) ?? false
   const empty =
-    rows.length === 0
-      ? mode === 'stats' && !weekPlayed
+    shown.length === 0
+      ? effectiveMode === 'stats' && !weekPlayed
         ? `Week ${week} hasn't been played yet — switch to Projection.`
-        : mode === 'proj' && !projectionsStored
+        : effectiveMode === 'proj' && !projectionsStored
           ? `No projections stored for week ${week} (they are fetched from the current week on).`
           : 'No players match.'
       : null
@@ -201,7 +210,7 @@ export function PlayersScreen(): React.JSX.Element {
               onClick={() => setMode(m)}
               className={cn(
                 'h-7 rounded px-3 text-sm',
-                mode === m
+                effectiveMode === m
                   ? 'bg-primary/20 text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
               )}
@@ -289,7 +298,7 @@ export function PlayersScreen(): React.JSX.Element {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((p) => (
+          {shown.map((p) => (
             <TableRow
               key={p.playerId}
               onClick={() => {
@@ -333,7 +342,10 @@ export function PlayersScreen(): React.JSX.Element {
                 {p.ownerName ?? <span className="italic">Free agent</span>}
               </TableCell>
               {columns.map((col) => {
-                const value = p.statsAvailable || mode === 'proj' ? cellValue(p, col, mode) : null
+                const value =
+                  p.statsAvailable || effectiveMode === 'proj'
+                    ? cellValue(p, col, effectiveMode)
+                    : null
                 return (
                   <TableCell
                     key={col.key}
@@ -345,7 +357,7 @@ export function PlayersScreen(): React.JSX.Element {
                         (value >= 0 ? 'text-pos-rb' : 'text-destructive')
                     )}
                   >
-                    {cellText(value, col, mode)}
+                    {cellText(value, col, effectiveMode)}
                   </TableCell>
                 )
               })}
@@ -363,9 +375,9 @@ export function PlayersScreen(): React.JSX.Element {
           )}
         </TableBody>
       </Table>
-      {total > rows.length && (
+      {visible.length > shown.length && (
         <p className="text-xs text-muted-foreground">
-          Showing {rows.length} of {total} — refine the filters to see the rest.
+          Showing {shown.length} of {visible.length} — refine the filters to see the rest.
         </p>
       )}
 

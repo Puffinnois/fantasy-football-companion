@@ -13,9 +13,8 @@ import { kickoffIso } from '@shared/time'
 import type {
   GameInfo,
   PlayersOptions,
-  PlayersQuery,
-  PlayersTable,
-  PlayerTableRow,
+  PlayersWeek,
+  PlayerWeekRow,
   PositionTab
 } from '@shared/types'
 import type { Db } from '../connection'
@@ -32,7 +31,6 @@ import {
   teamByeWeeks
 } from './stats'
 
-export const TABLE_LIMIT = 250
 const ALL_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']
 const FLEX_SLOTS: Record<string, string[]> = {
   FLEX: ['RB', 'WR', 'TE'],
@@ -86,45 +84,13 @@ function asPosition(value: string | null): Position | null {
   return (POSITIONS as readonly string[]).includes(value ?? '') ? (value as Position) : null
 }
 
-function escapeLike(value: string): string {
-  return value.replace(/[\\%_]/g, '\\$&')
-}
-
-function sortValue(
-  row: PlayerTableRow,
-  key: string,
-  mode: PlayersQuery['mode']
-): number | string | null {
-  if (key === 'points') return mode === 'proj' ? row.projected : row.points
-  if (key === 'delta') return row.delta
-  if (key === 'name') return row.fullName
-  if (key === 'snapPct') return row.snapPct
-  if (key === 'targetShare') return row.targetShare
-  if (key.startsWith('stat:')) return row.stats[key.slice(5)] ?? null
-  return null
-}
-
-/** Candidate players (SQL) + one week of data attached from map lookups (JS); sorted, then capped. */
-export function playersTable(db: Db, leagueId: string, q: PlayersQuery): PlayersTable {
+/**
+ * Every candidate player (scored positions that are rostered, watched, or active on an NFL team)
+ * with one week of data attached from map lookups: actual line, points, projection, snaps, game.
+ * Filtering and sorting happen in the renderer.
+ */
+export function playersWeek(db: Db, leagueId: string, season: number, week: number): PlayersWeek {
   const rules = getRules(db, leagueId)
-  const tabs = tabsForSlots(rules?.rosterSlots ?? [])
-  const tab = tabs.find((t) => t.id === q.tab) ?? tabs[0]
-  const where = [
-    `pos IN (${tab.positions.map(() => '?').join(', ')})`,
-    "(owner_roster_id IS NOT NULL OR watched IS NOT NULL OR (team IS NOT NULL AND COALESCE(status, '') != 'Inactive'))"
-  ]
-  const params: (string | number)[] = [leagueId, ...tab.positions]
-  if (q.search?.trim()) {
-    where.push("full_name LIKE ? ESCAPE '\\'")
-    params.push(`%${escapeLike(q.search.trim())}%`)
-  }
-  if (q.freeAgents) where.push('owner_roster_id IS NULL')
-  if (q.watchlist) where.push('watched IS NOT NULL')
-  if (q.rookies) where.push('years_exp = 0')
-  if (typeof q.owner === 'number') {
-    where.push('owner_roster_id = ?')
-    params.push(q.owner)
-  }
   const candidates = db
     .prepare(
       `SELECT * FROM (
@@ -137,11 +103,12 @@ export function playersTable(db: Db, leagueId: string, q: PlayersQuery): Players
          LEFT JOIN teams t ON t.league_id = rp.league_id AND t.roster_id = rp.roster_id
          LEFT JOIN watchlist w ON w.player_id = p.player_id
          LEFT JOIN player_ids i ON i.player_id = p.player_id
-       ) WHERE ${where.join(' AND ')}`
+       ) WHERE pos IN (${ALL_POSITIONS.map(() => '?').join(', ')})
+         AND (owner_roster_id IS NOT NULL OR watched IS NOT NULL
+              OR (team IS NOT NULL AND COALESCE(status, '') != 'Inactive'))`
     )
-    .all(...params) as unknown as CandidateRow[]
+    .all(leagueId, ...ALL_POSITIONS) as unknown as CandidateRow[]
 
-  const { season, week } = q
   const statsByGsis = new Map(listPlayerWeeksByWeek(db, season, week).map((r) => [r.gsisId, r]))
   const teamWeeks = listTeamWeeksByWeek(db, season, week)
   const teamByCode = new Map(teamWeeks.map((t) => [t.team, t]))
@@ -163,7 +130,7 @@ export function playersTable(db: Db, leagueId: string, q: PlayersQuery): Players
   const snaps = listSnapsByWeek(db, season, week)
   const byes = teamByeWeeks(db, season)
 
-  const rows: PlayerTableRow[] = candidates.map((r) => {
+  const rows: PlayerWeekRow[] = candidates.map((r) => {
     const position = asPosition(r.pos)
     const projLine = projections.get(r.player_id) ?? null
     const projected = projLine && rules ? scoreStatLine(projLine, rules, position) : null
@@ -188,7 +155,6 @@ export function playersTable(db: Db, leagueId: string, q: PlayersQuery): Players
       if (r.pfr_id) snapPct = snaps.get(r.pfr_id) ?? null
     }
     const pts = points.get(r.player_id) ?? null
-    const line = q.mode === 'proj' ? projLine : actual
     const nflverseTeam = r.team ? toNflverseTeam(r.team) : null
     return {
       playerId: r.player_id,
@@ -205,25 +171,12 @@ export function playersTable(db: Db, leagueId: string, q: PlayersQuery): Players
       points: pts,
       projected,
       delta: pts !== null && projected !== null ? round2(pts - projected) : null,
-      stats: line ? (withKickingBuckets(line) as Record<string, number>) : {},
+      actual: actual ? (withKickingBuckets(actual) as Record<string, number>) : {},
+      projection: projLine ? (withKickingBuckets(projLine) as Record<string, number>) : null,
       snapPct,
       targetShare,
       statsAvailable: r.gsis_id !== null || r.nflverse_team !== null
     }
   })
-
-  const dir = q.sort.dir === 'asc' ? 1 : -1
-  rows.sort((a, b) => {
-    const va = sortValue(a, q.sort.key, q.mode)
-    const vb = sortValue(b, q.sort.key, q.mode)
-    if (va === null && vb === null) return a.fullName.localeCompare(b.fullName)
-    if (va === null) return 1
-    if (vb === null) return -1
-    const cmp =
-      typeof va === 'string' || typeof vb === 'string'
-        ? String(va).localeCompare(String(vb))
-        : va - vb
-    return cmp !== 0 ? cmp * dir : a.fullName.localeCompare(b.fullName)
-  })
-  return { rows: rows.slice(0, TABLE_LIMIT), total: rows.length }
+  return { rows }
 }

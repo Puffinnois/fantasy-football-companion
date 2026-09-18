@@ -3,13 +3,15 @@ import {
   cellText,
   cellValue,
   columnGroups,
+  filterRows,
   gameLabel,
   kickoffLabel,
+  sortRows,
   subLabel
 } from '@/lib/playersTableView'
-import type { PlayerTableRow } from '@shared/types'
+import type { PlayerWeekRow } from '@shared/types'
 
-const row = (over: Partial<PlayerTableRow> = {}): PlayerTableRow => ({
+const row = (over: Partial<PlayerWeekRow> = {}): PlayerWeekRow => ({
   playerId: '1',
   fullName: 'A',
   position: 'RB',
@@ -24,7 +26,8 @@ const row = (over: Partial<PlayerTableRow> = {}): PlayerTableRow => ({
   points: 18.4,
   projected: 18.58,
   delta: -0.18,
-  stats: { rush_yd: 60, sack: 2.5 },
+  actual: { rush_yd: 60, sack: 2.5 },
+  projection: { rush_yd: 84.5 },
   snapPct: 0.83,
   targetShare: null,
   statsAvailable: true,
@@ -74,7 +77,9 @@ describe('cells', () => {
     expect(cellValue(row(), pts, 'stats')).toBe(18.4)
     expect(cellValue(row(), pts, 'proj')).toBe(18.58)
     expect(cellValue(row(), rushYd, 'stats')).toBe(60)
-    expect(cellValue(row({ stats: {} }), rushYd, 'stats')).toBeNull()
+    expect(cellValue(row({ actual: {} }), rushYd, 'stats')).toBeNull()
+    expect(cellValue(row(), rushYd, 'proj')).toBe(84.5)
+    expect(cellValue(row({ projection: null }), rushYd, 'proj')).toBeNull()
     expect(cellValue(row(), snap, 'stats')).toBe(0.83)
   })
 
@@ -142,5 +147,107 @@ describe('labels', () => {
     expect(subLabel(row({ game: null }))).toBe('PHI (bye 7) · BYE')
     expect(subLabel(row({ byeWeek: null, game: null }))).toBe('PHI · BYE')
     expect(subLabel(row({ team: null }))).toBe('FA')
+  })
+})
+
+describe('filterRows / sortRows', () => {
+  const rows = [
+    row({
+      playerId: 'a',
+      fullName: 'Saquon Barkley',
+      position: 'RB',
+      points: 18.4,
+      projected: 18.58,
+      ownerRosterId: 1,
+      ownerName: 'Cook Book'
+    }),
+    row({
+      playerId: 'b',
+      fullName: 'Justin Jefferson',
+      position: 'WR',
+      points: 10.8,
+      projected: 18.91,
+      actual: { rec_yd: 68 }
+    }),
+    row({
+      playerId: 'c',
+      fullName: "Ja'Marr Chase",
+      position: 'WR',
+      points: null,
+      projected: null,
+      rookie: true,
+      watched: true,
+      ownerRosterId: 2,
+      ownerName: 'Rival'
+    }),
+    row({
+      playerId: 'd',
+      fullName: 'Los Angeles Rams',
+      position: 'DEF',
+      points: 12,
+      projected: 7.2
+    }),
+    row({
+      playerId: 'e',
+      fullName: 'Bijan Robinson',
+      position: 'RB',
+      points: null,
+      projected: 22.4,
+      team: null
+    })
+  ]
+  const tabs = {
+    ALL: { id: 'ALL', label: 'All', positions: ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'] },
+    WR: { id: 'WR', label: 'WR', positions: ['WR'] },
+    FLEX: { id: 'FLEX', label: 'FLEX', positions: ['RB', 'WR', 'TE'] }
+  }
+  const none = { search: '', freeAgents: false, watchlist: false, rookies: false, owner: null }
+  const ids = (list: PlayerWeekRow[]): string[] => list.map((r) => r.playerId)
+
+  it('filters by tab positions, chips, owner and name', () => {
+    expect(ids(filterRows(rows, tabs.ALL, none))).toEqual(['a', 'b', 'c', 'd', 'e'])
+    expect(ids(filterRows(rows, tabs.WR, none))).toEqual(['b', 'c'])
+    expect(ids(filterRows(rows, tabs.FLEX, none))).toEqual(['a', 'b', 'c', 'e'])
+    expect(ids(filterRows(rows, tabs.ALL, { ...none, freeAgents: true }))).toEqual(['b', 'd', 'e'])
+    expect(ids(filterRows(rows, tabs.ALL, { ...none, watchlist: true }))).toEqual(['c'])
+    expect(ids(filterRows(rows, tabs.ALL, { ...none, rookies: true }))).toEqual(['c'])
+    expect(ids(filterRows(rows, tabs.ALL, { ...none, owner: 2 }))).toEqual(['c'])
+    expect(ids(filterRows(rows, tabs.ALL, { ...none, search: 'jEff' }))).toEqual(['b'])
+    expect(ids(filterRows(rows, tabs.ALL, { ...none, search: 'jamarr' }))).toEqual(['c']) // punctuation-insensitive
+  })
+
+  it('sorts by points per mode with nulls last, by stat, by name; direction flips', () => {
+    expect(ids(sortRows(rows, { key: 'points', dir: 'desc' }, 'stats'))).toEqual([
+      'a',
+      'd',
+      'b',
+      'e',
+      'c'
+    ])
+    expect(ids(sortRows(rows, { key: 'points', dir: 'asc' }, 'stats'))).toEqual([
+      'b',
+      'd',
+      'a',
+      'e',
+      'c'
+    ])
+    expect(ids(sortRows(rows, { key: 'points', dir: 'desc' }, 'proj'))).toEqual([
+      'e',
+      'b',
+      'a',
+      'd',
+      'c'
+    ])
+    expect(ids(sortRows(rows, { key: 'stat:rec_yd', dir: 'desc' }, 'stats')).slice(0, 1)).toEqual([
+      'b'
+    ])
+    expect(ids(sortRows(rows, { key: 'name', dir: 'asc' }, 'stats'))).toEqual([
+      'e',
+      'c',
+      'b',
+      'd',
+      'a'
+    ])
+    expect(rows.map((r) => r.playerId)).toEqual(['a', 'b', 'c', 'd', 'e']) // input untouched
   })
 })

@@ -60,7 +60,7 @@ export default function App(): React.JSX.Element {
           )}
           {screen === 'league' && <LeagueScreen key={dataVersion} />}
           {screen === 'rules' && <RulesScreen onSaved={bumpData} />}
-          {screen === 'players' && <PlayersScreen key={dataVersion} />}
+          {screen === 'players' && <PlayersScreen dataVersion={dataVersion} />}
         </main>
       </div>
       <StatusBar refreshKey={dataVersion} onRefreshed={bumpData} />

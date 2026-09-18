@@ -2,8 +2,8 @@ import type {
   League,
   LeagueSummary,
   PlayersOptions,
-  PlayersQuery,
-  PlayersTable,
+  PlayersWeek,
+  WeekQuery,
   PointsContext,
   RosterPlayer,
   SyncLogEntry,
@@ -33,8 +33,8 @@ export interface Api {
   }
   players: {
     options(): Promise<PlayersOptions>
-    /** One row per candidate player for (season, week); sorted server-side; at most 250 rows (`total` says how many matched). */
-    table(query: PlayersQuery): Promise<PlayersTable>
+    /** Every candidate player for the week with both lines; cached in main until data changes. */
+    week(query: WeekQuery): Promise<PlayersWeek>
     weeklyStats(playerId: string): Promise<WeekStats[]>
   }
   watchlist: {
@@ -63,7 +63,7 @@ export const IPC = {
   leagueRoster: 'league:roster',
   leaguePointsContext: 'league:pointsContext',
   playersOptions: 'players:options',
-  playersTable: 'players:table',
+  playersWeek: 'players:week',
   playersWeeklyStats: 'players:weeklyStats',
   watchlistToggle: 'watchlist:toggle',
   rulesGet: 'rules:get',

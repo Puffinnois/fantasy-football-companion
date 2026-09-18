@@ -61,23 +61,9 @@ export interface PlayersOptions {
   projectionWeeks: { season: number; week: number }[]
 }
 
-export interface TableSort {
-  /** 'points' | 'delta' | 'name' | 'snapPct' | 'targetShare' | `stat:<sleeperKey>` */
-  key: string
-  dir: 'asc' | 'desc'
-}
-
-export interface PlayersQuery {
+export interface WeekQuery {
   season: number
   week: number
-  mode: TableMode
-  tab: string
-  search?: string
-  freeAgents?: boolean
-  watchlist?: boolean
-  rookies?: boolean
-  owner?: number
-  sort: TableSort
 }
 
 export interface GameInfo {
@@ -91,7 +77,8 @@ export interface GameInfo {
   final: boolean
 }
 
-export interface PlayerTableRow {
+/** One candidate player for a (season, week); the renderer picks the line by mode and filters/sorts locally. */
+export interface PlayerWeekRow {
   playerId: string
   fullName: string
   position: string | null
@@ -107,16 +94,17 @@ export interface PlayerTableRow {
   points: number | null
   projected: number | null
   delta: number | null
-  /** Sleeper stat keys (+ fga, xpa, fgm_0_39); the projection line in 'proj' mode. */
-  stats: Record<string, number>
+  /** Actual stats in Sleeper keys (+ fga, xpa, fgm_0_39); {} when the week has no row. */
+  actual: Record<string, number>
+  /** Projection line in Sleeper keys (+ fgm_0_39); null when none is stored. */
+  projection: Record<string, number> | null
   snapPct: number | null
   targetShare: number | null
   statsAvailable: boolean
 }
 
-export interface PlayersTable {
-  rows: PlayerTableRow[]
-  total: number
+export interface PlayersWeek {
+  rows: PlayerWeekRow[]
 }
 
 export interface WeekSnaps {

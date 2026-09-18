@@ -15,7 +15,7 @@ const api: Api = {
   },
   players: {
     options: () => ipcRenderer.invoke(IPC.playersOptions),
-    table: (query) => ipcRenderer.invoke(IPC.playersTable, query),
+    week: (query) => ipcRenderer.invoke(IPC.playersWeek, query),
     weeklyStats: (playerId) => ipcRenderer.invoke(IPC.playersWeeklyStats, playerId)
   },
   watchlist: {

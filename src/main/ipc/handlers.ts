@@ -2,7 +2,7 @@ import { ipcMain, type BrowserWindow } from 'electron'
 import { withTransaction, type Db } from '@main/db/connection'
 import { getLeague } from '@main/db/repos/leagues'
 import { playerWeeklyStats } from '@main/db/repos/playersQuery'
-import { playersOptions, playersTable } from '@main/db/repos/playersTable'
+import { playersOptions, playersWeek } from '@main/db/repos/playersWeek'
 import { latestPointsWeek, NO_POINTS_CONTEXT } from '@main/db/repos/points'
 import { getRules, saveRules } from '@main/db/repos/rules'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
@@ -24,13 +24,13 @@ import type { Rules } from '@shared/rules'
 import type {
   League,
   PlayersOptions,
-  PlayersQuery,
-  PlayersTable,
+  PlayersWeek,
   PointsContext,
   RosterPlayer,
   SyncResult,
   SyncStatus,
   Team,
+  WeekQuery,
   WeekStats
 } from '@shared/types'
 
@@ -41,12 +41,39 @@ export interface AppContext {
   getWindow: () => BrowserWindow | null
 }
 
+/**
+ * Cache of assembled player weeks: building one costs ~100–170 ms of SQL + JSON parsing, and the
+ * Players screen filters, sorts and switches modes locally, so a week is built once per data change.
+ */
+const WEEK_CACHE_MAX = 8
+const weekCache = new Map<string, PlayersWeek>()
+
+export function invalidateWeekCache(): void {
+  weekCache.clear()
+}
+
+function cachedWeek(ctx: AppContext, leagueId: string, query: WeekQuery): PlayersWeek {
+  const key = `${leagueId}|${query.season}|${query.week}`
+  const hit = weekCache.get(key)
+  if (hit) return hit
+  const built = playersWeek(ctx.db, leagueId, query.season, query.week)
+  if (weekCache.size >= WEEK_CACHE_MAX) {
+    const oldest = weekCache.keys().next().value
+    if (oldest !== undefined) weekCache.delete(oldest)
+  }
+  weekCache.set(key, built)
+  return built
+}
+
 export function syncDeps(ctx: AppContext): NflverseSyncDeps {
   return {
     db: ctx.db,
     sleeper: ctx.sleeper,
     nflverse: ctx.nflverse,
-    onStep: (entry) => ctx.getWindow()?.webContents.send(IPC.syncProgress, entry)
+    onStep: (entry) => {
+      if (entry.status === 'ok') invalidateWeekCache()
+      ctx.getWindow()?.webContents.send(IPC.syncProgress, entry)
+    }
   }
 }
 
@@ -125,6 +152,7 @@ export function registerIpcHandlers(ctx: AppContext): void {
       saveRules(ctx.db, id, rules)
       recomputePoints(ctx.db, id, rules.updatedAt) // spec §7: rules change → rebuild player_week_points
     })
+    invalidateWeekCache()
     return rules
   })
 
@@ -133,6 +161,7 @@ export function registerIpcHandlers(ctx: AppContext): void {
     if (!id) throw new Error('No league imported')
     const rules = await reimportRules(syncDeps(ctx), id)
     withTransaction(ctx.db, () => recomputePoints(ctx.db, id, rules.updatedAt))
+    invalidateWeekCache()
     return rules
   })
 
@@ -142,14 +171,16 @@ export function registerIpcHandlers(ctx: AppContext): void {
     return playersOptions(ctx.db, id)
   })
 
-  ipcMain.handle(IPC.playersTable, (_event, query: PlayersQuery): PlayersTable => {
+  ipcMain.handle(IPC.playersWeek, (_event, query: WeekQuery): PlayersWeek => {
     const id = activeLeagueId()
-    return id ? playersTable(ctx.db, id, query) : { rows: [], total: 0 }
+    return id ? cachedWeek(ctx, id, query) : { rows: [] }
   })
 
-  ipcMain.handle(IPC.watchlistToggle, (_event, playerId: string): boolean =>
-    toggleWatch(ctx.db, playerId, new Date().toISOString())
-  )
+  ipcMain.handle(IPC.watchlistToggle, (_event, playerId: string): boolean => {
+    const watched = toggleWatch(ctx.db, playerId, new Date().toISOString())
+    invalidateWeekCache()
+    return watched
+  })
 
   ipcMain.handle(IPC.playersWeeklyStats, (_event, playerId: string): WeekStats[] => {
     const id = activeLeagueId()

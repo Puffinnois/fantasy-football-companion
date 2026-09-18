@@ -1,5 +1,5 @@
 import { fmtPct } from '@/lib/format'
-import type { PlayerTableRow, TableMode } from '@shared/types'
+import type { PlayerWeekRow, PositionTab, TableMode } from '@shared/types'
 
 export type ColumnKind = 'points' | 'delta' | 'stat' | 'snapPct' | 'targetShare'
 
@@ -82,7 +82,7 @@ export function columnGroups(tabId: string, mode: TableMode): ColumnGroup[] {
   }
 }
 
-export function cellValue(row: PlayerTableRow, col: Column, mode: TableMode): number | null {
+export function cellValue(row: PlayerWeekRow, col: Column, mode: TableMode): number | null {
   switch (col.kind) {
     case 'points':
       return mode === 'proj' ? row.projected : row.points
@@ -92,8 +92,10 @@ export function cellValue(row: PlayerTableRow, col: Column, mode: TableMode): nu
       return row.snapPct
     case 'targetShare':
       return row.targetShare
-    case 'stat':
-      return row.stats[col.statKey ?? ''] ?? null
+    case 'stat': {
+      const line = mode === 'proj' ? row.projection : row.actual
+      return line?.[col.statKey ?? ''] ?? null
+    }
   }
 }
 
@@ -117,7 +119,7 @@ export function kickoffLabel(iso: string, timeZone?: string, locale = 'en-US'): 
 }
 
 /** "Sun 1:00 PM vs GB" · "@ DAL · L 20-24" · "BYE". */
-export function gameLabel(row: PlayerTableRow, timeZone?: string): string {
+export function gameLabel(row: PlayerWeekRow, timeZone?: string): string {
   const g = row.game
   if (!g) return 'BYE'
   const vs = `${g.home ? 'vs' : '@'} ${g.opponent}`
@@ -131,8 +133,77 @@ export function gameLabel(row: PlayerTableRow, timeZone?: string): string {
 }
 
 /** Second line under the name: "PHI (bye 7) · Sun 1:00 PM vs GB"; "FA" without a team. */
-export function subLabel(row: PlayerTableRow, timeZone?: string): string {
+export function subLabel(row: PlayerWeekRow, timeZone?: string): string {
   if (!row.team) return 'FA'
   const team = row.byeWeek ? `${row.team} (bye ${row.byeWeek})` : row.team
   return `${team} · ${gameLabel(row, timeZone)}`
+}
+
+export const TABLE_LIMIT = 250
+
+export interface TableFilters {
+  search: string
+  freeAgents: boolean
+  watchlist: boolean
+  rookies: boolean
+  owner: number | null
+}
+
+export interface TableSort {
+  /** 'points' | 'delta' | 'name' | 'snapPct' | 'targetShare' | `stat:<key>` */
+  key: string
+  dir: 'asc' | 'desc'
+}
+
+/** Lowercase letters/digits/spaces only, so "Ja'Marr" matches "jamarr". */
+function searchable(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9\s]/g, '')
+}
+
+export function filterRows(
+  rows: PlayerWeekRow[],
+  tab: PositionTab | undefined,
+  f: TableFilters
+): PlayerWeekRow[] {
+  const positions = tab ? new Set(tab.positions) : null
+  const needle = searchable(f.search.trim())
+  return rows.filter(
+    (r) =>
+      (!positions || positions.has(r.position ?? '')) &&
+      (!f.freeAgents || r.ownerRosterId === null) &&
+      (!f.watchlist || r.watched) &&
+      (!f.rookies || r.rookie) &&
+      (f.owner === null || r.ownerRosterId === f.owner) &&
+      (!needle || searchable(r.fullName).includes(needle))
+  )
+}
+
+function sortValue(row: PlayerWeekRow, key: string, mode: TableMode): number | string | null {
+  if (key === 'points') return mode === 'proj' ? row.projected : row.points
+  if (key === 'delta') return row.delta
+  if (key === 'name') return row.fullName
+  if (key === 'snapPct') return row.snapPct
+  if (key === 'targetShare') return row.targetShare
+  if (key.startsWith('stat:')) {
+    const line = mode === 'proj' ? row.projection : row.actual
+    return line?.[key.slice(5)] ?? null
+  }
+  return null
+}
+
+/** Returns a sorted copy; nulls last in both directions; ties broken by name. */
+export function sortRows(rows: PlayerWeekRow[], sort: TableSort, mode: TableMode): PlayerWeekRow[] {
+  const dir = sort.dir === 'asc' ? 1 : -1
+  return [...rows].sort((a, b) => {
+    const va = sortValue(a, sort.key, mode)
+    const vb = sortValue(b, sort.key, mode)
+    if (va === null && vb === null) return a.fullName.localeCompare(b.fullName)
+    if (va === null) return 1
+    if (vb === null) return -1
+    const cmp =
+      typeof va === 'string' || typeof vb === 'string'
+        ? String(va).localeCompare(String(vb))
+        : va - vb
+    return cmp !== 0 ? cmp * dir : a.fullName.localeCompare(b.fullName)
+  })
 }
