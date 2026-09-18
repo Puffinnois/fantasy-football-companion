@@ -113,6 +113,53 @@ export interface ReplacementLevel {
   starters: number
 }
 
+/** One player's season value (spec §2); ranks are 1-based within position, overall by ROS value. */
+export interface PlayerValueRow extends PlayerBaseRow {
+  gamesPlayed: number
+  ppg: number | null
+  stdValue: number | null
+  stdRank: number | null
+  rosPoints: number | null
+  rosValue: number | null
+  rosRank: number | null
+  overallRank: number | null
+  statsAvailable: boolean
+}
+
+export interface ValueContext {
+  season: number
+  /** ROS starts here (Sleeper's week; 19 for a past season). */
+  currentWeek: number
+  projectionsStored: boolean
+  /** Per lineup position; null when no player has the metric. */
+  replacement: Record<string, { std: ReplacementLevel | null; ros: ReplacementLevel | null }>
+}
+
+export interface PlayersValue {
+  context: ValueContext
+  rows: PlayerValueRow[]
+}
+
+export interface DetailWeek {
+  week: number
+  opponent: string | null
+  played: boolean
+  points: number | null
+  projected: number | null
+  snapPct: number | null
+  targetShare: number | null
+  rushShare: number | null
+  wopr: number | null
+  /** Actual line in Sleeper keys (+ fga, xpa, fgm_0_39); {} when not played. */
+  stats: Record<string, number>
+}
+
+export interface PlayerDetail {
+  row: PlayerValueRow
+  /** Every week with a game, a projection or a points row, ascending. */
+  weeks: DetailWeek[]
+}
+
 export interface PlayersWeek {
   rows: PlayerWeekRow[]
 }
