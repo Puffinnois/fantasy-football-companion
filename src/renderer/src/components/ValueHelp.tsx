@@ -1,0 +1,100 @@
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import { SlideOver } from '@/components/SlideOver'
+import { LINEUP_POSITIONS } from '@shared/rules'
+import type { ReplacementLevel, ValueContext } from '@shared/types'
+
+interface ValueHelpProps {
+  open: boolean
+  onClose: () => void
+  context: ValueContext | null
+}
+
+function Term({ name, children }: { name: string; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div>
+      <dt className="font-medium">{name}</dt>
+      <dd className="text-muted-foreground">{children}</dd>
+    </div>
+  )
+}
+
+const level = (r: ReplacementLevel | null): string => (r ? r.level.toFixed(1) : '—')
+const starters = (r: ReplacementLevel | null): string => (r ? String(r.starters) : '—')
+
+/** Plain-language definitions of the Value columns (spec §2) plus this league's replacement table. */
+export function ValueHelp({ open, onClose, context }: ValueHelpProps): React.JSX.Element {
+  const teams = context?.teamCount ?? 0
+  return (
+    <SlideOver open={open} onClose={onClose} title="How value is calculated">
+      <dl className="space-y-3 text-sm">
+        <Term name="PPG">
+          This league&apos;s points per game, over the games the player&apos;s team played. Byes and
+          weeks before the player&apos;s first appearance don&apos;t count; a played week scoring 0
+          does.
+        </Term>
+        <Term name="VAL (season)">
+          PPG minus the replacement PPG at the position — how much better the player has been than a
+          freely available starter.
+        </Term>
+        <Term name="ROS">
+          Projected points for the remaining weeks: Sleeper&apos;s weekly projections scored with
+          this league&apos;s rules, from the current week on, skipping weeks already played.
+        </Term>
+        <Term name="VAL (ROS)">ROS minus the replacement ROS points at the position.</Term>
+        <Term name="RK">
+          Rank within the position by that VAL. The ALL tab sorts across positions.
+        </Term>
+        <Term name="Replacement level">
+          The (N+1)-th best player at a position, where N is the number of league starters there:
+          dedicated slots × {teams || 'the number of'} teams, plus the flex slots handed one by one
+          to whichever eligible position has the best next player. Computed separately for PPG and
+          for ROS, so the starter counts can differ.
+        </Term>
+      </dl>
+      {context && (
+        <Table className="mt-4">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Pos</TableHead>
+              <TableHead className="text-right">Starters</TableHead>
+              <TableHead className="text-right">Repl. PPG</TableHead>
+              <TableHead className="text-right">Repl. ROS</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {LINEUP_POSITIONS.map((pos) => {
+              const r = context.replacement[pos]
+              const std = r?.std ?? null
+              const ros = r?.ros ?? null
+              const count =
+                std && ros && std.starters !== ros.starters
+                  ? `${std.starters} / ${ros.starters}`
+                  : starters(std ?? ros)
+              return (
+                <TableRow key={pos}>
+                  <TableCell className="font-medium">{pos}</TableCell>
+                  <TableCell className="text-right tabular-nums">{count}</TableCell>
+                  <TableCell className="text-right tabular-nums">{level(std)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{level(ros)}</TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      )}
+      {context && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Season {context.season} · ROS counts from week {context.currentWeek}
+          {context.projectionsStored ? '' : ' · no projections stored'}.
+        </p>
+      )}
+    </SlideOver>
+  )
+}

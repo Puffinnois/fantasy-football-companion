@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Search, Star } from 'lucide-react'
+import { Info, Search, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table'
 import { PositionBadge } from '@/components/PositionBadge'
 import { PlayerDetailPanel } from '@/components/PlayerDetailPanel'
+import { ValueHelp } from '@/components/ValueHelp'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
 import {
@@ -20,13 +21,13 @@ import {
   columnGroups,
   DEFAULT_SORT,
   filterRows,
-  replacementLabel,
   sortRows,
   subLabel,
   TABLE_LIMIT,
   type Column,
   type TableRow as PlayerRow,
-  type TableSort
+  type TableSort,
+  valueHeaderTitle
 } from '@/lib/playersTableView'
 import { cn } from '@/lib/utils'
 import type {
@@ -88,6 +89,7 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
   const [rows, setRows] = useState<PlayerWeekRow[]>([])
   const [valueRows, setValueRows] = useState<PlayerValueRow[]>([])
   const [valueContext, setValueContext] = useState<ValueContext | null>(null)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [selected, setSelected] = useState<PlayerRow | null>(null)
   const [error, setError] = useState<string | null>(null)
   const effectiveMode: TableMode = mode ?? 'stats'
@@ -258,6 +260,17 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
             </button>
           ))}
         </div>
+        {effectiveMode === 'value' && (
+          <button
+            type="button"
+            aria-label="How value is calculated"
+            title="How value is calculated"
+            onClick={() => setHelpOpen(true)}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Info className="size-4" />
+          </button>
+        )}
         <select
           className={selectClass}
           value={season ?? ''}
@@ -332,15 +345,11 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
               <TableHead
                 key={col.key}
                 onClick={() => sortBy(col)}
-                title={
-                  col.field === 'stdValue' || col.field === 'rosValue'
-                    ? replacementLabel(
-                        valueContext,
-                        options?.tabs.find((t) => t.id === tab)?.positions ?? [],
-                        col.field === 'stdValue' ? 'std' : 'ros'
-                      )
-                    : undefined
-                }
+                title={valueHeaderTitle(
+                  col,
+                  valueContext,
+                  options?.tabs.find((t) => t.id === tab)?.positions ?? []
+                )}
                 className={cn(
                   'w-14 cursor-pointer select-none text-right',
                   sort.key === col.key && 'text-foreground'
@@ -437,6 +446,7 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
         player={selected}
         onClose={closePanel}
       />
+      <ValueHelp open={helpOpen} onClose={() => setHelpOpen(false)} context={valueContext} />
     </div>
   )
 }

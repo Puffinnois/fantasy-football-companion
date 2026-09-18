@@ -2270,6 +2270,22 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
+### Task 9b: "How value is calculated" help (added after the user's dev-app check)
+
+User request: explain VAL / ROS in the app. Design agreed: an ⓘ button beside the mode toggle, shown in Value mode only, opening the slide-over with plain-language definitions and this league's replacement table; plus a definition in every value column's header tooltip.
+
+**Files:**
+- Modify: `src/shared/types.ts` (`ValueContext.teamCount`), `src/main/value/build.ts`, `tests/main/value/build.test.ts`
+- Modify: `src/renderer/src/lib/playersTableView.ts` (`Column.description`, `valueHeaderTitle`), `tests/renderer/lib/playersTableView.test.ts`
+- Create: `src/renderer/src/components/ValueHelp.tsx`
+- Modify: `src/renderer/src/screens/PlayersScreen.tsx`
+
+- [ ] **Step 1:** `ValueContext` gains `teamCount: number` (from `bundle.teamCount`); the build test asserts it (2) and the table-view context literal gets it.
+- [ ] **Step 2:** Test then implement `valueHeaderTitle(col, context, positions): string | undefined` — `col.description` for value columns, joined with `replacementLabel(...)` on a second line for the two VAL columns; `undefined` for non-value columns. Descriptions: G "Games played (weeks with a points row)"; PPG "League points per game over games played"; VAL "PPG minus the position's replacement PPG"; RK "Rank within position by VAL"; ROS "Projected points for the remaining weeks under this league's rules"; VAL (ROS) "ROS minus the position's replacement ROS points"; RK "Rank within position by ROS VAL".
+- [ ] **Step 3:** `ValueHelp` — `SlideOver` titled "How value is calculated": a definition list (PPG, VAL season, ROS, VAL ROS, RK, Replacement level with `teamCount`), then a table `Position | Starters (STD / ROS) | Replacement PPG | Replacement ROS pts` from `context.replacement` for the six lineup positions ("—" when null), and the current week.
+- [ ] **Step 4:** Screen: `helpOpen` state; an `Info` icon button after the mode toggle when `effectiveMode === 'value'` (aria-label "How value is calculated"); header `title={valueHeaderTitle(col, valueContext, tabPositions)}`; `<ValueHelp open onClose context />`.
+- [ ] **Step 5:** `npm run typecheck && npm run lint && npm test`; commit `feat(ui): explain value columns in the app`.
+
 ### Task 10: Version 0.5.0, Windows build, tag
 
 Only after the user has checked Task 9 in the dev app and asked for the build.

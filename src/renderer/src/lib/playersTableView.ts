@@ -26,6 +26,8 @@ export interface Column {
   field?: ValueField
   /** Value columns only: integer, one decimal, or signed one decimal. */
   format?: 'int' | 'fixed' | 'signed'
+  /** Value columns only: one-line definition shown in the header tooltip and the help panel. */
+  description?: string
 }
 
 export interface ColumnGroup {
@@ -81,23 +83,34 @@ const DEFENSE = group('Defense', [
   stat('blk_kick', 'BLK')
 ])
 const ALLOWED = group('Allowed', [stat('pts_allow', 'PTS'), stat('yds_allow', 'YDS')])
-const value = (field: ValueField, label: string, format: 'int' | 'fixed' | 'signed'): Column => ({
+const value = (
+  field: ValueField,
+  label: string,
+  format: 'int' | 'fixed' | 'signed',
+  description: string
+): Column => ({
   key: `value:${field}`,
   label,
   kind: 'value',
   field,
-  format
+  format,
+  description
 })
 const SEASON = group('Season', [
-  value('gamesPlayed', 'G', 'int'),
-  value('ppg', 'PPG', 'fixed'),
-  value('stdValue', 'VAL', 'signed'),
-  value('stdRank', 'RK', 'int')
+  value('gamesPlayed', 'G', 'int', 'Games played (weeks with a points row)'),
+  value('ppg', 'PPG', 'fixed', 'League points per game over games played'),
+  value('stdValue', 'VAL', 'signed', "PPG minus the position's replacement PPG"),
+  value('stdRank', 'RK', 'int', 'Rank within position by VAL')
 ])
 const REST_OF_SEASON = group('Rest of season', [
-  value('rosPoints', 'ROS', 'fixed'),
-  value('rosValue', 'VAL', 'signed'),
-  value('rosRank', 'RK', 'int')
+  value(
+    'rosPoints',
+    'ROS',
+    'fixed',
+    "Projected points for the remaining weeks under this league's rules"
+  ),
+  value('rosValue', 'VAL', 'signed', "ROS minus the position's replacement ROS points"),
+  value('rosRank', 'RK', 'int', 'Rank within position by ROS VAL')
 ])
 
 /** Sleeper's column groups per tab; Δ and usage only exist for played weeks (stats mode). */
@@ -270,4 +283,16 @@ export function replacementLabel(
     return level ? `${pos} ${level.level.toFixed(1)} (${level.starters} starters)` : `${pos} —`
   })
   return [kind === 'std' ? 'Replacement PPG' : 'Replacement ROS pts', ...parts].join(' · ')
+}
+
+/** Header tooltip of a value column: its definition, plus the replacement line for the VAL columns. */
+export function valueHeaderTitle(
+  col: Column,
+  context: ValueContext | null,
+  positions: string[]
+): string | undefined {
+  if (col.kind !== 'value' || !col.description) return undefined
+  if (col.field !== 'stdValue' && col.field !== 'rosValue') return col.description
+  const line = replacementLabel(context, positions, col.field === 'stdValue' ? 'std' : 'ros')
+  return line ? `${col.description}\n${line}` : col.description
 }

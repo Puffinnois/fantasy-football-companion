@@ -16,7 +16,12 @@ describe('buildValueSeason', () => {
   })
 
   it('reports the context and replacement levels per position', () => {
-    expect(build.context).toMatchObject({ season: SEASON, currentWeek: 3, projectionsStored: true })
+    expect(build.context).toMatchObject({
+      season: SEASON,
+      currentWeek: 3,
+      projectionsStored: true,
+      teamCount: 2
+    })
     // 2 teams × (RB 2 + WR 2 + FLEX 1 …): RB std [20, 12] → worst; ROS [8, 7, 0] → Cook's 0
     expect(build.context.replacement.RB).toEqual({
       std: { level: 12, starters: 4 },

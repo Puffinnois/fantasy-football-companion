@@ -131,6 +131,7 @@ export interface ValueContext {
   /** ROS starts here (Sleeper's week; 19 for a past season). */
   currentWeek: number
   projectionsStored: boolean
+  teamCount: number
   /** Per lineup position; null when no player has the metric. */
   replacement: Record<string, { std: ReplacementLevel | null; ros: ReplacementLevel | null }>
 }

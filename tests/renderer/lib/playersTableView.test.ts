@@ -9,7 +9,8 @@ import {
   kickoffLabel,
   replacementLabel,
   sortRows,
-  subLabel
+  subLabel,
+  valueHeaderTitle
 } from '@/lib/playersTableView'
 import type { PlayerValueRow, PlayerWeekRow, ValueContext } from '@shared/types'
 
@@ -335,6 +336,7 @@ describe('value mode', () => {
       season: 2026,
       currentWeek: 3,
       projectionsStored: true,
+      teamCount: 16,
       replacement: {
         RB: { std: { level: 8.36, starters: 44 }, ros: { level: 91.2, starters: 43 } },
         WR: { std: null, ros: { level: 80, starters: 45 } }
@@ -347,5 +349,28 @@ describe('value mode', () => {
       'Replacement ROS pts · RB 91.2 (43 starters)'
     )
     expect(replacementLabel(null, ['RB'], 'ros')).toBe('')
+  })
+
+  it('titles value headers with a definition, VAL columns with the replacement line too', () => {
+    const context: ValueContext = {
+      season: 2026,
+      currentWeek: 3,
+      projectionsStored: true,
+      teamCount: 16,
+      replacement: { RB: { std: { level: 8, starters: 44 }, ros: null } }
+    }
+    const [season, ros] = columnGroups('ALL', 'value')
+    expect(valueHeaderTitle(season.columns[1], context, ['RB'])).toBe(
+      'League points per game over games played'
+    )
+    expect(valueHeaderTitle(season.columns[2], context, ['RB'])).toBe(
+      "PPG minus the position's replacement PPG\nReplacement PPG · RB 8.0 (44 starters)"
+    )
+    expect(valueHeaderTitle(ros.columns[1], null, ['RB'])).toBe(
+      "ROS minus the position's replacement ROS points"
+    )
+    expect(
+      valueHeaderTitle(columnGroups('ALL', 'stats')[0].columns[0], context, ['RB'])
+    ).toBeUndefined()
   })
 })

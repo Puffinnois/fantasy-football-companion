@@ -145,6 +145,7 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
       season: bundle.season,
       currentWeek: bundle.currentWeek,
       projectionsStored: bundle.projectionsStored,
+      teamCount: bundle.teamCount,
       replacement
     },
     rows,
