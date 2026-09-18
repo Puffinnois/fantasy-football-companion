@@ -2,6 +2,8 @@ import type {
   League,
   LeagueSummary,
   PlayersOptions,
+  PlayerDetail,
+  PlayersValue,
   PlayersWeek,
   WeekQuery,
   PointsContext,
@@ -35,6 +37,10 @@ export interface Api {
     options(): Promise<PlayersOptions>
     /** Every candidate player for the week with both lines; cached in main until data changes. */
     week(query: WeekQuery): Promise<PlayersWeek>
+    /** Every candidate's season value (spec §2); cached in main until a sync or a rules change. */
+    value(season: number): Promise<PlayersValue>
+    /** One player's value row plus its week series; served from the same cache. */
+    detail(season: number, playerId: string): Promise<PlayerDetail>
     weeklyStats(playerId: string): Promise<WeekStats[]>
   }
   watchlist: {
@@ -64,6 +70,8 @@ export const IPC = {
   leaguePointsContext: 'league:pointsContext',
   playersOptions: 'players:options',
   playersWeek: 'players:week',
+  playersValue: 'players:value',
+  playersDetail: 'players:detail',
   playersWeeklyStats: 'players:weeklyStats',
   watchlistToggle: 'watchlist:toggle',
   rulesGet: 'rules:get',

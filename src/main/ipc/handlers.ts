@@ -9,7 +9,7 @@ import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
 import { getNflState } from '@main/db/repos/state'
 import { getLastError, getLastSync, getLastSyncLike } from '@main/db/repos/syncLog'
 import { listRoster, listTeams } from '@main/db/repos/teams'
-import { toggleWatch } from '@main/db/repos/watchlist'
+import { listWatched, toggleWatch } from '@main/db/repos/watchlist'
 import { normalizeRules } from '@main/scoring/normalize'
 import { recomputePoints } from '@main/scoring/recompute'
 import type { NflverseClient } from '@main/sources/nflverse'
@@ -18,12 +18,15 @@ import { mapLeagueSummary } from '@main/sync/mappers'
 import { STATS_SOURCE_PREFIX, type NflverseSyncDeps } from '@main/sync/nflverseSync'
 import { importAll, refreshAll } from '@main/sync/refresh'
 import { reimportRules, SOURCE_LEAGUE } from '@main/sync/sleeperSync'
+import { buildValueSeason, detailFor, type ValueBuild } from '@main/value/build'
 import type { RefreshOptions } from '@main/sync/step'
 import { IPC, type FindLeaguesResult } from '@shared/ipc'
 import type { Rules } from '@shared/rules'
 import type {
   League,
+  PlayerDetail,
   PlayersOptions,
+  PlayersValue,
   PlayersWeek,
   PointsContext,
   RosterPlayer,
@@ -65,13 +68,38 @@ function cachedWeek(ctx: AppContext, leagueId: string, query: WeekQuery): Player
   return built
 }
 
+/**
+ * Cache of season value builds (one per league + season). Cleared with the week cache on sync and
+ * rules changes, but not on watchlist toggles: `watched` is decorated at serve time instead.
+ */
+const VALUE_CACHE_MAX = 2
+const valueCache = new Map<string, ValueBuild>()
+
+export function invalidateCaches(): void {
+  invalidateWeekCache()
+  valueCache.clear()
+}
+
+function cachedValue(ctx: AppContext, leagueId: string, season: number): ValueBuild {
+  const key = `${leagueId}|${season}`
+  const hit = valueCache.get(key)
+  if (hit) return hit
+  const built = buildValueSeason(ctx.db, leagueId, season)
+  if (valueCache.size >= VALUE_CACHE_MAX) {
+    const oldest = valueCache.keys().next().value
+    if (oldest !== undefined) valueCache.delete(oldest)
+  }
+  valueCache.set(key, built)
+  return built
+}
+
 export function syncDeps(ctx: AppContext): NflverseSyncDeps {
   return {
     db: ctx.db,
     sleeper: ctx.sleeper,
     nflverse: ctx.nflverse,
     onStep: (entry) => {
-      if (entry.status === 'ok') invalidateWeekCache()
+      if (entry.status === 'ok') invalidateCaches()
       ctx.getWindow()?.webContents.send(IPC.syncProgress, entry)
     }
   }
@@ -152,7 +180,7 @@ export function registerIpcHandlers(ctx: AppContext): void {
       saveRules(ctx.db, id, rules)
       recomputePoints(ctx.db, id, rules.updatedAt) // spec §7: rules change → rebuild player_week_points
     })
-    invalidateWeekCache()
+    invalidateCaches()
     return rules
   })
 
@@ -161,7 +189,7 @@ export function registerIpcHandlers(ctx: AppContext): void {
     if (!id) throw new Error('No league imported')
     const rules = await reimportRules(syncDeps(ctx), id)
     withTransaction(ctx.db, () => recomputePoints(ctx.db, id, rules.updatedAt))
-    invalidateWeekCache()
+    invalidateCaches()
     return rules
   })
 
@@ -174,6 +202,26 @@ export function registerIpcHandlers(ctx: AppContext): void {
   ipcMain.handle(IPC.playersWeek, (_event, query: WeekQuery): PlayersWeek => {
     const id = activeLeagueId()
     return id ? cachedWeek(ctx, id, query) : { rows: [] }
+  })
+
+  ipcMain.handle(IPC.playersValue, (_event, season: number): PlayersValue => {
+    const id = activeLeagueId()
+    if (!id) throw new Error('No league imported')
+    const build = cachedValue(ctx, id, season)
+    const watched = new Set(listWatched(ctx.db))
+    return {
+      context: build.context,
+      rows: build.rows.map((r) => ({ ...r, watched: watched.has(r.playerId) }))
+    }
+  })
+
+  ipcMain.handle(IPC.playersDetail, (_event, season: number, playerId: string): PlayerDetail => {
+    const id = activeLeagueId()
+    if (!id) throw new Error('No league imported')
+    const detail = detailFor(cachedValue(ctx, id, season), playerId)
+    if (!detail) throw new Error(`Unknown player ${playerId}`)
+    const watched = listWatched(ctx.db).includes(playerId)
+    return { ...detail, row: { ...detail.row, watched } }
   })
 
   ipcMain.handle(IPC.watchlistToggle, (_event, playerId: string): boolean => {
