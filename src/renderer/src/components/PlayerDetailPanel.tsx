@@ -7,12 +7,22 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+import { BarsVsMarker } from '@/components/BarsVsMarker'
 import { PositionBadge } from '@/components/PositionBadge'
 import { SlideOver } from '@/components/SlideOver'
+import { Sparkline } from '@/components/Sparkline'
 import { api } from '@/lib/api'
+import { barItems, signalLines, usageRows } from '@/lib/detailView'
 import { errorMessage, fmtPct, fmtPoints, fmtSigned } from '@/lib/format'
-import { cellText, columnGroups, type TableRow as PlayerRow } from '@/lib/playersTableView'
-import type { PlayerDetail, PlayerValueRow } from '@shared/types'
+import {
+  cellText,
+  columnGroups,
+  sosTone,
+  TREND_ARROW,
+  type TableRow as PlayerRow
+} from '@/lib/playersTableView'
+import { cn } from '@/lib/utils'
+import type { PlayerDetail, PlayerValueRow, ScheduleEntry, UsageTrend } from '@shared/types'
 
 interface PlayerDetailPanelProps {
   season: number
@@ -39,15 +49,33 @@ function Stat({
   )
 }
 
-/** Spec §6.2 item 1: PPG · STD value (pos rank) · ROS value (rank). */
-function HeaderStrip({ row }: { row: PlayerValueRow }): React.JSX.Element {
+/** Spec §6.2 item 1: PPG · STD value (pos rank) · ROS value (rank) · next opponent (rank) · byes remaining. */
+function HeaderStrip({
+  row,
+  schedule
+}: {
+  row: PlayerValueRow
+  schedule: ScheduleEntry[]
+}): React.JSX.Element {
   const rank = (n: number | null): string => (n === null ? '—' : `${row.position ?? ''}${n}`)
+  const signals = row.signals
+  const next = signals?.nextOpponent ?? null
+  const nextValue = !signals ? '—' : next ? next.team : schedule.length > 0 ? 'BYE' : '—'
+  const nextSub = !signals
+    ? ''
+    : next
+      ? next.rank === null
+        ? 'DvP unranked'
+        : `DvP rank ${next.rank}`
+      : schedule.length > 0
+        ? `week ${schedule[0].week}`
+        : 'season over'
   return (
-    <dl className="grid grid-cols-3 gap-3">
+    <dl className="grid grid-cols-5 gap-3">
       <Stat label="PPG" value={fmtPoints(row.ppg)} sub={`${row.gamesPlayed} G`} />
-      <Stat label="Value · season" value={fmtSigned(row.stdValue)} sub={rank(row.stdRank)} />
+      <Stat label="Season VAL" value={fmtSigned(row.stdValue)} sub={rank(row.stdRank)} />
       <Stat
-        label="Value · ROS"
+        label="ROS VAL"
         value={fmtSigned(row.rosValue)}
         sub={
           row.rosPoints === null
@@ -55,7 +83,79 @@ function HeaderStrip({ row }: { row: PlayerValueRow }): React.JSX.Element {
             : `${rank(row.rosRank)} · ${row.rosPoints.toFixed(1)} pts`
         }
       />
+      <Stat label="Next" value={nextValue} sub={nextSub} />
+      <Stat label="Byes" value={signals ? String(signals.byesRemaining) : '—'} sub="remaining" />
     </dl>
+  )
+}
+
+function Section({
+  title,
+  note,
+  children
+}: {
+  title: string
+  note?: string
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <section className="mt-5">
+      <h3 className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        {title}
+        {note && <span className="ml-2 normal-case tracking-normal">{note}</span>}
+      </h3>
+      <div className="mt-2">{children}</div>
+    </section>
+  )
+}
+
+/** Spec §6.2 item 3: a sparkline over the played games plus season / last-3 numbers and the trend. */
+function UsageLine({
+  label,
+  values,
+  trend
+}: {
+  label: string
+  values: (number | null)[]
+  trend: UsageTrend | null
+}): React.JSX.Element {
+  return (
+    <div className="flex items-center gap-3 text-sm">
+      <span className="w-24 shrink-0 text-muted-foreground">{label}</span>
+      <Sparkline values={values} />
+      <span className="tabular-nums">
+        {trend
+          ? `${fmtPct(trend.season)} season · ${fmtPct(trend.recent)} last 3 ${TREND_ARROW[trend.trend]} ${trend.trend}`
+          : '— (needs 2 games)'}
+      </span>
+    </div>
+  )
+}
+
+function ScheduleChips({ schedule }: { schedule: ScheduleEntry[] }): React.JSX.Element {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {schedule.map((e) => {
+        const tone = sosTone(e.rank)
+        return (
+          <span
+            key={e.week}
+            className={cn(
+              'rounded border px-1.5 py-0.5 text-xs tabular-nums',
+              e.opponent === null && 'text-muted-foreground',
+              tone === 'hard' && 'border-destructive/50 text-destructive',
+              tone === 'easy' && 'border-pos-rb/50 text-pos-rb'
+            )}
+            title={
+              e.rank === null ? 'defense not ranked yet' : `defense vs position rank ${e.rank}`
+            }
+          >
+            Wk {e.week} {e.opponent ?? 'BYE'}
+            {e.rank !== null && ` · ${e.rank}`}
+          </span>
+        )
+      })}
+    </div>
   )
 }
 
@@ -94,6 +194,9 @@ export function PlayerDetailPanel({
     .flatMap((g) => g.columns)
     .filter((c) => c.kind === 'stat')
   const showSnaps = player?.position !== 'DEF'
+  const signals = detail?.row.signals ?? null
+  const bars = detail ? barItems(detail.weeks) : []
+  const usage = usageRows(player?.position ?? null)
 
   return (
     <SlideOver
@@ -110,11 +213,53 @@ export function PlayerDetailPanel({
       }
     >
       {error && <p className="text-destructive text-sm">{error}</p>}
-      {detail && <HeaderStrip row={detail.row} />}
+      {detail && <HeaderStrip row={detail.row} schedule={detail.schedule} />}
       {player && !player.statsAvailable && (
         <p className="mt-4 text-sm text-muted-foreground">
           Stats unavailable — this player could not be matched to nflverse data.
         </p>
+      )}
+      {detail && signals && (
+        <>
+          <Section title="Points vs projection" note="bars = points · tick = projection">
+            {bars.length > 0 ? (
+              <BarsVsMarker items={bars} />
+            ) : (
+              <p className="text-sm text-muted-foreground">No games or projections yet.</p>
+            )}
+            {detail.row.rosPoints === null && (
+              <p className="mt-1 text-xs text-muted-foreground">No projections stored</p>
+            )}
+          </Section>
+          {usage.length > 0 && (
+            <Section title="Usage">
+              <div className="space-y-2">
+                {usage.map((u) => (
+                  <UsageLine
+                    key={u.metric}
+                    label={u.label}
+                    values={played.map((w) => w[u.metric])}
+                    trend={signals.usage[u.metric]}
+                  />
+                ))}
+              </div>
+            </Section>
+          )}
+          <Section title="Signals">
+            <ul className="space-y-1 text-sm">
+              {signalLines(signals, detail.row.gamesPlayed).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </Section>
+          <Section title="Upcoming schedule">
+            {detail.schedule.length > 0 ? (
+              <ScheduleChips schedule={detail.schedule} />
+            ) : (
+              <p className="text-sm text-muted-foreground">No remaining weeks.</p>
+            )}
+          </Section>
+        </>
       )}
       {detail && player?.statsAvailable && played.length === 0 && (
         <p className="mt-4 text-sm text-muted-foreground">No games yet this season.</p>
