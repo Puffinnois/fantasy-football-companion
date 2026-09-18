@@ -38,9 +38,11 @@ const series = (position: string | null, weeks: SeriesWeek[]): PlayerSeries => (
     rookie: false,
     watched: false,
     ownerRosterId: null,
-    ownerName: null
+    ownerName: null,
+    ownerIsMe: false
   },
   statsAvailable: true,
+  rosterSlot: null,
   weeks: weeks.map((w, i) => ({ ...w, week: i + 1 }))
 })
 

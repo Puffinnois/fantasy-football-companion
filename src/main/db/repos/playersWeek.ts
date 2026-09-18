@@ -16,7 +16,8 @@ import type {
   PlayersOptions,
   PlayersWeek,
   PlayerWeekRow,
-  PositionTab
+  PositionTab,
+  RosterSlot
 } from '@shared/types'
 import type { Db } from '../connection'
 import { getLeague } from './leagues'
@@ -41,6 +42,10 @@ export interface CandidateRow {
   years_exp: number | null
   owner_roster_id: number | null
   owner_name: string | null
+  /** null for free agents. */
+  owner_slot: RosterSlot | null
+  /** teams.is_me of the owner; null for free agents. */
+  owner_is_me: number | null
   watched: string | null
   gsis_id: string | null
   pfr_id: string | null
@@ -70,7 +75,8 @@ export function listCandidates(db: Db, leagueId: string): CandidateRow[] {
       `SELECT * FROM (
          SELECT p.player_id, p.full_name, CASE WHEN p.position = 'FB' THEN 'RB' ELSE p.position END AS pos,
            p.team, p.status, p.injury_status, p.years_exp,
-           rp.roster_id AS owner_roster_id, COALESCE(t.team_name, t.display_name) AS owner_name,
+           rp.roster_id AS owner_roster_id, rp.slot AS owner_slot, t.is_me AS owner_is_me,
+           COALESCE(t.team_name, t.display_name) AS owner_name,
            w.player_id AS watched, i.gsis_id, i.pfr_id, i.nflverse_team
          FROM players p
          LEFT JOIN roster_players rp ON rp.player_id = p.player_id AND rp.league_id = ?
@@ -97,7 +103,8 @@ export function baseRow(r: CandidateRow, byes: Map<string, number>): PlayerBaseR
     rookie: r.years_exp === 0,
     watched: r.watched !== null,
     ownerRosterId: r.owner_roster_id,
-    ownerName: r.owner_name
+    ownerName: r.owner_name,
+    ownerIsMe: r.owner_is_me === 1
   }
 }
 

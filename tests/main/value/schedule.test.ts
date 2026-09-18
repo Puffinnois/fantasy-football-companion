@@ -36,9 +36,11 @@ const player = (
     rookie: false,
     watched: false,
     ownerRosterId: null,
-    ownerName: null
+    ownerName: null,
+    ownerIsMe: false
   },
   statsAvailable: true,
+  rosterSlot: null,
   weeks
 })
 

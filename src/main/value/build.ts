@@ -162,6 +162,8 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
       rosRank: rosRanks.get(series.base.playerId) ?? null,
       overallRank: overallRanks.get(series.base.playerId) ?? null,
       signals,
+      vsMine: null,
+      droppable: null,
       statsAvailable: series.statsAvailable
     }
   })
@@ -176,6 +178,8 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
       currentWeek: bundle.currentWeek,
       projectionsStored: bundle.projectionsStored,
       teamCount: bundle.teamCount,
+      hasMyTeam: bundle.hasMyTeam,
+      mine: Object.fromEntries(LINEUP_POSITIONS.map((pos) => [pos, null])),
       replacement
     },
     rows,

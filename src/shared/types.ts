@@ -89,6 +89,8 @@ export interface PlayerBaseRow {
   watched: boolean
   ownerRosterId: number | null
   ownerName: string | null
+  /** The owner is the team flagged `is_me` at import. */
+  ownerIsMe: boolean
 }
 
 /** One candidate player for a (season, week); the renderer picks the line by mode and filters/sorts locally. */
@@ -157,6 +159,21 @@ export interface ScheduleEntry {
   rank: number | null
 }
 
+/** The best free agent at my player's position when it out-values them (spec §4). */
+export interface Droppable {
+  playerId: string
+  fullName: string
+  /** The free agent's ROS value minus my player's. */
+  delta: number
+}
+
+/** My startable player with the lowest ROS value at a position — the `vsMine` baseline. */
+export interface MyBaseline {
+  playerId: string
+  fullName: string
+  rosValue: number
+}
+
 /** One player's season value (spec §2); ranks are 1-based within position, overall by ROS value. */
 export interface PlayerValueRow extends PlayerBaseRow {
   gamesPlayed: number
@@ -169,6 +186,10 @@ export interface PlayerValueRow extends PlayerBaseRow {
   overallRank: number | null
   /** null for players unmatched to nflverse. */
   signals: PlayerSignals | null
+  /** Free agents only: ROS value minus my lowest-valued startable player's at the position. */
+  vsMine: number | null
+  /** My startable players only: the best free agent at the position when strictly better. */
+  droppable: Droppable | null
   statsAvailable: boolean
 }
 
@@ -178,6 +199,10 @@ export interface ValueContext {
   currentWeek: number
   projectionsStored: boolean
   teamCount: number
+  /** A `teams` row is flagged `is_me`; when false `vsMine`, `droppable` and every `mine` entry are null. */
+  hasMyTeam: boolean
+  /** Per lineup position; null when I roster nobody startable with a ROS value there. */
+  mine: Record<string, MyBaseline | null>
   /** Per lineup position; null when no player has the metric. */
   replacement: Record<string, { std: ReplacementLevel | null; ros: ReplacementLevel | null }>
 }

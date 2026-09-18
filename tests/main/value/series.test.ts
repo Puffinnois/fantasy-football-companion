@@ -31,6 +31,15 @@ describe('loadSeries', () => {
     expect(bundle.projectionsStored).toBe(true)
     expect(bundle.teamCount).toBe(2)
     expect(bundle.rules?.rosterSlots.some((s) => s.slot === 'FLEX')).toBe(true)
+    expect(bundle.hasMyTeam).toBe(true)
+  })
+
+  it("carries each candidate's roster slot and whether the owner is me", () => {
+    expect(byId.get('4866')?.rosterSlot).toBe('starter')
+    expect(byId.get('8259')?.rosterSlot).toBe('ir')
+    expect(byId.get('9509')?.rosterSlot).toBe('taxi')
+    expect(byId.get('4866')?.base.ownerIsMe).toBe(true)
+    expect(byId.get('9509')?.base.ownerIsMe).toBe(false)
   })
 
   it('builds one week per game, projection or points row with points, projection, line and usage', () => {

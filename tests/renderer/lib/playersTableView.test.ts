@@ -31,6 +31,7 @@ const row = (over: Partial<PlayerWeekRow> = {}): PlayerWeekRow => ({
   watched: false,
   ownerRosterId: null,
   ownerName: null,
+  ownerIsMe: false,
   game: null,
   points: 18.4,
   projected: 18.58,
@@ -54,6 +55,7 @@ const valueRow = (over: Partial<PlayerValueRow> = {}): PlayerValueRow => ({
   watched: false,
   ownerRosterId: null,
   ownerName: null,
+  ownerIsMe: false,
   gamesPlayed: 3,
   ppg: 18.4,
   stdValue: 6.28,
@@ -63,6 +65,8 @@ const valueRow = (over: Partial<PlayerValueRow> = {}): PlayerValueRow => ({
   rosRank: 9,
   overallRank: 20,
   signals: signalsFixture(),
+  vsMine: null,
+  droppable: null,
   statsAvailable: true,
   ...over
 })
@@ -435,6 +439,8 @@ describe('value mode', () => {
       currentWeek: 3,
       projectionsStored: true,
       teamCount: 16,
+      hasMyTeam: false,
+      mine: {},
       replacement: {
         RB: { std: { level: 8.36, starters: 44 }, ros: { level: 91.2, starters: 43 } },
         WR: { std: null, ros: { level: 80, starters: 45 } }
@@ -455,6 +461,8 @@ describe('value mode', () => {
       currentWeek: 3,
       projectionsStored: true,
       teamCount: 16,
+      hasMyTeam: false,
+      mine: {},
       replacement: { RB: { std: { level: 8, starters: 44 }, ros: null } }
     }
     const [season, ros] = columnGroups('ALL', 'value')

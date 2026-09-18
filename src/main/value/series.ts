@@ -9,7 +9,7 @@ import { scoreStatLine } from '@main/scoring/engine'
 import { pointsAllowedIndex } from '@main/scoring/recompute'
 import { asPosition, type Rules } from '@shared/rules'
 import { toNflverseTeam, toSleeperTeam } from '@shared/teams'
-import type { NflState, PlayerBaseRow } from '@shared/types'
+import type { NflState, PlayerBaseRow, RosterSlot } from '@shared/types'
 import type { Db } from '../db/connection'
 import { getLeague } from '../db/repos/leagues'
 import { baseRow, listCandidates } from '../db/repos/playersWeek'
@@ -17,6 +17,7 @@ import { listPointsBySeason } from '../db/repos/points'
 import { listProjectionsBySeason, type ProjectionRecord } from '../db/repos/projections'
 import { getRules } from '../db/repos/rules'
 import { getNflState } from '../db/repos/state'
+import { listTeams } from '../db/repos/teams'
 import {
   listPlayerWeeksBySeason,
   listRegularSeasonGames,
@@ -50,6 +51,8 @@ export interface SeriesWeek {
 export interface PlayerSeries {
   base: PlayerBaseRow
   statsAvailable: boolean
+  /** Roster slot on the owning team; null for free agents. */
+  rosterSlot: RosterSlot | null
   /** Ascending; only weeks with a game, a projection or a points row. */
   weeks: SeriesWeek[]
 }
@@ -59,6 +62,8 @@ export interface SeriesBundle {
   currentWeek: number
   projectionsStored: boolean
   teamCount: number
+  /** A `teams` row of the league is flagged `is_me`. */
+  hasMyTeam: boolean
   rules: Rules | null
   /** Sleeper team → week → Sleeper opponent, regular season. */
   schedule: Map<string, Map<number, string>>
@@ -210,6 +215,7 @@ export function loadSeries(db: Db, leagueId: string, season: number): SeriesBund
     return {
       base,
       statsAvailable: r.gsis_id !== null || r.nflverse_team !== null,
+      rosterSlot: r.owner_slot,
       weeks
     }
   })
@@ -227,6 +233,7 @@ export function loadSeries(db: Db, leagueId: string, season: number): SeriesBund
     currentWeek,
     projectionsStored: projectionRows.length > 0,
     teamCount: league?.totalRosters ?? 0,
+    hasMyTeam: listTeams(db, leagueId).some((t) => t.isMe),
     rules,
     schedule: sleeperSchedule,
     players

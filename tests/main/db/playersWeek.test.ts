@@ -195,11 +195,16 @@ describe('playersWeek', () => {
       position: 'RB',
       team: 'PHI',
       ownerName: 'Cook Book',
+      ownerIsMe: true,
       rookie: false,
       watched: false,
       points: 18.4,
       statsAvailable: true,
       byeWeek: 2
+    })
+    expect(rows.find((r) => r.playerId === '7564')).toMatchObject({
+      ownerName: 'Rival',
+      ownerIsMe: false
     })
     expect(barkley.actual).toMatchObject({
       rush_att: 18,
