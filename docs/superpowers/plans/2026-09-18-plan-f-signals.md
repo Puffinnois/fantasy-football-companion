@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Put the *why* next to every value: usage trends, TD/yards-per-opportunity regression, consistency (floor / ceiling / start rate), projection accuracy and schedule (next opponent, rest-of-season strength, byes) — as a `Signals` column group plus `SOS` / `BYES` columns in Value mode, and as charts and text in the player detail panel.
+**Goal:** Put the _why_ next to every value: usage trends, TD/yards-per-opportunity regression, consistency (floor / ceiling / start rate), projection accuracy and schedule (next opponent, rest-of-season strength, byes) — as a `Signals` column group plus `SOS` / `BYES` columns in Value mode, and as charts and text in the player detail panel.
 
 **Architecture:** Two new pure modules in `src/main/value/` consume the `SeriesBundle` that `loadSeries` already produces (per-week points, scored projections, Sleeper-keyed lines, usage shares, opponents): `signals.ts` (usage trends, opportunities, league-wide positional rates, percentiles, vs-projection; every threshold an exported constant) and `schedule.ts` (defense-vs-position ranks from the played weeks, then each player's remaining schedule). `assembleValue` merges them into `PlayerValueRow.signals` and `PlayerDetail.schedule`; nothing new touches the DB except one extra field on the bundle (the Sleeper-coded team schedule). The renderer adds a `signal` column kind to `playersTableView.ts`, two small inline-SVG components (`BarsVsMarker`, `Sparkline`) over pure layout helpers in `lib/charts.ts`, and four new sections in `PlayerDetailPanel.tsx` driven by `lib/detailView.ts`.
 
@@ -16,14 +16,14 @@
 - Every number behind the screen is computed in the main process from the loaded bundle. The renderer formats; it never computes points, trends or ranks. The only renderer-side constants are display thresholds (SOS tint buckets).
 - No new tables, no migration, no persisted computed values, no new data sources, no charting library (spec non-goals). Charts are inline SVG, ≤ 24 px bars with a 2 px surface gap and rounded data-ends, 2 px lines, ≥ 8 px end markers with a 2 px surface ring, native `<title>` hover on every bar, text in text tokens (never the series colour).
 - **Thresholds live in `src/main/value/signals.ts` as exported constants** (spec §3): `RECENT_GAMES = 3`, `SHARE_TREND_THRESHOLD = 0.03`, `SNAP_TREND_THRESHOLD = 0.05`, `MIN_GAMES_USAGE = 2`, `MIN_GAMES_CONSISTENCY = 3`, `TD_FLAG_THRESHOLD = 1.5`. No other logic may hard-code them (UI copy such as "needs 3 games" is text, not a gate).
-- **Do not saturate the window**: Value mode gains exactly the columns listed in Task 5 (`SOS`, `BYES` in Rest of season; `FLOOR`, `CEIL`, `START%`, `USAGE`, `TD`, `VS PROJ` in Signals). No new buttons or chips (the *My team* chip is Plan G).
+- **Do not saturate the window**: Value mode gains exactly the columns listed in Task 5 (`SOS`, `BYES` in Rest of season; `FLOOR`, `CEIL`, `START%`, `USAGE`, `TD`, `VS PROJ` in Signals). No new buttons or chips (the _My team_ chip is Plan G).
 - Verification before every commit: `npm run typecheck && npm run lint && npm test`; run `npm run format` when Prettier complains. Conventional Commits, summary ≤ 50 chars, ending with `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`. Branch `feat/signals` from `main`.
 - Existing `tests/**` are typechecked: when a shared type gains a required field, update the fixture literals named in the task.
 - Spec deviations locked in here:
   - `PlayerSignals.nextOpponent.rank` is `number | null` — a defense has no rank until it has played (preseason), matching `PlayerDetail.schedule[].rank`.
-  - A usage trend is computed over the played games that *have* the metric (a played week without a snap row is not a snap-% game); `MIN_GAMES_USAGE` counts those.
+  - A usage trend is computed over the played games that _have_ the metric (a played week without a snap row is not a snap-% game); `MIN_GAMES_USAGE` counts those.
   - The positional mean yards-per-opportunity is opportunity-weighted: Σ yards / Σ opportunities over every candidate at the position (same denominator as the TD rate).
-  - `allowed(T, pos)` is averaged over T's *played* weeks (weeks with any points row against T); defenses that have not played are unranked, and ranks run 1..N over the ranked defenses (N ≤ 32 early in the season). `rosSos` averages the ranked remaining opponents only; `null` when none is ranked.
+  - `allowed(T, pos)` is averaged over T's _played_ weeks (weeks with any points row against T); defenses that have not played are unranked, and ranks run 1..N over the ranked defenses (N ≤ 32 early in the season). `rosSos` averages the ranked remaining opponents only; `null` when none is ranked.
   - `byesRemaining` counts weeks from `currentWeek` to the last week with any game in the stored schedule (a partially loaded schedule never inflates it); a team with no stored game has 0 byes, no SOS and no next opponent.
   - `signals` is `null` when `statsAvailable = false` (spec §5.1); K and DEF have `null` usage, `tdDelta`, `ypo` but real consistency, vs-projection and schedule fields.
   - Floor and ceiling are two sortable columns (`FLOOR`, `CEIL`), not one combined cell — spec §6.1 wants every numeric column sortable.
@@ -32,25 +32,25 @@
 
 ## File map
 
-| File | Responsibility |
-|---|---|
-| `src/shared/types.ts` (modify) | `Trend`, `UsageTrend`, `UsageMetric`, `PlayerSignals`, `ScheduleEntry`; `PlayerValueRow.signals`; `PlayerDetail.schedule` |
-| `src/main/value/series.ts` (modify) | `SeriesBundle.schedule` — Sleeper-coded team schedule |
-| `src/main/value/signals.ts` (create) | §3.1–3.3 pure: constants, `usageTrend`, `opportunities`, `production`, `positionTotals`, `percentile`, `stdev`, `statSignals` |
-| `src/main/value/schedule.ts` (create) | §3.4 pure: `defenseRanks`, `lastScheduledWeek`, `playerSchedule` |
-| `src/main/value/build.ts` (modify) | wire signals + schedule into rows, `ValueBuild.schedules`, `detailFor` |
-| `src/renderer/src/lib/format.ts` (modify) | `fmtSignedPct` |
-| `src/renderer/src/lib/playersTableView.ts` (modify) | `signal` column kind, `SignalField`, SOS/BYES + Signals columns, `signalValue` / `signalText` / `signalTone`, `primaryUsage`, `sosTone`, sort + header title |
-| `src/renderer/src/screens/PlayersScreen.tsx` (modify) | signal cells (text + tone) |
-| `src/renderer/src/components/ValueHelp.tsx` (modify) | Signals definitions from the column descriptions + defense-vs-position term |
-| `src/renderer/src/lib/charts.ts` (create) | `barsLayout`, `barPath`, `sparklinePoints` — pure geometry |
-| `src/renderer/src/components/BarsVsMarker.tsx`, `Sparkline.tsx` (create) | inline SVG over the helpers |
-| `src/renderer/src/lib/detailView.ts` (create) | `signalLines`, `usageRows`, `barItems` — panel view model |
-| `src/renderer/src/components/PlayerDetailPanel.tsx` (modify) | header strip opponent/byes; sections 2–5 |
-| `tests/fixtures/season.ts` (modify) | week-5 game so a bye exists; MIN–CHI rematch so a ranked opponent exists |
-| `tests/fixtures/signals.ts` (create) | `signalsFixture()` for the renderer tests |
-| `tests/main/value/signals.test.ts`, `schedule.test.ts` (create); `series.test.ts`, `build.test.ts` (modify) | main-process tests |
-| `tests/renderer/lib/charts.test.ts`, `detailView.test.ts` (create); `playersTableView.test.ts`, `format.test.ts` (modify) | renderer tests |
+| File                                                                                                                      | Responsibility                                                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/shared/types.ts` (modify)                                                                                            | `Trend`, `UsageTrend`, `UsageMetric`, `PlayerSignals`, `ScheduleEntry`; `PlayerValueRow.signals`; `PlayerDetail.schedule`                                    |
+| `src/main/value/series.ts` (modify)                                                                                       | `SeriesBundle.schedule` — Sleeper-coded team schedule                                                                                                        |
+| `src/main/value/signals.ts` (create)                                                                                      | §3.1–3.3 pure: constants, `usageTrend`, `opportunities`, `production`, `positionTotals`, `percentile`, `stdev`, `statSignals`                                |
+| `src/main/value/schedule.ts` (create)                                                                                     | §3.4 pure: `defenseRanks`, `lastScheduledWeek`, `playerSchedule`                                                                                             |
+| `src/main/value/build.ts` (modify)                                                                                        | wire signals + schedule into rows, `ValueBuild.schedules`, `detailFor`                                                                                       |
+| `src/renderer/src/lib/format.ts` (modify)                                                                                 | `fmtSignedPct`                                                                                                                                               |
+| `src/renderer/src/lib/playersTableView.ts` (modify)                                                                       | `signal` column kind, `SignalField`, SOS/BYES + Signals columns, `signalValue` / `signalText` / `signalTone`, `primaryUsage`, `sosTone`, sort + header title |
+| `src/renderer/src/screens/PlayersScreen.tsx` (modify)                                                                     | signal cells (text + tone)                                                                                                                                   |
+| `src/renderer/src/components/ValueHelp.tsx` (modify)                                                                      | Signals definitions from the column descriptions + defense-vs-position term                                                                                  |
+| `src/renderer/src/lib/charts.ts` (create)                                                                                 | `barsLayout`, `barPath`, `sparklinePoints` — pure geometry                                                                                                   |
+| `src/renderer/src/components/BarsVsMarker.tsx`, `Sparkline.tsx` (create)                                                  | inline SVG over the helpers                                                                                                                                  |
+| `src/renderer/src/lib/detailView.ts` (create)                                                                             | `signalLines`, `usageRows`, `barItems` — panel view model                                                                                                    |
+| `src/renderer/src/components/PlayerDetailPanel.tsx` (modify)                                                              | header strip opponent/byes; sections 2–5                                                                                                                     |
+| `tests/fixtures/season.ts` (modify)                                                                                       | week-5 game so a bye exists; MIN–CHI rematch so a ranked opponent exists                                                                                     |
+| `tests/fixtures/signals.ts` (create)                                                                                      | `signalsFixture()` for the renderer tests                                                                                                                    |
+| `tests/main/value/signals.test.ts`, `schedule.test.ts` (create); `series.test.ts`, `build.test.ts` (modify)               | main-process tests                                                                                                                                           |
+| `tests/renderer/lib/charts.test.ts`, `detailView.test.ts` (create); `playersTableView.test.ts`, `format.test.ts` (modify) | renderer tests                                                                                                                                               |
 
 ---
 
@@ -59,6 +59,7 @@
 Types only + one field on the bundle; the build fills `signals: null` / `schedule: []` until Task 4 so the app keeps typechecking and behaving exactly as `v0.5.0`.
 
 **Files:**
+
 - Modify: `src/shared/types.ts:111-162` (after `ReplacementLevel`; `PlayerValueRow`; `PlayerDetail`)
 - Modify: `src/main/value/series.ts:52-60` (`SeriesBundle`), `:213-221` (return)
 - Modify: `src/main/value/build.ts:132-144` (rows), `:158-180` (`detailFor`)
@@ -67,9 +68,10 @@ Types only + one field on the bundle; the build fills `signals: null` / `schedul
 - Modify: `tests/main/value/series.test.ts:40`, `tests/main/value/build.test.ts:85`
 
 **Interfaces:**
+
 - Produces: `Trend`, `UsageTrend`, `UsageMetric`, `PlayerSignals`, `ScheduleEntry` (shared); `PlayerValueRow.signals: PlayerSignals | null`; `PlayerDetail.schedule: ScheduleEntry[]`; `SeriesBundle.schedule: Map<string, Map<number, string>>` (Sleeper team → week → Sleeper opponent).
 
-- [ ] **Step 1: Add the shared types**
+- [x] **Step 1: Add the shared types**
 
 In `src/shared/types.ts`, directly after the `ReplacementLevel` interface:
 
@@ -122,8 +124,8 @@ export interface ScheduleEntry {
 In `PlayerValueRow`, before `statsAvailable`:
 
 ```ts
-  /** null for players unmatched to nflverse. */
-  signals: PlayerSignals | null
+/** null for players unmatched to nflverse. */
+signals: PlayerSignals | null
 ```
 
 In `PlayerDetail`, after `weeks`:
@@ -133,42 +135,42 @@ In `PlayerDetail`, after `weeks`:
   schedule: ScheduleEntry[]
 ```
 
-- [ ] **Step 2: Expose the schedule on the bundle**
+- [x] **Step 2: Expose the schedule on the bundle**
 
 In `src/main/value/series.ts`, add to `SeriesBundle` after `rules`:
 
 ```ts
-  /** Sleeper team → week → Sleeper opponent, regular season. */
-  schedule: Map<string, Map<number, string>>
+/** Sleeper team → week → Sleeper opponent, regular season. */
+schedule: Map<string, Map<number, string>>
 ```
 
 Replace the final `return { ... }` of `loadSeries` with:
 
 ```ts
-  const sleeperSchedule = new Map<string, Map<number, string>>()
-  for (const [team, weeks] of schedule) {
-    sleeperSchedule.set(
-      toSleeperTeam(team),
-      new Map([...weeks].map(([week, opponent]) => [week, toSleeperTeam(opponent)]))
-    )
-  }
+const sleeperSchedule = new Map<string, Map<number, string>>()
+for (const [team, weeks] of schedule) {
+  sleeperSchedule.set(
+    toSleeperTeam(team),
+    new Map([...weeks].map(([week, opponent]) => [week, toSleeperTeam(opponent)]))
+  )
+}
 
-  return {
-    season,
-    currentWeek,
-    projectionsStored: projectionRows.length > 0,
-    teamCount: league?.totalRosters ?? 0,
-    rules,
-    schedule: sleeperSchedule,
-    players
-  }
+return {
+  season,
+  currentWeek,
+  projectionsStored: projectionRows.length > 0,
+  teamCount: league?.totalRosters ?? 0,
+  rules,
+  schedule: sleeperSchedule,
+  players
+}
 ```
 
-- [ ] **Step 3: Stub the new fields in the build**
+- [x] **Step 3: Stub the new fields in the build**
 
 In `src/main/value/build.ts`, inside the `rows` map add `signals: null,` before `statsAvailable`, and in `detailFor` add `schedule: []` after the `weeks` array (both replaced in Task 4).
 
-- [ ] **Step 4: Extend the fixture and the fixture-dependent assertions**
+- [x] **Step 4: Extend the fixture and the fixture-dependent assertions**
 
 In `tests/fixtures/season.ts`, `upsertGames` list: change `game('g10', 4, 'MIN', 'GB')` to `game('g10', 4, 'MIN', 'CHI')` and append `game('g12', 5, 'PHI', 'LA')` after `g11`. In the week-4 projections change Jefferson's to `proj('6794', 4, { rec: 6, rec_yd: 90 }, 'CHI')`. Update the doc comment's last sentence to: `Games run to week 5 (PHI–LA), so week 5 is a bye for MIN; MIN meets CHI again in week 4.`
 
@@ -176,25 +178,25 @@ In `tests/fixtures/season.ts`, `upsertGames` list: change `game('g10', 4, 'MIN',
 `tests/main/value/build.test.ts` line 85: `expect(detail?.weeks.map((w) => w.week)).toEqual([1, 2, 3, 4, 5])`.
 `tests/renderer/lib/playersTableView.test.ts` `valueRow` literal: add `signals: null,` before `statsAvailable: true`.
 
-- [ ] **Step 5: Write the failing series test**
+- [x] **Step 5: Write the failing series test**
 
 Append to the `loadSeries` describe in `tests/main/value/series.test.ts`:
 
 ```ts
-  it('exposes the regular-season schedule in Sleeper codes', () => {
-    const bundle = loadSeries(db, 'L1', SEASON)
-    expect(bundle.schedule.get('LAR')?.get(1)).toBe('HOU')
-    expect(bundle.schedule.get('PHI')?.get(5)).toBe('LAR')
-    expect(bundle.schedule.get('MIN')?.has(2)).toBe(false)
-  })
+it('exposes the regular-season schedule in Sleeper codes', () => {
+  const bundle = loadSeries(db, 'L1', SEASON)
+  expect(bundle.schedule.get('LAR')?.get(1)).toBe('HOU')
+  expect(bundle.schedule.get('PHI')?.get(5)).toBe('LAR')
+  expect(bundle.schedule.get('MIN')?.has(2)).toBe(false)
+})
 ```
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: all green (203 tests: 201 + the schedule test; the fixture changes keep every Plan E number — Barkley's ROS is still 8 because week 5 has no projection).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git checkout -b feat/signals
@@ -207,14 +209,16 @@ git commit -m "feat(value): add signal types and the season schedule"
 ### Task 2: `signals.ts` — trends, efficiency, consistency (pure)
 
 **Files:**
+
 - Create: `src/main/value/signals.ts`
 - Test: `tests/main/value/signals.test.ts`
 
 **Interfaces:**
+
 - Consumes: `PlayerSeries`, `SeriesWeek` (`series.ts`); `PlayerSignals`, `UsageMetric`, `UsageTrend`, `Trend` (Task 1); `round2` (`@main/db/repos/points`).
 - Produces: constants above; `usageTrend(values: number[], threshold: number): UsageTrend | null`; `opportunities(position: string | null, line: Record<string, number>): number | null`; `production(position, line): { tds: number; yards: number }`; `PositionTotals { opportunities; tds; yards }`; `positionTotals(players: PlayerSeries[]): Map<string, PositionTotals>`; `percentile(values: number[], p: number): number`; `stdev(values: number[]): number`; `StatSignals = Omit<PlayerSignals, 'nextOpponent' | 'rosSos' | 'byesRemaining'>`; `statSignals(series: PlayerSeries, totals: PositionTotals | undefined, replacementPpg: number | null): StatSignals`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/main/value/signals.test.ts`:
 
@@ -379,7 +383,9 @@ describe('statSignals', () => {
     )
     expect(s).toMatchObject({ vsProjPoints: 6 })
     expect(s.vsProjPct).toBeCloseTo(0.375)
-    expect(statSignals(series('RB', [week({ points: 3, projected: 0 })]), undefined, null)).toMatchObject({
+    expect(
+      statSignals(series('RB', [week({ points: 3, projected: 0 })]), undefined, null)
+    ).toMatchObject({
       vsProjPoints: 3,
       vsProjPct: null
     })
@@ -430,12 +436,12 @@ describe('statSignals', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/value/signals.test.ts`
 Expected: FAIL — `Cannot find module '@main/value/signals'`.
 
-- [ ] **Step 3: Implement `signals.ts`**
+- [x] **Step 3: Implement `signals.ts`**
 
 `src/main/value/signals.ts`:
 
@@ -624,12 +630,12 @@ export function statSignals(
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/value/signals.test.ts`
-Expected: PASS (10 tests). If `stdev: 5.89` is off by 0.01, check that `round2` is applied to the *unrounded* stdev (√(104/3) = 5.888 → 5.89).
+Expected: PASS (10 tests). If `stdev: 5.89` is off by 0.01, check that `round2` is applied to the _unrounded_ stdev (√(104/3) = 5.888 → 5.89).
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 
@@ -643,14 +649,16 @@ git commit -m "feat(value): usage, regression and consistency signals"
 ### Task 3: `schedule.ts` — defense-vs-position ranks and the remaining schedule (pure)
 
 **Files:**
+
 - Create: `src/main/value/schedule.ts`
 - Test: `tests/main/value/schedule.test.ts`
 
 **Interfaces:**
+
 - Consumes: `PlayerSeries` (`series.ts`); `PlayerSignals`, `ScheduleEntry` (Task 1); `round2`.
 - Produces: `TeamSchedule = Map<string, Map<number, string>>`; `DefenseRanks = Map<string, Map<string, number>>` (defense → position → rank); `defenseRanks(players: PlayerSeries[]): DefenseRanks`; `lastScheduledWeek(schedule: TeamSchedule): number`; `PlayerSchedule { entries: ScheduleEntry[]; nextOpponent: PlayerSignals['nextOpponent']; rosSos: number | null; byesRemaining: number }`; `playerSchedule(series, schedule, ranks, currentWeek, lastWeek?): PlayerSchedule`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/main/value/schedule.test.ts`:
 
@@ -701,10 +709,38 @@ const player = (
 
 // Four teams; A's season: B, C, D, B, bye, C. Week 6 is the last scheduled week.
 const schedule: TeamSchedule = new Map([
-  ['A', new Map([[1, 'B'], [2, 'C'], [3, 'D'], [4, 'B'], [6, 'C']])],
-  ['B', new Map([[1, 'A'], [4, 'A']])],
-  ['C', new Map([[1, 'D'], [2, 'A'], [6, 'A']])],
-  ['D', new Map([[1, 'C'], [3, 'A']])]
+  [
+    'A',
+    new Map([
+      [1, 'B'],
+      [2, 'C'],
+      [3, 'D'],
+      [4, 'B'],
+      [6, 'C']
+    ])
+  ],
+  [
+    'B',
+    new Map([
+      [1, 'A'],
+      [4, 'A']
+    ])
+  ],
+  [
+    'C',
+    new Map([
+      [1, 'D'],
+      [2, 'A'],
+      [6, 'A']
+    ])
+  ],
+  [
+    'D',
+    new Map([
+      [1, 'C'],
+      [3, 'A']
+    ])
+  ]
 ])
 const players = [
   player('rb1', 'RB', 'A', [played(1, 'B', 10), played(2, 'C', 20)]),
@@ -731,7 +767,7 @@ describe('defenseRanks', () => {
     expect(ranks.get('B')?.get('K')).toBe(2)
     expect(ranks.get('B')?.get('DEF')).toBe(2)
     expect(ranks.get('C')?.get('K')).toBe(1)
-    expect([...ranks.get('B')?.keys() ?? []]).not.toContain('')
+    expect([...(ranks.get('B')?.keys() ?? [])]).not.toContain('')
   })
 
   it('leaves defenses that have not played unranked', () => {
@@ -786,17 +822,19 @@ describe('playerSchedule', () => {
     expect(playerSchedule(player('x', 'RB', 'ZZZ', []), schedule, ranks, 1).byesRemaining).toBe(0)
     const wr = playerSchedule(player('wr', 'WR', 'A', []), schedule, ranks, 4)
     expect(wr.entries[0]).toEqual({ week: 4, opponent: 'B', rank: 2 })
-    expect(playerSchedule(player('n', null, 'A', []), schedule, ranks, 4).entries[0].rank).toBeNull()
+    expect(
+      playerSchedule(player('n', null, 'A', []), schedule, ranks, 4).entries[0].rank
+    ).toBeNull()
   })
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/value/schedule.test.ts`
 Expected: FAIL — `Cannot find module '@main/value/schedule'`.
 
-- [ ] **Step 3: Implement `schedule.ts`**
+- [x] **Step 3: Implement `schedule.ts`**
 
 `src/main/value/schedule.ts`:
 
@@ -850,7 +888,8 @@ export function defenseRanks(players: PlayerSeries[]): DefenseRanks {
 /** Latest week with any game; byes are only counted up to it so a partial schedule never inflates them. */
 export function lastScheduledWeek(schedule: TeamSchedule): number {
   let last = 0
-  for (const weeks of schedule.values()) for (const week of weeks.keys()) last = Math.max(last, week)
+  for (const weeks of schedule.values())
+    for (const week of weeks.keys()) last = Math.max(last, week)
   return last
 }
 
@@ -896,12 +935,12 @@ export function playerSchedule(
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/value/schedule.test.ts`
 Expected: PASS (8 tests).
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 
@@ -915,73 +954,75 @@ git commit -m "feat(value): defense-vs-position ranks and schedule"
 ### Task 4: Build wiring — `signals` on every row, `schedule` in the detail
 
 **Files:**
+
 - Modify: `src/main/value/build.ts` (imports, `ValueBuild`, the `rows` map, return, `detailFor`)
 - Test: `tests/main/value/build.test.ts`
 
 **Interfaces:**
+
 - Consumes: `positionTotals`, `statSignals` (Task 2); `defenseRanks`, `lastScheduledWeek`, `playerSchedule` (Task 3); `bundle.schedule` (Task 1); `stdLevels` (already in `assembleValue`).
 - Produces: `ValueBuild.schedules: Map<string, ScheduleEntry[]>`; `PlayerValueRow.signals` filled; `detailFor(...).schedule` filled. `players.value` / `players.detail` in `handlers.ts` need no change — they serve `build.rows` and `detailFor` as before.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to the `buildValueSeason` describe in `tests/main/value/build.test.ts`:
 
 ```ts
-  it('attaches signals: usage, efficiency, consistency and vs projection', () => {
-    const s = row('4866')?.signals
-    // snap % 0.83 / 0.90 (week 3 has no snap row): two games, recent = season → flat
-    expect(s?.usage.snapPct?.trend).toBe('flat')
-    expect(s?.usage.snapPct?.season).toBeCloseTo(0.865)
-    expect(s?.usage.targetShare).toBeNull()
-    // Barkley is the only RB with a stat line, so he *is* the RB rate: 48 opportunities, 1 TD, 182 yards
-    expect(s?.tdDelta).toBeCloseTo(0)
-    expect(s?.tdFlag).toBeNull()
-    expect(s?.ypo).toBe(3.79)
-    expect(s?.ypoDelta).toBeCloseTo(0)
-    // week 3: 30 points against a 10-point projection
-    expect(s).toMatchObject({ vsProjPoints: 20, vsProjPct: 2 })
-    // points 20 / 10 / 30 against the RB replacement PPG of 12
-    expect(s).toMatchObject({ floor: 15, ceiling: 25, stdev: 8.16 })
-    expect(s?.startRate).toBeCloseTo(2 / 3)
-    // one game: no trends, no consistency
-    expect(row('6794')?.signals).toMatchObject({
-      floor: null,
-      startRate: null,
-      usage: { snapPct: null, targetShare: null }
-    })
-    expect(row('8259')?.signals).toBeNull()
-    expect(row('LAR')?.signals).toMatchObject({ tdDelta: null, ypo: null })
+it('attaches signals: usage, efficiency, consistency and vs projection', () => {
+  const s = row('4866')?.signals
+  // snap % 0.83 / 0.90 (week 3 has no snap row): two games, recent = season → flat
+  expect(s?.usage.snapPct?.trend).toBe('flat')
+  expect(s?.usage.snapPct?.season).toBeCloseTo(0.865)
+  expect(s?.usage.targetShare).toBeNull()
+  // Barkley is the only RB with a stat line, so he *is* the RB rate: 48 opportunities, 1 TD, 182 yards
+  expect(s?.tdDelta).toBeCloseTo(0)
+  expect(s?.tdFlag).toBeNull()
+  expect(s?.ypo).toBe(3.79)
+  expect(s?.ypoDelta).toBeCloseTo(0)
+  // week 3: 30 points against a 10-point projection
+  expect(s).toMatchObject({ vsProjPoints: 20, vsProjPct: 2 })
+  // points 20 / 10 / 30 against the RB replacement PPG of 12
+  expect(s).toMatchObject({ floor: 15, ceiling: 25, stdev: 8.16 })
+  expect(s?.startRate).toBeCloseTo(2 / 3)
+  // one game: no trends, no consistency
+  expect(row('6794')?.signals).toMatchObject({
+    floor: null,
+    startRate: null,
+    usage: { snapPct: null, targetShare: null }
   })
+  expect(row('8259')?.signals).toBeNull()
+  expect(row('LAR')?.signals).toMatchObject({ tdDelta: null, ypo: null })
+})
 
-  it('attaches the schedule: next opponent with its rank, SOS and byes', () => {
-    // Barkley played week 3; PHI then hosts WAS (4) and LAR (5), neither ranked at RB yet
-    expect(row('4866')?.signals).toMatchObject({
-      nextOpponent: { team: 'WAS', rank: null },
-      rosSos: null,
-      byesRemaining: 0
-    })
-    // Jefferson: DET (3, unranked), CHI (4 — allowed his 25 WR points in week 1 → rank 1), no game in week 5
-    expect(row('6794')?.signals).toMatchObject({
-      nextOpponent: { team: 'DET', rank: null },
-      rosSos: 1,
-      byesRemaining: 1
-    })
-    expect(detailFor(build, '6794')?.schedule).toEqual([
-      { week: 3, opponent: 'DET', rank: null },
-      { week: 4, opponent: 'CHI', rank: 1 },
-      { week: 5, opponent: null, rank: null }
-    ])
-    // BUF has no game in the fixture
-    expect(detailFor(build, '8259')?.schedule).toEqual([])
+it('attaches the schedule: next opponent with its rank, SOS and byes', () => {
+  // Barkley played week 3; PHI then hosts WAS (4) and LAR (5), neither ranked at RB yet
+  expect(row('4866')?.signals).toMatchObject({
+    nextOpponent: { team: 'WAS', rank: null },
+    rosSos: null,
+    byesRemaining: 0
   })
+  // Jefferson: DET (3, unranked), CHI (4 — allowed his 25 WR points in week 1 → rank 1), no game in week 5
+  expect(row('6794')?.signals).toMatchObject({
+    nextOpponent: { team: 'DET', rank: null },
+    rosSos: 1,
+    byesRemaining: 1
+  })
+  expect(detailFor(build, '6794')?.schedule).toEqual([
+    { week: 3, opponent: 'DET', rank: null },
+    { week: 4, opponent: 'CHI', rank: 1 },
+    { week: 5, opponent: null, rank: null }
+  ])
+  // BUF has no game in the fixture
+  expect(detailFor(build, '8259')?.schedule).toEqual([])
+})
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/value/build.test.ts`
 Expected: FAIL — `signals` is `null` and `schedule` is `[]` (Task 1 stubs).
 
-- [ ] **Step 3: Wire the modules into `assembleValue` and `detailFor`**
+- [x] **Step 3: Wire the modules into `assembleValue` and `detailFor`**
 
 In `src/main/value/build.ts`, imports:
 
@@ -989,7 +1030,13 @@ In `src/main/value/build.ts`, imports:
 import type { Db } from '@main/db/connection'
 import { round2 } from '@main/db/repos/points'
 import { LINEUP_POSITIONS } from '@shared/rules'
-import type { PlayerDetail, PlayerSignals, PlayerValueRow, ScheduleEntry, ValueContext } from '@shared/types'
+import type {
+  PlayerDetail,
+  PlayerSignals,
+  PlayerValueRow,
+  ScheduleEntry,
+  ValueContext
+} from '@shared/types'
 import { replacementLevels } from './replacement'
 import { defenseRanks, lastScheduledWeek, playerSchedule } from './schedule'
 import { loadSeries, type PlayerSeries, type SeriesBundle } from './series'
@@ -1011,52 +1058,52 @@ export interface ValueBuild {
 Replace the `const rows: PlayerValueRow[] = valued.map(...)` block with:
 
 ```ts
-  const totals = positionTotals(bundle.players)
-  const ranks = defenseRanks(bundle.players)
-  const lastWeek = lastScheduledWeek(bundle.schedule)
-  const schedules = new Map<string, ScheduleEntry[]>()
+const totals = positionTotals(bundle.players)
+const ranks = defenseRanks(bundle.players)
+const lastWeek = lastScheduledWeek(bundle.schedule)
+const schedules = new Map<string, ScheduleEntry[]>()
 
-  const rows: PlayerValueRow[] = valued.map((v) => {
-    const series = v.a.series
-    const pos = series.base.position ?? ''
-    const sched = playerSchedule(series, bundle.schedule, ranks, bundle.currentWeek, lastWeek)
-    schedules.set(series.base.playerId, sched.entries)
-    const signals: PlayerSignals | null = series.statsAvailable
-      ? {
-          ...statSignals(series, totals.get(pos), stdLevels.get(pos)?.level ?? null),
-          nextOpponent: sched.nextOpponent,
-          rosSos: sched.rosSos,
-          byesRemaining: sched.byesRemaining
-        }
-      : null
-    return {
-      ...series.base,
-      gamesPlayed: v.a.gamesPlayed,
-      ppg: v.a.ppg,
-      stdValue: v.stdValue,
-      stdRank: stdRanks.get(series.base.playerId) ?? null,
-      rosPoints: v.a.rosPoints,
-      rosValue: v.rosValue,
-      rosRank: rosRanks.get(series.base.playerId) ?? null,
-      overallRank: overallRanks.get(series.base.playerId) ?? null,
-      signals,
-      statsAvailable: series.statsAvailable
-    }
-  })
+const rows: PlayerValueRow[] = valued.map((v) => {
+  const series = v.a.series
+  const pos = series.base.position ?? ''
+  const sched = playerSchedule(series, bundle.schedule, ranks, bundle.currentWeek, lastWeek)
+  schedules.set(series.base.playerId, sched.entries)
+  const signals: PlayerSignals | null = series.statsAvailable
+    ? {
+        ...statSignals(series, totals.get(pos), stdLevels.get(pos)?.level ?? null),
+        nextOpponent: sched.nextOpponent,
+        rosSos: sched.rosSos,
+        byesRemaining: sched.byesRemaining
+      }
+    : null
+  return {
+    ...series.base,
+    gamesPlayed: v.a.gamesPlayed,
+    ppg: v.a.ppg,
+    stdValue: v.stdValue,
+    stdRank: stdRanks.get(series.base.playerId) ?? null,
+    rosPoints: v.a.rosPoints,
+    rosValue: v.rosValue,
+    rosRank: rosRanks.get(series.base.playerId) ?? null,
+    overallRank: overallRanks.get(series.base.playerId) ?? null,
+    signals,
+    statsAvailable: series.statsAvailable
+  }
+})
 ```
 
 Add `schedules` to the returned object (after `series`), and in `detailFor` replace the Task 1 stub with `schedule: build.schedules.get(playerId) ?? []`.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/value/build.test.ts`
 Expected: PASS (7 tests).
 
-- [ ] **Step 5: Measure the build on the dev DB**
+- [x] **Step 5: Measure the build on the dev DB**
 
 Copy the Windows DB (with `-wal` and `-shm`) into the scratchpad and time `buildValueSeason` twice for the 2026 season (as in Plan E Task 6 step 4 — a one-off `tsx` script in the scratchpad, not committed). Expected: well inside the 500 ms budget (Plan E measured ≈ 90 ms; signals add one pass over the same weeks). Record the number in the progress notes at the end of this plan.
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 
@@ -1070,16 +1117,18 @@ git commit -m "feat(value): serve signals and schedule per player"
 ### Task 5: Table view model — SOS/BYES and the Signals group
 
 **Files:**
+
 - Modify: `src/renderer/src/lib/format.ts` (add `fmtSignedPct`)
 - Modify: `src/renderer/src/lib/playersTableView.ts:16-31` (types), `:89-125` (columns, `columnGroups`), `:127-161` (`cellValue`, `cellText`), `:200-203` (`TableSort` doc), `:231-247` (`sortValue`), `:288-298` (`valueHeaderTitle`), plus new helpers at the end
 - Create: `tests/fixtures/signals.ts`
 - Test: `tests/renderer/lib/format.test.ts`, `tests/renderer/lib/playersTableView.test.ts`
 
 **Interfaces:**
+
 - Consumes: `PlayerSignals`, `UsageMetric`, `UsageTrend`, `Trend` (Task 1); `fmtPct`, `fmtSigned` (`format.ts`).
 - Produces: `fmtSignedPct(value: number | null): string`; `ColumnKind` gains `'signal'`; `SignalField = 'rosSos' | 'byesRemaining' | 'floor' | 'ceiling' | 'startRate' | 'usage' | 'tdDelta' | 'vsProjPct'`; `CellFormat = 'int' | 'fixed' | 'signed' | 'pct' | 'signedPct'`; `Column.signal?: SignalField`; `PRIMARY_USAGE`, `primaryUsage(row: PlayerValueRow): UsageTrend | null`; `TREND_ARROW: Record<Trend, string>`; `signalValue(row: PlayerValueRow, field: SignalField): number | null`; `signalText(row: TableRow, col: Column): string`; `signalTone(row: TableRow, col: Column): 'pos' | 'neg' | null`; `SOS_HARD_MAX = 11`, `SOS_EASY_MIN = 22`, `sosTone(value: number | null): 'hard' | 'easy' | null`; `signalsFixture(over?): PlayerSignals` (test fixture).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/fixtures/signals.ts`:
 
@@ -1136,104 +1185,118 @@ describe('fmtSignedPct', () => {
 In `tests/renderer/lib/playersTableView.test.ts`: import `signalsFixture` from `../../fixtures/signals`, import `signalText`, `signalTone`, `sosTone`, `type Column`, `type SignalField` from the lib; change the `valueRow` literal's `signals: null` to `signals: signalsFixture()`; then replace the `'has the same two groups on every tab'` test and add the others inside `describe('value mode')`:
 
 ```ts
-  it('has the same three groups on every tab', () => {
-    for (const tab of ['ALL', 'QB', 'K', 'FLEX']) {
-      const groups = columnGroups(tab, 'value')
-      expect(groups.map((g) => g.label)).toEqual(['Season', 'Rest of season', 'Signals'])
-      expect(groups.flatMap((g) => g.columns.map((c) => c.key))).toEqual([
-        'value:gamesPlayed',
-        'value:ppg',
-        'value:stdValue',
-        'value:stdRank',
-        'value:rosPoints',
-        'value:rosValue',
-        'value:rosRank',
-        'signal:rosSos',
-        'signal:byesRemaining',
-        'signal:floor',
-        'signal:ceiling',
-        'signal:startRate',
-        'signal:usage',
-        'signal:tdDelta',
-        'signal:vsProjPct'
-      ])
-    }
-  })
-
-  const signalColumns = columnGroups('ALL', 'value')
-    .flatMap((g) => g.columns)
-    .filter((c) => c.kind === 'signal')
-  const signalCol = (field: SignalField): Column => {
-    const col = signalColumns.find((c) => c.signal === field)
-    if (!col) throw new Error(`no column for ${field}`)
-    return col
-  }
-
-  it('reads signal cells: USAGE follows the position, TD is a badge, nulls render —', () => {
-    const rb = valueRow({ position: 'RB' })
-    expect(signalColumns.map((c) => signalText(rb, c))).toEqual([
-      '18.5',
-      '1',
-      '6.1',
-      '17.4',
-      '63%',
-      '80% ↑',
-      '↓',
-      '+9%'
+it('has the same three groups on every tab', () => {
+  for (const tab of ['ALL', 'QB', 'K', 'FLEX']) {
+    const groups = columnGroups(tab, 'value')
+    expect(groups.map((g) => g.label)).toEqual(['Season', 'Rest of season', 'Signals'])
+    expect(groups.flatMap((g) => g.columns.map((c) => c.key))).toEqual([
+      'value:gamesPlayed',
+      'value:ppg',
+      'value:stdValue',
+      'value:stdRank',
+      'value:rosPoints',
+      'value:rosValue',
+      'value:rosRank',
+      'signal:rosSos',
+      'signal:byesRemaining',
+      'signal:floor',
+      'signal:ceiling',
+      'signal:startRate',
+      'signal:usage',
+      'signal:tdDelta',
+      'signal:vsProjPct'
     ])
-    expect(signalText(valueRow({ position: 'WR' }), signalCol('usage'))).toBe('24% →')
-    expect(signalText(valueRow({ position: 'TE' }), signalCol('usage'))).toBe('24% →')
-    expect(signalText(valueRow({ position: 'QB' }), signalCol('usage'))).toBe('—')
-    expect(signalText(valueRow({ signals: signalsFixture({ tdFlag: null }) }), signalCol('tdDelta'))).toBe('')
-    expect(signalText(valueRow({ signals: null }), signalCol('tdDelta'))).toBe('—')
-    expect(signalText(valueRow({ signals: null }), signalCol('floor'))).toBe('—')
-    expect(signalText(row(), signalCol('floor'))).toBe('—')
-    expect(cellValue(rb, signalCol('usage'), 'value')).toBe(0.8)
-    expect(cellValue(valueRow({ position: 'QB' }), signalCol('usage'), 'value')).toBeNull()
-    expect(cellValue(rb, signalCol('byesRemaining'), 'value')).toBe(1)
-    expect(cellValue(row(), signalCol('floor'), 'value')).toBeNull()
-  })
+  }
+})
 
-  it('sorts by a signal with nulls last', () => {
-    const rows = [
-      valueRow({ playerId: 'a', fullName: 'A', signals: signalsFixture({ rosSos: 8 }) }),
-      valueRow({ playerId: 'b', fullName: 'B', signals: null }),
-      valueRow({ playerId: 'c', fullName: 'C', signals: signalsFixture({ rosSos: 25 }) })
-    ]
-    const ids = (sorted: typeof rows): string[] => sorted.map((r) => r.playerId)
-    expect(ids(sortRows(rows, { key: 'signal:rosSos', dir: 'asc' }, 'value'))).toEqual(['a', 'c', 'b'])
-    expect(ids(sortRows(rows, { key: 'signal:rosSos', dir: 'desc' }, 'value'))).toEqual(['c', 'a', 'b'])
-  })
+const signalColumns = columnGroups('ALL', 'value')
+  .flatMap((g) => g.columns)
+  .filter((c) => c.kind === 'signal')
+const signalCol = (field: SignalField): Column => {
+  const col = signalColumns.find((c) => c.signal === field)
+  if (!col) throw new Error(`no column for ${field}`)
+  return col
+}
 
-  it('tones SOS by difficulty, TD by regression direction, vs proj by sign', () => {
-    expect(sosTone(11)).toBe('hard')
-    expect(sosTone(11.5)).toBeNull()
-    expect(sosTone(22)).toBe('easy')
-    expect(sosTone(null)).toBeNull()
-    const sos = signalCol('rosSos')
-    expect(signalTone(valueRow({ signals: signalsFixture({ rosSos: 8 }) }), sos)).toBe('neg')
-    expect(signalTone(valueRow({ signals: signalsFixture({ rosSos: 25 }) }), sos)).toBe('pos')
-    expect(signalTone(valueRow(), sos)).toBeNull()
-    expect(signalTone(valueRow(), signalCol('tdDelta'))).toBe('neg')
-    expect(signalTone(valueRow({ signals: signalsFixture({ tdFlag: 'up' }) }), signalCol('tdDelta'))).toBe('pos')
-    expect(signalTone(valueRow(), signalCol('vsProjPct'))).toBe('pos')
-    expect(signalTone(valueRow({ signals: signalsFixture({ vsProjPct: -0.2 }) }), signalCol('vsProjPct'))).toBe('neg')
-    expect(signalTone(valueRow(), signalCol('floor'))).toBeNull()
-    expect(signalTone(row(), sos)).toBeNull()
-  })
+it('reads signal cells: USAGE follows the position, TD is a badge, nulls render —', () => {
+  const rb = valueRow({ position: 'RB' })
+  expect(signalColumns.map((c) => signalText(rb, c))).toEqual([
+    '18.5',
+    '1',
+    '6.1',
+    '17.4',
+    '63%',
+    '80% ↑',
+    '↓',
+    '+9%'
+  ])
+  expect(signalText(valueRow({ position: 'WR' }), signalCol('usage'))).toBe('24% →')
+  expect(signalText(valueRow({ position: 'TE' }), signalCol('usage'))).toBe('24% →')
+  expect(signalText(valueRow({ position: 'QB' }), signalCol('usage'))).toBe('—')
+  expect(
+    signalText(valueRow({ signals: signalsFixture({ tdFlag: null }) }), signalCol('tdDelta'))
+  ).toBe('')
+  expect(signalText(valueRow({ signals: null }), signalCol('tdDelta'))).toBe('—')
+  expect(signalText(valueRow({ signals: null }), signalCol('floor'))).toBe('—')
+  expect(signalText(row(), signalCol('floor'))).toBe('—')
+  expect(cellValue(rb, signalCol('usage'), 'value')).toBe(0.8)
+  expect(cellValue(valueRow({ position: 'QB' }), signalCol('usage'), 'value')).toBeNull()
+  expect(cellValue(rb, signalCol('byesRemaining'), 'value')).toBe(1)
+  expect(cellValue(row(), signalCol('floor'), 'value')).toBeNull()
+})
 
-  it('titles signal headers with their description', () => {
-    const floor = signalCol('floor')
-    expect(valueHeaderTitle(floor, null, [])).toBe(floor.description)
-  })
+it('sorts by a signal with nulls last', () => {
+  const rows = [
+    valueRow({ playerId: 'a', fullName: 'A', signals: signalsFixture({ rosSos: 8 }) }),
+    valueRow({ playerId: 'b', fullName: 'B', signals: null }),
+    valueRow({ playerId: 'c', fullName: 'C', signals: signalsFixture({ rosSos: 25 }) })
+  ]
+  const ids = (sorted: typeof rows): string[] => sorted.map((r) => r.playerId)
+  expect(ids(sortRows(rows, { key: 'signal:rosSos', dir: 'asc' }, 'value'))).toEqual([
+    'a',
+    'c',
+    'b'
+  ])
+  expect(ids(sortRows(rows, { key: 'signal:rosSos', dir: 'desc' }, 'value'))).toEqual([
+    'c',
+    'a',
+    'b'
+  ])
+})
+
+it('tones SOS by difficulty, TD by regression direction, vs proj by sign', () => {
+  expect(sosTone(11)).toBe('hard')
+  expect(sosTone(11.5)).toBeNull()
+  expect(sosTone(22)).toBe('easy')
+  expect(sosTone(null)).toBeNull()
+  const sos = signalCol('rosSos')
+  expect(signalTone(valueRow({ signals: signalsFixture({ rosSos: 8 }) }), sos)).toBe('neg')
+  expect(signalTone(valueRow({ signals: signalsFixture({ rosSos: 25 }) }), sos)).toBe('pos')
+  expect(signalTone(valueRow(), sos)).toBeNull()
+  expect(signalTone(valueRow(), signalCol('tdDelta'))).toBe('neg')
+  expect(
+    signalTone(valueRow({ signals: signalsFixture({ tdFlag: 'up' }) }), signalCol('tdDelta'))
+  ).toBe('pos')
+  expect(signalTone(valueRow(), signalCol('vsProjPct'))).toBe('pos')
+  expect(
+    signalTone(valueRow({ signals: signalsFixture({ vsProjPct: -0.2 }) }), signalCol('vsProjPct'))
+  ).toBe('neg')
+  expect(signalTone(valueRow(), signalCol('floor'))).toBeNull()
+  expect(signalTone(row(), sos)).toBeNull()
+})
+
+it('titles signal headers with their description', () => {
+  const floor = signalCol('floor')
+  expect(valueHeaderTitle(floor, null, [])).toBe(floor.description)
+})
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/lib`
 Expected: FAIL — `fmtSignedPct`, `signalText`, `signalTone`, `sosTone` are not exported; three groups expected.
 
-- [ ] **Step 3: Add `fmtSignedPct`**
+- [x] **Step 3: Add `fmtSignedPct`**
 
 Append to `src/renderer/src/lib/format.ts`:
 
@@ -1246,7 +1309,7 @@ export function fmtSignedPct(value: number | null): string {
 }
 ```
 
-- [ ] **Step 4: Extend the view model**
+- [x] **Step 4: Extend the view model**
 
 In `src/renderer/src/lib/playersTableView.ts`:
 
@@ -1256,25 +1319,12 @@ Types (replace the `ColumnKind` line through the `Column` interface):
 
 ```ts
 export type ColumnKind =
-  | 'points'
-  | 'delta'
-  | 'stat'
-  | 'snapPct'
-  | 'targetShare'
-  | 'value'
-  | 'signal'
+  'points' | 'delta' | 'stat' | 'snapPct' | 'targetShare' | 'value' | 'signal'
 export type ValueField =
   'gamesPlayed' | 'ppg' | 'stdValue' | 'stdRank' | 'rosPoints' | 'rosValue' | 'rosRank'
 /** `usage` is the position's primary metric (spec §3.1); the rest read PlayerSignals directly. */
 export type SignalField =
-  | 'rosSos'
-  | 'byesRemaining'
-  | 'floor'
-  | 'ceiling'
-  | 'startRate'
-  | 'usage'
-  | 'tdDelta'
-  | 'vsProjPct'
+  'rosSos' | 'byesRemaining' | 'floor' | 'ceiling' | 'startRate' | 'usage' | 'tdDelta' | 'vsProjPct'
 export type CellFormat = 'int' | 'fixed' | 'signed' | 'pct' | 'signedPct'
 
 export interface Column {
@@ -1360,19 +1410,20 @@ const SIGNALS = group('Signals', [
 `cellValue` — add before `if (!isWeekRow(row)) return null`:
 
 ```ts
-  if (col.kind === 'signal') return col.signal && isValueRow(row) ? signalValue(row, col.signal) : null
+if (col.kind === 'signal')
+  return col.signal && isValueRow(row) ? signalValue(row, col.signal) : null
 ```
 
 `cellText` — replace the `if (col.kind === 'value') { ... }` block:
 
 ```ts
-  if (col.kind === 'value' || col.kind === 'signal') {
-    if (col.format === 'int') return String(value)
-    if (col.format === 'signed') return fmtSigned(value)
-    if (col.format === 'pct') return fmtPct(value)
-    if (col.format === 'signedPct') return fmtSignedPct(value)
-    return value.toFixed(1)
-  }
+if (col.kind === 'value' || col.kind === 'signal') {
+  if (col.format === 'int') return String(value)
+  if (col.format === 'signed') return fmtSigned(value)
+  if (col.format === 'pct') return fmtPct(value)
+  if (col.format === 'signedPct') return fmtSignedPct(value)
+  return value.toFixed(1)
+}
 ```
 
 `TableSort` doc comment: `/** 'points' | 'delta' | 'name' | 'snapPct' | 'targetShare' | \`stat:<key>\` | \`value:<field>\` | \`signal:<field>\` */`.
@@ -1380,8 +1431,8 @@ const SIGNALS = group('Signals', [
 `sortValue` — after the `value:` line:
 
 ```ts
-  if (key.startsWith('signal:'))
-    return isValueRow(row) ? signalValue(row, key.slice(7) as SignalField) : null
+if (key.startsWith('signal:'))
+  return isValueRow(row) ? signalValue(row, key.slice(7) as SignalField) : null
 ```
 
 `valueHeaderTitle` first line: `if ((col.kind !== 'value' && col.kind !== 'signal') || !col.description) return undefined`.
@@ -1453,12 +1504,12 @@ export function signalTone(row: TableRow, col: Column): 'pos' | 'neg' | null {
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/lib`
-Expected: PASS. If `signalValue`'s `return s[field]` fails to type as `number | null`, the `field` narrowing lost `'usage'`; keep the `if (field === 'usage')` branch *before* the indexed return.
+Expected: PASS. If `signalValue`'s `return s[field]` fails to type as `number | null`, the `field` narrowing lost `'usage'`; keep the `if (field === 'usage')` branch _before_ the indexed return.
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 
@@ -1472,50 +1523,52 @@ git commit -m "feat(ui): signal columns in the players table view"
 ### Task 6: Signal cells on the Players screen and in the help panel
 
 **Files:**
+
 - Modify: `src/renderer/src/screens/PlayersScreen.tsx:404-423` (cell rendering) and its `@/lib/playersTableView` import
 - Modify: `src/renderer/src/components/ValueHelp.tsx` (imports; after the first `</dl>`)
 
 **Interfaces:**
+
 - Consumes: `signalText`, `signalTone`, `isValueRow` (Task 5); `columnGroups` (existing).
 
-- [ ] **Step 1: Render signal cells**
+- [x] **Step 1: Render signal cells**
 
 In `PlayersScreen.tsx`, add `signalText`, `signalTone` to the `@/lib/playersTableView` import and replace the `{columns.map((col) => { ... })}` cell block with:
 
 ```tsx
-              {columns.map((col) => {
-                const value =
-                  p.statsAvailable || effectiveMode !== 'stats'
-                    ? cellValue(p, col, effectiveMode)
-                    : null
-                const signed = col.kind === 'delta' || col.format === 'signed'
-                const tone =
-                  col.kind === 'signal'
-                    ? signalTone(p, col)
-                    : signed && value !== null
-                      ? value >= 0
-                        ? 'pos'
-                        : 'neg'
-                      : null
-                return (
-                  <TableCell
-                    key={col.key}
-                    className={cn(
-                      'text-right tabular-nums',
-                      (col.kind === 'points' || col.field === 'rosValue') && 'font-medium',
-                      tone === 'pos' && 'text-pos-rb',
-                      tone === 'neg' && 'text-destructive'
-                    )}
-                  >
-                    {col.kind === 'signal' ? signalText(p, col) : cellText(value, col, effectiveMode)}
-                  </TableCell>
-                )
-              })}
+{
+  columns.map((col) => {
+    const value =
+      p.statsAvailable || effectiveMode !== 'stats' ? cellValue(p, col, effectiveMode) : null
+    const signed = col.kind === 'delta' || col.format === 'signed'
+    const tone =
+      col.kind === 'signal'
+        ? signalTone(p, col)
+        : signed && value !== null
+          ? value >= 0
+            ? 'pos'
+            : 'neg'
+          : null
+    return (
+      <TableCell
+        key={col.key}
+        className={cn(
+          'text-right tabular-nums',
+          (col.kind === 'points' || col.field === 'rosValue') && 'font-medium',
+          tone === 'pos' && 'text-pos-rb',
+          tone === 'neg' && 'text-destructive'
+        )}
+      >
+        {col.kind === 'signal' ? signalText(p, col) : cellText(value, col, effectiveMode)}
+      </TableCell>
+    )
+  })
+}
 ```
 
 The column `<TableHead>` needs no change: `valueHeaderTitle` now covers signal columns, and `sortBy(col)` already sorts by `col.key`.
 
-- [ ] **Step 2: Explain the signals in the help panel**
+- [x] **Step 2: Explain the signals in the help panel**
 
 In `ValueHelp.tsx`, import `columnGroups` from `@/lib/playersTableView`, and insert after the first `</dl>` (before `{context && (<Table ...`):
 
@@ -1543,11 +1596,11 @@ In `ValueHelp.tsx`, import `columnGroups` from `@/lib/playersTableView`, and ins
       </dl>
 ```
 
-- [ ] **Step 3: Check in the dev app**
+- [x] **Step 3: Check in the dev app**
 
 Run: `npx electron-vite dev -- --no-sandbox --disable-gpu --in-process-gpu` (WSL) or the plain dev command on Windows. In Value mode on the real league: the header row shows `Season · Rest of season · Signals`; `SOS` cells are red for low ranks and green for high ones; `USAGE` shows e.g. `27% ↑` for a WR and `—` for a QB; `TD` shows `↓` / `↑` / blank; clicking `FLOOR` sorts with dashes last; hovering a signal header shows its definition; the ⓘ panel lists the Signals terms.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 
@@ -1561,14 +1614,16 @@ git commit -m "feat(ui): show signal columns in value mode"
 ### Task 7: Chart geometry and the two SVG components
 
 **Files:**
+
 - Create: `src/renderer/src/lib/charts.ts`
 - Create: `src/renderer/src/components/BarsVsMarker.tsx`, `src/renderer/src/components/Sparkline.tsx`
 - Test: `tests/renderer/lib/charts.test.ts`
 
 **Interfaces:**
+
 - Produces: `BarItem { label: string; value: number | null; marker: number | null }`; `BarLayout { item; x; width; y; height; markerY: number | null }`; `barsLayout(items, width, height, gap = 2): { bars: BarLayout[]; max: number }`; `barPath(x, y, width, height, radius = 4): string`; `sparklinePoints(values: (number | null)[], width, height, pad = 4): { x: number; y: number }[][]`; `<BarsVsMarker items height? format? />`; `<Sparkline values width? height? />`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/renderer/lib/charts.test.ts`:
 
@@ -1633,12 +1688,12 @@ describe('sparklinePoints', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/lib/charts.test.ts`
 Expected: FAIL — `Cannot find module '@/lib/charts'`.
 
-- [ ] **Step 3: Implement the geometry**
+- [x] **Step 3: Implement the geometry**
 
 `src/renderer/src/lib/charts.ts`:
 
@@ -1723,12 +1778,12 @@ export function sparklinePoints(
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/lib/charts.test.ts`
 Expected: PASS (6 tests).
 
-- [ ] **Step 5: Write the components**
+- [x] **Step 5: Write the components**
 
 `src/renderer/src/components/BarsVsMarker.tsx`:
 
@@ -1767,7 +1822,9 @@ export function BarsVsMarker({
         <g key={b.item.label}>
           <title>{`Week ${b.item.label}: ${text(b.item.value)} pts · projected ${text(b.item.marker)}`}</title>
           <rect x={b.x} y={0} width={b.width} height={height} fill="transparent" />
-          {b.height > 0 && <path d={barPath(b.x, b.y, b.width, b.height)} className="fill-primary/70" />}
+          {b.height > 0 && (
+            <path d={barPath(b.x, b.y, b.width, b.height)} className="fill-primary/70" />
+          )}
           {b.markerY !== null && (
             <line
               x1={b.x}
@@ -1836,7 +1893,7 @@ export function Sparkline({ values, width = 96, height = 28 }: SparklineProps): 
 }
 ```
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test` (the components are typechecked by `typecheck:web`; they render in Task 8).
 
@@ -1850,15 +1907,17 @@ git commit -m "feat(ui): inline SVG bars and sparkline components"
 ### Task 8: Detail panel — opponent/byes in the header, sections 2–5
 
 **Files:**
+
 - Create: `src/renderer/src/lib/detailView.ts`
 - Modify: `src/renderer/src/components/PlayerDetailPanel.tsx` (whole file below)
 - Test: `tests/renderer/lib/detailView.test.ts`
 
 **Interfaces:**
+
 - Consumes: `BarsVsMarker`, `Sparkline`, `BarItem` (Task 7); `TREND_ARROW`, `sosTone` (Task 5); `signalsFixture` (Task 5, tests); `PlayerDetail.schedule`, `PlayerSignals`, `ScheduleEntry`, `UsageTrend`, `UsageMetric`, `DetailWeek` (Task 1).
 - Produces: `DetailMetric = 'snapPct' | 'targetShare' | 'rushShare' | 'wopr'`; `UsageRow { metric: DetailMetric; label: string }`; `usageRows(position: string | null): UsageRow[]`; `barItems(weeks: DetailWeek[]): BarItem[]`; `signalLines(s: PlayerSignals, gamesPlayed: number): string[]`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/renderer/lib/detailView.test.ts`:
 
@@ -1947,12 +2006,12 @@ describe('barItems', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/lib/detailView.test.ts`
 Expected: FAIL — `Cannot find module '@/lib/detailView'`.
 
-- [ ] **Step 3: Implement the panel view model**
+- [x] **Step 3: Implement the panel view model**
 
 `src/renderer/src/lib/detailView.ts`:
 
@@ -2017,12 +2076,12 @@ export function signalLines(s: PlayerSignals, gamesPlayed: number): string[] {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/lib/detailView.test.ts`
 Expected: PASS (4 tests).
 
-- [ ] **Step 5: Rewrite the panel**
+- [x] **Step 5: Rewrite the panel**
 
 Replace `src/renderer/src/components/PlayerDetailPanel.tsx` with:
 
@@ -2175,7 +2234,9 @@ function ScheduleChips({ schedule }: { schedule: ScheduleEntry[] }): React.JSX.E
               tone === 'hard' && 'border-destructive/50 text-destructive',
               tone === 'easy' && 'border-pos-rb/50 text-pos-rb'
             )}
-            title={e.rank === null ? 'defense not ranked yet' : `defense vs position rank ${e.rank}`}
+            title={
+              e.rank === null ? 'defense not ranked yet' : `defense vs position rank ${e.rank}`
+            }
           >
             Wk {e.week} {e.opponent ?? 'BYE'}
             {e.rank !== null && ` · ${e.rank}`}
@@ -2334,11 +2395,11 @@ export function PlayerDetailPanel({
 }
 ```
 
-- [ ] **Step 6: Check in the dev app**
+- [x] **Step 6: Check in the dev app**
 
 Open a WR with 3+ games: five header stats (`Next` shows the team with `DvP rank N`), bars with projection ticks and week labels, hover shows `Week 3: 18.4 pts · projected 12.1`, three usage lines with sparklines (`Snap %`, `Target share`, `WOPR`) and `xx% season · yy% last 3 ↑ rising`, four signal lines, schedule chips with red/green ranks and `BYE`, then the game log. Open a K: no Usage section, signals show consistency + vs projection only. Open a player with 1 game: `Consistency: needs 3 games (1 played)` and `— (needs 2 games)` on the usage lines. Open an unmatched player: header shows `—`, the unavailable message, no sections. Check a season with no projections (if one exists): bars still draw for played weeks, `No projections stored` under them.
 
-- [ ] **Step 7: Verify and commit**
+- [x] **Step 7: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 
@@ -2353,10 +2414,10 @@ git commit -m "feat(ui): charts, usage and schedule in the detail panel"
 
 Only after the user has checked Tasks 6 and 8 in the dev app and asked for the build.
 
-- [ ] **Step 1:** `package.json` / `package-lock.json` version `0.5.0` → `0.6.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.6.0`.
-- [ ] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.6.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
+- [x] **Step 1:** `package.json` / `package-lock.json` version `0.5.0` → `0.6.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.6.0`.
+- [x] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.6.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
 - [ ] **Step 3:** User installs over 0.5.0 (no migration), sanity-reads the RB/WR top-10 in Value mode (SOS, USAGE, TD look plausible against what they know of the season) and opens a few detail panels; record the uncached `players.value` time from Task 4 step 5 in the progress notes.
-- [ ] **Step 4:** Progress notes appended to this plan, commit `docs(plan): mark plan F complete`, tag `v0.6.0`, fast-forward `main`, delete the branch.
+- [x] **Step 4:** Progress notes appended to this plan, commit `docs(plan): mark plan F complete`, tag `v0.6.0`, fast-forward `main`, delete the branch.
 
 ---
 
@@ -2365,3 +2426,17 @@ Only after the user has checked Tasks 6 and 8 in the dev app and asked for the b
 - **Spec coverage:** §3.1 five usage metrics from the series (already loaded by Plan E), season / last-3 / trend with 0.03 and 0.05 thresholds, ≥ 2 games gate, primary metric WR/TE → target share, RB → snap %, none for QB/K/DEF (T2 `usageTrend`, `statSignals`; T5 `PRIMARY_USAGE`); §3.2 opportunities per position, league-wide positional TD rate, `tdDelta` / flag at ±1.5, ypo and delta vs the positional mean, vs-projection over weeks with both (T2); §3.3 25th/75th percentile with linear interpolation, population stdev, start rate vs STD replacement PPG, ≥ 3 games gate (T2, wired with `stdLevels` in T4); §3.4 defense-vs-position from played weeks, uniform for K/DEF, `nextOpponent` null on a bye / at season end, `rosSos`, `byesRemaining` (T3, T4); §5.1 `Trend`, `UsageTrend`, `PlayerSignals`, `signals` on the row, `schedule` on the detail (T1 — `rank: number | null` deviation recorded); §5.3 `signals.ts` / `schedule.ts` pure with exported constants, build via `series.ts` only, cache untouched (T2–T4); §6.1 SOS/Byes in the Rest-of-season group, Signals group identical on every tab, every column sortable with nulls last, USAGE with arrow, TD badge, SOS tint, vs Proj as pct, "—" for null, header tooltips (T5, T6); §6.2 item 1 opponent + byes, items 2–5 (`BarsVsMarker`, `Sparkline`, signal text, schedule chips), item 6 unchanged (T7, T8); §6.3 gates ("needs 3 games", "—" for usage), no projections note, unmatched players (T8); §7 unchanged path; §8 `signals.test.ts`, `schedule.test.ts`, `build.test.ts` mid-week case, `playersTableView.test.ts` (T2–T5) plus `charts.test.ts`, `detailView.test.ts`; §9 file list matches the file map (`roster.ts` is Plan G); §10 row F.
 - **Placeholder scan:** none — the Task 1 `signals: null` / `schedule: []` stubs are code steps replaced in Task 4, not plan placeholders.
 - **Type consistency:** `SeriesBundle.schedule` (T1) is the `TeamSchedule` `playerSchedule` takes (T3, T4); `StatSignals` + the three schedule fields spread into `PlayerSignals` (T4) match §5.1 (T1); `ValueBuild.schedules` (T4) feeds `detailFor(...).schedule` → `PlayerDetail.schedule` (T1) → `HeaderStrip` / `ScheduleChips` (T8); `Column.signal: SignalField` + `CellFormat` (T5) are what `signalText` / `signalTone` / `cellValue` read and what the screen calls (T6); `UsageMetric` (T1) indexes `PlayerSignals.usage` in `statSignals` (T2), `primaryUsage` (T5) and `usageRows` via `DetailMetric` (T8); `BarItem` (T7) is produced by `barItems` (T8) and consumed by `BarsVsMarker` (T7); `signalsFixture` (T5) is shared by `playersTableView.test.ts` and `detailView.test.ts` (T8); `fmtSignedPct` (T5) is used by `cellText` and `signalLines`.
+
+## Progress notes (2026-09-18)
+
+- Tasks 1–9 implemented inline on `feat/signals`; typecheck, lint and Vitest clean at every commit (201 → 237 tests). Tasks 6 and 8 checked by the user in the WSL dev app: "fine".
+- **Timing** (Task 4 step 5, on a migrated copy of the Windows DB — pre-0.4.0 schema, so no projections): current season 79–85 ms for 825 rows (Plan E: 83–96 ms); a full 18-week season 409–474 ms, of which `assembleValue` (signals + schedule included) is 11–15 ms — the rest is the Plan E series load. Budget ≤ 500 ms holds; the full-season load is the place to optimise if it ever matters.
+- **Deviations from the task text:**
+  - Task 3: tests and module were written in one step (the red run would have been the same "cannot find module" as Task 2).
+  - Task 4: `build.ts` already had a `ranks()` helper, so the defense-ranks map is the local `defense`.
+  - Task 4: the fixture expectation for Jefferson's CHI rank was wrong in the plan — five defenses have been played against and the four that faced no WR rank ahead of CHI with 0 allowed, so CHI is 5th (`rosSos: 5`, schedule rank 5). The locked semantics are unchanged; only the expected number was.
+  - Task 5: the existing "reads and formats value cells" test maps over the whole Rest-of-season group, so it now expects the SOS/BYES cells too.
+  - Task 1 added 1 test, not 2 (202 after the task).
+- **Dev-app check detour:** the Electron window can be mapped in X yet never appear on the Windows desktop when WSLg's RAIL bridge wedges (X position −32730/−32709, renderer healthy). `wsl --shutdown` fixed it; details in the user/environment memory.
+- Added outside the plan at the user's request: `docs/reference/value-and-signals.md` — the data reference for the coming UI redesign (every field, definition, gates, current rendering, what is computed but not yet shown).
+- Windows build: `dist/FantasyCompanion-Setup-0.6.0.exe` (94 MB), copied to `C:\Users\habie\OneDrive\Bureau`. Install over 0.5.0 (no migration) pending the user's check.
