@@ -7,6 +7,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { SlideOver } from '@/components/SlideOver'
+import { columnGroups } from '@/lib/playersTableView'
 import { LINEUP_POSITIONS } from '@shared/rules'
 import type { ReplacementLevel, ValueContext } from '@shared/types'
 
@@ -56,6 +57,27 @@ export function ValueHelp({ open, onClose, context }: ValueHelpProps): React.JSX
           dedicated slots × {teams || 'the number of'} teams, plus the flex slots handed one by one
           to whichever eligible position has the best next player. Computed separately for PPG and
           for ROS, so the starter counts can differ.
+        </Term>
+      </dl>
+      <h3 className="mt-5 text-sm font-semibold">Signals</h3>
+      <dl className="mt-2 space-y-3 text-sm">
+        {columnGroups('ALL', 'value')
+          .flatMap((g) => g.columns)
+          .filter((c) => c.kind === 'signal')
+          .map((c) => (
+            <Term key={c.key} name={c.label}>
+              {c.description}
+            </Term>
+          ))}
+        <Term name="Defense vs position">
+          For every NFL defense, the league points it has allowed per game to each position this
+          season, ranked from 1 (allows the fewest — hardest matchup) upwards. A defense is unranked
+          until it has played. SOS averages the ranks of the remaining opponents; the detail panel
+          shows every remaining week.
+        </Term>
+        <Term name="Gates">
+          Usage trends need 2 games with the metric; floor, ceiling and start % need 3 games.
+          Players not matched to nflverse have no signals.
         </Term>
       </dl>
       {context && (

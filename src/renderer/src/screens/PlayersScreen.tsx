@@ -21,6 +21,8 @@ import {
   columnGroups,
   DEFAULT_SORT,
   filterRows,
+  signalText,
+  signalTone,
   sortRows,
   subLabel,
   TABLE_LIMIT,
@@ -408,16 +410,27 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
                     ? cellValue(p, col, effectiveMode)
                     : null
                 const signed = col.kind === 'delta' || col.format === 'signed'
+                const tone =
+                  col.kind === 'signal'
+                    ? signalTone(p, col)
+                    : signed && value !== null
+                      ? value >= 0
+                        ? 'pos'
+                        : 'neg'
+                      : null
                 return (
                   <TableCell
                     key={col.key}
                     className={cn(
                       'text-right tabular-nums',
                       (col.kind === 'points' || col.field === 'rosValue') && 'font-medium',
-                      signed && value !== null && (value >= 0 ? 'text-pos-rb' : 'text-destructive')
+                      tone === 'pos' && 'text-pos-rb',
+                      tone === 'neg' && 'text-destructive'
                     )}
                   >
-                    {cellText(value, col, effectiveMode)}
+                    {col.kind === 'signal'
+                      ? signalText(p, col)
+                      : cellText(value, col, effectiveMode)}
                   </TableCell>
                 )
               })}
