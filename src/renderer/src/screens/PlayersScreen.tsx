@@ -18,7 +18,9 @@ import {
   cellText,
   cellValue,
   columnGroups,
+  DEFAULT_SORT,
   filterRows,
+  replacementLabel,
   sortRows,
   subLabel,
   TABLE_LIMIT,
@@ -27,7 +29,14 @@ import {
   type TableSort
 } from '@/lib/playersTableView'
 import { cn } from '@/lib/utils'
-import type { PlayersOptions, PlayerWeekRow, TableMode, Team } from '@shared/types'
+import type {
+  PlayersOptions,
+  PlayerValueRow,
+  PlayerWeekRow,
+  TableMode,
+  Team,
+  ValueContext
+} from '@shared/types'
 
 const selectClass =
   'h-8 rounded-md border border-input bg-transparent px-2 text-sm text-foreground dark:bg-input/30'
@@ -77,8 +86,11 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
   const [owner, setOwner] = useState('')
   const [sort, setSort] = useState<TableSort>({ key: 'points', dir: 'desc' })
   const [rows, setRows] = useState<PlayerWeekRow[]>([])
+  const [valueRows, setValueRows] = useState<PlayerValueRow[]>([])
+  const [valueContext, setValueContext] = useState<ValueContext | null>(null)
   const [selected, setSelected] = useState<PlayerRow | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const effectiveMode: TableMode = mode ?? 'stats'
 
   useEffect(() => {
     void api.players
@@ -114,15 +126,36 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
       .catch((err) => setError(errorMessage(err)))
   }, [season, week, dataVersion])
 
+  useEffect(() => {
+    if (season === null || effectiveMode !== 'value') return
+    void api.players
+      .value(season)
+      .then((v) => {
+        setError(null)
+        setValueRows(v.rows)
+        setValueContext(v.context)
+      })
+      .catch((err) => setError(errorMessage(err)))
+  }, [season, effectiveMode, dataVersion])
+
   const closePanel = useCallback(() => setSelected(null), [])
 
-  async function toggleWatch(row: PlayerWeekRow): Promise<void> {
+  async function toggleWatch(row: PlayerRow): Promise<void> {
     try {
       const watched = await api.watchlist.toggle(row.playerId)
-      setRows((list) => list.map((r) => (r.playerId === row.playerId ? { ...r, watched } : r)))
+      const patch = <T extends PlayerRow>(list: T[]): T[] =>
+        list.map((r) => (r.playerId === row.playerId ? { ...r, watched } : r))
+      setRows(patch)
+      setValueRows(patch)
     } catch (err) {
       setError(errorMessage(err))
     }
+  }
+
+  /** Crossing into or out of Value mode resets the sort; Projection and Stats share `points`. */
+  function switchMode(next: TableMode): void {
+    if ((next === 'value') !== (effectiveMode === 'value')) setSort(DEFAULT_SORT[next])
+    setMode(next)
   }
 
   function sortBy(col: Column): void {
@@ -133,10 +166,10 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
     )
   }
 
-  const effectiveMode: TableMode = mode ?? 'stats'
   const visible = useMemo(() => {
     const currentTab = options?.tabs.find((t) => t.id === tab)
-    const filtered = filterRows(rows, currentTab, {
+    const source: PlayerRow[] = effectiveMode === 'value' ? valueRows : rows
+    const filtered = filterRows(source, currentTab, {
       search,
       freeAgents,
       watchlist,
@@ -144,7 +177,19 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
       owner: owner ? Number(owner) : null
     })
     return sortRows(filtered, sort, effectiveMode)
-  }, [rows, options, tab, search, freeAgents, watchlist, rookies, owner, sort, effectiveMode])
+  }, [
+    rows,
+    valueRows,
+    options,
+    tab,
+    search,
+    freeAgents,
+    watchlist,
+    rookies,
+    owner,
+    sort,
+    effectiveMode
+  ])
   const shown = visible.slice(0, TABLE_LIMIT)
   const groups = columnGroups(tab, effectiveMode)
   const columns = groups.flatMap((g) => g.columns)
@@ -154,11 +199,13 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
     options?.projectionWeeks.some((p) => p.season === season && p.week === week) ?? false
   const empty =
     shown.length === 0
-      ? effectiveMode === 'stats' && !weekPlayed
-        ? `Week ${week} hasn't been played yet — switch to Projection.`
-        : effectiveMode === 'proj' && !projectionsStored
-          ? `No projections stored for week ${week} (they are fetched from the current week on).`
-          : 'No players match.'
+      ? effectiveMode === 'value'
+        ? 'No players match.'
+        : effectiveMode === 'stats' && !weekPlayed
+          ? `Week ${week} hasn't been played yet — switch to Projection.`
+          : effectiveMode === 'proj' && !projectionsStored
+            ? `No projections stored for week ${week} (they are fetched from the current week on).`
+            : 'No players match.'
       : null
 
   return (
@@ -195,11 +242,11 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-md border p-0.5">
-          {(['proj', 'stats'] as const).map((m) => (
+          {(['proj', 'stats', 'value'] as const).map((m) => (
             <button
               key={m}
               type="button"
-              onClick={() => setMode(m)}
+              onClick={() => switchMode(m)}
               className={cn(
                 'h-7 rounded px-3 text-sm',
                 effectiveMode === m
@@ -207,7 +254,7 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              {m === 'proj' ? 'Projection' : 'Stats'}
+              {m === 'proj' ? 'Projection' : m === 'stats' ? 'Stats' : 'Value'}
             </button>
           ))}
         </div>
@@ -222,17 +269,19 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
             </option>
           ))}
         </select>
-        <select
-          className={selectClass}
-          value={week ?? ''}
-          onChange={(e) => setWeek(Number(e.target.value))}
-        >
-          {WEEKS.map((w) => (
-            <option key={w} value={w}>
-              Week {w}
-            </option>
-          ))}
-        </select>
+        {effectiveMode !== 'value' && (
+          <select
+            className={selectClass}
+            value={week ?? ''}
+            onChange={(e) => setWeek(Number(e.target.value))}
+          >
+            {WEEKS.map((w) => (
+              <option key={w} value={w}>
+                Week {w}
+              </option>
+            ))}
+          </select>
+        )}
         <Chip active={freeAgents} onClick={() => setFreeAgents((v) => !v)}>
           Free agents
         </Chip>
@@ -256,6 +305,11 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
         </select>
       </div>
 
+      {effectiveMode === 'value' && valueContext && !valueContext.projectionsStored && (
+        <p className="text-xs text-muted-foreground">
+          No projections stored for {season} — rest-of-season columns are empty.
+        </p>
+      )}
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -278,6 +332,15 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
               <TableHead
                 key={col.key}
                 onClick={() => sortBy(col)}
+                title={
+                  col.field === 'stdValue' || col.field === 'rosValue'
+                    ? replacementLabel(
+                        valueContext,
+                        options?.tabs.find((t) => t.id === tab)?.positions ?? [],
+                        col.field === 'stdValue' ? 'std' : 'ros'
+                      )
+                    : undefined
+                }
                 className={cn(
                   'w-14 cursor-pointer select-none text-right',
                   sort.key === col.key && 'text-foreground'
@@ -332,18 +395,17 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
               </TableCell>
               {columns.map((col) => {
                 const value =
-                  p.statsAvailable || effectiveMode === 'proj'
+                  p.statsAvailable || effectiveMode !== 'stats'
                     ? cellValue(p, col, effectiveMode)
                     : null
+                const signed = col.kind === 'delta' || col.format === 'signed'
                 return (
                   <TableCell
                     key={col.key}
                     className={cn(
                       'text-right tabular-nums',
-                      col.kind === 'points' && 'font-medium',
-                      col.kind === 'delta' &&
-                        value !== null &&
-                        (value >= 0 ? 'text-pos-rb' : 'text-destructive')
+                      (col.kind === 'points' || col.field === 'rosValue') && 'font-medium',
+                      signed && value !== null && (value >= 0 ? 'text-pos-rb' : 'text-destructive')
                     )}
                   >
                     {cellText(value, col, effectiveMode)}
