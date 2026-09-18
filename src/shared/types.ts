@@ -107,6 +107,12 @@ export interface PlayerWeekRow extends PlayerBaseRow {
   statsAvailable: boolean
 }
 
+/** Metric of the (starters + 1)-th best player at a position — spec §2.2. */
+export interface ReplacementLevel {
+  level: number
+  starters: number
+}
+
 export interface PlayersWeek {
   rows: PlayerWeekRow[]
 }
