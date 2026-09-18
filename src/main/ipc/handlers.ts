@@ -1,7 +1,6 @@
 import { ipcMain, type BrowserWindow } from 'electron'
 import { withTransaction, type Db } from '@main/db/connection'
 import { getLeague } from '@main/db/repos/leagues'
-import { playerWeeklyStats } from '@main/db/repos/playersQuery'
 import { playersOptions, playersWeek } from '@main/db/repos/playersWeek'
 import { latestPointsWeek, NO_POINTS_CONTEXT } from '@main/db/repos/points'
 import { getRules, saveRules } from '@main/db/repos/rules'
@@ -33,8 +32,7 @@ import type {
   SyncResult,
   SyncStatus,
   Team,
-  WeekQuery,
-  WeekStats
+  WeekQuery
 } from '@shared/types'
 
 export interface AppContext {
@@ -228,11 +226,6 @@ export function registerIpcHandlers(ctx: AppContext): void {
     const watched = toggleWatch(ctx.db, playerId, new Date().toISOString())
     invalidateWeekCache()
     return watched
-  })
-
-  ipcMain.handle(IPC.playersWeeklyStats, (_event, playerId: string): WeekStats[] => {
-    const id = activeLeagueId()
-    return id ? playerWeeklyStats(ctx.db, id, playerId, pointsContext(ctx, id).season) : []
   })
 
   ipcMain.handle(IPC.syncRefresh, (_event, force: boolean): Promise<SyncResult> =>

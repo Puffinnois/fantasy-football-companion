@@ -164,22 +164,6 @@ export interface PlayersWeek {
   rows: PlayerWeekRow[]
 }
 
-export interface WeekSnaps {
-  offenseSnaps: number | null
-  offensePct: number | null
-}
-
-/** One week of raw nflverse stats for a player (or a team defense), with the app's points. */
-export interface WeekStats {
-  season: number
-  week: number
-  team: string | null
-  opponent: string | null
-  points: number | null
-  stats: Record<string, number>
-  snaps: WeekSnaps | null
-}
-
 /** Which season the UI shows points for and which week is "last week" (null = no points yet). */
 export interface PointsContext {
   season: number

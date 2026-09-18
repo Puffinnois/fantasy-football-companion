@@ -1,19 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Db } from '@main/db/connection'
 import { replacePlayerIds } from '@main/db/repos/playerIds'
-import { playerWeeklyStats } from '@main/db/repos/playersQuery'
 import { replacePoints } from '@main/db/repos/points'
-import {
-  replacePlayerWeekStats,
-  replaceSnaps,
-  replaceTeamWeekStats,
-  upsertGames
-} from '@main/db/repos/stats'
+import { upsertGames } from '@main/db/repos/stats'
 import { listRoster } from '@main/db/repos/teams'
-import { parsePlayerWeekStats, parseSnapCounts, parseTeamWeekStats } from '@main/sources/nflverse'
 import type { PointsContext } from '@shared/types'
 import { seedLeague, SEED_TS } from '../../fixtures/db'
-import * as fx from '../../fixtures/nflverse'
 
 const SEASON = 2026 // the Sleeper fixture league's season
 const ctx: PointsContext = { season: SEASON, lastWeek: 2 }
@@ -157,54 +149,5 @@ describe('points-aware queries', () => {
     expect(
       listRoster(db, 'L1', 1).every((p) => p.seasonPoints === null && p.byeWeek === null)
     ).toBe(true)
-  })
-
-  it('playerWeeklyStats merges stats, snaps and points for a player, team rows for a DEF', () => {
-    const reg = parsePlayerWeekStats(fx.playerStatsCsv).records.filter(
-      (r) => r.seasonType === 'REG'
-    )
-    replacePlayerWeekStats(
-      db,
-      SEASON,
-      reg.map((r) => ({ ...r, season: SEASON })),
-      SEED_TS
-    )
-    replaceTeamWeekStats(
-      db,
-      SEASON,
-      parseTeamWeekStats(fx.teamStatsCsv).records.map((r) => ({ ...r, season: SEASON })),
-      SEED_TS
-    )
-    replaceSnaps(
-      db,
-      SEASON,
-      parseSnapCounts(fx.snapCountsCsv).records.map((r) => ({ ...r, season: SEASON })),
-      SEED_TS
-    )
-
-    const weeks = playerWeeklyStats(db, 'L1', '4866', SEASON)
-    expect(weeks).toHaveLength(2)
-    expect(weeks[0]).toMatchObject({
-      season: SEASON,
-      week: 1,
-      team: 'PHI',
-      opponent: 'DAL',
-      points: 18.4,
-      snaps: { offenseSnaps: 55, offensePct: 0.83 }
-    })
-    expect(weeks[0].stats.rushing_yards).toBe(60)
-    expect(weeks[1]).toMatchObject({
-      week: 2,
-      points: 11.8,
-      snaps: { offenseSnaps: 60, offensePct: 0.9 }
-    })
-
-    const def = playerWeeklyStats(db, 'L1', 'LAR', SEASON)
-    expect(def).toHaveLength(1)
-    expect(def[0]).toMatchObject({ week: 1, team: 'LA', opponent: 'HOU', points: 12, snaps: null })
-    expect(def[0].stats.def_sacks).toBe(4)
-
-    expect(playerWeeklyStats(db, 'L1', '8259', SEASON)).toEqual([])
-    expect(playerWeeklyStats(db, 'L1', 'nobody', SEASON)).toEqual([])
   })
 })

@@ -17,8 +17,7 @@ const api: Api = {
     options: () => ipcRenderer.invoke(IPC.playersOptions),
     week: (query) => ipcRenderer.invoke(IPC.playersWeek, query),
     value: (season) => ipcRenderer.invoke(IPC.playersValue, season),
-    detail: (season, playerId) => ipcRenderer.invoke(IPC.playersDetail, season, playerId),
-    weeklyStats: (playerId) => ipcRenderer.invoke(IPC.playersWeeklyStats, playerId)
+    detail: (season, playerId) => ipcRenderer.invoke(IPC.playersDetail, season, playerId)
   },
   watchlist: {
     toggle: (playerId) => ipcRenderer.invoke(IPC.watchlistToggle, playerId)

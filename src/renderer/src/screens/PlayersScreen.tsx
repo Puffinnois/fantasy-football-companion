@@ -11,9 +11,9 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { PositionBadge } from '@/components/PositionBadge'
-import { SlideOver } from '@/components/SlideOver'
+import { PlayerDetailPanel } from '@/components/PlayerDetailPanel'
 import { api } from '@/lib/api'
-import { errorMessage, fmtPct, fmtPoints } from '@/lib/format'
+import { errorMessage } from '@/lib/format'
 import {
   cellText,
   cellValue,
@@ -23,10 +23,11 @@ import {
   subLabel,
   TABLE_LIMIT,
   type Column,
+  type TableRow as PlayerRow,
   type TableSort
 } from '@/lib/playersTableView'
 import { cn } from '@/lib/utils'
-import type { PlayersOptions, PlayerWeekRow, TableMode, Team, WeekStats } from '@shared/types'
+import type { PlayersOptions, PlayerWeekRow, TableMode, Team } from '@shared/types'
 
 const selectClass =
   'h-8 rounded-md border border-input bg-transparent px-2 text-sm text-foreground dark:bg-input/30'
@@ -76,8 +77,7 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
   const [owner, setOwner] = useState('')
   const [sort, setSort] = useState<TableSort>({ key: 'points', dir: 'desc' })
   const [rows, setRows] = useState<PlayerWeekRow[]>([])
-  const [selected, setSelected] = useState<PlayerWeekRow | null>(null)
-  const [weeks, setWeeks] = useState<WeekStats[]>([])
+  const [selected, setSelected] = useState<PlayerRow | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -113,14 +113,6 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
       })
       .catch((err) => setError(errorMessage(err)))
   }, [season, week, dataVersion])
-
-  useEffect(() => {
-    if (!selected) return
-    void api.players
-      .weeklyStats(selected.playerId)
-      .then(setWeeks)
-      .catch((err) => setError(errorMessage(err)))
-  }, [selected])
 
   const closePanel = useCallback(() => setSelected(null), [])
 
@@ -301,10 +293,7 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
           {shown.map((p) => (
             <TableRow
               key={p.playerId}
-              onClick={() => {
-                setSelected(p)
-                setWeeks([])
-              }}
+              onClick={() => setSelected(p)}
               className={cn('cursor-pointer', selected?.playerId === p.playerId && 'bg-accent/60')}
             >
               <TableCell className="pr-0">
@@ -381,107 +370,11 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
         </p>
       )}
 
-      <SlideOver
-        open={selected !== null}
+      <PlayerDetailPanel
+        season={season ?? options?.seasons[0] ?? 0}
+        player={selected}
         onClose={closePanel}
-        title={
-          selected && (
-            <span className="flex items-center gap-2">
-              <PositionBadge position={selected.position} />
-              {selected.fullName}
-              <span className="font-normal text-muted-foreground">{selected.team ?? 'FA'}</span>
-            </span>
-          )
-        }
-      >
-        {selected && !selected.statsAvailable && (
-          <p className="text-sm text-muted-foreground">
-            Stats unavailable — this player could not be matched to nflverse data.
-          </p>
-        )}
-        {selected?.statsAvailable && weeks.length === 0 && (
-          <p className="text-sm text-muted-foreground">No games yet this season.</p>
-        )}
-        {weeks.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">Wk</TableHead>
-                <TableHead className="w-14">Opp</TableHead>
-                <TableHead className="w-14 text-right">Pts</TableHead>
-                {selected?.position !== 'DEF' && (
-                  <TableHead className="w-14 text-right">Snap%</TableHead>
-                )}
-                {columnGroups(selected?.position ?? 'ALL', 'stats')
-                  .slice(1)
-                  .flatMap((g) => g.columns)
-                  .filter((c) => c.kind === 'stat')
-                  .map((c) => (
-                    <TableHead key={c.key} className="text-right">
-                      {c.label}
-                    </TableHead>
-                  ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {weeks.map((w) => (
-                <TableRow key={w.week}>
-                  <TableCell className="tabular-nums">{w.week}</TableCell>
-                  <TableCell className="text-muted-foreground">{w.opponent ?? '—'}</TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {fmtPoints(w.points)}
-                  </TableCell>
-                  {selected?.position !== 'DEF' && (
-                    <TableCell className="text-right text-muted-foreground tabular-nums">
-                      {fmtPct(w.snaps?.offensePct ?? null)}
-                    </TableCell>
-                  )}
-                  {columnGroups(selected?.position ?? 'ALL', 'stats')
-                    .slice(1)
-                    .flatMap((g) => g.columns)
-                    .filter((c) => c.kind === 'stat')
-                    .map((c) => (
-                      <TableCell key={c.key} className="text-right tabular-nums">
-                        {cellText(w.stats[weekStatKey(c.statKey ?? '')] ?? null, c, 'stats')}
-                      </TableCell>
-                    ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </SlideOver>
+      />
     </div>
   )
-}
-
-/** The slide-over reads raw nflverse rows; map the Sleeper column keys back to nflverse names. */
-const WEEK_STAT_KEYS: Record<string, string> = {
-  rush_att: 'carries',
-  rush_yd: 'rushing_yards',
-  rush_td: 'rushing_tds',
-  rec: 'receptions',
-  rec_tgt: 'targets',
-  rec_yd: 'receiving_yards',
-  rec_td: 'receiving_tds',
-  pass_cmp: 'completions',
-  pass_att: 'attempts',
-  pass_yd: 'passing_yards',
-  pass_td: 'passing_tds',
-  pass_int: 'passing_interceptions',
-  fgm: 'fg_made',
-  fga: 'fg_att',
-  fgm_40_49: 'fg_made_40_49',
-  xpm: 'pat_made',
-  xpa: 'pat_att',
-  sack: 'def_sacks',
-  int: 'def_interceptions',
-  ff: 'def_fumbles_forced',
-  fum_rec: 'fumble_recovery_opp',
-  def_td: 'def_tds',
-  safe: 'def_safeties'
-}
-
-function weekStatKey(sleeperKey: string): string {
-  return WEEK_STAT_KEYS[sleeperKey] ?? sleeperKey
 }

@@ -11,8 +11,7 @@ import type {
   SyncLogEntry,
   SyncResult,
   SyncStatus,
-  Team,
-  WeekStats
+  Team
 } from './types'
 import type { Rules } from './rules'
 
@@ -41,7 +40,6 @@ export interface Api {
     value(season: number): Promise<PlayersValue>
     /** One player's value row plus its week series; served from the same cache. */
     detail(season: number, playerId: string): Promise<PlayerDetail>
-    weeklyStats(playerId: string): Promise<WeekStats[]>
   }
   watchlist: {
     /** Returns the new state. */
@@ -72,7 +70,6 @@ export const IPC = {
   playersWeek: 'players:week',
   playersValue: 'players:value',
   playersDetail: 'players:detail',
-  playersWeeklyStats: 'players:weeklyStats',
   watchlistToggle: 'watchlist:toggle',
   rulesGet: 'rules:get',
   rulesUpdate: 'rules:update',
