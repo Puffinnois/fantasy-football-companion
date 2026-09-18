@@ -1,11 +1,15 @@
-import { fmtPct, fmtSigned } from '@/lib/format'
+import { fmtPct, fmtSigned, fmtSignedPct } from '@/lib/format'
 import type {
   GameInfo,
   PlayerBaseRow,
+  PlayerSignals,
   PlayerValueRow,
   PlayerWeekRow,
   PositionTab,
   TableMode,
+  Trend,
+  UsageMetric,
+  UsageTrend,
   ValueContext
 } from '@shared/types'
 
@@ -13,20 +17,26 @@ export type TableRow = PlayerWeekRow | PlayerValueRow
 export const isValueRow = (row: TableRow): row is PlayerValueRow => 'ppg' in row
 export const isWeekRow = (row: TableRow): row is PlayerWeekRow => 'game' in row
 
-export type ColumnKind = 'points' | 'delta' | 'stat' | 'snapPct' | 'targetShare' | 'value'
+export type ColumnKind =
+  'points' | 'delta' | 'stat' | 'snapPct' | 'targetShare' | 'value' | 'signal'
 export type ValueField =
   'gamesPlayed' | 'ppg' | 'stdValue' | 'stdRank' | 'rosPoints' | 'rosValue' | 'rosRank'
+/** `usage` is the position's primary metric (spec §3.1); the rest read PlayerSignals directly. */
+export type SignalField =
+  'rosSos' | 'byesRemaining' | 'floor' | 'ceiling' | 'startRate' | 'usage' | 'tdDelta' | 'vsProjPct'
+export type CellFormat = 'int' | 'fixed' | 'signed' | 'pct' | 'signedPct'
 
 export interface Column {
-  /** Sort key (`points`, `delta`, `snapPct`, `targetShare`, `stat:<key>`, `value:<field>`). */
+  /** Sort key (`points`, `delta`, `snapPct`, `targetShare`, `stat:<key>`, `value:<field>`, `signal:<field>`). */
   key: string
   label: string
   kind: ColumnKind
   statKey?: string
   field?: ValueField
-  /** Value columns only: integer, one decimal, or signed one decimal. */
-  format?: 'int' | 'fixed' | 'signed'
-  /** Value columns only: one-line definition shown in the header tooltip and the help panel. */
+  signal?: SignalField
+  /** Value / signal columns: how the number renders. */
+  format?: CellFormat
+  /** Value / signal columns: one-line definition shown in the header tooltip and the help panel. */
   description?: string
 }
 
@@ -102,6 +112,19 @@ const SEASON = group('Season', [
   value('stdValue', 'VAL', 'signed', "PPG minus the position's replacement PPG"),
   value('stdRank', 'RK', 'int', 'Rank within position by VAL')
 ])
+const signal = (
+  field: SignalField,
+  label: string,
+  format: CellFormat,
+  description: string
+): Column => ({
+  key: `signal:${field}`,
+  label,
+  kind: 'signal',
+  signal: field,
+  format,
+  description
+})
 const REST_OF_SEASON = group('Rest of season', [
   value(
     'rosPoints',
@@ -110,12 +133,47 @@ const REST_OF_SEASON = group('Rest of season', [
     "Projected points for the remaining weeks under this league's rules"
   ),
   value('rosValue', 'VAL', 'signed', "ROS minus the position's replacement ROS points"),
-  value('rosRank', 'RK', 'int', 'Rank within position by ROS VAL')
+  value('rosRank', 'RK', 'int', 'Rank within position by ROS VAL'),
+  signal(
+    'rosSos',
+    'SOS',
+    'fixed',
+    'Mean defense-vs-position rank of the remaining opponents: 1 = hardest, 32 = easiest'
+  ),
+  signal('byesRemaining', 'BYES', 'int', 'Remaining weeks without a game')
+])
+const SIGNALS = group('Signals', [
+  signal('floor', 'FLOOR', 'fixed', '25th percentile of weekly points (3+ games)'),
+  signal('ceiling', 'CEIL', 'fixed', '75th percentile of weekly points (3+ games)'),
+  signal(
+    'startRate',
+    'START%',
+    'pct',
+    "Share of games scoring at least the position's replacement PPG (3+ games)"
+  ),
+  signal(
+    'usage',
+    'USAGE',
+    'pct',
+    'Target share (WR/TE) or snap % (RB) over the last 3 games; the arrow is the trend against the season mean'
+  ),
+  signal(
+    'tdDelta',
+    'TD',
+    'signed',
+    "TDs minus the TDs expected from opportunities at the position's rate: ↓ likely to regress, ↑ due for more"
+  ),
+  signal(
+    'vsProjPct',
+    'VS PROJ',
+    'signedPct',
+    "Points minus Sleeper's projection over played weeks, as a share of the projection"
+  )
 ])
 
 /** Sleeper's column groups per tab; Δ and usage only exist for played weeks (stats mode). */
 export function columnGroups(tabId: string, mode: TableMode): ColumnGroup[] {
-  if (mode === 'value') return [SEASON, REST_OF_SEASON]
+  if (mode === 'value') return [SEASON, REST_OF_SEASON, SIGNALS]
   const fantasy = group('Fantasy', mode === 'stats' ? [POINTS, DELTA] : [POINTS])
   const usage = (...cols: Column[]): ColumnGroup[] =>
     mode === 'stats' ? [group('Usage', cols)] : []
@@ -133,6 +191,8 @@ export function columnGroups(tabId: string, mode: TableMode): ColumnGroup[] {
 
 export function cellValue(row: TableRow, col: Column, mode: TableMode): number | null {
   if (col.kind === 'value') return col.field && isValueRow(row) ? row[col.field] : null
+  if (col.kind === 'signal')
+    return col.signal && isValueRow(row) ? signalValue(row, col.signal) : null
   if (!isWeekRow(row)) return null
   switch (col.kind) {
     case 'points':
@@ -152,9 +212,11 @@ export function cellValue(row: TableRow, col: Column, mode: TableMode): number |
 
 export function cellText(value: number | null, col: Column, mode: TableMode): string {
   if (value === null) return '—'
-  if (col.kind === 'value') {
+  if (col.kind === 'value' || col.kind === 'signal') {
     if (col.format === 'int') return String(value)
     if (col.format === 'signed') return fmtSigned(value)
+    if (col.format === 'pct') return fmtPct(value)
+    if (col.format === 'signedPct') return fmtSignedPct(value)
     return value.toFixed(1)
   }
   if (col.kind === 'snapPct' || col.kind === 'targetShare') return fmtPct(value)
@@ -205,7 +267,7 @@ export interface TableFilters {
 }
 
 export interface TableSort {
-  /** 'points' | 'delta' | 'name' | 'snapPct' | 'targetShare' | `stat:<key>` */
+  /** 'points' | 'delta' | 'name' | 'snapPct' | 'targetShare' | `stat:<key>` | `value:<field>` | `signal:<field>` */
   key: string
   dir: 'asc' | 'desc'
 }
@@ -236,6 +298,8 @@ export function filterRows<T extends PlayerBaseRow>(
 function sortValue(row: TableRow, key: string, mode: TableMode): number | string | null {
   if (key === 'name') return row.fullName
   if (key.startsWith('value:')) return isValueRow(row) ? row[key.slice(6) as ValueField] : null
+  if (key.startsWith('signal:'))
+    return isValueRow(row) ? signalValue(row, key.slice(7) as SignalField) : null
   if (!isWeekRow(row)) return null
   if (key === 'points') return mode === 'proj' ? row.projected : row.points
   if (key === 'delta') return row.delta
@@ -291,8 +355,71 @@ export function valueHeaderTitle(
   context: ValueContext | null,
   positions: string[]
 ): string | undefined {
-  if (col.kind !== 'value' || !col.description) return undefined
+  if ((col.kind !== 'value' && col.kind !== 'signal') || !col.description) return undefined
   if (col.field !== 'stdValue' && col.field !== 'rosValue') return col.description
   const line = replacementLabel(context, positions, col.field === 'stdValue' ? 'std' : 'ros')
   return line ? `${col.description}\n${line}` : col.description
+}
+
+/** Spec §3.1: the usage metric behind the USAGE column per position; QB, K and DEF have none. */
+export const PRIMARY_USAGE: Partial<Record<string, UsageMetric>> = {
+  RB: 'snapPct',
+  WR: 'targetShare',
+  TE: 'targetShare'
+}
+
+export function primaryUsage(row: PlayerValueRow): UsageTrend | null {
+  const metric = row.position ? PRIMARY_USAGE[row.position] : undefined
+  return metric && row.signals ? row.signals.usage[metric] : null
+}
+
+export const TREND_ARROW: Record<Trend, string> = { rising: '↑', flat: '→', falling: '↓' }
+
+/** Numeric value of a signal column (sorting, colouring); USAGE is the primary metric's recent share. */
+export function signalValue(row: PlayerValueRow, field: SignalField): number | null {
+  const s: PlayerSignals | null = row.signals
+  if (!s) return null
+  if (field === 'usage') return primaryUsage(row)?.recent ?? null
+  return s[field]
+}
+
+/** Text of a signal cell: USAGE = recent share + trend arrow, TD = the regression badge ('' without one), else the number; "—" for null. */
+export function signalText(row: TableRow, col: Column): string {
+  if (!col.signal || !isValueRow(row)) return '—'
+  if (col.signal === 'usage') {
+    const t = primaryUsage(row)
+    return t ? `${fmtPct(t.recent)} ${TREND_ARROW[t.trend]}` : '—'
+  }
+  if (col.signal === 'tdDelta') {
+    if (!row.signals || row.signals.tdDelta === null) return '—'
+    return row.signals.tdFlag === 'down' ? '↓' : row.signals.tdFlag === 'up' ? '↑' : ''
+  }
+  return cellText(signalValue(row, col.signal), col, 'value')
+}
+
+/** SOS tint buckets (spec §6.1 "easy to hard"): ranks ≤ SOS_HARD_MAX read hard, ≥ SOS_EASY_MIN easy. */
+export const SOS_HARD_MAX = 11
+export const SOS_EASY_MIN = 22
+
+export function sosTone(value: number | null): 'hard' | 'easy' | null {
+  if (value === null) return null
+  return value <= SOS_HARD_MAX ? 'hard' : value >= SOS_EASY_MIN ? 'easy' : null
+}
+
+/** Colour of a signal cell: SOS by difficulty, TD by regression direction (down = negative), vs proj by sign. */
+export function signalTone(row: TableRow, col: Column): 'pos' | 'neg' | null {
+  if (!isValueRow(row) || !row.signals) return null
+  if (col.signal === 'rosSos') {
+    const tone = sosTone(row.signals.rosSos)
+    return tone === 'hard' ? 'neg' : tone === 'easy' ? 'pos' : null
+  }
+  if (col.signal === 'tdDelta') {
+    const flag = row.signals.tdFlag
+    return flag === 'down' ? 'neg' : flag === 'up' ? 'pos' : null
+  }
+  if (col.signal === 'vsProjPct') {
+    const v = row.signals.vsProjPct
+    return v === null ? null : v >= 0 ? 'pos' : 'neg'
+  }
+  return null
 }

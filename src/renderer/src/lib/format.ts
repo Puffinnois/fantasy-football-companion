@@ -29,3 +29,10 @@ export function fmtSigned(value: number | null): string {
 export function fmtPct(value: number | null): string {
   return value === null ? '—' : `${Math.round(value * 100)}%`
 }
+
+/** "+9%" / "-13%" / "0%" / "—" from a fraction. */
+export function fmtSignedPct(value: number | null): string {
+  if (value === null) return '—'
+  const pct = Math.round(value * 100)
+  return `${pct > 0 ? '+' : ''}${pct}%`
+}

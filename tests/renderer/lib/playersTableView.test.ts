@@ -8,11 +8,17 @@ import {
   gameLabel,
   kickoffLabel,
   replacementLabel,
+  signalText,
+  signalTone,
   sortRows,
+  sosTone,
   subLabel,
-  valueHeaderTitle
+  valueHeaderTitle,
+  type Column,
+  type SignalField
 } from '@/lib/playersTableView'
 import type { PlayerValueRow, PlayerWeekRow, ValueContext } from '@shared/types'
+import { signalsFixture } from '../../fixtures/signals'
 
 const row = (over: Partial<PlayerWeekRow> = {}): PlayerWeekRow => ({
   playerId: '1',
@@ -56,7 +62,7 @@ const valueRow = (over: Partial<PlayerValueRow> = {}): PlayerValueRow => ({
   rosValue: -1.5,
   rosRank: 9,
   overallRank: 20,
-  signals: null,
+  signals: signalsFixture(),
   statsAvailable: true,
   ...over
 })
@@ -272,10 +278,10 @@ describe('filterRows / sortRows', () => {
 })
 
 describe('value mode', () => {
-  it('has the same two groups on every tab', () => {
+  it('has the same three groups on every tab', () => {
     for (const tab of ['ALL', 'QB', 'K', 'FLEX']) {
       const groups = columnGroups(tab, 'value')
-      expect(groups.map((g) => g.label)).toEqual(['Season', 'Rest of season'])
+      expect(groups.map((g) => g.label)).toEqual(['Season', 'Rest of season', 'Signals'])
       expect(groups.flatMap((g) => g.columns.map((c) => c.key))).toEqual([
         'value:gamesPlayed',
         'value:ppg',
@@ -283,9 +289,98 @@ describe('value mode', () => {
         'value:stdRank',
         'value:rosPoints',
         'value:rosValue',
-        'value:rosRank'
+        'value:rosRank',
+        'signal:rosSos',
+        'signal:byesRemaining',
+        'signal:floor',
+        'signal:ceiling',
+        'signal:startRate',
+        'signal:usage',
+        'signal:tdDelta',
+        'signal:vsProjPct'
       ])
     }
+  })
+
+  const signalColumns = columnGroups('ALL', 'value')
+    .flatMap((g) => g.columns)
+    .filter((c) => c.kind === 'signal')
+  const signalCol = (field: SignalField): Column => {
+    const col = signalColumns.find((c) => c.signal === field)
+    if (!col) throw new Error(`no column for ${field}`)
+    return col
+  }
+
+  it('reads signal cells: USAGE follows the position, TD is a badge, nulls render —', () => {
+    const rb = valueRow({ position: 'RB' })
+    expect(signalColumns.map((c) => signalText(rb, c))).toEqual([
+      '18.5',
+      '1',
+      '6.1',
+      '17.4',
+      '63%',
+      '80% ↑',
+      '↓',
+      '+9%'
+    ])
+    expect(signalText(valueRow({ position: 'WR' }), signalCol('usage'))).toBe('24% →')
+    expect(signalText(valueRow({ position: 'TE' }), signalCol('usage'))).toBe('24% →')
+    expect(signalText(valueRow({ position: 'QB' }), signalCol('usage'))).toBe('—')
+    expect(
+      signalText(valueRow({ signals: signalsFixture({ tdFlag: null }) }), signalCol('tdDelta'))
+    ).toBe('')
+    expect(signalText(valueRow({ signals: null }), signalCol('tdDelta'))).toBe('—')
+    expect(signalText(valueRow({ signals: null }), signalCol('floor'))).toBe('—')
+    expect(signalText(row(), signalCol('floor'))).toBe('—')
+    expect(cellValue(rb, signalCol('usage'), 'value')).toBe(0.8)
+    expect(cellValue(valueRow({ position: 'QB' }), signalCol('usage'), 'value')).toBeNull()
+    expect(cellValue(rb, signalCol('byesRemaining'), 'value')).toBe(1)
+    expect(cellValue(row(), signalCol('floor'), 'value')).toBeNull()
+  })
+
+  it('sorts by a signal with nulls last', () => {
+    const rows = [
+      valueRow({ playerId: 'a', fullName: 'A', signals: signalsFixture({ rosSos: 8 }) }),
+      valueRow({ playerId: 'b', fullName: 'B', signals: null }),
+      valueRow({ playerId: 'c', fullName: 'C', signals: signalsFixture({ rosSos: 25 }) })
+    ]
+    const ids = (sorted: typeof rows): string[] => sorted.map((r) => r.playerId)
+    expect(ids(sortRows(rows, { key: 'signal:rosSos', dir: 'asc' }, 'value'))).toEqual([
+      'a',
+      'c',
+      'b'
+    ])
+    expect(ids(sortRows(rows, { key: 'signal:rosSos', dir: 'desc' }, 'value'))).toEqual([
+      'c',
+      'a',
+      'b'
+    ])
+  })
+
+  it('tones SOS by difficulty, TD by regression direction, vs proj by sign', () => {
+    expect(sosTone(11)).toBe('hard')
+    expect(sosTone(11.5)).toBeNull()
+    expect(sosTone(22)).toBe('easy')
+    expect(sosTone(null)).toBeNull()
+    const sos = signalCol('rosSos')
+    expect(signalTone(valueRow({ signals: signalsFixture({ rosSos: 8 }) }), sos)).toBe('neg')
+    expect(signalTone(valueRow({ signals: signalsFixture({ rosSos: 25 }) }), sos)).toBe('pos')
+    expect(signalTone(valueRow(), sos)).toBeNull()
+    expect(signalTone(valueRow(), signalCol('tdDelta'))).toBe('neg')
+    expect(
+      signalTone(valueRow({ signals: signalsFixture({ tdFlag: 'up' }) }), signalCol('tdDelta'))
+    ).toBe('pos')
+    expect(signalTone(valueRow(), signalCol('vsProjPct'))).toBe('pos')
+    expect(
+      signalTone(valueRow({ signals: signalsFixture({ vsProjPct: -0.2 }) }), signalCol('vsProjPct'))
+    ).toBe('neg')
+    expect(signalTone(valueRow(), signalCol('floor'))).toBeNull()
+    expect(signalTone(row(), sos)).toBeNull()
+  })
+
+  it('titles signal headers with their description', () => {
+    const floor = signalCol('floor')
+    expect(valueHeaderTitle(floor, null, [])).toBe(floor.description)
   })
 
   it('reads and formats value cells; week columns are null on value rows and vice versa', () => {
@@ -300,7 +395,9 @@ describe('value mode', () => {
     expect(ros.columns.map((c) => cellText(cellValue(r, c, 'value'), c, 'value'))).toEqual([
       '120.5',
       '-1.5',
-      '9'
+      '9',
+      '18.5',
+      '1'
     ])
     const ppg = season.columns[1]
     expect(cellText(cellValue(valueRow({ ppg: null }), ppg, 'value'), ppg, 'value')).toBe('—')

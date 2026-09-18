@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { errorMessage, fmtPct, fmtPoints, relativeTime } from '@/lib/format'
+import { errorMessage, fmtPct, fmtPoints, fmtSignedPct, relativeTime } from '@/lib/format'
 
 describe('relativeTime', () => {
   const now = new Date('2024-01-01T12:00:00Z').getTime()
@@ -60,5 +60,14 @@ describe('fmtPoints / fmtPct', () => {
     expect(fmtPct(null)).toBe('—')
     expect(fmtPct(0.83)).toBe('83%')
     expect(fmtPct(1)).toBe('100%')
+  })
+})
+
+describe('fmtSignedPct', () => {
+  it('signs a fraction as a whole percent', () => {
+    expect(fmtSignedPct(0.09)).toBe('+9%')
+    expect(fmtSignedPct(-0.126)).toBe('-13%')
+    expect(fmtSignedPct(0)).toBe('0%')
+    expect(fmtSignedPct(null)).toBe('—')
   })
 })
