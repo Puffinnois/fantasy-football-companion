@@ -1,14 +1,24 @@
 import type { Db } from '@main/db/connection'
 import { round2 } from '@main/db/repos/points'
 import { LINEUP_POSITIONS } from '@shared/rules'
-import type { PlayerDetail, PlayerValueRow, ValueContext } from '@shared/types'
+import type {
+  PlayerDetail,
+  PlayerSignals,
+  PlayerValueRow,
+  ScheduleEntry,
+  ValueContext
+} from '@shared/types'
 import { replacementLevels } from './replacement'
+import { defenseRanks, lastScheduledWeek, playerSchedule } from './schedule'
 import { loadSeries, type PlayerSeries, type SeriesBundle } from './series'
+import { positionTotals, statSignals } from './signals'
 
 export interface ValueBuild {
   context: ValueContext
   rows: PlayerValueRow[]
   series: Map<string, PlayerSeries>
+  /** Remaining weeks per player, for the detail panel. */
+  schedules: Map<string, ScheduleEntry[]>
 }
 
 interface Aggregate {
@@ -123,19 +133,38 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
     valued.map((v) => ranked(v, v.rosValue, v.a.rosPoints)).filter(present)
   )
 
-  const rows: PlayerValueRow[] = valued.map((v) => ({
-    ...v.a.series.base,
-    gamesPlayed: v.a.gamesPlayed,
-    ppg: v.a.ppg,
-    stdValue: v.stdValue,
-    stdRank: stdRanks.get(v.a.series.base.playerId) ?? null,
-    rosPoints: v.a.rosPoints,
-    rosValue: v.rosValue,
-    rosRank: rosRanks.get(v.a.series.base.playerId) ?? null,
-    overallRank: overallRanks.get(v.a.series.base.playerId) ?? null,
-    signals: null,
-    statsAvailable: v.a.series.statsAvailable
-  }))
+  const totals = positionTotals(bundle.players)
+  const defense = defenseRanks(bundle.players)
+  const lastWeek = lastScheduledWeek(bundle.schedule)
+  const schedules = new Map<string, ScheduleEntry[]>()
+
+  const rows: PlayerValueRow[] = valued.map((v) => {
+    const series = v.a.series
+    const pos = series.base.position ?? ''
+    const sched = playerSchedule(series, bundle.schedule, defense, bundle.currentWeek, lastWeek)
+    schedules.set(series.base.playerId, sched.entries)
+    const signals: PlayerSignals | null = series.statsAvailable
+      ? {
+          ...statSignals(series, totals.get(pos), stdLevels.get(pos)?.level ?? null),
+          nextOpponent: sched.nextOpponent,
+          rosSos: sched.rosSos,
+          byesRemaining: sched.byesRemaining
+        }
+      : null
+    return {
+      ...series.base,
+      gamesPlayed: v.a.gamesPlayed,
+      ppg: v.a.ppg,
+      stdValue: v.stdValue,
+      stdRank: stdRanks.get(series.base.playerId) ?? null,
+      rosPoints: v.a.rosPoints,
+      rosValue: v.rosValue,
+      rosRank: rosRanks.get(series.base.playerId) ?? null,
+      overallRank: overallRanks.get(series.base.playerId) ?? null,
+      signals,
+      statsAvailable: series.statsAvailable
+    }
+  })
 
   const replacement: ValueContext['replacement'] = {}
   for (const pos of LINEUP_POSITIONS) {
@@ -150,7 +179,8 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
       replacement
     },
     rows,
-    series: new Map(bundle.players.map((p) => [p.base.playerId, p]))
+    series: new Map(bundle.players.map((p) => [p.base.playerId, p])),
+    schedules
   }
 }
 
@@ -177,6 +207,6 @@ export function detailFor(build: ValueBuild, playerId: string): PlayerDetail | n
       wopr: w.wopr,
       stats: w.line
     })),
-    schedule: []
+    schedule: build.schedules.get(playerId) ?? []
   }
 }

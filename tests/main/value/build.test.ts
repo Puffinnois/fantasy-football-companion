@@ -97,4 +97,53 @@ describe('buildValueSeason', () => {
     expect(empty.rows.every((r) => r.rosPoints === null && r.rosValue === null)).toBe(true)
     expect(empty.context.replacement.RB.ros).toBeNull()
   })
+
+  it('attaches signals: usage, efficiency, consistency and vs projection', () => {
+    const s = row('4866')?.signals
+    // snap % 0.83 / 0.90 (week 3 has no snap row): two games, recent = season → flat
+    expect(s?.usage.snapPct?.trend).toBe('flat')
+    expect(s?.usage.snapPct?.season).toBeCloseTo(0.865)
+    expect(s?.usage.targetShare).toBeNull()
+    // Barkley is the only RB with a stat line, so he *is* the RB rate: 48 opportunities, 1 TD, 182 yards
+    expect(s?.tdDelta).toBeCloseTo(0)
+    expect(s?.tdFlag).toBeNull()
+    expect(s?.ypo).toBe(3.79)
+    expect(s?.ypoDelta).toBeCloseTo(0)
+    // week 3: 30 points against a 10-point projection
+    expect(s).toMatchObject({ vsProjPoints: 20, vsProjPct: 2 })
+    // points 20 / 10 / 30 against the RB replacement PPG of 12
+    expect(s).toMatchObject({ floor: 15, ceiling: 25, stdev: 8.16 })
+    expect(s?.startRate).toBeCloseTo(2 / 3)
+    // one game: no trends, no consistency
+    expect(row('6794')?.signals).toMatchObject({
+      floor: null,
+      startRate: null,
+      usage: { snapPct: null, targetShare: null }
+    })
+    expect(row('8259')?.signals).toBeNull()
+    expect(row('LAR')?.signals).toMatchObject({ tdDelta: null, ypo: null })
+  })
+
+  it('attaches the schedule: next opponent with its rank, SOS and byes', () => {
+    // Barkley played week 3; PHI then hosts WAS (4) and LAR (5), neither ranked at RB yet
+    expect(row('4866')?.signals).toMatchObject({
+      nextOpponent: { team: 'WAS', rank: null },
+      rosSos: null,
+      byesRemaining: 0
+    })
+    // Jefferson: DET (3, unranked), CHI (4), no game in week 5. Five defenses have been played
+    // against; CHI is the only one that allowed WR points (his 25), so it ranks 5th of 5 at WR.
+    expect(row('6794')?.signals).toMatchObject({
+      nextOpponent: { team: 'DET', rank: null },
+      rosSos: 5,
+      byesRemaining: 1
+    })
+    expect(detailFor(build, '6794')?.schedule).toEqual([
+      { week: 3, opponent: 'DET', rank: null },
+      { week: 4, opponent: 'CHI', rank: 5 },
+      { week: 5, opponent: null, rank: null }
+    ])
+    // BUF has no game in the fixture
+    expect(detailFor(build, '8259')?.schedule).toEqual([])
+  })
 })
