@@ -21,6 +21,7 @@ import {
   columnGroups,
   DEFAULT_SORT,
   filterRows,
+  mineCellTitle,
   signalText,
   signalTone,
   sortRows,
@@ -86,6 +87,7 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
   const [freeAgents, setFreeAgents] = useState(false)
   const [watchlist, setWatchlist] = useState(false)
   const [rookies, setRookies] = useState(false)
+  const [mine, setMine] = useState(false)
   const [owner, setOwner] = useState('')
   const [sort, setSort] = useState<TableSort>({ key: 'points', dir: 'desc' })
   const [rows, setRows] = useState<PlayerWeekRow[]>([])
@@ -142,6 +144,7 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
       .catch((err) => setError(errorMessage(err)))
   }, [season, effectiveMode, dataVersion])
 
+  const hasMyTeam = teams.some((t) => t.isMe)
   const closePanel = useCallback(() => setSelected(null), [])
 
   async function toggleWatch(row: PlayerRow): Promise<void> {
@@ -178,7 +181,7 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
       freeAgents,
       watchlist,
       rookies,
-      mine: false,
+      mine,
       owner: owner ? Number(owner) : null
     })
     return sortRows(filtered, sort, effectiveMode)
@@ -191,12 +194,13 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
     freeAgents,
     watchlist,
     rookies,
+    mine,
     owner,
     sort,
     effectiveMode
   ])
   const shown = visible.slice(0, TABLE_LIMIT)
-  const groups = columnGroups(tab, effectiveMode)
+  const groups = columnGroups(tab, effectiveMode, valueContext?.hasMyTeam ?? false)
   const columns = groups.flatMap((g) => g.columns)
   const weekPlayed =
     options?.lastScoredWeek !== null && week !== null && (options?.lastScoredWeek ?? 0) >= week
@@ -307,6 +311,11 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
         <Chip active={rookies} onClick={() => setRookies((v) => !v)}>
           Rookies
         </Chip>
+        {hasMyTeam && (
+          <Chip active={mine} onClick={() => setMine((v) => !v)}>
+            My team
+          </Chip>
+        )}
         <select
           className={cn(selectClass, 'ml-auto')}
           value={owner}
@@ -414,14 +423,19 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
                 const tone =
                   col.kind === 'signal'
                     ? signalTone(p, col)
-                    : signed && value !== null
-                      ? value >= 0
-                        ? 'pos'
-                        : 'neg'
-                      : null
+                    : col.kind === 'droppable'
+                      ? value !== null
+                        ? 'neg'
+                        : null
+                      : signed && value !== null
+                        ? value >= 0
+                          ? 'pos'
+                          : 'neg'
+                        : null
                 return (
                   <TableCell
                     key={col.key}
+                    title={mineCellTitle(p, col, valueContext)}
                     className={cn(
                       'text-right tabular-nums',
                       (col.kind === 'points' || col.field === 'rosValue') && 'font-medium',

@@ -80,6 +80,27 @@ export function ValueHelp({ open, onClose, context }: ValueHelpProps): React.JSX
           Players not matched to nflverse have no signals.
         </Term>
       </dl>
+      {context?.hasMyTeam && (
+        <>
+          <h3 className="mt-5 text-sm font-semibold">Mine</h3>
+          <dl className="mt-2 space-y-3 text-sm">
+            {columnGroups('ALL', 'value', true)
+              .filter((g) => g.label === 'Mine')
+              .flatMap((g) => g.columns)
+              .map((c) => (
+                <Term key={c.key} name={c.label}>
+                  {c.description}
+                </Term>
+              ))}
+            <Term name="Same position only">
+              FLEX is already in the replacement level, so ROS VAL compares across positions — but a
+              cross-position swap (drop a WR to add this RB) needs a lineup model and is not
+              suggested. Players on IR or the taxi squad are not counted as my players at the
+              position; the My team chip still lists them.
+            </Term>
+          </dl>
+        </>
+      )}
       {context && (
         <Table className="mt-4">
           <TableHeader>
