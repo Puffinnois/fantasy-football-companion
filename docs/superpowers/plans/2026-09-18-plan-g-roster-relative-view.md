@@ -31,22 +31,22 @@
 
 ## File map
 
-| File                                                                     | Responsibility                                                                                                                                |
-| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/types.ts` (modify)                                           | `PlayerBaseRow.ownerIsMe`; `Droppable`, `MyBaseline`; `PlayerValueRow.vsMine` / `.droppable`; `ValueContext.hasMyTeam` / `.mine`              |
-| `src/main/db/repos/playersWeek.ts` (modify)                              | `CandidateRow.owner_slot` / `.owner_is_me` from the candidate query; `baseRow` sets `ownerIsMe`                                               |
-| `src/main/value/series.ts` (modify)                                      | `PlayerSeries.rosterSlot`; `SeriesBundle.hasMyTeam`                                                                                           |
-| `src/main/value/roster.ts` (create)                                      | §4 pure: `UNSTARTABLE_SLOTS`, `RosterInput`, `RosterRelative`, `RosterView`, `rosterRelative`                                                 |
-| `src/main/value/build.ts` (modify)                                       | wire `rosterRelative` into rows (`vsMine`, `droppable`) and context (`hasMyTeam`, `mine`)                                                     |
-| `src/renderer/src/lib/playersTableView.ts` (modify)                      | `droppable` column kind, `vsMine` value field, `MINE` group behind `columnGroups(…, mine)`, `TableFilters.mine`, `mineLabel`, `mineCellTitle` |
-| `src/renderer/src/screens/PlayersScreen.tsx` (modify)                    | _My team_ chip, `mine` filter, Mine group when `hasMyTeam`, droppable tone, cell tooltips                                                     |
-| `src/renderer/src/components/ValueHelp.tsx` (modify)                     | _Mine_ section (column descriptions + the same-position note)                                                                                 |
-| `docs/reference/value-and-signals.md` (modify)                           | new fields, Mine group, `roster.ts`, constants                                                                                                |
-| `tests/main/value/roster.test.ts` (create)                               | pure tests (spec §8)                                                                                                                          |
-| `tests/main/value/build.test.ts`, `series.test.ts` (modify)              | roster-relative integration (with a free agent inserted by the test), bundle fields                                                           |
-| `tests/main/db/playersWeek.test.ts` (modify)                             | `ownerIsMe` on week rows                                                                                                                      |
-| `tests/main/value/signals.test.ts`, `schedule.test.ts` (modify)          | fixture literals gain `ownerIsMe` / `rosterSlot`                                                                                              |
-| `tests/renderer/lib/playersTableView.test.ts` (modify)                   | fixture literals; Mine group, cells, sort, filter, titles                                                                                     |
+| File                                                            | Responsibility                                                                                                                                |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/types.ts` (modify)                                  | `PlayerBaseRow.ownerIsMe`; `Droppable`, `MyBaseline`; `PlayerValueRow.vsMine` / `.droppable`; `ValueContext.hasMyTeam` / `.mine`              |
+| `src/main/db/repos/playersWeek.ts` (modify)                     | `CandidateRow.owner_slot` / `.owner_is_me` from the candidate query; `baseRow` sets `ownerIsMe`                                               |
+| `src/main/value/series.ts` (modify)                             | `PlayerSeries.rosterSlot`; `SeriesBundle.hasMyTeam`                                                                                           |
+| `src/main/value/roster.ts` (create)                             | §4 pure: `UNSTARTABLE_SLOTS`, `RosterInput`, `RosterRelative`, `RosterView`, `rosterRelative`                                                 |
+| `src/main/value/build.ts` (modify)                              | wire `rosterRelative` into rows (`vsMine`, `droppable`) and context (`hasMyTeam`, `mine`)                                                     |
+| `src/renderer/src/lib/playersTableView.ts` (modify)             | `droppable` column kind, `vsMine` value field, `MINE` group behind `columnGroups(…, mine)`, `TableFilters.mine`, `mineLabel`, `mineCellTitle` |
+| `src/renderer/src/screens/PlayersScreen.tsx` (modify)           | _My team_ chip, `mine` filter, Mine group when `hasMyTeam`, droppable tone, cell tooltips                                                     |
+| `src/renderer/src/components/ValueHelp.tsx` (modify)            | _Mine_ section (column descriptions + the same-position note)                                                                                 |
+| `docs/reference/value-and-signals.md` (modify)                  | new fields, Mine group, `roster.ts`, constants                                                                                                |
+| `tests/main/value/roster.test.ts` (create)                      | pure tests (spec §8)                                                                                                                          |
+| `tests/main/value/build.test.ts`, `series.test.ts` (modify)     | roster-relative integration (with a free agent inserted by the test), bundle fields                                                           |
+| `tests/main/db/playersWeek.test.ts` (modify)                    | `ownerIsMe` on week rows                                                                                                                      |
+| `tests/main/value/signals.test.ts`, `schedule.test.ts` (modify) | fixture literals gain `ownerIsMe` / `rosterSlot`                                                                                              |
+| `tests/renderer/lib/playersTableView.test.ts` (modify)          | fixture literals; Mine group, cells, sort, filter, titles                                                                                     |
 
 ---
 
@@ -67,41 +67,41 @@ Types plus the two extra columns on the candidate query. `assembleValue` fills `
 
 - Produces: `PlayerBaseRow.ownerIsMe: boolean`; `Droppable { playerId; fullName; delta }`; `MyBaseline { playerId; fullName; rosValue }`; `PlayerValueRow.vsMine: number | null`, `.droppable: Droppable | null`; `ValueContext.hasMyTeam: boolean`, `.mine: Record<string, MyBaseline | null>`; `CandidateRow.owner_slot: RosterSlot | null`, `.owner_is_me: number | null`; `PlayerSeries.rosterSlot: RosterSlot | null`; `SeriesBundle.hasMyTeam: boolean`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/main/db/playersWeek.test.ts`, inside `it('rows carry both lines, points, delta, usage, owner, game and bye', …)`, add `ownerIsMe: true` to Barkley's `toMatchObject` and, right after that expectation, add:
 
 ```ts
-    expect(rows.find((r) => r.playerId === '7564')).toMatchObject({
-      ownerName: 'Rival',
-      ownerIsMe: false
-    })
+expect(rows.find((r) => r.playerId === '7564')).toMatchObject({
+  ownerName: 'Rival',
+  ownerIsMe: false
+})
 ```
 
 In `tests/main/value/series.test.ts`, inside `it('carries the season context', …)` add:
 
 ```ts
-    expect(bundle.hasMyTeam).toBe(true)
+expect(bundle.hasMyTeam).toBe(true)
 ```
 
 and add a new test in the same `describe('loadSeries', …)`:
 
 ```ts
-  it("carries each candidate's roster slot and whether the owner is me", () => {
-    expect(byId.get('4866')?.rosterSlot).toBe('starter')
-    expect(byId.get('8259')?.rosterSlot).toBe('ir')
-    expect(byId.get('9509')?.rosterSlot).toBe('taxi')
-    expect(byId.get('4866')?.base.ownerIsMe).toBe(true)
-    expect(byId.get('9509')?.base.ownerIsMe).toBe(false)
-  })
+it("carries each candidate's roster slot and whether the owner is me", () => {
+  expect(byId.get('4866')?.rosterSlot).toBe('starter')
+  expect(byId.get('8259')?.rosterSlot).toBe('ir')
+  expect(byId.get('9509')?.rosterSlot).toBe('taxi')
+  expect(byId.get('4866')?.base.ownerIsMe).toBe(true)
+  expect(byId.get('9509')?.base.ownerIsMe).toBe(false)
+})
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `npx vitest run tests/main/db/playersWeek.test.ts tests/main/value/series.test.ts`
 Expected: 3 failures — `ownerIsMe` is `undefined` on the week rows, `bundle.hasMyTeam` is `undefined`, `rosterSlot` is `undefined`.
 
-- [ ] **Step 3: Shared types**
+- [x] **Step 3: Shared types**
 
 In `src/shared/types.ts`, `PlayerBaseRow` becomes:
 
@@ -145,22 +145,22 @@ export interface MyBaseline {
 In `PlayerValueRow`, between `signals` and `statsAvailable`, add:
 
 ```ts
-  /** Free agents only: ROS value minus my lowest-valued startable player's at the position. */
-  vsMine: number | null
-  /** My startable players only: the best free agent at the position when strictly better. */
-  droppable: Droppable | null
+/** Free agents only: ROS value minus my lowest-valued startable player's at the position. */
+vsMine: number | null
+/** My startable players only: the best free agent at the position when strictly better. */
+droppable: Droppable | null
 ```
 
 In `ValueContext`, after `teamCount`, add:
 
 ```ts
-  /** A `teams` row is flagged `is_me`; when false `vsMine`, `droppable` and every `mine` entry are null. */
-  hasMyTeam: boolean
-  /** Per lineup position; null when I roster nobody startable with a ROS value there. */
-  mine: Record<string, MyBaseline | null>
+/** A `teams` row is flagged `is_me`; when false `vsMine`, `droppable` and every `mine` entry are null. */
+hasMyTeam: boolean
+/** Per lineup position; null when I roster nobody startable with a ROS value there. */
+mine: Record<string, MyBaseline | null>
 ```
 
-- [ ] **Step 4: Candidate query and `baseRow`**
+- [x] **Step 4: Candidate query and `baseRow`**
 
 In `src/main/db/repos/playersWeek.ts`, add `RosterSlot` to the `@shared/types` type import:
 
@@ -209,10 +209,10 @@ In `listCandidates`, change the owner line of the SELECT to:
 In `baseRow`, after `ownerName: r.owner_name`, add:
 
 ```ts
-    ownerIsMe: r.owner_is_me === 1
+ownerIsMe: r.owner_is_me === 1
 ```
 
-- [ ] **Step 5: Series bundle fields**
+- [x] **Step 5: Series bundle fields**
 
 In `src/main/value/series.ts`:
 
@@ -258,7 +258,7 @@ In the `listCandidates(...).map((r): PlayerSeries => { … return { … } })` li
     hasMyTeam: listTeams(db, leagueId).some((t) => t.isMe),
 ```
 
-- [ ] **Step 6: Build stubs**
+- [x] **Step 6: Build stubs**
 
 In `src/main/value/build.ts`, in the row literal inside `const rows: PlayerValueRow[] = valued.map(…)`, add after `signals,`:
 
@@ -274,7 +274,7 @@ and in the `context:` literal add after `teamCount: bundle.teamCount,`:
       mine: Object.fromEntries(LINEUP_POSITIONS.map((pos) => [pos, null])),
 ```
 
-- [ ] **Step 7: Fixture literals**
+- [x] **Step 7: Fixture literals**
 
 `tests/main/value/schedule.test.ts` — in `player(...)`: add `ownerIsMe: false` after `ownerName: null` inside `base`, and `rosterSlot: null,` after `statsAvailable: true`.
 
@@ -282,12 +282,12 @@ and in the `context:` literal add after `teamCount: bundle.teamCount,`:
 
 `tests/renderer/lib/playersTableView.test.ts` — in `row(...)`: add `ownerIsMe: false,` after `ownerName: null,`. In `valueRow(...)`: add `ownerIsMe: false,` after `ownerName: null,` and `vsMine: null,` + `droppable: null,` after `signals: signalsFixture(),`. In both `ValueContext` literals (the `replacementLabel` and `valueHeaderTitle` tests) add `hasMyTeam: false,` and `mine: {},` after `teamCount: 16,`.
 
-- [ ] **Step 8: Verify**
+- [x] **Step 8: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: clean; 238 tests (237 + 1).
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/shared/types.ts src/main/db/repos/playersWeek.ts src/main/value/series.ts src/main/value/build.ts tests
@@ -308,7 +308,7 @@ git commit -m "feat(value): surface owner-is-me and roster slot" -m "Co-Authored
 - Consumes: `Droppable`, `MyBaseline`, `RosterSlot` from `@shared/types` (Task 1).
 - Produces: `UNSTARTABLE_SLOTS: ReadonlySet<RosterSlot>`; `RosterInput { playerId; fullName; position; ownerRosterId; ownerIsMe; rosterSlot; rosValue }`; `RosterRelative { vsMine; droppable }`; `RosterView { byPlayer: Map<string, RosterRelative>; baseline: Map<string, MyBaseline> }`; `rosterRelative(players: RosterInput[], hasMyTeam: boolean): RosterView`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/main/value/roster.test.ts`:
 
@@ -443,12 +443,12 @@ describe('rosterRelative', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run tests/main/value/roster.test.ts`
 Expected: FAIL — `Cannot find module '@main/value/roster'`.
 
-- [ ] **Step 3: Implement `roster.ts`**
+- [x] **Step 3: Implement `roster.ts`**
 
 Create `src/main/value/roster.ts`:
 
@@ -541,12 +541,12 @@ export function rosterRelative(players: RosterInput[], hasMyTeam: boolean): Rost
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run tests/main/value/roster.test.ts`
 Expected: 9 passed.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: clean; 247 tests.
@@ -570,7 +570,7 @@ git commit -m "feat(value): roster-relative vsMine and droppable" -m "Co-Authore
 - Consumes: `rosterRelative`, `RosterView` (Task 2); `PlayerSeries.rosterSlot`, `SeriesBundle.hasMyTeam` (Task 1).
 - Produces: `PlayerValueRow.vsMine` / `.droppable` and `ValueContext.hasMyTeam` / `.mine` filled for real — what Tasks 4–5 render.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/main/value/build.test.ts`, extend the imports:
 
@@ -686,12 +686,12 @@ describe('buildValueSeason — roster-relative view', () => {
 })
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `npx vitest run tests/main/value/build.test.ts`
 Expected: the first two new tests fail (`vsMine` is `null`, `context.mine.RB` is `null`); the third passes already (stubs). The seven existing tests still pass — the free agent is only inserted in the new `describe`.
 
-- [ ] **Step 3: Wire `rosterRelative` into `assembleValue`**
+- [x] **Step 3: Wire `rosterRelative` into `assembleValue`**
 
 In `src/main/value/build.ts`, add the import:
 
@@ -702,14 +702,14 @@ import { rosterRelative } from './roster'
 In `assembleValue`, right after `const schedules = new Map<string, ScheduleEntry[]>()`, add:
 
 ```ts
-  const roster = rosterRelative(
-    valued.map((v) => ({
-      ...v.a.series.base,
-      rosterSlot: v.a.series.rosterSlot,
-      rosValue: v.rosValue
-    })),
-    bundle.hasMyTeam
-  )
+const roster = rosterRelative(
+  valued.map((v) => ({
+    ...v.a.series.base,
+    rosterSlot: v.a.series.rosterSlot,
+    rosValue: v.rosValue
+  })),
+  bundle.hasMyTeam
+)
 ```
 
 In the `rows` map, replace the Task 1 stubs `vsMine: null, droppable: null,` with:
@@ -722,34 +722,34 @@ In the `rows` map, replace the Task 1 stubs `vsMine: null, droppable: null,` wit
 Replace the replacement/context tail of the function with:
 
 ```ts
-  const replacement: ValueContext['replacement'] = {}
-  const mine: ValueContext['mine'] = {}
-  for (const pos of LINEUP_POSITIONS) {
-    replacement[pos] = { std: stdLevels.get(pos) ?? null, ros: rosLevels.get(pos) ?? null }
-    mine[pos] = roster.baseline.get(pos) ?? null
-  }
-  return {
-    context: {
-      season: bundle.season,
-      currentWeek: bundle.currentWeek,
-      projectionsStored: bundle.projectionsStored,
-      teamCount: bundle.teamCount,
-      hasMyTeam: bundle.hasMyTeam,
-      mine,
-      replacement
-    },
-    rows,
-    series: new Map(bundle.players.map((p) => [p.base.playerId, p])),
-    schedules
-  }
+const replacement: ValueContext['replacement'] = {}
+const mine: ValueContext['mine'] = {}
+for (const pos of LINEUP_POSITIONS) {
+  replacement[pos] = { std: stdLevels.get(pos) ?? null, ros: rosLevels.get(pos) ?? null }
+  mine[pos] = roster.baseline.get(pos) ?? null
+}
+return {
+  context: {
+    season: bundle.season,
+    currentWeek: bundle.currentWeek,
+    projectionsStored: bundle.projectionsStored,
+    teamCount: bundle.teamCount,
+    hasMyTeam: bundle.hasMyTeam,
+    mine,
+    replacement
+  },
+  rows,
+  series: new Map(bundle.players.map((p) => [p.base.playerId, p])),
+  schedules
+}
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `npx vitest run tests/main/value/build.test.ts`
 Expected: 10 passed.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: clean; 250 tests.
@@ -773,7 +773,7 @@ git commit -m "feat(value): roster-relative fields in the build" -m "Co-Authored
 - Consumes: `PlayerValueRow.vsMine` / `.droppable`, `ValueContext.hasMyTeam` / `.mine` (Task 1).
 - Produces: `columnGroups(tabId, mode, mine = false)`; `Column.kind = 'droppable'` with `key: 'droppable'`; `ValueField` includes `'vsMine'`; `TableFilters.mine: boolean`; `mineLabel(context, positions): string`; `mineCellTitle(row, col, context): string | undefined`. Task 5 calls all of these.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/renderer/lib/playersTableView.test.ts`, add `mineCellTitle` and `mineLabel` to the `@/lib/playersTableView` import (alphabetical: after `kickoffLabel`). Append a new `describe` at the end of the file:
 
@@ -884,7 +884,9 @@ describe('mine group', () => {
     expect(mineCellTitle(valueRow(), droppable, context)).toBeUndefined()
     expect(mineCellTitle(valueRow({ position: 'K' }), vsMine, context)).toBe('no K rostered')
     expect(mineCellTitle(valueRow({ position: 'RB' }), vsMine, context)).toBeUndefined() // baseline exists: a ROS value is missing instead
-    expect(mineCellTitle(valueRow({ position: 'K', ownerRosterId: 2 }), vsMine, context)).toBeUndefined()
+    expect(
+      mineCellTitle(valueRow({ position: 'K', ownerRosterId: 2 }), vsMine, context)
+    ).toBeUndefined()
     expect(mineCellTitle(valueRow({ position: 'K', vsMine: 1 }), vsMine, context)).toBeUndefined()
     expect(
       mineCellTitle(valueRow({ position: 'K' }), vsMine, { ...context, projectionsStored: false })
@@ -895,12 +897,12 @@ describe('mine group', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run tests/renderer/lib/playersTableView.test.ts`
 Expected: the file fails to compile / the new tests fail — `mineLabel` and `mineCellTitle` are not exported, `columnGroups(…, true)` returns three groups, `TableFilters` has no `mine`.
 
-- [ ] **Step 3: Kinds, fields, the Mine group**
+- [x] **Step 3: Kinds, fields, the Mine group**
 
 In `src/renderer/src/lib/playersTableView.ts`:
 
@@ -908,20 +910,13 @@ In `src/renderer/src/lib/playersTableView.ts`:
 export type ColumnKind =
   'points' | 'delta' | 'stat' | 'snapPct' | 'targetShare' | 'value' | 'signal' | 'droppable'
 export type ValueField =
-  | 'gamesPlayed'
-  | 'ppg'
-  | 'stdValue'
-  | 'stdRank'
-  | 'rosPoints'
-  | 'rosValue'
-  | 'rosRank'
-  | 'vsMine'
+  'gamesPlayed' | 'ppg' | 'stdValue' | 'stdRank' | 'rosPoints' | 'rosValue' | 'rosRank' | 'vsMine'
 ```
 
 Update the `Column.key` doc comment to list `droppable`:
 
 ```ts
-  /** Sort key (`points`, `delta`, `snapPct`, `targetShare`, `stat:<key>`, `value:<field>`, `signal:<field>`, `droppable`). */
+/** Sort key (`points`, `delta`, `snapPct`, `targetShare`, `stat:<key>`, `value:<field>`, `signal:<field>`, `droppable`). */
 ```
 
 After the `SIGNALS` group, add:
@@ -957,18 +952,18 @@ export function columnGroups(tabId: string, mode: TableMode, mine = false): Colu
 
 (the rest of the function is unchanged).
 
-- [ ] **Step 4: Cells, sort, filter**
+- [x] **Step 4: Cells, sort, filter**
 
 `cellValue`: add as the first line of the body:
 
 ```ts
-  if (col.kind === 'droppable') return isValueRow(row) ? (row.droppable?.delta ?? null) : null
+if (col.kind === 'droppable') return isValueRow(row) ? (row.droppable?.delta ?? null) : null
 ```
 
 `cellText`: add as the first line of the body, **before** the `value === null` dash:
 
 ```ts
-  if (col.kind === 'droppable') return value === null ? '' : '●'
+if (col.kind === 'droppable') return value === null ? '' : '●'
 ```
 
 `TableFilters` gains `mine`:
@@ -994,12 +989,12 @@ export interface TableFilters {
 `sortValue`: add after the `signal:` branch:
 
 ```ts
-  if (key === 'droppable') return isValueRow(row) ? (row.droppable?.delta ?? null) : null
+if (key === 'droppable') return isValueRow(row) ? (row.droppable?.delta ?? null) : null
 ```
 
 Update the `TableSort.key` doc comment to include `'droppable'`.
 
-- [ ] **Step 5: Header and cell tooltips**
+- [x] **Step 5: Header and cell tooltips**
 
 Replace `valueHeaderTitle` and add the two helpers after it:
 
@@ -1055,12 +1050,12 @@ export function mineCellTitle(
 }
 ```
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests**
 
 Run: `npx vitest run tests/renderer/lib/playersTableView.test.ts`
 Expected: all pass, including the pre-existing `'has the same three groups on every tab'` (the default is still three groups) and the value-header title test (`!col.description` is the same guard for stat columns).
 
-- [ ] **Step 7: Verify and commit**
+- [x] **Step 7: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: typecheck fails in `PlayersScreen.tsx` on the `filterRows` call — `mine` is missing from the filters object. Fix it minimally now (Task 5 wires the chip): in `src/renderer/src/screens/PlayersScreen.tsx`, add `mine: false,` to the `filterRows(source, currentTab, { … })` object. Re-run; expected clean, 256 tests.
@@ -1086,53 +1081,55 @@ No unit tests (components are not tested in this repo); the user checks it in th
 
 - Consumes: `columnGroups(tab, mode, mine)`, `TableFilters.mine`, `mineCellTitle`, `Column.kind = 'droppable'` (Task 4); `ValueContext.hasMyTeam` (Task 1); `Team.isMe` (existing).
 
-- [ ] **Step 1: Screen — state, filter, groups, chip**
+- [x] **Step 1: Screen — state, filter, groups, chip**
 
 In `src/renderer/src/screens/PlayersScreen.tsx`, add `mineCellTitle` to the `@/lib/playersTableView` import. Add state after `const [rookies, setRookies] = useState(false)`:
 
 ```tsx
-  const [mine, setMine] = useState(false)
+const [mine, setMine] = useState(false)
 ```
 
 After the `useEffect` blocks (before `const closePanel`), add:
 
 ```tsx
-  const hasMyTeam = teams.some((t) => t.isMe)
+const hasMyTeam = teams.some((t) => t.isMe)
 ```
 
 In the `visible` memo, replace the Task 4 placeholder `mine: false,` with `mine,` and add `mine` to the dependency array (after `rookies`). Change the groups line to:
 
 ```tsx
-  const groups = columnGroups(tab, effectiveMode, valueContext?.hasMyTeam ?? false)
+const groups = columnGroups(tab, effectiveMode, valueContext?.hasMyTeam ?? false)
 ```
 
 After the Rookies chip, add:
 
 ```tsx
-        {hasMyTeam && (
-          <Chip active={mine} onClick={() => setMine((v) => !v)}>
-            My team
-          </Chip>
-        )}
+{
+  hasMyTeam && (
+    <Chip active={mine} onClick={() => setMine((v) => !v)}>
+      My team
+    </Chip>
+  )
+}
 ```
 
-- [ ] **Step 2: Screen — droppable tone and cell tooltips**
+- [x] **Step 2: Screen — droppable tone and cell tooltips**
 
 In the `columns.map((col) => { … })` cell renderer, replace the `tone` expression with:
 
 ```tsx
-                const tone =
-                  col.kind === 'signal'
-                    ? signalTone(p, col)
-                    : col.kind === 'droppable'
-                      ? value !== null
-                        ? 'neg'
-                        : null
-                      : signed && value !== null
-                        ? value >= 0
-                          ? 'pos'
-                          : 'neg'
-                        : null
+const tone =
+  col.kind === 'signal'
+    ? signalTone(p, col)
+    : col.kind === 'droppable'
+      ? value !== null
+        ? 'neg'
+        : null
+      : signed && value !== null
+        ? value >= 0
+          ? 'pos'
+          : 'neg'
+        : null
 ```
 
 and give the cell its tooltip:
@@ -1146,35 +1143,37 @@ and give the cell its tooltip:
 
 (the `className` body and the `signalText` / `cellText` child are unchanged — `cellText` already renders `●` / blank for the droppable kind through `cellValue`.)
 
-- [ ] **Step 3: Help panel**
+- [x] **Step 3: Help panel**
 
 In `src/renderer/src/components/ValueHelp.tsx`, after the Signals `</dl>` and before `{context && (<Table …`, add:
 
 ```tsx
-      {context?.hasMyTeam && (
-        <>
-          <h3 className="mt-5 text-sm font-semibold">Mine</h3>
-          <dl className="mt-2 space-y-3 text-sm">
-            {columnGroups('ALL', 'value', true)
-              .filter((g) => g.label === 'Mine')
-              .flatMap((g) => g.columns)
-              .map((c) => (
-                <Term key={c.key} name={c.label}>
-                  {c.description}
-                </Term>
-              ))}
-            <Term name="Same position only">
-              FLEX is already in the replacement level, so ROS VAL compares across positions — but a
-              cross-position swap (drop a WR to add this RB) needs a lineup model and is not
-              suggested. Players on IR or the taxi squad are not counted as my players at the
-              position; the My team chip still lists them.
+{
+  context?.hasMyTeam && (
+    <>
+      <h3 className="mt-5 text-sm font-semibold">Mine</h3>
+      <dl className="mt-2 space-y-3 text-sm">
+        {columnGroups('ALL', 'value', true)
+          .filter((g) => g.label === 'Mine')
+          .flatMap((g) => g.columns)
+          .map((c) => (
+            <Term key={c.key} name={c.label}>
+              {c.description}
             </Term>
-          </dl>
-        </>
-      )}
+          ))}
+        <Term name="Same position only">
+          FLEX is already in the replacement level, so ROS VAL compares across positions — but a
+          cross-position swap (drop a WR to add this RB) needs a lineup model and is not suggested.
+          Players on IR or the taxi squad are not counted as my players at the position; the My team
+          chip still lists them.
+        </Term>
+      </dl>
+    </>
+  )
+}
 ```
 
-- [ ] **Step 4: Verify in the dev app**
+- [x] **Step 4: Verify in the dev app**
 
 Run: `npm run typecheck && npm run lint && npm test` — expected clean, 256 tests. Then `npx electron-vite dev -- --no-sandbox --disable-gpu --in-process-gpu` and ask the user to check, on the Players screen:
 
@@ -1186,15 +1185,15 @@ Run: `npm run typecheck && npm run lint && npm test` — expected clean, 256 tes
 
 Also record the uncached `players.value` time from the main-process log for the progress notes (expected: within noise of `v0.6.0`'s 79–85 ms).
 
-- [ ] **Step 5: Data reference**
+- [x] **Step 5: Data reference**
 
 In `docs/reference/value-and-signals.md`:
 
 1. `## ValueContext` table — add two rows after `teamCount`:
 
 ```markdown
-| `hasMyTeam`         | A `teams` row is flagged `is_me` (set at import from the Sleeper user). When `false`, `vsMine`, `droppable` and every `mine[pos]` are `null`, and the UI hides the Mine group and the My team chip. |
-| `mine[pos]`         | `{ playerId, fullName, rosValue } \| null` per lineup position: my startable player (not IR / taxi) with the lowest `rosValue` — the `vsMine` baseline. `null` when I roster nobody startable with a ROS value there. |
+| `hasMyTeam` | A `teams` row is flagged `is_me` (set at import from the Sleeper user). When `false`, `vsMine`, `droppable` and every `mine[pos]` are `null`, and the UI hides the Mine group and the My team chip. |
+| `mine[pos]` | `{ playerId, fullName, rosValue } \| null` per lineup position: my startable player (not IR / taxi) with the lowest `rosValue` — the `vsMine` baseline. `null` when I roster nobody startable with a ROS value there. |
 ```
 
 2. `### Identity and roster` paragraph — after `ownerName`, insert `ownerIsMe` so the list reads:
@@ -1210,23 +1209,23 @@ In `docs/reference/value-and-signals.md`:
 
 Spec §4; computed in `src/main/value/roster.ts`, same position only (FLEX is in the replacement level but cross-position drops need a lineup model — slice 6).
 
-| Field       | Definition                                                                                                                                                                        | `null` when                                                                                   |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `vsMine`    | Free agents only: `rosValue − mine[pos].rosValue`. Can be negative; 0 when equal.                                                                                                 | rostered by anyone (mine or not), no `mine[pos]`, no `rosValue` on either side, no team mine |
+| Field       | Definition                                                                                                                                                                                                                                                                         | `null` when                                                                                  |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `vsMine`    | Free agents only: `rosValue − mine[pos].rosValue`. Can be negative; 0 when equal.                                                                                                                                                                                                  | rostered by anyone (mine or not), no `mine[pos]`, no `rosValue` on either side, no team mine |
 | `droppable` | My startable players only: `{ playerId, fullName, delta }` of the best free agent at the position when its `rosValue` is **strictly** higher; `delta` = its `rosValue − mine`. Several of my players can carry it; the one on my weakest player equals that free agent's `vsMine`. | not mine, IR / taxi, no better free agent, no `rosValue` on either side, no team mine        |
 ```
 
 4. `## Constants (single sources)` table — add a row:
 
 ```markdown
-| `src/main/value/roster.ts`                                | `UNSTARTABLE_SLOTS = {ir, taxi}` — roster slots that never count as "my players at the position"                                                                                                       |
+| `src/main/value/roster.ts` | `UNSTARTABLE_SLOTS = {ir, taxi}` — roster slots that never count as "my players at the position" |
 ```
 
 5. `## Where each number is shown today (v0.6.0)` → `(v0.7.0)`; in the Value-mode table add after the `VS PROJ` row:
 
 ```markdown
-| Mine           | VS MINE | `vsMine`                                                                                                                                             | signed         | green ≥ 0 / red < 0  |
-|                | DROP?   | `droppable` as a marker `●` (red) with the free agent's name and delta in the cell tooltip; blank otherwise; sorts by `delta`                        | marker         | red                  |
+| Mine | VS MINE | `vsMine` | signed | green ≥ 0 / red < 0 |
+| | DROP? | `droppable` as a marker `●` (red) with the free agent's name and delta in the cell tooltip; blank otherwise; sorts by `delta` | marker | red |
 ```
 
 and append this sentence to the "Default sort…" paragraph below the table:
@@ -1238,12 +1237,12 @@ The Mine group exists only when `context.hasMyTeam`; the VS MINE header tooltip 
 6. `## Module map` — add a row after `schedule.ts`:
 
 ```markdown
-| `src/main/value/roster.ts`                        | Roster-relative view: `vsMine`, `droppable`, my per-position baseline.                                                                   |
+| `src/main/value/roster.ts` | Roster-relative view: `vsMine`, `droppable`, my per-position baseline. |
 ```
 
 Run `npm run format` so Prettier re-aligns the tables.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 Run: `npm run typecheck && npm run lint && npm test` — expected clean, 256 tests.
 
@@ -1260,10 +1259,10 @@ git commit -m "docs: roster-relative fields in the data reference" -m "Co-Author
 
 Only after the user has checked Task 5 in the dev app and asked for the build.
 
-- [ ] **Step 1:** `package.json` / `package-lock.json` version `0.6.0` → `0.7.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.7.0` (with the Co-Authored-By trailer).
-- [ ] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.7.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
+- [x] **Step 1:** `package.json` / `package-lock.json` version `0.6.0` → `0.7.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.7.0` (with the Co-Authored-By trailer).
+- [x] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.7.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
 - [ ] **Step 3:** User installs over 0.6.0 (no migration), checks in Value mode that the `VS MINE` numbers for the top free-agent RB/WR read sensibly against their own roster and that the `DROP?` markers land on the players they would expect; record the uncached `players.value` time in the progress notes.
-- [ ] **Step 4:** Progress notes appended to this plan, commit `docs(plan): mark plan G complete`, tag `v0.7.0`, fast-forward `main`, delete the branch.
+- [x] **Step 4:** Progress notes appended to this plan, commit `docs(plan): mark plan G complete`, tag `v0.7.0`, fast-forward `main`, delete the branch.
 
 ---
 
@@ -1272,3 +1271,14 @@ Only after the user has checked Task 5 in the dev app and asked for the build.
 - **Spec coverage:** §4 "my team" = `teams.is_me` (`SeriesBundle.hasMyTeam` via `listTeams`, T1); fields null and UI hidden without one (T2 early return, T3 context, T4 `columnGroups(…, mine)`, T5 chip gate, §6.3 last bullet); `vsMine` = `rosValue − min(my rostered at pos)` for players rostered by nobody, null when I roster nobody at pos (tooltip "no K rostered", T4 `mineCellTitle`) or a side has no ROS value, null for other teams' players (T2 `isFreeAgent` / `NONE`); `droppable` on my players when the best free agent is strictly higher, carrying `{ playerId, fullName, delta }`, symmetric with `vsMine` (T2 test "symmetric"); FLEX same-position only, stated in the UI (T4 descriptions, T5 help term); IR excluded from "my players at pos" (T2 `UNSTARTABLE_SLOTS`, T3 Cook on IR); My team chip as a fourth chip, all three modes (T4 `TableFilters.mine` over `PlayerBaseRow`, T5). §5.1 `ownerIsMe` on `PlayerBaseRow` (week rows unaffected otherwise — T1 `playersWeek.test.ts`), `vsMine` / `droppable` on `PlayerValueRow`, `hasMyTeam` on `ValueContext` (T1; `mine` recorded as a deviation). §5.3 `roster.ts` pure, no DB (T2); cache untouched. §6.1 Mine group `vs mine · droppable` identical on every tab (T4 test over ALL / K), both columns sortable with nulls last (T4), `droppable` as a marker with name + delta in the tooltip, `vs mine` as a signed number (T4/T5). §8 `roster.test.ts` symmetry / no player at position / no `is_me` team / IR exclusion (T2) plus the build integration with a free agent (T3) and `playersTableView.test.ts` chips over `PlayerBaseRow` (T4). §9 `roster.ts` + the listed renderer files. §10 row G → v0.7.0 (T6). Windows verification with a sanity read (T6 step 3).
 - **Placeholder scan:** none — the Task 1 `vsMine: null` / `droppable: null` / `mine: {…null}` stubs are code steps replaced in Task 3; the Task 4 `mine: false` in the screen is replaced in Task 5.
 - **Type consistency:** `RosterInput` (T2) is satisfied by `{ ...PlayerBaseRow, rosterSlot: PlayerSeries.rosterSlot, rosValue }` (T1 fields, T3 call); `RosterView.byPlayer` values are `RosterRelative = { vsMine; droppable: Droppable | null }` matching `PlayerValueRow` (T1); `RosterView.baseline: Map<string, MyBaseline>` fills `ValueContext.mine: Record<string, MyBaseline | null>` (T1, T3) which `mineLabel` / `mineCellTitle` read (T4) and `ValueHelp` gates on via `hasMyTeam` (T5); `columnGroups(tabId, mode, mine)` (T4) is called with `valueContext?.hasMyTeam ?? false` in the screen and `true` in the help (T5); `Column.kind = 'droppable'` with `key: 'droppable'` is what `cellValue`, `cellText`, `sortValue`, `mineCellTitle` (T4) and the screen's tone branch (T5) switch on; `TableFilters.mine` (T4) is the screen's `mine` state (T5); `ValueField` includes `'vsMine'` so `cellValue`'s `row[col.field]` stays `number | null` (T1 `vsMine: number | null`).
+
+## Progress notes (2026-09-18)
+
+- Tasks 1–6 executed inline on `feat/roster-relative-view`; typecheck, lint and Vitest clean at every commit (237 → 256 tests, as planned). Task 5 checked by the user in the WSL dev app: "fine".
+- **Timing** (one-off vitest script against DB copies, three warm runs): the WSL dev DB (825–828 candidates, projections stored) builds in 185–191 ms; the Windows DB copy (no projections stored yet — the app there has not synced them) in 92–105 ms, vs Plan F's 79–85 ms on the same DB. The roster pass itself is negligible; the difference is the extra `listTeams` query plus noise.
+- **Real-data sanity read (dev DB, week 2):** my weakest startable players — QB Bryce Young −26.5, RB Nicholas Singleton −112, WR Barion Brown −112.5, TE Hunter Henry +26.3, K Harrison Mevis +8.6, DEF Tampa Bay +1.6. 566 free agents get a `vsMine`; top: George Holani +93.5, Cooper Kupp +92.6. `droppable` lands on Jacobs (← Holani +10.2), Mevis (← Matt Gay +7.7), Singleton, Emmett Johnson, Barion Brown; Cook, McBride, McConkey, Odunze, Coker, Stafford and both defenses are not flagged. Reads as intended.
+- **Deviations from the task text:**
+  - Task 4: the two pre-existing `TableFilters` literals in `playersTableView.test.ts` (`none`, `filters`) also needed `mine: false` — the plan only listed the screen's call.
+  - Task 5: the screen's `playersTableView` import block has no `kickoffLabel`; `mineCellTitle` went after `filterRows`.
+  - Task 6: `pkill -f electron` kills the invoking shell under this harness; processes were stopped by PID.
+- Windows build: `dist/FantasyCompanion-Setup-0.7.0.exe` (94 MB), copied to `C:\Users\habie\OneDrive\Bureau`. Install over 0.6.0 (no migration) pending the user's check (Task 6 step 3).
