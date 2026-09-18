@@ -60,13 +60,13 @@ Refactor only — behaviour unchanged, existing tests must stay green.
 **Interfaces:**
 - Produces: `LINEUP_POSITIONS: readonly string[]`, `FLEX_ELIGIBILITY: Record<string, readonly string[]>`, `asPosition(value: string | null): Position | null` in `@shared/rules`; `PlayerBaseRow` in `@shared/types`; `listCandidates(db, leagueId): CandidateRow[]`, `baseRow(r: CandidateRow, byes: Map<string, number>): PlayerBaseRow`, exported `CandidateRow` in `@main/db/repos/playersWeek`.
 
-- [ ] **Step 1: Create the branch**
+- [x] **Step 1: Create the branch**
 
 ```bash
 git checkout -b feat/value-mode main
 ```
 
-- [ ] **Step 2: Add the shared constants to `src/shared/rules.ts`** (after `export type Position = …`, line 9)
+- [x] **Step 2: Add the shared constants to `src/shared/rules.ts`** (after `export type Position = …`, line 9)
 
 ```ts
 /** Positions with a dedicated lineup slot; the only ones the app scores and values. */
@@ -85,7 +85,7 @@ export function asPosition(value: string | null): Position | null {
 }
 ```
 
-- [ ] **Step 3: Split `PlayerWeekRow` in `src/shared/types.ts`**
+- [x] **Step 3: Split `PlayerWeekRow` in `src/shared/types.ts`**
 
 Replace the `PlayerWeekRow` interface (lines 80–104) with:
 
@@ -121,7 +121,7 @@ export interface PlayerWeekRow extends PlayerBaseRow {
 }
 ```
 
-- [ ] **Step 4: Refactor `src/main/db/repos/playersWeek.ts`**
+- [x] **Step 4: Refactor `src/main/db/repos/playersWeek.ts`**
 
 Replace the imports of `POSITIONS, type Position, type RosterSlotCount` with:
 
@@ -211,12 +211,12 @@ In `playersWeek`, replace the inline `db.prepare(…).all(…)` with `const cand
 
 (`nflverseTeam` stays computed in the loop for `game`.)
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: all green (178 tests), no behaviour change.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/shared/rules.ts src/shared/types.ts src/main/db/repos/playersWeek.ts
@@ -238,7 +238,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `FLEX_ELIGIBILITY`, `LINEUP_POSITIONS`, `RosterSlotCount` from `@shared/rules`.
 - Produces: `starterCounts(slots, teamCount, metrics: Map<string, number[]>): Map<string, number>`; `replacementLevels(slots, teamCount, metrics): Map<string, ReplacementLevel | null>`; `ReplacementLevel { level: number; starters: number }` in `@shared/types`.
 
-- [ ] **Step 1: Add the shared type** to `src/shared/types.ts` (after `PlayerWeekRow`)
+- [x] **Step 1: Add the shared type** to `src/shared/types.ts` (after `PlayerWeekRow`)
 
 ```ts
 /** Metric of the (starters + 1)-th best player at a position — spec §2.2. */
@@ -248,7 +248,7 @@ export interface ReplacementLevel {
 }
 ```
 
-- [ ] **Step 2: Write the failing tests** — `tests/main/value/replacement.test.ts`
+- [x] **Step 2: Write the failing tests** — `tests/main/value/replacement.test.ts`
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -316,12 +316,12 @@ describe('replacementLevels', () => {
 })
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/value/replacement.test.ts`
 Expected: FAIL — cannot resolve `@main/value/replacement`.
 
-- [ ] **Step 4: Implement `src/main/value/replacement.ts`**
+- [x] **Step 4: Implement `src/main/value/replacement.ts`**
 
 ```ts
 import { FLEX_ELIGIBILITY, LINEUP_POSITIONS, type RosterSlotCount } from '@shared/rules'
@@ -385,12 +385,12 @@ export function replacementLevels(
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/value/replacement.test.ts`
 Expected: 5 passed.
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -413,7 +413,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `listPlayerWeeksBySeason(db, season): PlayerWeekRow[]` (repo type: `gsisId, week, team, opponent, position, stats`); `listTeamWeeksBySeason(db, season): TeamWeekRow[]`; `listSnapsBySeason(db, season): { pfrId: string; week: number; offensePct: number | null }[]`; `listRegularSeasonGames(db, season): GameRow[]`; `listPointsBySeason(db, leagueId, season): { playerId: string; week: number; points: number }[]`; `listProjectionsBySeason(db, season): ProjectionRecord[]`.
 
-- [ ] **Step 1: Write the failing tests** — `tests/main/db/seasonReads.test.ts`
+- [x] **Step 1: Write the failing tests** — `tests/main/db/seasonReads.test.ts`
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -507,12 +507,12 @@ describe('season-wide reads', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/db/seasonReads.test.ts`
 Expected: FAIL — the functions are not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/main/db/repos/stats.ts` (append):
 
@@ -595,12 +595,12 @@ export function listProjectionsBySeason(db: Db, season: number): ProjectionRecor
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/db/seasonReads.test.ts`
 Expected: 2 passed.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -623,7 +623,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: Task 1 (`listCandidates`, `baseRow`, `asPosition`), Task 3 reads, `scoreStatLine`, adapters, `pointsAllowedIndex` (key `${team}|${season}|${week}`), `toNflverseTeam`/`toSleeperTeam`, `getNflState`, `getLeague`, `getRules`, `teamByeWeeks`.
 - Produces: `LAST_WEEK = 18`; `currentWeekFor(season, state): number`; `loadSeries(db, leagueId, season): SeriesBundle`; types `SeriesWeek`, `PlayerSeries`, `SeriesBundle` (below).
 
-- [ ] **Step 1: Create the shared fixture** — `tests/fixtures/season.ts`
+- [x] **Step 1: Create the shared fixture** — `tests/fixtures/season.ts`
 
 ```ts
 import type { Db } from '@main/db/connection'
@@ -788,7 +788,7 @@ export function seedSeason(db: Db): void {
 }
 ```
 
-- [ ] **Step 2: Write the failing tests** — `tests/main/value/series.test.ts`
+- [x] **Step 2: Write the failing tests** — `tests/main/value/series.test.ts`
 
 ```ts
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -865,12 +865,12 @@ describe('loadSeries', () => {
 })
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/value/series.test.ts`
 Expected: FAIL — cannot resolve `@main/value/series`.
 
-- [ ] **Step 4: Implement `src/main/value/series.ts`**
+- [x] **Step 4: Implement `src/main/value/series.ts`**
 
 ```ts
 import {
@@ -1074,12 +1074,12 @@ export function loadSeries(db: Db, leagueId: string, season: number): SeriesBund
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/value/series.test.ts`
 Expected: 6 passed. If `w1.line.rush_att` fails, check the fixture CSV's `carries` column for Barkley week 1 is > 0 and adjust the assertion to the key `playerStatLine` produces (`rush_att`).
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1102,7 +1102,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `loadSeries`, `SeriesBundle`, `PlayerSeries` (Task 4); `replacementLevels` (Task 2); `round2` from `@main/db/repos/points`.
 - Produces: `ValueBuild { context: ValueContext; rows: PlayerValueRow[]; series: Map<string, PlayerSeries> }`; `assembleValue(bundle: SeriesBundle): ValueBuild`; `buildValueSeason(db, leagueId, season): ValueBuild`; `detailFor(build, playerId): PlayerDetail | null`.
 
-- [ ] **Step 1: Add the shared types** to `src/shared/types.ts` (after `ReplacementLevel`)
+- [x] **Step 1: Add the shared types** to `src/shared/types.ts` (after `ReplacementLevel`)
 
 ```ts
 /** One player's season value (spec §2); ranks are 1-based within position, overall by ROS value. */
@@ -1153,7 +1153,7 @@ export interface PlayerDetail {
 }
 ```
 
-- [ ] **Step 2: Write the failing tests** — `tests/main/value/build.test.ts`
+- [x] **Step 2: Write the failing tests** — `tests/main/value/build.test.ts`
 
 ```ts
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -1223,12 +1223,12 @@ describe('buildValueSeason', () => {
 })
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/value/build.test.ts`
 Expected: FAIL — cannot resolve `@main/value/build`.
 
-- [ ] **Step 4: Implement `src/main/value/build.ts`**
+- [x] **Step 4: Implement `src/main/value/build.ts`**
 
 ```ts
 import type { Db } from '@main/db/connection'
@@ -1411,12 +1411,12 @@ export function detailFor(build: ValueBuild, playerId: string): PlayerDetail | n
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/value/build.test.ts`
 Expected: 5 passed. If `overallRank` of `7564` is not 4, check the tie-break: Chase (rosValue 0, rosPoints 9) must precede Cook and LAR (rosValue 0, rosPoints 0).
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1439,7 +1439,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `buildValueSeason`, `detailFor`, `ValueBuild` (Task 5); `listWatched(db): string[]` from `@main/db/repos/watchlist`.
 - Produces: `api.players.value(season): Promise<PlayersValue>`, `api.players.detail(season, playerId): Promise<PlayerDetail>`; `IPC.playersValue = 'players:value'`, `IPC.playersDetail = 'players:detail'`; `invalidateCaches()` in `handlers.ts`.
 
-- [ ] **Step 1: Extend the contract** — `src/shared/ipc.ts`
+- [x] **Step 1: Extend the contract** — `src/shared/ipc.ts`
 
 In `Api.players`, after `week(...)`:
 
@@ -1457,14 +1457,14 @@ Add `PlayersValue, PlayerDetail` to the `@shared/types` import, and to `IPC`:
   playersDetail: 'players:detail',
 ```
 
-- [ ] **Step 2: Wire the preload** — `src/preload/index.ts`, in `players`:
+- [x] **Step 2: Wire the preload** — `src/preload/index.ts`, in `players`:
 
 ```ts
     value: (season) => ipcRenderer.invoke(IPC.playersValue, season),
     detail: (season, playerId) => ipcRenderer.invoke(IPC.playersDetail, season, playerId),
 ```
 
-- [ ] **Step 3: Cache and handlers** — `src/main/ipc/handlers.ts`
+- [x] **Step 3: Cache and handlers** — `src/main/ipc/handlers.ts`
 
 Imports: add `import { listWatched, toggleWatch } from '@main/db/repos/watchlist'` (replacing the `toggleWatch` import), `import { buildValueSeason, detailFor, type ValueBuild } from '@main/value/build'`, and `PlayerDetail, PlayersValue` to the `@shared/types` import.
 
@@ -1523,7 +1523,7 @@ After the `IPC.playersWeek` handler:
   })
 ```
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green. Then a smoke check in the dev app (`npx electron-vite dev -- --no-sandbox --disable-gpu --in-process-gpu` under WSL) from DevTools console:
@@ -1534,7 +1534,7 @@ console.time('value'); await window.api.players.value(2026); console.timeEnd('va
 
 Expected: a `PlayersValue` with ~800 rows; note the uncached time (budget ≤ 500 ms) in the progress notes.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/shared/ipc.ts src/preload/index.ts src/main/ipc/handlers.ts
@@ -1556,7 +1556,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `TableMode = 'proj' | 'stats' | 'value'`; `fmtSigned(value): string`; `TableRow = PlayerWeekRow | PlayerValueRow`; `isValueRow`, `isWeekRow` guards; `Column.kind` gains `'value'` with `field: ValueField` and `format: 'int' | 'fixed' | 'signed'`; `columnGroups(tabId, 'value')` → Season + Rest-of-season groups; `cellValue(row: TableRow, …)`, `cellText`; `filterRows<T extends PlayerBaseRow>`; `sortRows<T extends TableRow>`; `subLabel(row: TableRow)`; `DEFAULT_SORT: Record<TableMode, TableSort>`; `replacementLabel(context, positions, kind): string`.
 
-- [ ] **Step 1: `TableMode`** in `src/shared/types.ts`:
+- [x] **Step 1: `TableMode`** in `src/shared/types.ts`:
 
 ```ts
 export type TableMode = 'proj' | 'stats' | 'value'
@@ -1571,7 +1571,7 @@ export function fmtSigned(value: number | null): string {
 }
 ```
 
-- [ ] **Step 2: Write the failing tests** — append to `tests/renderer/lib/playersTableView.test.ts`
+- [x] **Step 2: Write the failing tests** — append to `tests/renderer/lib/playersTableView.test.ts`
 
 Add to the imports: `DEFAULT_SORT, replacementLabel` from `@/lib/playersTableView`, `PlayerValueRow, ValueContext` from `@shared/types`. Add a helper next to `row`:
 
@@ -1675,12 +1675,12 @@ describe('value mode', () => {
 })
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/lib/playersTableView.test.ts`
 Expected: FAIL — `DEFAULT_SORT` / `replacementLabel` missing, type errors on `'value'`.
 
-- [ ] **Step 4: Implement in `src/renderer/src/lib/playersTableView.ts`**
+- [x] **Step 4: Implement in `src/renderer/src/lib/playersTableView.ts`**
 
 Imports:
 
@@ -1853,12 +1853,12 @@ export function replacementLabel(
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/lib/playersTableView.test.ts`
 Expected: all passed (existing + 5 new).
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 `npm run typecheck` will now fail in `PlayersScreen.tsx` on `gameLabel`/`subLabel` only if the screen calls `gameLabel` directly (it calls `subLabel(p)` — fine). Fix any other typecheck fallout in the screen minimally (the full screen change is Task 9).
 
@@ -1885,7 +1885,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `api.players.detail` (Task 6), `columnGroups`, `cellText`, `TableRow` (Task 7), `fmtPoints`, `fmtPct`, `fmtSigned`, `SlideOver`, `PositionBadge`.
 - Produces: `<PlayerDetailPanel season={number} player={TableRow | null} onClose={() => void} />`.
 
-- [ ] **Step 1: Create `src/renderer/src/components/PlayerDetailPanel.tsx`**
+- [x] **Step 1: Create `src/renderer/src/components/PlayerDetailPanel.tsx`**
 
 ```tsx
 import { useEffect, useState } from 'react'
@@ -2025,7 +2025,7 @@ export function PlayerDetailPanel({ season, player, onClose }: PlayerDetailPanel
 }
 ```
 
-- [ ] **Step 2: Use it in `src/renderer/src/screens/PlayersScreen.tsx`**
+- [x] **Step 2: Use it in `src/renderer/src/screens/PlayersScreen.tsx`**
 
 - Imports: remove `SlideOver`, `PositionBadge` is still used by the table rows (keep), remove `Table*` imports only if the screen no longer uses them (it does — keep). Add `import { PlayerDetailPanel } from '@/components/PlayerDetailPanel'`. Remove `WeekStats` from the types import; import `type TableRow` from `@/lib/playersTableView`.
 - State: `const [selected, setSelected] = useState<TableRow | null>(null)`; delete `const [weeks, setWeeks] = useState<WeekStats[]>([])` and the `useEffect` that calls `api.players.weeklyStats`.
@@ -2038,7 +2038,7 @@ export function PlayerDetailPanel({ season, player, onClose }: PlayerDetailPanel
 
 - Delete `WEEK_STAT_KEYS` and `weekStatKey` at the bottom of the file.
 
-- [ ] **Step 3: Remove `weeklyStats` end to end**
+- [x] **Step 3: Remove `weeklyStats` end to end**
 
 - `src/shared/ipc.ts`: delete `weeklyStats(playerId: string): Promise<WeekStats[]>`, `playersWeeklyStats: 'players:weeklyStats'`, and `WeekStats` from the import.
 - `src/preload/index.ts`: delete the `weeklyStats` line.
@@ -2047,14 +2047,14 @@ export function PlayerDetailPanel({ season, player, onClose }: PlayerDetailPanel
 - `git rm src/main/db/repos/playersQuery.ts`.
 - `tests/main/db/playersQuery.test.ts`: delete the `it('playerWeeklyStats merges stats, snaps and points for a player, team rows for a DEF', …)` block (line 162 to its closing `})`) and the `playerWeeklyStats` import; remove any other import ESLint then reports unused (`parsePlayerWeekStats`, `parseSnapCounts`, `parseTeamWeekStats`, `replace*` from `stats`, `* as fx` — only if unused by the remaining `listRoster` tests).
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green; `grep -rn "weeklyStats\|WeekStats\|WEEK_STAT_KEYS" src tests` prints nothing.
 
 Dev-app check: click a row in Stats mode → the panel shows the header strip (PPG, values with ranks) and the game log with the same stat columns and numbers as before (Sleeper keys now come from main).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A src/renderer/src/components/PlayerDetailPanel.tsx src/renderer/src/screens/PlayersScreen.tsx src/shared src/preload src/main tests/main/db/playersQuery.test.ts
@@ -2073,7 +2073,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `api.players.value` (Task 6); `DEFAULT_SORT`, `replacementLabel`, `TableRow`, `isValueRow` (Task 7); `PlayerValueRow`, `ValueContext`.
 
-- [ ] **Step 1: State and data**
+- [x] **Step 1: State and data**
 
 Add after `rows`:
 
@@ -2159,7 +2159,7 @@ Empty message: prepend a Value-mode branch so the week-based messages never show
       : null
 ```
 
-- [ ] **Step 2: Controls**
+- [x] **Step 2: Controls**
 
 Mode toggle — three options, calling `switchMode`:
 
@@ -2193,7 +2193,7 @@ Under the controls row, a one-line note when ROS is empty (spec §6.3):
       )}
 ```
 
-- [ ] **Step 3: Table header and cells**
+- [x] **Step 3: Table header and cells**
 
 Column heads get the replacement tooltip on the two VAL columns (spec §6.1):
 
@@ -2246,7 +2246,7 @@ Cells: unmatched players still have ROS from projections, so only Stats mode bla
 
 `shown`'s element type is now `TableRow`; `subLabel(p)` already accepts it.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green.
@@ -2259,7 +2259,7 @@ Dev-app check (WSL: `npx electron-vite dev -- --no-sandbox --disable-gpu --in-pr
 5. Click a row in Value mode → panel header strip matches the row's numbers.
 6. Sanity read: the RB and WR top-10 by ROS VAL look like real rankings (starters at the top, injured/IR players near zero or negative).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/renderer/src/screens/PlayersScreen.tsx
@@ -2280,20 +2280,20 @@ User request: explain VAL / ROS in the app. Design agreed: an ⓘ button beside 
 - Create: `src/renderer/src/components/ValueHelp.tsx`
 - Modify: `src/renderer/src/screens/PlayersScreen.tsx`
 
-- [ ] **Step 1:** `ValueContext` gains `teamCount: number` (from `bundle.teamCount`); the build test asserts it (2) and the table-view context literal gets it.
-- [ ] **Step 2:** Test then implement `valueHeaderTitle(col, context, positions): string | undefined` — `col.description` for value columns, joined with `replacementLabel(...)` on a second line for the two VAL columns; `undefined` for non-value columns. Descriptions: G "Games played (weeks with a points row)"; PPG "League points per game over games played"; VAL "PPG minus the position's replacement PPG"; RK "Rank within position by VAL"; ROS "Projected points for the remaining weeks under this league's rules"; VAL (ROS) "ROS minus the position's replacement ROS points"; RK "Rank within position by ROS VAL".
-- [ ] **Step 3:** `ValueHelp` — `SlideOver` titled "How value is calculated": a definition list (PPG, VAL season, ROS, VAL ROS, RK, Replacement level with `teamCount`), then a table `Position | Starters (STD / ROS) | Replacement PPG | Replacement ROS pts` from `context.replacement` for the six lineup positions ("—" when null), and the current week.
-- [ ] **Step 4:** Screen: `helpOpen` state; an `Info` icon button after the mode toggle when `effectiveMode === 'value'` (aria-label "How value is calculated"); header `title={valueHeaderTitle(col, valueContext, tabPositions)}`; `<ValueHelp open onClose context />`.
-- [ ] **Step 5:** `npm run typecheck && npm run lint && npm test`; commit `feat(ui): explain value columns in the app`.
+- [x] **Step 1:** `ValueContext` gains `teamCount: number` (from `bundle.teamCount`); the build test asserts it (2) and the table-view context literal gets it.
+- [x] **Step 2:** Test then implement `valueHeaderTitle(col, context, positions): string | undefined` — `col.description` for value columns, joined with `replacementLabel(...)` on a second line for the two VAL columns; `undefined` for non-value columns. Descriptions: G "Games played (weeks with a points row)"; PPG "League points per game over games played"; VAL "PPG minus the position's replacement PPG"; RK "Rank within position by VAL"; ROS "Projected points for the remaining weeks under this league's rules"; VAL (ROS) "ROS minus the position's replacement ROS points"; RK "Rank within position by ROS VAL".
+- [x] **Step 3:** `ValueHelp` — `SlideOver` titled "How value is calculated": a definition list (PPG, VAL season, ROS, VAL ROS, RK, Replacement level with `teamCount`), then a table `Position | Starters (STD / ROS) | Replacement PPG | Replacement ROS pts` from `context.replacement` for the six lineup positions ("—" when null), and the current week.
+- [x] **Step 4:** Screen: `helpOpen` state; an `Info` icon button after the mode toggle when `effectiveMode === 'value'` (aria-label "How value is calculated"); header `title={valueHeaderTitle(col, valueContext, tabPositions)}`; `<ValueHelp open onClose context />`.
+- [x] **Step 5:** `npm run typecheck && npm run lint && npm test`; commit `feat(ui): explain value columns in the app`.
 
 ### Task 10: Version 0.5.0, Windows build, tag
 
 Only after the user has checked Task 9 in the dev app and asked for the build.
 
-- [ ] **Step 1:** `package.json` / `package-lock.json` version `0.4.0` → `0.5.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.5.0`.
-- [ ] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.5.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
-- [ ] **Step 3:** User installs over 0.4.0 (no migration), confirms Value mode and the detail panel on the real league; record the uncached `players.value` time from Task 6 step 4 in the progress notes.
-- [ ] **Step 4:** Progress notes in this plan, commit `docs(plan): mark plan E complete`, tag `v0.5.0`, fast-forward `main`, delete the branch.
+- [x] **Step 1:** `package.json` / `package-lock.json` version `0.4.0` → `0.5.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.5.0`.
+- [x] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.5.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
+- [x] **Step 3:** User installs over 0.4.0 (no migration), confirms Value mode and the detail panel on the real league; record the uncached `players.value` time from Task 6 step 4 in the progress notes.
+- [x] **Step 4:** Progress notes in this plan, commit `docs(plan): mark plan E complete`, tag `v0.5.0`, fast-forward `main`, delete the branch.
 
 ---
 
@@ -2302,3 +2302,15 @@ Only after the user has checked Task 9 in the dev app and asked for the build.
 - **Spec coverage:** §2.1 games played / PPG / current week / per-player ROS (T4 `loadSeries` + T5 `aggregate`, mid-week case in `seedSeason`); §2.2 base slots, greedy FLEX per Sleeper slot name, (N+1)-th metric, two independent computations (T2, T5); §2.3 values, positional and overall ranks with tie-breaks (T5); §5.1 `PlayerBaseRow`, `PlayerWeekRow extends`, `PlayerValueRow`, `ValueContext`, `PlayersValue`, `DetailWeek`, `PlayerDetail` (T1, T2, T5 — `signals`/`vsMine`/`droppable`/`ownerIsMe`/`schedule` deferred per Global Constraints); §5.2 two channels, `weeklyStats` removed (T6, T8); §5.3 `series`/`replacement`/`build`, `valueCache` next to `weekCache`, cleared by sync + rules only, watched decorated at serve time, budget measured (T6); §6.1 third mode, week select hidden, groups identical on every tab, ROS VAL default sort, nulls last, header tooltip with replacement level (T7, T9; SOS/Byes/Signals/Mine columns are Plans F/G); §6.2 items 1 and 6 + `PlayerDetailPanel` extraction (T8); §6.3 no projections → "—" + note, preseason → STD "—", unmatched → message with `rosPoints` still served, no-mine cases N/A here (T5, T8, T9); §7 IPC errors surface through the existing `setError` path, no partial builds cached (T6 — a throw inside `buildValueSeason` happens before `valueCache.set`); §8 `replacement.test.ts`, `series.test.ts`, `build.test.ts`, `playersTableView.test.ts`, `seasonReads.test.ts` (T2–T5, T7); §9 files match the file map; §10 row E.
 - **Placeholder scan:** none.
 - **Type consistency:** `PlayerSeries.base: PlayerBaseRow` (T4) is spread into `PlayerValueRow` (T5) and reused by `baseRow` in `playersWeek` (T1); `ReplacementLevel { level, starters }` (T2) is what `ValueContext.replacement[pos].std/ros` hold (T5) and what `replacementLabel` reads (T7); `SeriesWeek.line` → `DetailWeek.stats` (T5) → `w.stats[c.statKey]` in the panel (T8); `TableRow`, `isValueRow`, `DEFAULT_SORT`, `replacementLabel` (T7) are the names the screen imports (T9); `Column.field`/`format` (T7) drive the tooltip and colouring in T9; `api.players.value(season)` / `.detail(season, playerId)` (T6) match the preload and the panel/screen calls (T8, T9); `listWatched` is the existing export of `watchlist.ts`.
+
+## Progress notes (2026-09-18)
+
+- Tasks 1–9, 9b and 10 implemented inline on `feat/value-mode`; typecheck, lint and Vitest (201 tests) clean at every commit. Windows install over 0.4.0 checked by the user on the real league: "all good".
+- **Timing:** `buildValueSeason` on a copy of the dev DB: 83–96 ms for 825 candidates (budget ≤ 500 ms). That copy was pre-0.4.0 (schema 3, no projections), so the ROS side was verified on Windows only.
+- **Deviations from the task text:**
+  - Task 2's "no slots" test case used TE, which is FLEX-eligible and therefore receives flex starters; the case now uses K.
+  - Task 3: `listTeamWeeksBySeason` orders by `week, team` (the plan's `ORDER BY week` alone left ties unordered).
+  - Task 4: `nested()` stores whole records, so the points lookup reads `.points`.
+  - Task 8: the panel keeps its loaded detail keyed by `season|playerId` instead of resetting state inside the effect (react-hooks `set-state-in-effect`); the screen imports `TableRow as PlayerRow` to avoid clashing with the shadcn `TableRow` component.
+  - Task 9b (added after the user's dev-app check): ⓘ button in Value mode → `ValueHelp` slide-over with definitions and the league's replacement table; `Column.description` + `valueHeaderTitle` for the header tooltips; `ValueContext.teamCount` added for the help text.
+- Windows build: `dist/FantasyCompanion-Setup-0.5.0.exe` (94 MB), copied to `C:\Users\habie\OneDrive\Bureau`.
