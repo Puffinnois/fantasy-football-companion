@@ -56,6 +56,7 @@ const valueRow = (over: Partial<PlayerValueRow> = {}): PlayerValueRow => ({
   rosValue: -1.5,
   rosRank: 9,
   overallRank: 20,
+  signals: null,
   statsAvailable: true,
   ...over
 })

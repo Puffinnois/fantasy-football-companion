@@ -113,6 +113,50 @@ export interface ReplacementLevel {
   starters: number
 }
 
+export type Trend = 'rising' | 'flat' | 'falling'
+
+/** A usage metric over the games that have it: season mean, last-3 mean, and their comparison (spec §3.1). */
+export interface UsageTrend {
+  season: number
+  recent: number
+  trend: Trend
+}
+
+export type UsageMetric = 'snapPct' | 'targetShare' | 'rushShare' | 'airYardsShare' | 'wopr'
+
+/** Spec §3; a field is null when its gate (games, projections, schedule) is not met. */
+export interface PlayerSignals {
+  usage: Record<UsageMetric, UsageTrend | null>
+  /** Actual − expected TDs (opportunities × the position's TD rate). */
+  tdDelta: number | null
+  /** 'down' = scored well over expectation (regression candidate), 'up' = well under. */
+  tdFlag: 'up' | 'down' | null
+  /** Yards per opportunity and its distance from the position's mean. */
+  ypo: number | null
+  ypoDelta: number | null
+  /** Points − projection over played weeks that had a projection; pct relative to the projection. */
+  vsProjPoints: number | null
+  vsProjPct: number | null
+  /** 25th / 75th percentile and population stdev of weekly points (3+ games). */
+  floor: number | null
+  ceiling: number | null
+  stdev: number | null
+  /** Share of games at or above the position's replacement PPG (3+ games). */
+  startRate: number | null
+  /** Sleeper team code + defense-vs-position rank (1 = allows the fewest); rank null until that defense has played. */
+  nextOpponent: { team: string; rank: number | null } | null
+  /** Mean rank of the ranked remaining opponents. */
+  rosSos: number | null
+  byesRemaining: number
+}
+
+/** One remaining week of a player's team; opponent null on a bye. */
+export interface ScheduleEntry {
+  week: number
+  opponent: string | null
+  rank: number | null
+}
+
 /** One player's season value (spec §2); ranks are 1-based within position, overall by ROS value. */
 export interface PlayerValueRow extends PlayerBaseRow {
   gamesPlayed: number
@@ -123,6 +167,8 @@ export interface PlayerValueRow extends PlayerBaseRow {
   rosValue: number | null
   rosRank: number | null
   overallRank: number | null
+  /** null for players unmatched to nflverse. */
+  signals: PlayerSignals | null
   statsAvailable: boolean
 }
 
@@ -159,6 +205,8 @@ export interface PlayerDetail {
   row: PlayerValueRow
   /** Every week with a game, a projection or a points row, ascending. */
   weeks: DetailWeek[]
+  /** Remaining weeks (≥ current week, not yet played) of the player's team, byes included. */
+  schedule: ScheduleEntry[]
 }
 
 export interface PlayersWeek {

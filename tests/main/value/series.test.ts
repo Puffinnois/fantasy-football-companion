@@ -37,7 +37,7 @@ describe('loadSeries', () => {
     const barkley = byId.get('4866')
     expect(barkley?.statsAvailable).toBe(true)
     expect(barkley?.base.byeWeek).toBeNull()
-    expect(barkley?.weeks.map((w) => w.week)).toEqual([1, 2, 3, 4])
+    expect(barkley?.weeks.map((w) => w.week)).toEqual([1, 2, 3, 4, 5])
     const [w1, , w3, w4] = barkley?.weeks ?? []
     expect(w1).toMatchObject({
       opponent: 'DAL',
@@ -74,5 +74,12 @@ describe('loadSeries', () => {
     const cook = byId.get('8259')
     expect(cook?.statsAvailable).toBe(false)
     expect(cook?.weeks).toEqual([])
+  })
+
+  it('exposes the regular-season schedule in Sleeper codes', () => {
+    const bundle = loadSeries(db, 'L1', SEASON)
+    expect(bundle.schedule.get('LAR')?.get(1)).toBe('HOU')
+    expect(bundle.schedule.get('PHI')?.get(5)).toBe('LAR')
+    expect(bundle.schedule.get('MIN')?.has(2)).toBe(false)
   })
 })

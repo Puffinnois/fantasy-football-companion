@@ -133,6 +133,7 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
     rosValue: v.rosValue,
     rosRank: rosRanks.get(v.a.series.base.playerId) ?? null,
     overallRank: overallRanks.get(v.a.series.base.playerId) ?? null,
+    signals: null,
     statsAvailable: v.a.series.statsAvailable
   }))
 
@@ -175,6 +176,7 @@ export function detailFor(build: ValueBuild, playerId: string): PlayerDetail | n
       rushShare: w.rushShare,
       wopr: w.wopr,
       stats: w.line
-    }))
+    })),
+    schedule: []
   }
 }

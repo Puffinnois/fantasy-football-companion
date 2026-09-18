@@ -82,6 +82,7 @@ const proj = (
  * weeks 1–3, Jefferson (6794, MIN — bye week 2) for week 1, Chase (7564) weeks 1–2, Bijan (9509)
  * week 1, LAR week 1; Cook (8259) is unmatched to nflverse. Projections stored for weeks 3 and 4.
  * nflverse stat rows come from the CSV fixtures (Barkley weeks 1–2, Jefferson week 1) mapped to 2026.
+ * Games run to week 5 (PHI–LA), so week 5 is a bye for MIN; MIN meets CHI again in week 4.
  */
 export function seedSeason(db: Db): void {
   setNflState(db, {
@@ -131,8 +132,9 @@ export function seedSeason(db: Db): void {
       game('g7', 3, 'DET', 'MIN'),
       game('g8', 3, 'SF', 'LA'),
       game('g9', 4, 'PHI', 'WAS'),
-      game('g10', 4, 'MIN', 'GB'),
-      game('g11', 4, 'LA', 'ARI')
+      game('g10', 4, 'MIN', 'CHI'),
+      game('g11', 4, 'LA', 'ARI'),
+      game('g12', 5, 'PHI', 'LA')
     ],
     SEED_TS
   )
@@ -168,7 +170,7 @@ export function seedSeason(db: Db): void {
     4,
     [
       proj('4866', 4, { rush_yd: 80 }, 'WAS'),
-      proj('6794', 4, { rec: 6, rec_yd: 90 }, 'GB'),
+      proj('6794', 4, { rec: 6, rec_yd: 90 }, 'CHI'),
       proj('9509', 4, { rush_yd: 70 }, 'NO')
     ],
     SEED_TS

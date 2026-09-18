@@ -60,6 +60,8 @@ export interface SeriesBundle {
   projectionsStored: boolean
   teamCount: number
   rules: Rules | null
+  /** Sleeper team → week → Sleeper opponent, regular season. */
+  schedule: Map<string, Map<number, string>>
   players: PlayerSeries[]
 }
 
@@ -212,12 +214,21 @@ export function loadSeries(db: Db, leagueId: string, season: number): SeriesBund
     }
   })
 
+  const sleeperSchedule = new Map<string, Map<number, string>>()
+  for (const [team, weeks] of schedule) {
+    sleeperSchedule.set(
+      toSleeperTeam(team),
+      new Map([...weeks].map(([week, opponent]) => [week, toSleeperTeam(opponent)]))
+    )
+  }
+
   return {
     season,
     currentWeek,
     projectionsStored: projectionRows.length > 0,
     teamCount: league?.totalRosters ?? 0,
     rules,
+    schedule: sleeperSchedule,
     players
   }
 }

@@ -84,7 +84,7 @@ describe('buildValueSeason', () => {
   it('serves a detail with the week series in Sleeper keys', () => {
     const detail = detailFor(build, '4866')
     expect(detail?.row.playerId).toBe('4866')
-    expect(detail?.weeks.map((w) => w.week)).toEqual([1, 2, 3, 4])
+    expect(detail?.weeks.map((w) => w.week)).toEqual([1, 2, 3, 4, 5])
     expect(detail?.weeks[0]).toMatchObject({ played: true, points: 20, snapPct: 0.83 })
     expect(detail?.weeks[0].stats.rush_yd).toBe(60)
     expect(detail?.weeks[3]).toMatchObject({ played: false, projected: 8, stats: {} })
