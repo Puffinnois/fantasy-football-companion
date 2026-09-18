@@ -6,10 +6,10 @@ Design rationale lives in `docs/superpowers/specs/2026-09-17-slice4-value-and-si
 
 ## How the data reaches the renderer
 
-| Call (`window.api.players`) | Returns                                                                                | Notes                                                                                     |
-| --------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Call (`window.api.players`) | Returns                                                                                | Notes                                                                                                                                                                                          |
+| --------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `value(season)`             | `PlayersValue { context: ValueContext; rows: PlayerValueRow[] }`                       | One row per candidate player: lineup positions only (`QB RB WR TE K DEF`, FB counted as RB), and the player is rostered in the league, on the watchlist, or on an NFL team and not `Inactive`. |
-| `detail(season, playerId)`  | `PlayerDetail { row: PlayerValueRow; weeks: DetailWeek[]; schedule: ScheduleEntry[] }` | Same build, plus the per-week series and the remaining schedule.                          |
+| `detail(season, playerId)`  | `PlayerDetail { row: PlayerValueRow; weeks: DetailWeek[]; schedule: ScheduleEntry[] }` | Same build, plus the per-week series and the remaining schedule.                                                                                                                               |
 
 Both read a per-(league, season) build cached in the main process (`valueCache` in `src/main/ipc/handlers.ts`). The cache is cleared on a successful sync and on a rules change; a watchlist toggle only re-decorates `watched`. A full-season build costs ~0.1 s (current season) to ~0.5 s (18 played weeks) on the dev DB. Nothing is persisted — every number below is recomputed from the DB.
 
@@ -29,6 +29,8 @@ Both read a per-(league, season) build cached in the main process (`valueCache` 
 | `season`            | Season the build covers.                                                                                                                                                                                                                                                                                                                                                                    |
 | `currentWeek`       | Rest-of-season starts here (see conventions).                                                                                                                                                                                                                                                                                                                                               |
 | `projectionsStored` | Whether any Sleeper projection rows exist for the season. When `false`, every ROS field is `null`.                                                                                                                                                                                                                                                                                          |
+| `hasMyTeam`         | A `teams` row is flagged `is_me` (set at import from the Sleeper user). When `false`, `vsMine`, `droppable` and every `mine[pos]` are `null`, and the UI hides the Mine group and the My team chip.                                                                                                                                                                                         |
+| `mine[pos]`         | `{ playerId, fullName, rosValue } \| null` per lineup position: my startable player (not IR / taxi) with the lowest `rosValue` — the `vsMine` baseline. `null` when I roster nobody startable with a ROS value there.                                                                                                                                                                       |
 | `teamCount`         | League size (`leagues.total_rosters`).                                                                                                                                                                                                                                                                                                                                                      |
 | `replacement[pos]`  | `{ std, ros }` per lineup position (`QB RB WR TE K DEF`); each is `{ level, starters } \| null`. `starters` = dedicated slots × teams plus the flex slots handed greedily to whichever eligible position has the best next player; `level` = the metric of the `(starters + 1)`-th best player (PPG for `std`, ROS points for `ros`). `null` when no player at the position has the metric. |
 
@@ -36,7 +38,7 @@ Both read a per-(league, season) build cached in the main process (`valueCache` 
 
 ### Identity and roster (`PlayerBaseRow`, shared with the week rows)
 
-`playerId`, `fullName`, `position`, `team`, `byeWeek`, `injuryStatus`, `rookie`, `watched`, `ownerRosterId`, `ownerName`, and `statsAvailable` (false when the player could not be matched to nflverse — value fields that need stats are then `null` and `signals` is `null`).
+`playerId`, `fullName`, `position`, `team`, `byeWeek`, `injuryStatus`, `rookie`, `watched`, `ownerRosterId`, `ownerName`, `ownerIsMe` (the owner is the `is_me` team), and `statsAvailable` (false when the player could not be matched to nflverse — value fields that need stats are then `null` and `signals` is `null`).
 
 ### Value (added in v0.5.0)
 
@@ -50,6 +52,15 @@ Both read a per-(league, season) build cached in the main process (`valueCache` 
 | `rosValue`    | `rosPoints − replacement[pos].ros.level`.                                                                                                                                                                                          | no ROS or no replacement level |
 | `rosRank`     | Rank within position by `rosValue`.                                                                                                                                                                                                | no `rosValue`                  |
 | `overallRank` | Rank across all positions by `rosValue`.                                                                                                                                                                                           | no `rosValue`                  |
+
+### Roster-relative (added in v0.7.0)
+
+Spec §4; computed in `src/main/value/roster.ts`, same position only (FLEX is in the replacement level but cross-position drops need a lineup model — slice 6).
+
+| Field       | Definition                                                                                                                                                                                                                                                                         | `null` when                                                                                  |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `vsMine`    | Free agents only: `rosValue − mine[pos].rosValue`. Can be negative; 0 when equal.                                                                                                                                                                                                  | rostered by anyone (mine or not), no `mine[pos]`, no `rosValue` on either side, no team mine |
+| `droppable` | My startable players only: `{ playerId, fullName, delta }` of the best free agent at the position when its `rosValue` is **strictly** higher; `delta` = its `rosValue − mine`. Several of my players can carry it; the one on my weakest player equals that free agent's `vsMine`. | not mine, IR / taxi, no better free agent, no `rosValue` on either side, no team mine        |
 
 ### `signals: PlayerSignals | null` (added in v0.6.0)
 
@@ -130,9 +141,10 @@ Built from the regular-season `games` table (Sleeper codes) and the played weeks
 | Where                                                     | Constants                                                                                                                                                                                               |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/main/value/signals.ts`                               | `RECENT_GAMES = 3`, `SHARE_TREND_THRESHOLD = 0.03`, `SNAP_TREND_THRESHOLD = 0.05`, `MIN_GAMES_USAGE = 2`, `MIN_GAMES_CONSISTENCY = 3`, `TD_FLAG_THRESHOLD = 1.5`, `OPPORTUNITY_POSITIONS = QB RB WR TE` |
+| `src/main/value/roster.ts`                                | `UNSTARTABLE_SLOTS = {ir, taxi}` — roster slots that never count as "my players at the position"                                                                                                        |
 | `src/renderer/src/lib/playersTableView.ts` (display only) | `PRIMARY_USAGE` (RB → snap %, WR/TE → target share), `TREND_ARROW` (↑ → ↓), SOS tint buckets `SOS_HARD_MAX = 11` / `SOS_EASY_MIN = 22`                                                                  |
 
-## Where each number is shown today (v0.6.0)
+## Where each number is shown today (v0.7.0)
 
 ### Players table, Value mode (`columnGroups(tab, 'value')` — identical on every position tab)
 
@@ -153,8 +165,10 @@ Built from the regular-season `games` table (Sleeper codes) and the played weeks
 |                | USAGE   | primary usage `recent` + trend arrow (`27% ↑`)                                                                                                       | percent        | —                    |
 |                | TD      | `signals.tdFlag` as a badge: `↓` regression candidate (red), `↑` due for more (green), blank when inside the band, `—` when null; sorts by `tdDelta` | badge          | red / green          |
 |                | VS PROJ | `signals.vsProjPct`                                                                                                                                  | signed percent | green ≥ 0 / red < 0  |
+| Mine           | VS MINE | `vsMine`                                                                                                                                             | signed         | green ≥ 0 / red < 0  |
+|                | DROP?   | `droppable` as a marker `●` (red) with the free agent's name and delta in the cell tooltip; blank otherwise; sorts by `delta`                        | marker         | red                  |
 
-Default sort: ROS VAL descending (the ALL tab is therefore a cross-position ranking). Every column sorts; `null` sorts last in both directions. Header tooltips carry each column's one-line definition (`Column.description`), and the VAL headers add the tab positions' replacement levels. The ⓘ button opens `ValueHelp` (definitions, the Signals list generated from the same descriptions, the league's replacement table).
+Default sort: ROS VAL descending (the ALL tab is therefore a cross-position ranking). Every column sorts; `null` sorts last in both directions. Header tooltips carry each column's one-line definition (`Column.description`), and the VAL headers add the tab positions' replacement levels. The ⓘ button opens `ValueHelp` (definitions, the Signals list generated from the same descriptions, the league's replacement table). The Mine group exists only when `context.hasMyTeam`; the VS MINE header tooltip lists `mine[pos]` for the tab positions, and an empty VS MINE cell of a free agent reads "no K rostered" when `mine[pos]` is null. The **My team** chip (all modes, shown when a team is mine) filters on `ownerIsMe`.
 
 Not shown in the table: `stdev`, `ypo`, `ypoDelta`, `vsProjPoints`, `tdDelta` as a number, the four non-primary usage trends, `nextOpponent`, `overallRank`.
 
@@ -177,6 +191,7 @@ Not shown in the panel: `stdev`, `airYardsShare`, `overallRank`.
 | `src/main/value/replacement.ts`                   | Starter counts (greedy flex) and replacement levels.                                                                                     |
 | `src/main/value/signals.ts`                       | Usage trends, opportunities / production, positional totals, percentiles, `statSignals`.                                                 |
 | `src/main/value/schedule.ts`                      | Defense-vs-position ranks, per-player remaining schedule (`nextOpponent`, `rosSos`, `byesRemaining`).                                    |
+| `src/main/value/roster.ts`                        | Roster-relative view: `vsMine`, `droppable`, my per-position baseline.                                                                   |
 | `src/main/value/build.ts`                         | Assembles rows, context, detail.                                                                                                         |
 | `src/renderer/src/lib/playersTableView.ts`        | Column model, cell values/text/tones, sorting.                                                                                           |
 | `src/renderer/src/lib/detailView.ts`, `charts.ts` | Panel view model (usage rows, bar items, signal text) and SVG geometry.                                                                  |
