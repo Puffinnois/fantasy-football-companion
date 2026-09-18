@@ -100,30 +100,55 @@ function syncPlayers(deps: SyncDeps, force: boolean): Promise<SyncLogEntry> {
   })
 }
 
-/** Unofficial endpoint: only the NFL display week of the current regular season; gone → skipped. */
-function syncProjections(deps: SyncDeps, force: boolean): Promise<SyncLogEntry> {
+const REGULAR_SEASON_WEEKS = 18
+const DAY = 24 * 60 * MINUTE
+/** Past weeks never change; future weeks move slowly; the current week moves through the week. */
+const PAST_WEEK_FRESHNESS_MS = 30 * DAY
+const FUTURE_WEEK_FRESHNESS_MS = DAY
+
+/**
+ * Unofficial endpoint, one step per regular-season week of the current season. Stops at the first
+ * "gone" answer (404/410) so a retired endpoint costs one request per refresh, not eighteen.
+ */
+async function syncProjections(deps: SyncDeps, force: boolean): Promise<SyncLogEntry[]> {
   const state = getNflState(deps.db)
-  const season = state ? Number(state.season) : 0
-  const week = state?.displayWeek ?? 0
-  return runSyncStep(
-    deps,
-    sourceProjections(season, week),
-    PROJECTIONS_FRESHNESS_MS,
-    force,
-    async () => {
-      if (!state) throw new SkipStep('no NFL state yet')
-      if (state.seasonType !== 'regular')
+  if (!state) return []
+  const season = Number(state.season)
+  if (state.seasonType !== 'regular') {
+    return [
+      await runSyncStep(deps, sourceProjections(season, state.displayWeek), 0, true, async () => {
         throw new SkipStep('projections only during the regular season')
-      const items = await deps.sleeper.getProjections(state.season, week)
-      if (!Array.isArray(items)) throw new SkipStep('projections endpoint unavailable')
-      const { records, skipped } = mapProjections(items, season, week)
-      const ts = nowOf(deps).toISOString()
-      const rows = withTransaction(deps.db, () =>
-        replaceProjections(deps.db, season, week, records, ts)
-      )
-      return { rows, message: skipped ? `${skipped} items skipped` : null }
-    }
-  )
+      })
+    ]
+  }
+  const steps: SyncLogEntry[] = []
+  for (let week = 1; week <= REGULAR_SEASON_WEEKS; week++) {
+    const freshness =
+      week < state.displayWeek
+        ? PAST_WEEK_FRESHNESS_MS
+        : week === state.displayWeek
+          ? PROJECTIONS_FRESHNESS_MS
+          : FUTURE_WEEK_FRESHNESS_MS
+    const entry = await runSyncStep(
+      deps,
+      sourceProjections(season, week),
+      freshness,
+      force,
+      async () => {
+        const items = await deps.sleeper.getProjections(state.season, week)
+        if (!Array.isArray(items)) throw new SkipStep('projections endpoint unavailable')
+        const { records, skipped } = mapProjections(items, season, week)
+        const ts = nowOf(deps).toISOString()
+        const rows = withTransaction(deps.db, () =>
+          replaceProjections(deps.db, season, week, records, ts)
+        )
+        return { rows, message: skipped ? `${skipped} items skipped` : null }
+      }
+    )
+    steps.push(entry)
+    if (entry.status === 'skipped' && entry.message === 'projections endpoint unavailable') break
+  }
+  return steps
 }
 
 export async function importLeague(
@@ -140,7 +165,7 @@ export async function importLeague(
     if (myUserId) setSetting(deps.db, SETTING_MY_USER, myUserId)
   }
   steps.push(await syncPlayers(deps, false))
-  steps.push(await syncProjections(deps, false))
+  steps.push(...(await syncProjections(deps, false)))
   return { steps }
 }
 
@@ -155,7 +180,7 @@ export async function refreshSleeper(
   steps.push(await syncState(deps, force))
   if (leagueId) steps.push(await syncLeague(deps, leagueId, myUserId, force))
   steps.push(await syncPlayers(deps, force))
-  steps.push(await syncProjections(deps, force))
+  steps.push(...(await syncProjections(deps, force)))
   return { steps }
 }
 

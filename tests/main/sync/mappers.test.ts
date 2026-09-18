@@ -187,8 +187,8 @@ describe('mapProjections', () => {
       readFileSync(new URL('../../fixtures/sleeper/projections.json', import.meta.url), 'utf8')
     )
     const { records, skipped } = mapProjections(real, 2026, 2)
-    expect(skipped).toBe(0)
-    expect(records).toHaveLength(20)
+    expect(skipped).toBe(1) // one ADP-only stub without a point projection
+    expect(records).toHaveLength(19)
     expect(records.find((r) => r.playerId === '7042')?.stats).toMatchObject({
       fgm: 1.82,
       fga: 2.14,

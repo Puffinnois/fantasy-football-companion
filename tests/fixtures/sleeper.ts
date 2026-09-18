@@ -270,7 +270,8 @@ export const projections: SleeperProjection[] = [
       fum_rec: 0.5,
       def_td: 0.1,
       pts_allow: 20.5,
-      yds_allow: 330
+      yds_allow: 330,
+      pts_ppr: 7.2
     }
   },
   {

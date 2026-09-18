@@ -6,7 +6,7 @@ import { countPlayers } from '@main/db/repos/players'
 import { listProjections } from '@main/db/repos/projections'
 import { getRules, saveRules } from '@main/db/repos/rules'
 import { getSetting, SETTING_ACTIVE_LEAGUE, SETTING_MY_USER } from '@main/db/repos/settings'
-import { getLastError, getLastSync } from '@main/db/repos/syncLog'
+import { getLastError, getLastSync, pruneSyncLog } from '@main/db/repos/syncLog'
 import { listRoster, listTeams } from '@main/db/repos/teams'
 import type { SleeperClient } from '@main/sources/sleeper'
 import {
@@ -31,7 +31,9 @@ function fakeClient(overrides: Partial<SleeperClient> = {}): SleeperClient {
     getLeagueRosters: vi.fn(async () => fx.rosters),
     getAllPlayers: vi.fn(async () => fx.players),
     getNflState: vi.fn(async () => fx.nflState),
-    getProjections: vi.fn(async () => fx.projections),
+    getProjections: vi.fn(async (_season: string, week: number) =>
+      week === 1 ? fx.projections : []
+    ),
     ...overrides
   }
 }
@@ -54,13 +56,15 @@ describe('sleeper sync', () => {
       'L1',
       'u1'
     )
-    expect(result.steps.map((s) => s.status)).toEqual(['ok', 'ok', 'ok', 'ok'])
-    expect(steps).toEqual([
+    expect(result.steps).toHaveLength(3 + 18)
+    expect(result.steps.every((s) => s.status === 'ok')).toBe(true)
+    expect(steps.slice(0, 4)).toEqual([
       `${SOURCE_STATE}:ok`,
       `${SOURCE_LEAGUE}:ok`,
       `${SOURCE_PLAYERS}:ok`,
       `${sourceProjections(2026, 1)}:ok`
     ])
+    expect(steps.at(-1)).toBe(`${sourceProjections(2026, 18)}:ok`)
     expect(getLeague(db, 'L1')?.name).toBe('Test League')
     expect(listTeams(db, 'L1').map((t) => [t.rosterId, t.isMe])).toEqual([
       [1, true],
@@ -81,17 +85,17 @@ describe('sleeper sync', () => {
     await importLeague({ db, sleeper, now }, 'L1', 'u1')
 
     const fresh = await refreshSleeper({ db, sleeper, now })
-    expect(fresh.steps.map((s) => s.status)).toEqual(['skipped', 'skipped', 'skipped', 'skipped'])
+    expect(fresh.steps.every((s) => s.status === 'skipped')).toBe(true)
     expect(sleeper.getLeague).toHaveBeenCalledTimes(1)
 
     clock = new Date('2026-09-15T12:11:00.000Z')
     const stale = await refreshSleeper({ db, sleeper, now })
-    expect(stale.steps.map((s) => s.status)).toEqual(['ok', 'ok', 'skipped', 'skipped'])
+    expect(stale.steps.slice(0, 4).map((s) => s.status)).toEqual(['ok', 'ok', 'skipped', 'skipped'])
     expect(sleeper.getLeague).toHaveBeenCalledTimes(2)
     expect(sleeper.getAllPlayers).toHaveBeenCalledTimes(1)
 
     const forced = await refreshSleeper({ db, sleeper, now }, { force: true })
-    expect(forced.steps.map((s) => s.status)).toEqual(['ok', 'ok', 'ok', 'ok'])
+    expect(forced.steps.every((s) => s.status === 'ok')).toBe(true)
     expect(sleeper.getAllPlayers).toHaveBeenCalledTimes(2)
   })
 
@@ -102,7 +106,7 @@ describe('sleeper sync', () => {
       })
     })
     const result = await importLeague({ db, sleeper, now }, 'L1', 'u1')
-    expect(result.steps.map((s) => s.status)).toEqual(['ok', 'error', 'ok', 'ok'])
+    expect(result.steps.slice(0, 4).map((s) => s.status)).toEqual(['ok', 'error', 'ok', 'ok'])
     expect(result.steps[1].message).toContain('503')
     expect(getLastError(db)).toMatchObject({ source: SOURCE_LEAGUE })
     expect(getLeague(db, 'L1')).toBeNull()
@@ -122,7 +126,7 @@ describe('sleeper sync', () => {
   it('refresh without a configured league only syncs state and players', async () => {
     const sleeper = fakeClient()
     const result = await refreshSleeper({ db, sleeper, now })
-    expect(result.steps.map((s) => s.source)).toEqual([
+    expect(result.steps.slice(0, 3).map((s) => s.source)).toEqual([
       SOURCE_STATE,
       SOURCE_PLAYERS,
       sourceProjections(2026, 1)
@@ -135,23 +139,36 @@ describe('sleeper sync', () => {
       throw new Error('renderer window closed')
     })
     const result = await importLeague({ db, sleeper: fakeClient(), now, onStep }, 'L1', 'u1')
-    expect(result.steps.map((s) => s.status)).toEqual(['ok', 'ok', 'ok', 'ok'])
-    expect(onStep).toHaveBeenCalledTimes(4)
+    expect(result.steps.every((s) => s.status === 'ok')).toBe(true)
+    expect(onStep).toHaveBeenCalledTimes(3 + 18)
   })
 
-  it('projections: stored for the display week, skipped when the endpoint is gone or off-season', async () => {
+  it('projections: every regular-season week, freshness by past/current/future, gone → stop', async () => {
     const sleeper = fakeClient()
     await importLeague({ db, sleeper, now }, 'L1', 'u1')
+    expect(sleeper.getProjections).toHaveBeenCalledTimes(18)
     expect(getLastSync(db, sourceProjections(2026, 1))).toMatchObject({
       status: 'ok',
       rowsWritten: 3,
       message: '2 items skipped'
     })
+    expect(getLastSync(db, sourceProjections(2026, 18))).toMatchObject({
+      status: 'ok',
+      rowsWritten: 0
+    })
     expect(listProjections(db, 2026, 1).map((p) => p.playerId)).toEqual(['4866', '6794', 'LAR'])
+
+    // display week 1: week 1 is "current" (6 h), weeks 2+ are "future" (24 h)
+    clock = new Date(clock.getTime() + 7 * 60 * 60_000)
+    const later = await refreshSleeper({ db, sleeper, now })
+    expect(later.steps.find((s) => s.source === sourceProjections(2026, 1))?.status).toBe('ok')
+    expect(later.steps.find((s) => s.source === sourceProjections(2026, 2))?.status).toBe('skipped')
 
     const gone = fakeClient({ getProjections: vi.fn(async () => null) })
     const r1 = await refreshSleeper({ db, sleeper: gone, now }, { force: true })
-    expect(r1.steps.at(-1)).toMatchObject({
+    const projSteps = r1.steps.filter((s) => s.source.startsWith('sleeper:projections:'))
+    expect(projSteps).toHaveLength(1) // stop after the first "gone" answer
+    expect(projSteps[0]).toMatchObject({
       status: 'skipped',
       message: 'projections endpoint unavailable'
     })
@@ -165,6 +182,18 @@ describe('sleeper sync', () => {
       message: 'projections only during the regular season'
     })
     expect(preseason.getProjections).not.toHaveBeenCalled()
+  })
+
+  it('pruneSyncLog drops old rows but keeps the newest per source and status', async () => {
+    const sleeper = fakeClient()
+    await importLeague({ db, sleeper, now }, 'L1', 'u1')
+    const before = (db.prepare('SELECT COUNT(*) n FROM sync_log').get() as { n: number }).n
+    clock = new Date(clock.getTime() + 40 * 24 * 60 * 60_000)
+    const cutoff = (): string => new Date(clock.getTime() - 30 * 24 * 60 * 60_000).toISOString()
+    expect(pruneSyncLog(db, cutoff())).toBe(0) // old, but each is still the newest ok row of its source
+    await refreshSleeper({ db, sleeper, now }) // 40 days later everything is stale: fresh ok rows
+    expect(pruneSyncLog(db, cutoff())).toBe(before)
+    expect(getLastSync(db, SOURCE_LEAGUE, 'ok')).not.toBeNull()
   })
 
   describe('rules', () => {

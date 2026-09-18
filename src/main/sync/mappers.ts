@@ -145,7 +145,12 @@ export function mapRules(l: SleeperLeague, updatedAt: string): Rules {
   return { source: 'sleeper', updatedAt, scoring, positionOverrides: {}, rosterSlots, settings }
 }
 
-/** Keeps regular-season items of exactly (season, week) that carry a stats object. */
+const POINT_KEYS = ['pts_ppr', 'pts_std', 'pts_half_ppr']
+
+/**
+ * Keeps regular-season items of exactly (season, week) that carry a point projection — Sleeper
+ * returns ~3,300 items per week but only ~450 are projected; the rest hold ADP-only stubs.
+ */
 export function mapProjections(
   items: SleeperProjection[],
   season: number,
@@ -154,9 +159,11 @@ export function mapProjections(
   const records: ProjectionRecord[] = []
   let skipped = 0
   for (const it of items) {
+    const stats = it.stats
     if (
       !it.player_id ||
-      !it.stats ||
+      !stats ||
+      !POINT_KEYS.some((k) => k in stats) ||
       it.season_type !== 'regular' ||
       Number(it.season) !== season ||
       it.week !== week
@@ -171,7 +178,7 @@ export function mapProjections(
       company: it.company ?? null,
       team: it.team ?? null,
       opponent: it.opponent ?? null,
-      stats: it.stats
+      stats
     })
   }
   return { records, skipped }

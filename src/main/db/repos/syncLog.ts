@@ -77,3 +77,18 @@ export function getLastSyncLike(
     .get(`${prefix}%`, status) as Row | undefined
   return row ? toEntry(row) : null
 }
+
+/**
+ * Deletes rows started before `before`, except the newest row of each (source, status) pair so
+ * freshness checks and the status bar keep working. Returns the number of rows removed.
+ */
+export function pruneSyncLog(db: Db, before: string): number {
+  return Number(
+    db
+      .prepare(
+        `DELETE FROM sync_log WHERE started_at < ?
+         AND id NOT IN (SELECT MAX(id) FROM sync_log GROUP BY source, status)`
+      )
+      .run(before).changes
+  )
+}
