@@ -3,6 +3,7 @@
 Windows desktop companion for a Sleeper fantasy football league: league sync, stats, and decision support.
 
 - Design: `docs/superpowers/specs/`
+- Data reference (value & signals payload, definitions, where each number is shown): `docs/reference/value-and-signals.md`
 - Plans: `docs/superpowers/plans/`
 - Dev (WSL2, Node 22 via nvm): `npm install && npm run dev`
 - Dev data (Linux): `~/.config/FantasyCompanion/companion.db`; packaged (Windows): `%APPDATA%\FantasyCompanion\companion.db`
