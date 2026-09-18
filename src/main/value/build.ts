@@ -9,6 +9,7 @@ import type {
   ValueContext
 } from '@shared/types'
 import { replacementLevels } from './replacement'
+import { rosterRelative } from './roster'
 import { defenseRanks, lastScheduledWeek, playerSchedule } from './schedule'
 import { loadSeries, type PlayerSeries, type SeriesBundle } from './series'
 import { positionTotals, statSignals } from './signals'
@@ -137,6 +138,14 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
   const defense = defenseRanks(bundle.players)
   const lastWeek = lastScheduledWeek(bundle.schedule)
   const schedules = new Map<string, ScheduleEntry[]>()
+  const roster = rosterRelative(
+    valued.map((v) => ({
+      ...v.a.series.base,
+      rosterSlot: v.a.series.rosterSlot,
+      rosValue: v.rosValue
+    })),
+    bundle.hasMyTeam
+  )
 
   const rows: PlayerValueRow[] = valued.map((v) => {
     const series = v.a.series
@@ -162,15 +171,17 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
       rosRank: rosRanks.get(series.base.playerId) ?? null,
       overallRank: overallRanks.get(series.base.playerId) ?? null,
       signals,
-      vsMine: null,
-      droppable: null,
+      vsMine: roster.byPlayer.get(series.base.playerId)?.vsMine ?? null,
+      droppable: roster.byPlayer.get(series.base.playerId)?.droppable ?? null,
       statsAvailable: series.statsAvailable
     }
   })
 
   const replacement: ValueContext['replacement'] = {}
+  const mine: ValueContext['mine'] = {}
   for (const pos of LINEUP_POSITIONS) {
     replacement[pos] = { std: stdLevels.get(pos) ?? null, ros: rosLevels.get(pos) ?? null }
+    mine[pos] = roster.baseline.get(pos) ?? null
   }
   return {
     context: {
@@ -179,7 +190,7 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
       projectionsStored: bundle.projectionsStored,
       teamCount: bundle.teamCount,
       hasMyTeam: bundle.hasMyTeam,
-      mine: Object.fromEntries(LINEUP_POSITIONS.map((pos) => [pos, null])),
+      mine,
       replacement
     },
     rows,

@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Db } from '@main/db/connection'
 import { buildValueSeason, detailFor, type ValueBuild } from '@main/value/build'
+import { upsertPlayers } from '@main/db/repos/players'
+import { replaceProjections } from '@main/db/repos/projections'
+import { LINEUP_POSITIONS } from '@shared/rules'
 import type { PlayerValueRow } from '@shared/types'
-import { seedLeague } from '../../fixtures/db'
+import { seedLeague, SEED_TS } from '../../fixtures/db'
 import { seedSeason, SEASON } from '../../fixtures/season'
 
 describe('buildValueSeason', () => {
@@ -145,5 +148,106 @@ describe('buildValueSeason', () => {
     ])
     // BUF has no game in the fixture
     expect(detailFor(build, '8259')?.schedule).toEqual([])
+  })
+})
+
+describe('buildValueSeason — roster-relative view', () => {
+  let db: Db
+  let build: ValueBuild
+  const row = (id: string): PlayerValueRow | undefined => build.rows.find((r) => r.playerId === id)
+  beforeEach(() => {
+    db = seedLeague()
+    seedSeason(db)
+    // The fixture has no free agent: add an RB with one stored projection, 90 rush yards in
+    // week 5 → 9 ROS points under the 0.1/yd rules. No player_ids row → statsAvailable false.
+    upsertPlayers(
+      db,
+      [
+        {
+          playerId: '1111',
+          fullName: 'Free Agent',
+          firstName: 'Free',
+          lastName: 'Agent',
+          position: 'RB',
+          fantasyPositions: ['RB'],
+          team: 'DEN',
+          status: 'Active',
+          injuryStatus: null,
+          age: 24,
+          yearsExp: 2,
+          depthChartOrder: 1,
+          searchRank: 100,
+          gsisId: null,
+          sportradarId: null,
+          espnId: null
+        }
+      ],
+      SEED_TS
+    )
+    replaceProjections(
+      db,
+      SEASON,
+      5,
+      [
+        {
+          playerId: '1111',
+          season: SEASON,
+          week: 5,
+          company: 'rotowire',
+          team: 'DEN',
+          opponent: 'LV',
+          stats: { rush_yd: 90 }
+        }
+      ],
+      SEED_TS
+    )
+    build = buildValueSeason(db, 'L1', SEASON)
+  })
+
+  it('scores the free agent against my lowest startable RB and ignores my IR player', () => {
+    // RB ROS values: FA 9, Barkley 8 (mine, starter), Bijan 7 (Rival), Cook 0 (mine, IR);
+    // four RBs for four starters → the replacement level stays at the lowest, 0
+    expect(row('1111')).toMatchObject({
+      ownerRosterId: null,
+      ownerIsMe: false,
+      rosValue: 9,
+      vsMine: 1,
+      droppable: null,
+      signals: null
+    })
+    expect(row('4866')).toMatchObject({
+      ownerIsMe: true,
+      vsMine: null,
+      droppable: { playerId: '1111', fullName: 'Free Agent', delta: 1 }
+    })
+    expect(row('8259')).toMatchObject({ ownerIsMe: true, vsMine: null, droppable: null }) // IR
+    expect(row('9509')).toMatchObject({ ownerIsMe: false, vsMine: null, droppable: null }) // Rival's
+    expect(row('6794')).toMatchObject({ vsMine: null, droppable: null }) // no WR free agent
+  })
+
+  it('reports my baseline per lineup position in the context', () => {
+    expect(build.context.hasMyTeam).toBe(true)
+    expect(Object.keys(build.context.mine)).toEqual([...LINEUP_POSITIONS])
+    expect(build.context.mine.RB).toEqual({
+      playerId: '4866',
+      fullName: 'Saquon Barkley',
+      rosValue: 8
+    })
+    expect(build.context.mine.WR).toEqual({
+      playerId: '6794',
+      fullName: 'Justin Jefferson',
+      rosValue: 19
+    })
+    expect(build.context.mine.DEF?.playerId).toBe('LAR')
+    expect(build.context.mine.QB).toBeNull()
+  })
+
+  it('is null everywhere when no team is flagged as mine', () => {
+    db.prepare('UPDATE teams SET is_me = 0').run()
+    const none = buildValueSeason(db, 'L1', SEASON)
+    expect(none.context.hasMyTeam).toBe(false)
+    expect(Object.values(none.context.mine).every((m) => m === null)).toBe(true)
+    expect(none.rows.every((r) => r.vsMine === null && r.droppable === null)).toBe(true)
+    expect(none.rows.every((r) => !r.ownerIsMe)).toBe(true)
   })
 })
