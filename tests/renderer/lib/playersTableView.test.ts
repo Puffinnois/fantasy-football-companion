@@ -7,6 +7,8 @@ import {
   filterRows,
   gameLabel,
   kickoffLabel,
+  mineCellTitle,
+  mineLabel,
   replacementLabel,
   signalText,
   signalTone,
@@ -230,7 +232,14 @@ describe('filterRows / sortRows', () => {
     WR: { id: 'WR', label: 'WR', positions: ['WR'] },
     FLEX: { id: 'FLEX', label: 'FLEX', positions: ['RB', 'WR', 'TE'] }
   }
-  const none = { search: '', freeAgents: false, watchlist: false, rookies: false, owner: null }
+  const none = {
+    search: '',
+    freeAgents: false,
+    watchlist: false,
+    rookies: false,
+    mine: false,
+    owner: null
+  }
   const ids = (list: PlayerWeekRow[]): string[] => list.map((r) => r.playerId)
 
   it('filters by tab positions, chips, owner and name', () => {
@@ -415,7 +424,14 @@ describe('value mode', () => {
       valueRow({ playerId: 'b', fullName: 'B', rosValue: null }),
       valueRow({ playerId: 'c', fullName: 'C', rosValue: 5, ownerRosterId: 1 })
     ]
-    const filters = { search: '', freeAgents: true, watchlist: false, rookies: false, owner: null }
+    const filters = {
+      search: '',
+      freeAgents: true,
+      watchlist: false,
+      rookies: false,
+      mine: false,
+      owner: null
+    }
     expect(filterRows(rows, undefined, filters).map((r) => r.playerId)).toEqual(['a', 'b'])
     expect(sortRows(rows, DEFAULT_SORT.value, 'value').map((r) => r.playerId)).toEqual([
       'c',
@@ -478,5 +494,123 @@ describe('value mode', () => {
     expect(
       valueHeaderTitle(columnGroups('ALL', 'stats')[0].columns[0], context, ['RB'])
     ).toBeUndefined()
+  })
+})
+
+describe('mine group', () => {
+  const [, , , mineGroup] = columnGroups('ALL', 'value', true)
+  const [vsMine, droppable] = mineGroup.columns
+  const context: ValueContext = {
+    season: 2026,
+    currentWeek: 3,
+    projectionsStored: true,
+    teamCount: 16,
+    hasMyTeam: true,
+    mine: { RB: { playerId: 'm', fullName: 'Saquon Barkley', rosValue: 8 }, K: null },
+    replacement: {}
+  }
+  const filters = {
+    search: '',
+    freeAgents: false,
+    watchlist: false,
+    rookies: false,
+    mine: true,
+    owner: null
+  }
+
+  it('is the fourth value-mode group, only when a team is mine', () => {
+    expect(columnGroups('ALL', 'value').map((g) => g.label)).toEqual([
+      'Season',
+      'Rest of season',
+      'Signals'
+    ])
+    expect(columnGroups('K', 'value', true).map((g) => g.label)).toEqual([
+      'Season',
+      'Rest of season',
+      'Signals',
+      'Mine'
+    ])
+    expect(mineGroup.columns.map((c) => [c.key, c.label, c.kind])).toEqual([
+      ['value:vsMine', 'VS MINE', 'value'],
+      ['droppable', 'DROP?', 'droppable']
+    ])
+    expect(columnGroups('ALL', 'stats', true).map((g) => g.label)).not.toContain('Mine')
+  })
+
+  it('renders vs mine as a signed number and droppable as a marker that sorts by its delta', () => {
+    const fa = valueRow({ vsMine: 1.25 })
+    expect(cellText(cellValue(fa, vsMine, 'value'), vsMine, 'value')).toBe('+1.3')
+    expect(cellValue(fa, droppable, 'value')).toBeNull()
+    expect(cellText(null, droppable, 'value')).toBe('')
+    const mine = valueRow({
+      ownerRosterId: 1,
+      ownerIsMe: true,
+      droppable: { playerId: 'f', fullName: 'Free Agent', delta: 2.5 }
+    })
+    expect(cellValue(mine, droppable, 'value')).toBe(2.5)
+    expect(cellText(2.5, droppable, 'value')).toBe('●')
+    expect(cellText(cellValue(mine, vsMine, 'value'), vsMine, 'value')).toBe('—')
+    expect(cellValue(row(), droppable, 'value')).toBeNull()
+  })
+
+  it('sorts by vs mine and by the droppable delta with nulls last', () => {
+    const rows = [
+      valueRow({ playerId: 'a', fullName: 'A', vsMine: 1 }),
+      valueRow({
+        playerId: 'b',
+        fullName: 'B',
+        droppable: { playerId: 'x', fullName: 'X', delta: 3 }
+      }),
+      valueRow({ playerId: 'c', fullName: 'C', vsMine: 4 })
+    ]
+    const ids = (sort: { key: string; dir: 'asc' | 'desc' }): string[] =>
+      sortRows(rows, sort, 'value').map((r) => r.playerId)
+    expect(ids({ key: 'value:vsMine', dir: 'desc' })).toEqual(['c', 'a', 'b'])
+    expect(ids({ key: 'value:vsMine', dir: 'asc' })).toEqual(['a', 'c', 'b'])
+    expect(ids({ key: 'droppable', dir: 'desc' })).toEqual(['b', 'a', 'c'])
+  })
+
+  it('filters to my roster with the My team chip, in week rows too', () => {
+    const rows = [
+      valueRow({ playerId: 'a', ownerRosterId: 1, ownerIsMe: true }),
+      valueRow({ playerId: 'b', ownerRosterId: 2 }),
+      valueRow({ playerId: 'c' })
+    ]
+    expect(filterRows(rows, undefined, filters).map((r) => r.playerId)).toEqual(['a'])
+    expect(filterRows(rows, undefined, { ...filters, mine: false }).length).toBe(3)
+    const week = [row({ playerId: 'w', ownerRosterId: 1, ownerIsMe: true }), row({ playerId: 'x' })]
+    expect(filterRows(week, undefined, filters).map((r) => r.playerId)).toEqual(['w'])
+  })
+
+  it('titles the VS MINE header with my baselines and the droppable header with its definition', () => {
+    expect(mineLabel(context, ['RB', 'K'])).toBe('My lowest ROS VAL · RB Saquon Barkley +8.0 · K —')
+    expect(mineLabel({ ...context, hasMyTeam: false }, ['RB'])).toBe('')
+    expect(mineLabel(null, ['RB'])).toBe('')
+    expect(valueHeaderTitle(vsMine, context, ['RB'])).toBe(
+      `${vsMine.description}\nMy lowest ROS VAL · RB Saquon Barkley +8.0`
+    )
+    expect(valueHeaderTitle(vsMine, null, ['RB'])).toBe(vsMine.description)
+    expect(valueHeaderTitle(droppable, context, ['RB'])).toBe(droppable.description)
+  })
+
+  it('titles a droppable cell with the free agent, an empty vs-mine cell with the missing position', () => {
+    const mine = valueRow({
+      ownerRosterId: 1,
+      ownerIsMe: true,
+      droppable: { playerId: 'f', fullName: 'Free Agent', delta: 2.5 }
+    })
+    expect(mineCellTitle(mine, droppable, context)).toBe('Free agent Free Agent: +2.5 ROS VAL')
+    expect(mineCellTitle(valueRow(), droppable, context)).toBeUndefined()
+    expect(mineCellTitle(valueRow({ position: 'K' }), vsMine, context)).toBe('no K rostered')
+    expect(mineCellTitle(valueRow({ position: 'RB' }), vsMine, context)).toBeUndefined() // baseline exists: a ROS value is missing instead
+    expect(
+      mineCellTitle(valueRow({ position: 'K', ownerRosterId: 2 }), vsMine, context)
+    ).toBeUndefined()
+    expect(mineCellTitle(valueRow({ position: 'K', vsMine: 1 }), vsMine, context)).toBeUndefined()
+    expect(
+      mineCellTitle(valueRow({ position: 'K' }), vsMine, { ...context, projectionsStored: false })
+    ).toBeUndefined()
+    expect(mineCellTitle(valueRow({ position: 'K' }), vsMine, null)).toBeUndefined()
+    expect(mineCellTitle(row(), vsMine, context)).toBeUndefined()
   })
 })

@@ -18,16 +18,16 @@ export const isValueRow = (row: TableRow): row is PlayerValueRow => 'ppg' in row
 export const isWeekRow = (row: TableRow): row is PlayerWeekRow => 'game' in row
 
 export type ColumnKind =
-  'points' | 'delta' | 'stat' | 'snapPct' | 'targetShare' | 'value' | 'signal'
+  'points' | 'delta' | 'stat' | 'snapPct' | 'targetShare' | 'value' | 'signal' | 'droppable'
 export type ValueField =
-  'gamesPlayed' | 'ppg' | 'stdValue' | 'stdRank' | 'rosPoints' | 'rosValue' | 'rosRank'
+  'gamesPlayed' | 'ppg' | 'stdValue' | 'stdRank' | 'rosPoints' | 'rosValue' | 'rosRank' | 'vsMine'
 /** `usage` is the position's primary metric (spec §3.1); the rest read PlayerSignals directly. */
 export type SignalField =
   'rosSos' | 'byesRemaining' | 'floor' | 'ceiling' | 'startRate' | 'usage' | 'tdDelta' | 'vsProjPct'
 export type CellFormat = 'int' | 'fixed' | 'signed' | 'pct' | 'signedPct'
 
 export interface Column {
-  /** Sort key (`points`, `delta`, `snapPct`, `targetShare`, `stat:<key>`, `value:<field>`, `signal:<field>`). */
+  /** Sort key (`points`, `delta`, `snapPct`, `targetShare`, `stat:<key>`, `value:<field>`, `signal:<field>`, `droppable`). */
   key: string
   label: string
   kind: ColumnKind
@@ -171,9 +171,28 @@ const SIGNALS = group('Signals', [
   )
 ])
 
-/** Sleeper's column groups per tab; Δ and usage only exist for played weeks (stats mode). */
-export function columnGroups(tabId: string, mode: TableMode): ColumnGroup[] {
-  if (mode === 'value') return [SEASON, REST_OF_SEASON, SIGNALS]
+const DROPPABLE: Column = {
+  key: 'droppable',
+  label: 'DROP?',
+  kind: 'droppable',
+  description:
+    'A free agent at the same position has a higher ROS VAL than this player of mine — hover for who and by how much; sorts by that gap'
+}
+/** Spec §4: same-position comparisons against my roster; only offered when a team is mine. */
+const MINE = group('Mine', [
+  value(
+    'vsMine',
+    'VS MINE',
+    'signed',
+    'Free agents only: ROS VAL minus the ROS VAL of my lowest-valued startable player at the same position (IR and taxi excluded; FLEX is not modelled)'
+  ),
+  DROPPABLE
+])
+
+/** Sleeper's column groups per tab; Δ and usage only exist for played weeks (stats mode); Mine only when a team is mine. */
+export function columnGroups(tabId: string, mode: TableMode, mine = false): ColumnGroup[] {
+  if (mode === 'value')
+    return mine ? [SEASON, REST_OF_SEASON, SIGNALS, MINE] : [SEASON, REST_OF_SEASON, SIGNALS]
   const fantasy = group('Fantasy', mode === 'stats' ? [POINTS, DELTA] : [POINTS])
   const usage = (...cols: Column[]): ColumnGroup[] =>
     mode === 'stats' ? [group('Usage', cols)] : []
@@ -190,6 +209,7 @@ export function columnGroups(tabId: string, mode: TableMode): ColumnGroup[] {
 }
 
 export function cellValue(row: TableRow, col: Column, mode: TableMode): number | null {
+  if (col.kind === 'droppable') return isValueRow(row) ? (row.droppable?.delta ?? null) : null
   if (col.kind === 'value') return col.field && isValueRow(row) ? row[col.field] : null
   if (col.kind === 'signal')
     return col.signal && isValueRow(row) ? signalValue(row, col.signal) : null
@@ -211,6 +231,7 @@ export function cellValue(row: TableRow, col: Column, mode: TableMode): number |
 }
 
 export function cellText(value: number | null, col: Column, mode: TableMode): string {
+  if (col.kind === 'droppable') return value === null ? '' : '●'
   if (value === null) return '—'
   if (col.kind === 'value' || col.kind === 'signal') {
     if (col.format === 'int') return String(value)
@@ -263,11 +284,13 @@ export interface TableFilters {
   freeAgents: boolean
   watchlist: boolean
   rookies: boolean
+  /** The My team chip: rows whose owner is me, IR and taxi included. */
+  mine: boolean
   owner: number | null
 }
 
 export interface TableSort {
-  /** 'points' | 'delta' | 'name' | 'snapPct' | 'targetShare' | `stat:<key>` | `value:<field>` | `signal:<field>` */
+  /** 'points' | 'delta' | 'name' | 'snapPct' | 'targetShare' | 'droppable' | `stat:<key>` | `value:<field>` | `signal:<field>` */
   key: string
   dir: 'asc' | 'desc'
 }
@@ -290,6 +313,7 @@ export function filterRows<T extends PlayerBaseRow>(
       (!f.freeAgents || r.ownerRosterId === null) &&
       (!f.watchlist || r.watched) &&
       (!f.rookies || r.rookie) &&
+      (!f.mine || r.ownerIsMe) &&
       (f.owner === null || r.ownerRosterId === f.owner) &&
       (!needle || searchable(r.fullName).includes(needle))
   )
@@ -300,6 +324,7 @@ function sortValue(row: TableRow, key: string, mode: TableMode): number | string
   if (key.startsWith('value:')) return isValueRow(row) ? row[key.slice(6) as ValueField] : null
   if (key.startsWith('signal:'))
     return isValueRow(row) ? signalValue(row, key.slice(7) as SignalField) : null
+  if (key === 'droppable') return isValueRow(row) ? (row.droppable?.delta ?? null) : null
   if (!isWeekRow(row)) return null
   if (key === 'points') return mode === 'proj' ? row.projected : row.points
   if (key === 'delta') return row.delta
@@ -349,16 +374,54 @@ export function replacementLabel(
   return [kind === 'std' ? 'Replacement PPG' : 'Replacement ROS pts', ...parts].join(' · ')
 }
 
-/** Header tooltip of a value column: its definition, plus the replacement line for the VAL columns. */
+/** Header tooltip of a described column: its definition, plus the replacement line for VAL and my baselines for VS MINE. */
 export function valueHeaderTitle(
   col: Column,
   context: ValueContext | null,
   positions: string[]
 ): string | undefined {
-  if ((col.kind !== 'value' && col.kind !== 'signal') || !col.description) return undefined
-  if (col.field !== 'stdValue' && col.field !== 'rosValue') return col.description
-  const line = replacementLabel(context, positions, col.field === 'stdValue' ? 'std' : 'ros')
+  if (!col.description) return undefined
+  const line =
+    col.field === 'stdValue' || col.field === 'rosValue'
+      ? replacementLabel(context, positions, col.field === 'stdValue' ? 'std' : 'ros')
+      : col.field === 'vsMine'
+        ? mineLabel(context, positions)
+        : ''
   return line ? `${col.description}\n${line}` : col.description
+}
+
+/** "My lowest ROS VAL · RB Saquon Barkley +8.0 · K —"; empty without a team of mine. */
+export function mineLabel(context: ValueContext | null, positions: string[]): string {
+  if (!context?.hasMyTeam) return ''
+  const parts = positions.map((pos) => {
+    const m = context.mine[pos] ?? null
+    return m ? `${pos} ${m.fullName} ${fmtSigned(m.rosValue)}` : `${pos} —`
+  })
+  return ['My lowest ROS VAL', ...parts].join(' · ')
+}
+
+/** Cell tooltip: the free agent behind a DROP? marker; "no K rostered" behind an empty VS MINE cell (spec §4). */
+export function mineCellTitle(
+  row: TableRow,
+  col: Column,
+  context: ValueContext | null
+): string | undefined {
+  if (!isValueRow(row) || !context?.hasMyTeam) return undefined
+  if (col.kind === 'droppable') {
+    return row.droppable
+      ? `Free agent ${row.droppable.fullName}: ${fmtSigned(row.droppable.delta)} ROS VAL`
+      : undefined
+  }
+  if (
+    col.field === 'vsMine' &&
+    row.vsMine === null &&
+    row.ownerRosterId === null &&
+    row.position !== null &&
+    context.projectionsStored &&
+    (context.mine[row.position] ?? null) === null
+  )
+    return `no ${row.position} rostered`
+  return undefined
 }
 
 /** Spec §3.1: the usage metric behind the USAGE column per position; QB, K and DEF have none. */

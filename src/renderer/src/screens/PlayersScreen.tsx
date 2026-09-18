@@ -178,6 +178,7 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
       freeAgents,
       watchlist,
       rookies,
+      mine: false,
       owner: owner ? Number(owner) : null
     })
     return sortRows(filtered, sort, effectiveMode)
