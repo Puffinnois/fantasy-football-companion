@@ -128,10 +128,12 @@ export function registerIpcHandlers(ctx: AppContext): void {
     return rules
   })
 
-  ipcMain.handle(IPC.rulesReimport, (): Promise<Rules> => {
+  ipcMain.handle(IPC.rulesReimport, async (): Promise<Rules> => {
     const id = activeLeagueId()
     if (!id) throw new Error('No league imported')
-    return reimportRules(syncDeps(ctx), id)
+    const rules = await reimportRules(syncDeps(ctx), id)
+    withTransaction(ctx.db, () => recomputePoints(ctx.db, id, rules.updatedAt))
+    return rules
   })
 
   ipcMain.handle(IPC.playersOptions, (): PlayersOptions => {
