@@ -77,8 +77,8 @@ export interface GameInfo {
   final: boolean
 }
 
-/** One candidate player for a (season, week); the renderer picks the line by mode and filters/sorts locally. */
-export interface PlayerWeekRow {
+/** Identity and roster fields shared by the week and value rows; the renderer filters on these. */
+export interface PlayerBaseRow {
   playerId: string
   fullName: string
   position: string | null
@@ -89,6 +89,10 @@ export interface PlayerWeekRow {
   watched: boolean
   ownerRosterId: number | null
   ownerName: string | null
+}
+
+/** One candidate player for a (season, week); the renderer picks the line by mode and filters/sorts locally. */
+export interface PlayerWeekRow extends PlayerBaseRow {
   /** null = bye (team known) or no team. */
   game: GameInfo | null
   points: number | null

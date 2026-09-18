@@ -7,11 +7,12 @@ import {
 } from '@main/scoring/adapters'
 import { scoreStatLine, type StatLine } from '@main/scoring/engine'
 import { pointsAllowedIndex } from '@main/scoring/recompute'
-import { POSITIONS, type Position, type RosterSlotCount } from '@shared/rules'
+import { asPosition, FLEX_ELIGIBILITY, LINEUP_POSITIONS, type RosterSlotCount } from '@shared/rules'
 import { toNflverseTeam, toSleeperTeam } from '@shared/teams'
 import { kickoffIso } from '@shared/time'
 import type {
   GameInfo,
+  PlayerBaseRow,
   PlayersOptions,
   PlayersWeek,
   PlayerWeekRow,
@@ -31,15 +32,7 @@ import {
   teamByeWeeks
 } from './stats'
 
-const ALL_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']
-const FLEX_SLOTS: Record<string, string[]> = {
-  FLEX: ['RB', 'WR', 'TE'],
-  SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'],
-  REC_FLEX: ['WR', 'TE'],
-  WRRB_FLEX: ['RB', 'WR']
-}
-
-interface CandidateRow {
+export interface CandidateRow {
   player_id: string
   full_name: string
   pos: string | null
@@ -56,15 +49,56 @@ interface CandidateRow {
 
 /** ALL, one tab per scored position, then the league's flex slots in roster order. */
 export function tabsForSlots(slots: RosterSlotCount[]): PositionTab[] {
-  const tabs: PositionTab[] = [{ id: 'ALL', label: 'All', positions: ALL_POSITIONS }]
-  for (const p of ALL_POSITIONS) tabs.push({ id: p, label: p, positions: [p] })
+  const tabs: PositionTab[] = [{ id: 'ALL', label: 'All', positions: [...LINEUP_POSITIONS] }]
+  for (const p of LINEUP_POSITIONS) tabs.push({ id: p, label: p, positions: [p] })
   for (const s of slots) {
-    const positions = FLEX_SLOTS[s.slot]
+    const positions = FLEX_ELIGIBILITY[s.slot]
     if (positions && !tabs.some((t) => t.id === s.slot)) {
-      tabs.push({ id: s.slot, label: s.slot.replace('_', ' '), positions })
+      tabs.push({ id: s.slot, label: s.slot.replace('_', ' '), positions: [...positions] })
     }
   }
   return tabs
+}
+
+/**
+ * Every candidate player of the league: scored positions that are rostered, watched, or active on
+ * an NFL team, with the owner, watchlist and nflverse identity joined in.
+ */
+export function listCandidates(db: Db, leagueId: string): CandidateRow[] {
+  return db
+    .prepare(
+      `SELECT * FROM (
+         SELECT p.player_id, p.full_name, CASE WHEN p.position = 'FB' THEN 'RB' ELSE p.position END AS pos,
+           p.team, p.status, p.injury_status, p.years_exp,
+           rp.roster_id AS owner_roster_id, COALESCE(t.team_name, t.display_name) AS owner_name,
+           w.player_id AS watched, i.gsis_id, i.pfr_id, i.nflverse_team
+         FROM players p
+         LEFT JOIN roster_players rp ON rp.player_id = p.player_id AND rp.league_id = ?
+         LEFT JOIN teams t ON t.league_id = rp.league_id AND t.roster_id = rp.roster_id
+         LEFT JOIN watchlist w ON w.player_id = p.player_id
+         LEFT JOIN player_ids i ON i.player_id = p.player_id
+       ) WHERE pos IN (${LINEUP_POSITIONS.map(() => '?').join(', ')})
+         AND (owner_roster_id IS NOT NULL OR watched IS NOT NULL
+              OR (team IS NOT NULL AND COALESCE(status, '') != 'Inactive'))`
+    )
+    .all(leagueId, ...LINEUP_POSITIONS) as unknown as CandidateRow[]
+}
+
+/** The fields every row type shares; `byes` is `teamByeWeeks` keyed by nflverse team. */
+export function baseRow(r: CandidateRow, byes: Map<string, number>): PlayerBaseRow {
+  const nflverseTeam = r.team ? toNflverseTeam(r.team) : null
+  return {
+    playerId: r.player_id,
+    fullName: r.full_name,
+    position: r.pos,
+    team: r.team,
+    byeWeek: nflverseTeam ? (byes.get(nflverseTeam) ?? null) : null,
+    injuryStatus: r.injury_status,
+    rookie: r.years_exp === 0,
+    watched: r.watched !== null,
+    ownerRosterId: r.owner_roster_id,
+    ownerName: r.owner_name
+  }
 }
 
 export function playersOptions(db: Db, leagueId: string): PlayersOptions {
@@ -80,10 +114,6 @@ export function playersOptions(db: Db, leagueId: string): PlayersOptions {
   }
 }
 
-function asPosition(value: string | null): Position | null {
-  return (POSITIONS as readonly string[]).includes(value ?? '') ? (value as Position) : null
-}
-
 /**
  * Every candidate player (scored positions that are rostered, watched, or active on an NFL team)
  * with one week of data attached from map lookups: actual line, points, projection, snaps, game.
@@ -91,23 +121,7 @@ function asPosition(value: string | null): Position | null {
  */
 export function playersWeek(db: Db, leagueId: string, season: number, week: number): PlayersWeek {
   const rules = getRules(db, leagueId)
-  const candidates = db
-    .prepare(
-      `SELECT * FROM (
-         SELECT p.player_id, p.full_name, CASE WHEN p.position = 'FB' THEN 'RB' ELSE p.position END AS pos,
-           p.team, p.status, p.injury_status, p.years_exp,
-           rp.roster_id AS owner_roster_id, COALESCE(t.team_name, t.display_name) AS owner_name,
-           w.player_id AS watched, i.gsis_id, i.pfr_id, i.nflverse_team
-         FROM players p
-         LEFT JOIN roster_players rp ON rp.player_id = p.player_id AND rp.league_id = ?
-         LEFT JOIN teams t ON t.league_id = rp.league_id AND t.roster_id = rp.roster_id
-         LEFT JOIN watchlist w ON w.player_id = p.player_id
-         LEFT JOIN player_ids i ON i.player_id = p.player_id
-       ) WHERE pos IN (${ALL_POSITIONS.map(() => '?').join(', ')})
-         AND (owner_roster_id IS NOT NULL OR watched IS NOT NULL
-              OR (team IS NOT NULL AND COALESCE(status, '') != 'Inactive'))`
-    )
-    .all(leagueId, ...ALL_POSITIONS) as unknown as CandidateRow[]
+  const candidates = listCandidates(db, leagueId)
 
   const statsByGsis = new Map(listPlayerWeeksByWeek(db, season, week).map((r) => [r.gsisId, r]))
   const teamWeeks = listTeamWeeksByWeek(db, season, week)
@@ -157,16 +171,7 @@ export function playersWeek(db: Db, leagueId: string, season: number, week: numb
     const pts = points.get(r.player_id) ?? null
     const nflverseTeam = r.team ? toNflverseTeam(r.team) : null
     return {
-      playerId: r.player_id,
-      fullName: r.full_name,
-      position: r.pos,
-      team: r.team,
-      byeWeek: nflverseTeam ? (byes.get(nflverseTeam) ?? null) : null,
-      injuryStatus: r.injury_status,
-      rookie: r.years_exp === 0,
-      watched: r.watched !== null,
-      ownerRosterId: r.owner_roster_id,
-      ownerName: r.owner_name,
+      ...baseRow(r, byes),
       game: nflverseTeam ? (gameByTeam.get(nflverseTeam) ?? null) : null,
       points: pts,
       projected,

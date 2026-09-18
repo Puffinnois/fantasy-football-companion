@@ -8,6 +8,21 @@ export type StatKey = string
 export const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'] as const
 export type Position = (typeof POSITIONS)[number]
 
+/** Positions with a dedicated lineup slot; the only ones the app scores and values. */
+export const LINEUP_POSITIONS: readonly string[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']
+
+/** Positions a Sleeper flex slot accepts. Slots not listed here (BN, IR, TAXI, IDP_FLEX, …) are not lineup slots. */
+export const FLEX_ELIGIBILITY: Record<string, readonly string[]> = {
+  FLEX: ['RB', 'WR', 'TE'],
+  SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'],
+  REC_FLEX: ['WR', 'TE'],
+  WRRB_FLEX: ['RB', 'WR']
+}
+
+export function asPosition(value: string | null): Position | null {
+  return (POSITIONS as readonly string[]).includes(value ?? '') ? (value as Position) : null
+}
+
 /** Roster slot names as Sleeper spells them in `roster_positions`. Custom names are allowed. */
 export const KNOWN_SLOTS = [
   'QB',
