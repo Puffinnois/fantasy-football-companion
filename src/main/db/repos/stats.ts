@@ -365,3 +365,41 @@ export function listSnapsByWeek(db: Db, season: number, week: number): Map<strin
 export function listGamesByWeek(db: Db, season: number, week: number): GameRow[] {
   return listGames(db).filter((g) => g.season === season && g.week === week)
 }
+
+export function listPlayerWeeksBySeason(db: Db, season: number): PlayerWeekRow[] {
+  const rows = db
+    .prepare(`${PLAYER_WEEK_SELECT} WHERE season = ? ORDER BY week, gsis_id`)
+    .all(season) as unknown as PlayerWeekDbRow[]
+  return rows.map(toPlayerWeek)
+}
+
+export function listTeamWeeksBySeason(db: Db, season: number): TeamWeekRow[] {
+  const rows = db
+    .prepare(
+      'SELECT team, season, week, opponent, stats_json FROM team_week_stats WHERE season = ? ORDER BY week, team'
+    )
+    .all(season) as unknown as TeamWeekDbRow[]
+  return rows.map((r) => ({
+    team: r.team,
+    season: r.season,
+    week: r.week,
+    opponent: r.opponent,
+    stats: JSON.parse(r.stats_json) as Record<string, number>
+  }))
+}
+
+export function listSnapsBySeason(
+  db: Db,
+  season: number
+): { pfrId: string; week: number; offensePct: number | null }[] {
+  const rows = db
+    .prepare(
+      'SELECT pfr_id, week, offense_pct FROM player_week_snaps WHERE season = ? ORDER BY pfr_id, week'
+    )
+    .all(season) as unknown as { pfr_id: string; week: number; offense_pct: number | null }[]
+  return rows.map((r) => ({ pfrId: r.pfr_id, week: r.week, offensePct: r.offense_pct }))
+}
+
+export function listRegularSeasonGames(db: Db, season: number): GameRow[] {
+  return listGames(db).filter((g) => g.season === season && g.gameType === 'REG')
+}

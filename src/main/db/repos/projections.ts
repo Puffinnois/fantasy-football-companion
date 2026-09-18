@@ -74,3 +74,21 @@ export function listProjectionWeeks(db: Db): { season: number; week: number }[] 
     .prepare('SELECT DISTINCT season, week FROM player_week_projections ORDER BY season, week')
     .all() as unknown as { season: number; week: number }[]
 }
+
+export function listProjectionsBySeason(db: Db, season: number): ProjectionRecord[] {
+  const rows = db
+    .prepare(
+      `SELECT player_id, season, week, company, team, opponent, stats_json
+       FROM player_week_projections WHERE season = ? ORDER BY week, player_id`
+    )
+    .all(season) as unknown as Row[]
+  return rows.map((r) => ({
+    playerId: r.player_id,
+    season: r.season,
+    week: r.week,
+    company: r.company,
+    team: r.team,
+    opponent: r.opponent,
+    stats: JSON.parse(r.stats_json) as Record<string, number>
+  }))
+}

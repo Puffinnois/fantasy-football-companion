@@ -90,3 +90,16 @@ export function listPointsByWeek(
     .all(leagueId, season, week) as unknown as { player_id: string; points: number }[]
   return new Map(rows.map((r) => [r.player_id, r.points]))
 }
+
+export function listPointsBySeason(
+  db: Db,
+  leagueId: string,
+  season: number
+): { playerId: string; week: number; points: number }[] {
+  const rows = db
+    .prepare(
+      'SELECT player_id, week, points FROM player_week_points WHERE league_id = ? AND season = ? ORDER BY player_id, week'
+    )
+    .all(leagueId, season) as unknown as { player_id: string; week: number; points: number }[]
+  return rows.map((r) => ({ playerId: r.player_id, week: r.week, points: r.points }))
+}
