@@ -3,13 +3,15 @@ import {
   cellText,
   cellValue,
   columnGroups,
+  DEFAULT_SORT,
   filterRows,
   gameLabel,
   kickoffLabel,
+  replacementLabel,
   sortRows,
   subLabel
 } from '@/lib/playersTableView'
-import type { PlayerWeekRow } from '@shared/types'
+import type { PlayerValueRow, PlayerWeekRow, ValueContext } from '@shared/types'
 
 const row = (over: Partial<PlayerWeekRow> = {}): PlayerWeekRow => ({
   playerId: '1',
@@ -30,6 +32,29 @@ const row = (over: Partial<PlayerWeekRow> = {}): PlayerWeekRow => ({
   projection: { rush_yd: 84.5 },
   snapPct: 0.83,
   targetShare: null,
+  statsAvailable: true,
+  ...over
+})
+
+const valueRow = (over: Partial<PlayerValueRow> = {}): PlayerValueRow => ({
+  playerId: 'v1',
+  fullName: 'V',
+  position: 'RB',
+  team: 'PHI',
+  byeWeek: 7,
+  injuryStatus: null,
+  rookie: false,
+  watched: false,
+  ownerRosterId: null,
+  ownerName: null,
+  gamesPlayed: 3,
+  ppg: 18.4,
+  stdValue: 6.28,
+  stdRank: 2,
+  rosPoints: 120.5,
+  rosValue: -1.5,
+  rosRank: 9,
+  overallRank: 20,
   statsAvailable: true,
   ...over
 })
@@ -111,37 +136,29 @@ describe('labels', () => {
       awayScore: null,
       final: false
     }
-    expect(gameLabel(row({ game: upcoming }), NY)).toBe('Sun 1:00 PM vs GB')
-    expect(gameLabel(row({ game: { ...upcoming, home: false, kickoff: null } }), NY)).toBe('@ GB')
+    expect(gameLabel(upcoming, NY)).toBe('Sun 1:00 PM vs GB')
+    expect(gameLabel({ ...upcoming, home: false, kickoff: null }, NY)).toBe('@ GB')
     expect(
-      gameLabel(
-        row({
-          game: {
-            opponent: 'DAL',
-            home: true,
-            kickoff: null,
-            homeScore: 24,
-            awayScore: 20,
-            final: true
-          }
-        })
-      )
+      gameLabel({
+        opponent: 'DAL',
+        home: true,
+        kickoff: null,
+        homeScore: 24,
+        awayScore: 20,
+        final: true
+      })
     ).toBe('vs DAL · W 24-20')
     expect(
-      gameLabel(
-        row({
-          game: {
-            opponent: 'DAL',
-            home: false,
-            kickoff: null,
-            homeScore: 24,
-            awayScore: 20,
-            final: true
-          }
-        })
-      )
+      gameLabel({
+        opponent: 'DAL',
+        home: false,
+        kickoff: null,
+        homeScore: 24,
+        awayScore: 20,
+        final: true
+      })
     ).toBe('@ DAL · L 20-24')
-    expect(gameLabel(row({ game: null }))).toBe('BYE')
+    expect(gameLabel(null)).toBe('BYE')
   })
   it('subLabel: team with bye + game; FA without a team', () => {
     expect(subLabel(row({ game: null }))).toBe('PHI (bye 7) · BYE')
@@ -249,5 +266,86 @@ describe('filterRows / sortRows', () => {
       'a'
     ])
     expect(rows.map((r) => r.playerId)).toEqual(['a', 'b', 'c', 'd', 'e']) // input untouched
+  })
+})
+
+describe('value mode', () => {
+  it('has the same two groups on every tab', () => {
+    for (const tab of ['ALL', 'QB', 'K', 'FLEX']) {
+      const groups = columnGroups(tab, 'value')
+      expect(groups.map((g) => g.label)).toEqual(['Season', 'Rest of season'])
+      expect(groups.flatMap((g) => g.columns.map((c) => c.key))).toEqual([
+        'value:gamesPlayed',
+        'value:ppg',
+        'value:stdValue',
+        'value:stdRank',
+        'value:rosPoints',
+        'value:rosValue',
+        'value:rosRank'
+      ])
+    }
+  })
+
+  it('reads and formats value cells; week columns are null on value rows and vice versa', () => {
+    const [season, ros] = columnGroups('ALL', 'value')
+    const r = valueRow()
+    expect(season.columns.map((c) => cellText(cellValue(r, c, 'value'), c, 'value'))).toEqual([
+      '3',
+      '18.4',
+      '+6.3',
+      '2'
+    ])
+    expect(ros.columns.map((c) => cellText(cellValue(r, c, 'value'), c, 'value'))).toEqual([
+      '120.5',
+      '-1.5',
+      '9'
+    ])
+    const ppg = season.columns[1]
+    expect(cellText(cellValue(valueRow({ ppg: null }), ppg, 'value'), ppg, 'value')).toBe('—')
+    expect(cellValue(r, columnGroups('ALL', 'stats')[0].columns[0], 'stats')).toBeNull()
+    expect(cellValue(row(), ppg, 'value')).toBeNull()
+  })
+
+  it('filters and sorts value rows with nulls last', () => {
+    const rows = [
+      valueRow({ playerId: 'a', fullName: 'A', rosValue: 2 }),
+      valueRow({ playerId: 'b', fullName: 'B', rosValue: null }),
+      valueRow({ playerId: 'c', fullName: 'C', rosValue: 5, ownerRosterId: 1 })
+    ]
+    const filters = { search: '', freeAgents: true, watchlist: false, rookies: false, owner: null }
+    expect(filterRows(rows, undefined, filters).map((r) => r.playerId)).toEqual(['a', 'b'])
+    expect(sortRows(rows, DEFAULT_SORT.value, 'value').map((r) => r.playerId)).toEqual([
+      'c',
+      'a',
+      'b'
+    ])
+    expect(
+      sortRows(rows, { key: 'value:rosValue', dir: 'asc' }, 'value').map((r) => r.playerId)
+    ).toEqual(['a', 'c', 'b'])
+    expect(DEFAULT_SORT.stats).toEqual({ key: 'points', dir: 'desc' })
+  })
+
+  it('labels a value row without a game', () => {
+    expect(subLabel(valueRow())).toBe('PHI (bye 7)')
+    expect(subLabel(valueRow({ team: null }))).toBe('FA')
+  })
+
+  it('describes replacement levels for the tab positions', () => {
+    const context: ValueContext = {
+      season: 2026,
+      currentWeek: 3,
+      projectionsStored: true,
+      replacement: {
+        RB: { std: { level: 8.36, starters: 44 }, ros: { level: 91.2, starters: 43 } },
+        WR: { std: null, ros: { level: 80, starters: 45 } }
+      }
+    }
+    expect(replacementLabel(context, ['RB', 'WR'], 'std')).toBe(
+      'Replacement PPG · RB 8.4 (44 starters) · WR —'
+    )
+    expect(replacementLabel(context, ['RB'], 'ros')).toBe(
+      'Replacement ROS pts · RB 91.2 (43 starters)'
+    )
+    expect(replacementLabel(null, ['RB'], 'ros')).toBe('')
   })
 })

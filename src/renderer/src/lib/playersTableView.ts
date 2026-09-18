@@ -1,14 +1,31 @@
-import { fmtPct } from '@/lib/format'
-import type { PlayerWeekRow, PositionTab, TableMode } from '@shared/types'
+import { fmtPct, fmtSigned } from '@/lib/format'
+import type {
+  GameInfo,
+  PlayerBaseRow,
+  PlayerValueRow,
+  PlayerWeekRow,
+  PositionTab,
+  TableMode,
+  ValueContext
+} from '@shared/types'
 
-export type ColumnKind = 'points' | 'delta' | 'stat' | 'snapPct' | 'targetShare'
+export type TableRow = PlayerWeekRow | PlayerValueRow
+export const isValueRow = (row: TableRow): row is PlayerValueRow => 'ppg' in row
+export const isWeekRow = (row: TableRow): row is PlayerWeekRow => 'game' in row
+
+export type ColumnKind = 'points' | 'delta' | 'stat' | 'snapPct' | 'targetShare' | 'value'
+export type ValueField =
+  'gamesPlayed' | 'ppg' | 'stdValue' | 'stdRank' | 'rosPoints' | 'rosValue' | 'rosRank'
 
 export interface Column {
-  /** Sort key sent to `players.table` (`points`, `delta`, `snapPct`, `targetShare`, `stat:<key>`). */
+  /** Sort key (`points`, `delta`, `snapPct`, `targetShare`, `stat:<key>`, `value:<field>`). */
   key: string
   label: string
   kind: ColumnKind
   statKey?: string
+  field?: ValueField
+  /** Value columns only: integer, one decimal, or signed one decimal. */
+  format?: 'int' | 'fixed' | 'signed'
 }
 
 export interface ColumnGroup {
@@ -64,9 +81,28 @@ const DEFENSE = group('Defense', [
   stat('blk_kick', 'BLK')
 ])
 const ALLOWED = group('Allowed', [stat('pts_allow', 'PTS'), stat('yds_allow', 'YDS')])
+const value = (field: ValueField, label: string, format: 'int' | 'fixed' | 'signed'): Column => ({
+  key: `value:${field}`,
+  label,
+  kind: 'value',
+  field,
+  format
+})
+const SEASON = group('Season', [
+  value('gamesPlayed', 'G', 'int'),
+  value('ppg', 'PPG', 'fixed'),
+  value('stdValue', 'VAL', 'signed'),
+  value('stdRank', 'RK', 'int')
+])
+const REST_OF_SEASON = group('Rest of season', [
+  value('rosPoints', 'ROS', 'fixed'),
+  value('rosValue', 'VAL', 'signed'),
+  value('rosRank', 'RK', 'int')
+])
 
 /** Sleeper's column groups per tab; Δ and usage only exist for played weeks (stats mode). */
 export function columnGroups(tabId: string, mode: TableMode): ColumnGroup[] {
+  if (mode === 'value') return [SEASON, REST_OF_SEASON]
   const fantasy = group('Fantasy', mode === 'stats' ? [POINTS, DELTA] : [POINTS])
   const usage = (...cols: Column[]): ColumnGroup[] =>
     mode === 'stats' ? [group('Usage', cols)] : []
@@ -82,7 +118,9 @@ export function columnGroups(tabId: string, mode: TableMode): ColumnGroup[] {
   }
 }
 
-export function cellValue(row: PlayerWeekRow, col: Column, mode: TableMode): number | null {
+export function cellValue(row: TableRow, col: Column, mode: TableMode): number | null {
+  if (col.kind === 'value') return col.field && isValueRow(row) ? row[col.field] : null
+  if (!isWeekRow(row)) return null
   switch (col.kind) {
     case 'points':
       return mode === 'proj' ? row.projected : row.points
@@ -101,9 +139,14 @@ export function cellValue(row: PlayerWeekRow, col: Column, mode: TableMode): num
 
 export function cellText(value: number | null, col: Column, mode: TableMode): string {
   if (value === null) return '—'
+  if (col.kind === 'value') {
+    if (col.format === 'int') return String(value)
+    if (col.format === 'signed') return fmtSigned(value)
+    return value.toFixed(1)
+  }
   if (col.kind === 'snapPct' || col.kind === 'targetShare') return fmtPct(value)
   if (col.kind === 'points') return value.toFixed(1)
-  if (col.kind === 'delta') return `${value > 0 ? '+' : ''}${value.toFixed(1)}`
+  if (col.kind === 'delta') return fmtSigned(value)
   if (mode === 'proj') return value.toFixed(1)
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
@@ -119,8 +162,7 @@ export function kickoffLabel(iso: string, timeZone?: string, locale = 'en-US'): 
 }
 
 /** "Sun 1:00 PM vs GB" · "@ DAL · L 20-24" · "BYE". */
-export function gameLabel(row: PlayerWeekRow, timeZone?: string): string {
-  const g = row.game
+export function gameLabel(g: GameInfo | null, timeZone?: string): string {
   if (!g) return 'BYE'
   const vs = `${g.home ? 'vs' : '@'} ${g.opponent}`
   if (g.final && g.homeScore !== null && g.awayScore !== null) {
@@ -132,11 +174,11 @@ export function gameLabel(row: PlayerWeekRow, timeZone?: string): string {
   return g.kickoff ? `${kickoffLabel(g.kickoff, timeZone)} ${vs}` : vs
 }
 
-/** Second line under the name: "PHI (bye 7) · Sun 1:00 PM vs GB"; "FA" without a team. */
-export function subLabel(row: PlayerWeekRow, timeZone?: string): string {
+/** Second line under the name: "PHI (bye 7) · Sun 1:00 PM vs GB"; value rows have no game: "PHI (bye 7)"; "FA" without a team. */
+export function subLabel(row: TableRow, timeZone?: string): string {
   if (!row.team) return 'FA'
   const team = row.byeWeek ? `${row.team} (bye ${row.byeWeek})` : row.team
-  return `${team} · ${gameLabel(row, timeZone)}`
+  return isWeekRow(row) ? `${team} · ${gameLabel(row.game, timeZone)}` : team
 }
 
 export const TABLE_LIMIT = 250
@@ -160,11 +202,11 @@ function searchable(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9\s]/g, '')
 }
 
-export function filterRows(
-  rows: PlayerWeekRow[],
+export function filterRows<T extends PlayerBaseRow>(
+  rows: T[],
   tab: PositionTab | undefined,
   f: TableFilters
-): PlayerWeekRow[] {
+): T[] {
   const positions = tab ? new Set(tab.positions) : null
   const needle = searchable(f.search.trim())
   return rows.filter(
@@ -178,10 +220,12 @@ export function filterRows(
   )
 }
 
-function sortValue(row: PlayerWeekRow, key: string, mode: TableMode): number | string | null {
+function sortValue(row: TableRow, key: string, mode: TableMode): number | string | null {
+  if (key === 'name') return row.fullName
+  if (key.startsWith('value:')) return isValueRow(row) ? row[key.slice(6) as ValueField] : null
+  if (!isWeekRow(row)) return null
   if (key === 'points') return mode === 'proj' ? row.projected : row.points
   if (key === 'delta') return row.delta
-  if (key === 'name') return row.fullName
   if (key === 'snapPct') return row.snapPct
   if (key === 'targetShare') return row.targetShare
   if (key.startsWith('stat:')) {
@@ -192,7 +236,7 @@ function sortValue(row: PlayerWeekRow, key: string, mode: TableMode): number | s
 }
 
 /** Returns a sorted copy; nulls last in both directions; ties broken by name. */
-export function sortRows(rows: PlayerWeekRow[], sort: TableSort, mode: TableMode): PlayerWeekRow[] {
+export function sortRows<T extends TableRow>(rows: T[], sort: TableSort, mode: TableMode): T[] {
   const dir = sort.dir === 'asc' ? 1 : -1
   return [...rows].sort((a, b) => {
     const va = sortValue(a, sort.key, mode)
@@ -206,4 +250,24 @@ export function sortRows(rows: PlayerWeekRow[], sort: TableSort, mode: TableMode
         : va - vb
     return cmp !== 0 ? cmp * dir : a.fullName.localeCompare(b.fullName)
   })
+}
+
+export const DEFAULT_SORT: Record<TableMode, TableSort> = {
+  proj: { key: 'points', dir: 'desc' },
+  stats: { key: 'points', dir: 'desc' },
+  value: { key: 'value:rosValue', dir: 'desc' }
+}
+
+/** Tooltip for a VAL header: "Replacement PPG · RB 8.4 (44 starters) · WR —". */
+export function replacementLabel(
+  context: ValueContext | null,
+  positions: string[],
+  kind: 'std' | 'ros'
+): string {
+  if (!context) return ''
+  const parts = positions.map((pos) => {
+    const level = context.replacement[pos]?.[kind] ?? null
+    return level ? `${pos} ${level.level.toFixed(1)} (${level.starters} starters)` : `${pos} —`
+  })
+  return [kind === 'std' ? 'Replacement PPG' : 'Replacement ROS pts', ...parts].join(' · ')
 }

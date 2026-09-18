@@ -20,6 +20,11 @@ export function fmtPoints(value: number | null): string {
   return value === null ? '—' : value.toFixed(1)
 }
 
+/** "+3.2" / "-0.8" / "—". */
+export function fmtSigned(value: number | null): string {
+  return value === null ? '—' : `${value > 0 ? '+' : ''}${value.toFixed(1)}`
+}
+
 /** nflverse percentages are 0–1 fractions. */
 export function fmtPct(value: number | null): string {
   return value === null ? '—' : `${Math.round(value * 100)}%`

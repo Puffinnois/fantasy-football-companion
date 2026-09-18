@@ -45,7 +45,7 @@ export interface RosterPlayer {
   statsAvailable: boolean
 }
 
-export type TableMode = 'proj' | 'stats'
+export type TableMode = 'proj' | 'stats' | 'value'
 
 export interface PositionTab {
   id: string
