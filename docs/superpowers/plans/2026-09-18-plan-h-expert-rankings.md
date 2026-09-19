@@ -37,37 +37,37 @@
 
 ## File map
 
-| File                                                             | Responsibility                                                                                                                                                                                  |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/types.ts` (modify)                                   | `ScoringFormat`, `ExpertRos`, `MarketValue`, `ExpertWeek`, `ExpertContext`; `PlayerWeekRow.expert`, `PlayerValueRow.expert` / `.market`, `ValueContext.expert`                                  |
-| `src/shared/rules.ts` (modify)                                   | `scoringFormat(rules)`                                                                                                                                                                          |
-| `src/shared/teams.ts` (modify)                                   | `FP_TO_SLEEPER_TEAM`, `toSleeperDefId`                                                                                                                                                          |
-| `src/main/db/migrations/005_experts.sql` (create) + `index.ts`   | `expert_ranks`, `market_values`, `crosswalk.fantasypros_id`, forget the crosswalk step's freshness                                                                                              |
-| `src/main/sources/nflverse-types.ts`, `nflverse.ts` (modify)     | `CrosswalkRecord.fantasyprosId` + CSV column                                                                                                                                                    |
-| `src/main/db/repos/playerIds.ts` (modify)                        | store / list `fantasypros_id`                                                                                                                                                                   |
-| `src/main/sources/fantasypros.ts` (create)                       | payload types, `num`, `parsePosRank`, `mapFpRankings`, `FantasyProsClient`, `createFantasyProsClient`                                                                                           |
-| `src/main/sources/fantasycalc.ts` (create)                       | payload types, `mapFcValues`, `FantasyCalcClient`, `createFantasyCalcClient`                                                                                                                    |
-| `src/main/db/repos/expertRanks.ts` (create)                      | `ROS_WEEK`, `ExpertRankRecord` / `ExpertRankRow`, `replaceExpertRanks`, `listExpertRanks`, `storedScoring`                                                                                      |
-| `src/main/db/repos/marketValues.ts` (create)                     | `MarketValueRecord` / `MarketValueRow`, `replaceMarketValues`, `listMarketValues`                                                                                                               |
-| `src/main/sync/expertSync.ts` (create)                           | sources + freshness constants, `numQbsFor`, `buildFpJoinIndex`, `joinFantasyPros`, `refreshExperts`                                                                                             |
-| `src/main/sync/refresh.ts` (modify)                              | `AppSyncDeps`; experts after nflverse in `refreshAll` / `importAll`                                                                                                                             |
-| `src/main/ipc/handlers.ts`, `src/main/index.ts` (modify)         | `AppContext.fantasypros` / `.fantasycalc`; `syncDeps` returns `AppSyncDeps`; clients created at startup                                                                                         |
-| `src/main/value/expert.ts` (create)                              | pure: `ExpertBundle`, `NO_EXPERTS`, `indexExperts`, `ecrDelta`, `expertRos`, `marketValue`, `expertWeek`                                                                                        |
-| `src/main/value/build.ts` (modify)                               | `assembleValue(bundle, experts)`; `buildValueSeason` loads ROS ranks + market values; `context.expert`                                                                                          |
-| `src/main/db/repos/playersWeek.ts` (modify)                      | join the week's `expert_ranks` → `PlayerWeekRow.expert`                                                                                                                                         |
-| `src/renderer/src/lib/playersTableView.ts` (modify)              | `'expert'` kind, `ExpertField`, `EXPERTS_VALUE` / `EXPERTS_WEEK` groups, `expertValue` / `expertText` / `expertTone`, `GRADE_ORDER`, `ECR_DELTA_TONE`, sorting                                  |
-| `src/renderer/src/screens/PlayersScreen.tsx` (modify)            | expert cells (text + `warn` tone)                                                                                                                                                               |
-| `src/renderer/src/components/ValueHelp.tsx` (modify)             | _Experts_ section (column descriptions, sources, scoring, Δ ECR reading, freshness)                                                                                                             |
-| `docs/reference/value-and-signals.md` (modify)                   | `ValueContext.expert`, Experts fields on both row types, table rows, constants, module map                                                                                                      |
-| `tests/fixtures/fantasypros.ts`, `fantasycalc.ts` (create)       | trimmed payloads (spec §7)                                                                                                                                                                      |
-| `tests/shared/rules.test.ts`, `teams.test.ts` (create)           | `scoringFormat`, `toSleeperDefId`                                                                                                                                                               |
-| `tests/main/sources/fantasypros.test.ts`, `fantasycalc.test.ts`  | mappers + clients with a fake fetch                                                                                                                                                             |
-| `tests/main/db/expertRepos.test.ts` (create)                     | replace semantics, `storedScoring`, ordering                                                                                                                                                    |
-| `tests/main/db/migrate.test.ts`, `playerIdsRepo`, `nflverse`     | version 5, tables, crosswalk column + freshness reset                                                                                                                                           |
-| `tests/main/sync/expertSync.test.ts`, `refresh.test.ts` (create) | steps with fake clients (spec §7), pipeline order                                                                                                                                               |
-| `tests/main/value/expert.test.ts` (create) + `build.test.ts`     | pure attach + `ecrDelta`; build integration                                                                                                                                                     |
-| `tests/main/db/playersWeek.test.ts` (modify)                     | `PlayerWeekRow.expert`                                                                                                                                                                          |
-| `tests/renderer/lib/playersTableView.test.ts` (modify)           | fixture literals; Experts groups, cells, tones, sort                                                                                                                                             |
+| File                                                             | Responsibility                                                                                                                                                 |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/types.ts` (modify)                                   | `ScoringFormat`, `ExpertRos`, `MarketValue`, `ExpertWeek`, `ExpertContext`; `PlayerWeekRow.expert`, `PlayerValueRow.expert` / `.market`, `ValueContext.expert` |
+| `src/shared/rules.ts` (modify)                                   | `scoringFormat(rules)`                                                                                                                                         |
+| `src/shared/teams.ts` (modify)                                   | `FP_TO_SLEEPER_TEAM`, `toSleeperDefId`                                                                                                                         |
+| `src/main/db/migrations/005_experts.sql` (create) + `index.ts`   | `expert_ranks`, `market_values`, `crosswalk.fantasypros_id`, forget the crosswalk step's freshness                                                             |
+| `src/main/sources/nflverse-types.ts`, `nflverse.ts` (modify)     | `CrosswalkRecord.fantasyprosId` + CSV column                                                                                                                   |
+| `src/main/db/repos/playerIds.ts` (modify)                        | store / list `fantasypros_id`                                                                                                                                  |
+| `src/main/sources/fantasypros.ts` (create)                       | payload types, `num`, `parsePosRank`, `mapFpRankings`, `FantasyProsClient`, `createFantasyProsClient`                                                          |
+| `src/main/sources/fantasycalc.ts` (create)                       | payload types, `mapFcValues`, `FantasyCalcClient`, `createFantasyCalcClient`                                                                                   |
+| `src/main/db/repos/expertRanks.ts` (create)                      | `ROS_WEEK`, `ExpertRankRecord` / `ExpertRankRow`, `replaceExpertRanks`, `listExpertRanks`, `storedScoring`                                                     |
+| `src/main/db/repos/marketValues.ts` (create)                     | `MarketValueRecord` / `MarketValueRow`, `replaceMarketValues`, `listMarketValues`                                                                              |
+| `src/main/sync/expertSync.ts` (create)                           | sources + freshness constants, `numQbsFor`, `buildFpJoinIndex`, `joinFantasyPros`, `refreshExperts`                                                            |
+| `src/main/sync/refresh.ts` (modify)                              | `AppSyncDeps`; experts after nflverse in `refreshAll` / `importAll`                                                                                            |
+| `src/main/ipc/handlers.ts`, `src/main/index.ts` (modify)         | `AppContext.fantasypros` / `.fantasycalc`; `syncDeps` returns `AppSyncDeps`; clients created at startup                                                        |
+| `src/main/value/expert.ts` (create)                              | pure: `ExpertBundle`, `NO_EXPERTS`, `indexExperts`, `ecrDelta`, `expertRos`, `marketValue`, `expertWeek`                                                       |
+| `src/main/value/build.ts` (modify)                               | `assembleValue(bundle, experts)`; `buildValueSeason` loads ROS ranks + market values; `context.expert`                                                         |
+| `src/main/db/repos/playersWeek.ts` (modify)                      | join the week's `expert_ranks` → `PlayerWeekRow.expert`                                                                                                        |
+| `src/renderer/src/lib/playersTableView.ts` (modify)              | `'expert'` kind, `ExpertField`, `EXPERTS_VALUE` / `EXPERTS_WEEK` groups, `expertValue` / `expertText` / `expertTone`, `GRADE_ORDER`, `ECR_DELTA_TONE`, sorting |
+| `src/renderer/src/screens/PlayersScreen.tsx` (modify)            | expert cells (text + `warn` tone)                                                                                                                              |
+| `src/renderer/src/components/ValueHelp.tsx` (modify)             | _Experts_ section (column descriptions, sources, scoring, Δ ECR reading, freshness)                                                                            |
+| `docs/reference/value-and-signals.md` (modify)                   | `ValueContext.expert`, Experts fields on both row types, table rows, constants, module map                                                                     |
+| `tests/fixtures/fantasypros.ts`, `fantasycalc.ts` (create)       | trimmed payloads (spec §7)                                                                                                                                     |
+| `tests/shared/rules.test.ts`, `teams.test.ts` (create)           | `scoringFormat`, `toSleeperDefId`                                                                                                                              |
+| `tests/main/sources/fantasypros.test.ts`, `fantasycalc.test.ts`  | mappers + clients with a fake fetch                                                                                                                            |
+| `tests/main/db/expertRepos.test.ts` (create)                     | replace semantics, `storedScoring`, ordering                                                                                                                   |
+| `tests/main/db/migrate.test.ts`, `playerIdsRepo`, `nflverse`     | version 5, tables, crosswalk column + freshness reset                                                                                                          |
+| `tests/main/sync/expertSync.test.ts`, `refresh.test.ts` (create) | steps with fake clients (spec §7), pipeline order                                                                                                              |
+| `tests/main/value/expert.test.ts` (create) + `build.test.ts`     | pure attach + `ecrDelta`; build integration                                                                                                                    |
+| `tests/main/db/playersWeek.test.ts` (modify)                     | `PlayerWeekRow.expert`                                                                                                                                         |
+| `tests/renderer/lib/playersTableView.test.ts` (modify)           | fixture literals; Experts groups, cells, tones, sort                                                                                                           |
 
 ---
 
@@ -89,7 +89,7 @@ Types first so every later task compiles against them; the build and week query 
 
 - Produces: `ScoringFormat`, `ExpertRos`, `MarketValue`, `ExpertWeek`, `ExpertContext` (shared); `PlayerWeekRow.expert: ExpertWeek | null`; `PlayerValueRow.expert: ExpertRos | null`, `.market: MarketValue | null`; `ValueContext.expert: ExpertContext`; `scoringFormat(rules: Rules | null): ScoringFormat`.
 
-- [ ] **Step 1: Write the failing test for `scoringFormat`**
+- [x] **Step 1: Write the failing test for `scoringFormat`**
 
 `tests/shared/rules.test.ts`:
 
@@ -117,12 +117,12 @@ describe('scoringFormat', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run tests/shared/rules.test.ts`
 Expected: FAIL — `scoringFormat` is not exported from `@shared/rules`.
 
-- [ ] **Step 3: Add the shared types**
+- [x] **Step 3: Add the shared types**
 
 In `src/shared/types.ts`, insert before `/** One player's season value (spec §2); …` (`PlayerValueRow`):
 
@@ -174,26 +174,26 @@ export interface ExpertContext {
 In `PlayerWeekRow`, after `targetShare: number | null`:
 
 ```ts
-  /** FantasyPros start/sit consensus for this week; null when unpublished or unranked. */
-  expert: ExpertWeek | null
+/** FantasyPros start/sit consensus for this week; null when unpublished or unranked. */
+expert: ExpertWeek | null
 ```
 
 In `PlayerValueRow`, after `droppable: Droppable | null`:
 
 ```ts
-  /** FantasyPros rest-of-season consensus; null when the experts have no row for the player. */
-  expert: ExpertRos | null
-  /** FantasyCalc trade-market value; null outside its list. */
-  market: MarketValue | null
+/** FantasyPros rest-of-season consensus; null when the experts have no row for the player. */
+expert: ExpertRos | null
+/** FantasyCalc trade-market value; null outside its list. */
+market: MarketValue | null
 ```
 
 In `ValueContext`, after `replacement: …`:
 
 ```ts
-  expert: ExpertContext
+expert: ExpertContext
 ```
 
-- [ ] **Step 4: Add `scoringFormat` to `src/shared/rules.ts`**
+- [x] **Step 4: Add `scoringFormat` to `src/shared/rules.ts`**
 
 At the top of the file add `import type { ScoringFormat } from './types'`, and append:
 
@@ -205,7 +205,7 @@ export function scoringFormat(rules: Rules | null): ScoringFormat {
 }
 ```
 
-- [ ] **Step 5: Stub the new fields in the build and the week query**
+- [x] **Step 5: Stub the new fields in the build and the week query**
 
 `src/main/value/build.ts`: change the `@shared/rules` import to `import { LINEUP_POSITIONS, scoringFormat } from '@shared/rules'`. In the `rows` map literal, after `droppable: …`:
 
@@ -226,7 +226,7 @@ In the returned `context` literal, after `replacement`:
       expert: null,
 ```
 
-- [ ] **Step 6: Update the typed fixture literals**
+- [x] **Step 6: Update the typed fixture literals**
 
 `tests/renderer/lib/playersTableView.test.ts`:
 
@@ -241,12 +241,12 @@ In the returned `context` literal, after `replacement`:
       expert: { scoring: 'PPR', ecrUpdatedAt: null, marketUpdatedAt: null }
 ```
 
-- [ ] **Step 7: Verify**
+- [x] **Step 7: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: all green; `tests/shared/rules.test.ts` 2 passed; total 256 → 258.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/shared/types.ts src/shared/rules.ts src/main/value/build.ts src/main/db/repos/playersWeek.ts tests/shared/rules.test.ts tests/renderer/lib/playersTableView.test.ts tests/main/value/build.test.ts
@@ -271,38 +271,42 @@ git commit -m "feat(types): expert and market row fields, scoring format"
 
 - Produces: tables `expert_ranks(season, week, player_id, scoring, rank_ecr, pos_rank, rank_ave, rank_std, rank_min, rank_max, experts, grade, proj_pts, updated_at)` and `market_values(season, player_id, value, overall_rank, pos_rank, tier, trend_30d, updated_at)`; `crosswalk.fantasypros_id`; `CrosswalkRecord.fantasyprosId: string | null`; `FP_TO_SLEEPER_TEAM`, `toSleeperDefId(fpTeam: string): string`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/main/db/migrate.test.ts`: in `creates all slice-1 tables…` change `expect(version).toBe(4)` to `toBe(5)` and add `'expert_ranks'`, `'market_values'` to the `arrayContaining` list; in `is idempotent` change `expect(row.n).toBe(4)` to `toBe(5)`. Add:
 
 ```ts
-  it('005 adds crosswalk.fantasypros_id and forgets the crosswalk step so it is re-downloaded', () => {
-    const db = openDatabase(':memory:')
-    // apply 001–004 by hand, then a crosswalk step that would otherwise still be fresh
-    db.exec(`CREATE TABLE schema_version (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
-    for (const m of migrations.slice(0, 4)) {
-      db.exec(m.sql)
-      db.prepare('INSERT INTO schema_version (version, name, applied_at) VALUES (?, ?, ?)').run(
-        m.version,
-        m.name,
-        'x'
-      )
-    }
-    db.prepare(
-      `INSERT INTO sync_log (source, started_at, finished_at, status, message, rows_written)
-       VALUES ('nflverse:crosswalk', 't', 't', 'ok', NULL, 10), ('nflverse:games', 't', 't', 'ok', NULL, 1)`
-    ).run()
-
-    expect(migrate(db)).toBe(5)
-    const columns = (db.prepare('PRAGMA table_info(crosswalk)').all() as { name: string }[]).map(
-      (c) => c.name
+it('005 adds crosswalk.fantasypros_id and forgets the crosswalk step so it is re-downloaded', () => {
+  const db = openDatabase(':memory:')
+  // apply 001–004 by hand, then a crosswalk step that would otherwise still be fresh
+  db.exec(
+    `CREATE TABLE schema_version (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`
+  )
+  for (const m of migrations.slice(0, 4)) {
+    db.exec(m.sql)
+    db.prepare('INSERT INTO schema_version (version, name, applied_at) VALUES (?, ?, ?)').run(
+      m.version,
+      m.name,
+      'x'
     )
-    expect(columns).toContain('fantasypros_id')
-    const sources = (db.prepare('SELECT source FROM sync_log ORDER BY source').all() as {
+  }
+  db.prepare(
+    `INSERT INTO sync_log (source, started_at, finished_at, status, message, rows_written)
+       VALUES ('nflverse:crosswalk', 't', 't', 'ok', NULL, 10), ('nflverse:games', 't', 't', 'ok', NULL, 1)`
+  ).run()
+
+  expect(migrate(db)).toBe(5)
+  const columns = (db.prepare('PRAGMA table_info(crosswalk)').all() as { name: string }[]).map(
+    (c) => c.name
+  )
+  expect(columns).toContain('fantasypros_id')
+  const sources = (
+    db.prepare('SELECT source FROM sync_log ORDER BY source').all() as {
       source: string
-    }[]).map((r) => r.source)
-    expect(sources).toEqual(['nflverse:games'])
-  })
+    }[]
+  ).map((r) => r.source)
+  expect(sources).toEqual(['nflverse:games'])
+})
 ```
 
 Add `import { migrations } from '@main/db/migrations'` to the file's imports.
@@ -325,12 +329,12 @@ describe('toSleeperDefId', () => {
 })
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `npx vitest run tests/main/db/migrate.test.ts tests/main/sources/nflverse.test.ts tests/shared/teams.test.ts`
 Expected: FAIL — version 4, no `fantasyprosId`, `toSleeperDefId` missing.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 `src/main/db/migrations/005_experts.sql`:
 
@@ -376,7 +380,7 @@ DELETE FROM sync_log WHERE source = 'nflverse:crosswalk';
 
 `src/main/db/migrations/index.ts`: add `import expertsSql from './005_experts.sql?raw'` and `{ version: 5, name: 'experts', sql: expertsSql }` at the end of `migrations`.
 
-- [ ] **Step 4: Carry the column through the crosswalk record, parser and repo**
+- [x] **Step 4: Carry the column through the crosswalk record, parser and repo**
 
 `src/main/sources/nflverse-types.ts`, `CrosswalkRecord`: add `fantasyprosId: string | null` after `sleeperId`.
 
@@ -395,7 +399,7 @@ DELETE FROM sync_log WHERE source = 'nflverse:crosswalk';
   and the `insert.run(...)` passes `r.fantasyprosId` right after `r.sleeperId`.
 - `listCrosswalk`: select `sleeper_id, fantasypros_id, gsis_id, pfr_id, sportradar_id, espn_id, name, position` and map `fantasyprosId: r.fantasypros_id` after `sleeperId`.
 
-- [ ] **Step 5: Add the alias map to `src/shared/teams.ts`**
+- [x] **Step 5: Add the alias map to `src/shared/teams.ts`**
 
 Append:
 
@@ -409,12 +413,12 @@ export function toSleeperDefId(fpTeam: string): string {
 }
 ```
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green. `tests/main/db/playerIdsRepo.test.ts` (`replaceCrosswalk round-trips`) passes unchanged because both sides now carry `fantasyprosId`; `identity.test.ts` unchanged. 258 → 260 tests.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/main/db/migrations/005_experts.sql src/main/db/migrations/index.ts src/main/sources/nflverse-types.ts src/main/sources/nflverse.ts src/main/db/repos/playerIds.ts src/shared/teams.ts tests/main/db/migrate.test.ts tests/main/sources/nflverse.test.ts tests/shared/teams.test.ts
@@ -438,7 +442,7 @@ Thin clients in the style of `sources/sleeper.ts`: injected `fetch`, one retry o
 - Consumes: `ScoringFormat` (Task 1).
 - Produces: `FpPosition`, `FpQuery`, `FpPlayer`, `FpRankings`, `FpRawPlayer`, `FpRawResponse`, `num`, `parsePosRank`, `mapFpRankings`, `FantasyProsClient.getRankings(query): Promise<FpRankings | null>`, `createFantasyProsClient(options)`; `FcQuery`, `FcRecord`, `FcRawRecord`, `mapFcValues`, `FantasyCalcClient.getValues(query): Promise<FcRecord[] | null>`, `createFantasyCalcClient(options)`.
 
-- [ ] **Step 1: Write the fixtures**
+- [x] **Step 1: Write the fixtures**
 
 `tests/fixtures/fantasypros.ts` (trimmed from the 2026 week-2 PPR captures; ids 17240 / 19236 are the crosswalk fixture's `fantasypros_id`s, 3000x are not in it):
 
@@ -709,7 +713,7 @@ export const values: FcRawRecord[] = [
 ]
 ```
 
-- [ ] **Step 2: Write the failing client tests**
+- [x] **Step 2: Write the failing client tests**
 
 `tests/main/sources/fantasypros.test.ts`:
 
@@ -730,7 +734,10 @@ function fakeFetch(responses: Array<{ status: number; body?: unknown }>): typeof
     const next = queue.shift()
     if (!next) throw new Error('no more fake responses')
     const body = next.body === undefined ? null : JSON.stringify(next.body)
-    return new Response(body, { status: next.status, headers: { 'content-type': 'application/json' } })
+    return new Response(body, {
+      status: next.status,
+      headers: { 'content-type': 'application/json' }
+    })
   }) as unknown as typeof fetch
 }
 
@@ -775,7 +782,11 @@ describe('mapFpRankings', () => {
   })
 
   it('keeps DST team codes as FantasyPros spells them, nulls the weekly-only fields on ROS rows, skips unusable rows', () => {
-    expect(mapFpRankings(fx.weeklyDst).players[1]).toMatchObject({ team: 'JAC', position: 'DST', posRank: 12 })
+    expect(mapFpRankings(fx.weeklyDst).players[1]).toMatchObject({
+      team: 'JAC',
+      position: 'DST',
+      posRank: 12
+    })
     const ros = mapFpRankings(fx.rosAll)
     expect(ros.skipped).toBe(1)
     expect(ros.players).toHaveLength(8)
@@ -821,7 +832,9 @@ describe('createFantasyProsClient', () => {
     const client = createFantasyProsClient({ fetchImpl, retryDelayMs: 0 })
     const ros = { type: 'ros', year: 2026, position: 'ALL', scoring: 'HALF' } as const
     expect((await client.getRankings(ros))?.totalExperts).toBe(6)
-    expect(String(vi.mocked(fetchImpl).mock.calls[0][0])).toContain('type=ros&position=ALL&scoring=HALF')
+    expect(String(vi.mocked(fetchImpl).mock.calls[0][0])).toContain(
+      'type=ros&position=ALL&scoring=HALF'
+    )
     expect(String(vi.mocked(fetchImpl).mock.calls[0][0])).not.toContain('week=')
     expect(await client.getRankings(ros)).toBeNull()
     expect(await client.getRankings(ros)).toBeNull()
@@ -836,7 +849,11 @@ describe('createFantasyProsClient', () => {
 
 ```ts
 import { describe, expect, it, vi } from 'vitest'
-import { createFantasyCalcClient, FantasyCalcHttpError, mapFcValues } from '@main/sources/fantasycalc'
+import {
+  createFantasyCalcClient,
+  FantasyCalcHttpError,
+  mapFcValues
+} from '@main/sources/fantasycalc'
 import * as fx from '../../fixtures/fantasycalc'
 
 function fakeFetch(responses: Array<{ status: number; body?: unknown }>): typeof fetch {
@@ -845,7 +862,10 @@ function fakeFetch(responses: Array<{ status: number; body?: unknown }>): typeof
     const next = queue.shift()
     if (!next) throw new Error('no more fake responses')
     const body = next.body === undefined ? null : JSON.stringify(next.body)
-    return new Response(body, { status: next.status, headers: { 'content-type': 'application/json' } })
+    return new Response(body, {
+      status: next.status,
+      headers: { 'content-type': 'application/json' }
+    })
   }) as unknown as typeof fetch
 }
 
@@ -864,7 +884,10 @@ describe('mapFcValues', () => {
     })
     expect(records[2].tier).toBeNull()
     expect(records[3].sleeperId).toBeNull()
-    expect(mapFcValues([{ ...fx.values[0], player: { ...fx.values[0].player, sleeperId: 9221 } }])[0].sleeperId).toBe('9221')
+    expect(
+      mapFcValues([{ ...fx.values[0], player: { ...fx.values[0].player, sleeperId: 9221 } }])[0]
+        .sleeperId
+    ).toBe('9221')
     expect(mapFcValues([{ ...fx.values[0], trend30Day: null }])[0].trend30Day).toBe(0)
   })
 })
@@ -872,7 +895,10 @@ describe('mapFcValues', () => {
 describe('createFantasyCalcClient', () => {
   it('builds the query string and maps the array', async () => {
     const fetchImpl = fakeFetch([{ status: 200, body: fx.values }])
-    const client = createFantasyCalcClient({ fetchImpl, baseUrl: 'https://example.test/values/current' })
+    const client = createFantasyCalcClient({
+      fetchImpl,
+      baseUrl: 'https://example.test/values/current'
+    })
     const records = await client.getValues({ numTeams: 16, numQbs: 1, ppr: 1 })
     expect(records?.map((r) => r.sleeperId)).toEqual(['6794', '4866', '8259', null])
     expect(fetchImpl).toHaveBeenCalledWith(
@@ -899,12 +925,12 @@ describe('createFantasyCalcClient', () => {
 })
 ```
 
-- [ ] **Step 3: Run them to verify they fail**
+- [x] **Step 3: Run them to verify they fail**
 
 Run: `npx vitest run tests/main/sources/fantasypros.test.ts tests/main/sources/fantasycalc.test.ts`
 Expected: FAIL — modules not found.
 
-- [ ] **Step 4: Write `src/main/sources/fantasypros.ts`**
+- [x] **Step 4: Write `src/main/sources/fantasypros.ts`**
 
 ```ts
 import type { ScoringFormat } from '@shared/types'
@@ -1077,7 +1103,7 @@ export function createFantasyProsClient(options: FantasyProsClientOptions = {}):
 }
 ```
 
-- [ ] **Step 5: Write `src/main/sources/fantasycalc.ts`**
+- [x] **Step 5: Write `src/main/sources/fantasycalc.ts`**
 
 ```ts
 export interface FcQuery {
@@ -1181,12 +1207,12 @@ export function createFantasyCalcClient(options: FantasyCalcClientOptions = {}):
 }
 ```
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green; 260 → 269 tests.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/main/sources/fantasypros.ts src/main/sources/fantasycalc.ts tests/fixtures/fantasypros.ts tests/fixtures/fantasycalc.ts tests/main/sources/fantasypros.test.ts tests/main/sources/fantasycalc.test.ts
@@ -1209,7 +1235,7 @@ Replace-per-key semantics mirroring `replaceProjections`; callers wrap in `withT
 - Consumes: tables from Task 2, `ScoringFormat` (Task 1).
 - Produces: `ROS_WEEK = 0`; `ExpertRankRecord { playerId, rankEcr, posRank, rankAve, rankStd, rankMin, rankMax, experts, grade, projPts }`; `ExpertRankRow extends ExpertRankRecord { scoring, updatedAt }`; `replaceExpertRanks(db, season, week, scoring, records, updatedAt): number`; `listExpertRanks(db, season, week): ExpertRankRow[]` (by `rank_ecr`); `storedScoring(db, season, week): ScoringFormat | null`; `MarketValueRecord { playerId, value, overallRank, posRank, tier, trend30d }`; `MarketValueRow extends MarketValueRecord { updatedAt }`; `replaceMarketValues(db, season, records, updatedAt): number`; `listMarketValues(db, season): MarketValueRow[]` (by `overall_rank`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/main/db/expertRepos.test.ts`:
 
@@ -1277,7 +1303,16 @@ describe('expert_ranks repo', () => {
     expect(listExpertRanks(db, 2025, ROS_WEEK)).toEqual([])
 
     // a later replace of the same week drops what is no longer there and can change the scoring
-    expect(replaceExpertRanks(db, 2026, ROS_WEEK, 'HALF', [rank('8259', 3, 2)], '2026-09-19T00:00:00.000Z')).toBe(1)
+    expect(
+      replaceExpertRanks(
+        db,
+        2026,
+        ROS_WEEK,
+        'HALF',
+        [rank('8259', 3, 2)],
+        '2026-09-19T00:00:00.000Z'
+      )
+    ).toBe(1)
     expect(listExpertRanks(db, 2026, ROS_WEEK).map((r) => [r.playerId, r.scoring])).toEqual([
       ['8259', 'HALF']
     ])
@@ -1316,12 +1351,12 @@ describe('market_values repo', () => {
 })
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `npx vitest run tests/main/db/expertRepos.test.ts`
 Expected: FAIL — modules not found.
 
-- [ ] **Step 3: Write `src/main/db/repos/expertRanks.ts`**
+- [x] **Step 3: Write `src/main/db/repos/expertRanks.ts`**
 
 ```ts
 import type { ScoringFormat } from '@shared/types'
@@ -1434,7 +1469,7 @@ export function storedScoring(db: Db, season: number, week: number): ScoringForm
 }
 ```
 
-- [ ] **Step 4: Write `src/main/db/repos/marketValues.ts`**
+- [x] **Step 4: Write `src/main/db/repos/marketValues.ts`**
 
 ```ts
 import type { Db } from '../connection'
@@ -1502,12 +1537,12 @@ export function listMarketValues(db: Db, season: number): MarketValueRow[] {
 }
 ```
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green; 269 → 272 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/db/repos/expertRanks.ts src/main/db/repos/marketValues.ts tests/main/db/expertRepos.test.ts
@@ -1533,7 +1568,7 @@ One `runStep` per unit. The join index (crosswalk `fantasypros_id` → Sleeper i
 - Consumes: `FantasyProsClient`, `FpPlayer`, `FpPosition`, `FpRankings` (Task 3); `FantasyCalcClient` (Task 3); `replaceExpertRanks`, `ROS_WEEK`, `storedScoring`, `ExpertRankRecord`, `replaceMarketValues`, `MarketValueRecord` (Task 4); `listCrosswalk`, `listPlayerIdentitySources`, `PlayerIdentitySource`, `CrosswalkRecord.fantasyprosId` (Task 2); `scoringFormat` (Task 1); `toSleeperDefId` (Task 2); `normalizeName` (`sync/identity.ts`); `runStep`, `SkipStep`, `nowOf`, `StepOutcome`, `SyncDeps`, `RefreshOptions` (`sync/step.ts`).
 - Produces: `ExpertSyncDeps extends SyncDeps { fantasypros; fantasycalc }`; `FP_WEEKLY_PREFIX`, `sourceFpWeekly(season, week)`, `sourceFpRos(season)`, `sourceFantasyCalc(season)`; `FP_PAST_WEEK_FRESHNESS_MS`, `FP_CURRENT_WEEK_FRESHNESS_MS`, `FP_ROS_FRESHNESS_MS`, `FANTASYCALC_FRESHNESS_MS`; `WEEKLY_POSITIONS`; `GONE_MESSAGE`, `NOT_PUBLISHED_MESSAGE`, `OFFSEASON_MESSAGE`, `FANTASYCALC_GONE_MESSAGE`; `numQbsFor(slots): 1 | 2`; `FpJoinIndex`, `buildFpJoinIndex(crosswalk, players)`; `FpJoinResult`, `joinFantasyPros(players, experts, index)`; `refreshExperts(deps, options): Promise<SyncResult>`; `AppSyncDeps = NflverseSyncDeps & ExpertSyncDeps` (refresh.ts); `AppContext.fantasypros` / `.fantasycalc`.
 
-- [ ] **Step 1: Write the failing sync tests**
+- [x] **Step 1: Write the failing sync tests**
 
 `tests/main/sync/expertSync.test.ts`:
 
@@ -1543,7 +1578,11 @@ import { openDatabase, withTransaction, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
 import { listExpertRanks, ROS_WEEK, storedScoring } from '@main/db/repos/expertRanks'
 import { listMarketValues } from '@main/db/repos/marketValues'
-import { listCrosswalk, listPlayerIdentitySources, replaceCrosswalk } from '@main/db/repos/playerIds'
+import {
+  listCrosswalk,
+  listPlayerIdentitySources,
+  replaceCrosswalk
+} from '@main/db/repos/playerIds'
 import { saveRules } from '@main/db/repos/rules'
 import { setNflState } from '@main/db/repos/state'
 import type { FantasyCalcClient } from '@main/sources/fantasycalc'
@@ -1626,7 +1665,9 @@ describe('refreshExperts', () => {
     const fantasypros = fakeFantasyPros()
     const fantasycalc = fakeFantasyCalc()
     const seen: string[] = []
-    const { steps } = await refreshExperts(deps(fantasypros, fantasycalc, (e) => seen.push(e.status)))
+    const { steps } = await refreshExperts(
+      deps(fantasypros, fantasycalc, (e) => seen.push(e.status))
+    )
 
     expect(steps.map((s) => [s.source, s.status, s.rowsWritten, s.message])).toEqual([
       [sourceFpWeekly(2026, 1), 'ok', 6, '6 matched, 1 unmatched'],
@@ -1700,7 +1741,9 @@ describe('refreshExperts', () => {
     clock = new Date(clock.getTime() + 9 * HOUR)
     const evenLater = await refreshExperts(deps(fantasypros))
     expect(evenLater.steps.map((s) => s.status)).toEqual(['skipped', 'ok', 'ok', 'ok'])
-    expect((await refreshExperts(deps(fantasypros), { force: true })).steps.map((s) => s.status)).toEqual(['ok', 'ok', 'ok', 'ok'])
+    expect(
+      (await refreshExperts(deps(fantasypros), { force: true })).steps.map((s) => s.status)
+    ).toEqual(['ok', 'ok', 'ok', 'ok'])
   })
 
   it('a rules change to another scoring bucket re-fetches FantasyPros inside freshness, not FantasyCalc', async () => {
@@ -1709,7 +1752,9 @@ describe('refreshExperts', () => {
     saveRules(db, 'L1', rules({ scoring: { ...rules().scoring, rec: 0.5 } }))
     const again = await refreshExperts(deps(fantasypros))
     expect(again.steps.map((s) => s.status)).toEqual(['ok', 'ok', 'ok', 'skipped'])
-    expect(fantasypros.getRankings).toHaveBeenLastCalledWith(expect.objectContaining({ scoring: 'HALF' }))
+    expect(fantasypros.getRankings).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scoring: 'HALF' })
+    )
     expect(storedScoring(db, 2026, ROS_WEEK)).toBe('HALF')
     expect(storedScoring(db, 2026, 1)).toBe('HALF')
     // same bucket again → plain freshness applies
@@ -1774,7 +1819,11 @@ describe('refreshExperts', () => {
     const fantasycalc = fakeFantasyCalc()
     const { steps } = await refreshExperts(deps(fantasypros, fantasycalc))
     expect(steps).toHaveLength(1)
-    expect(steps[0]).toMatchObject({ source: sourceFpRos(2026), status: 'skipped', message: OFFSEASON_MESSAGE })
+    expect(steps[0]).toMatchObject({
+      source: sourceFpRos(2026),
+      status: 'skipped',
+      message: OFFSEASON_MESSAGE
+    })
     expect(fantasypros.getRankings).not.toHaveBeenCalled()
     expect(fantasycalc.getValues).not.toHaveBeenCalled()
   })
@@ -1783,9 +1832,7 @@ describe('refreshExperts', () => {
     const empty = openDatabase(':memory:')
     migrate(empty)
     const fantasypros = fakeFantasyPros()
-    expect(
-      await refreshExperts({ ...deps(fantasypros), db: empty })
-    ).toEqual({ steps: [] })
+    expect(await refreshExperts({ ...deps(fantasypros), db: empty })).toEqual({ steps: [] })
     expect(fantasypros.getRankings).not.toHaveBeenCalled()
   })
 
@@ -1806,7 +1853,10 @@ describe('refreshExperts', () => {
 
     it('buildFpJoinIndex: first crosswalk row wins per FP id; names are normalized with position', () => {
       const index = buildFpJoinIndex(
-        [...listCrosswalk(db), { ...listCrosswalk(db)[0], fantasyprosId: '17240', sleeperId: 'dup' }],
+        [
+          ...listCrosswalk(db),
+          { ...listCrosswalk(db)[0], fantasyprosId: '17240', sleeperId: 'dup' }
+        ],
         listPlayerIdentitySources(db)
       )
       expect(index.byFpId.get('17240')).toBe('4866')
@@ -1906,7 +1956,9 @@ describe('refreshAll / importAll', () => {
       'fantasypros:ros:2026',
       'fantasycalc:2026'
     ])
-    expect(sources.indexOf('nflverse:crosswalk')).toBeLessThan(sources.indexOf('fantasypros:ros:2026'))
+    expect(sources.indexOf('nflverse:crosswalk')).toBeLessThan(
+      sources.indexOf('fantasypros:ros:2026')
+    )
     expect(imported.steps.filter((s) => s.status === 'error')).toEqual([])
 
     const refreshed = await refreshAll(deps())
@@ -1915,12 +1967,12 @@ describe('refreshAll / importAll', () => {
 })
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `npx vitest run tests/main/sync/expertSync.test.ts tests/main/sync/refresh.test.ts`
 Expected: FAIL — `@main/sync/expertSync` not found; `AppSyncDeps` not exported.
 
-- [ ] **Step 3: Write `src/main/sync/expertSync.ts`**
+- [x] **Step 3: Write `src/main/sync/expertSync.ts`**
 
 ```ts
 import { withTransaction } from '@main/db/connection'
@@ -2118,8 +2170,7 @@ export async function refreshExperts(
   let gone = false
   let stop = false
   for (let week = 1; week <= currentWeek && !stop; week++) {
-    const freshness =
-      week < currentWeek ? FP_PAST_WEEK_FRESHNESS_MS : FP_CURRENT_WEEK_FRESHNESS_MS
+    const freshness = week < currentWeek ? FP_PAST_WEEK_FRESHNESS_MS : FP_CURRENT_WEEK_FRESHNESS_MS
     const entry = await runStep(
       deps,
       sourceFpWeekly(season, week),
@@ -2199,7 +2250,7 @@ export async function refreshExperts(
 }
 ```
 
-- [ ] **Step 4: Wire the pipeline — `src/main/sync/refresh.ts`**
+- [x] **Step 4: Wire the pipeline — `src/main/sync/refresh.ts`**
 
 Replace the file with:
 
@@ -2242,7 +2293,7 @@ export async function importAll(
 }
 ```
 
-- [ ] **Step 5: Wire the app — `src/main/ipc/handlers.ts` and `src/main/index.ts`**
+- [x] **Step 5: Wire the app — `src/main/ipc/handlers.ts` and `src/main/index.ts`**
 
 `handlers.ts`:
 
@@ -2267,12 +2318,12 @@ export async function importAll(
 
 `index.ts`: add `import { createFantasyCalcClient } from '@main/sources/fantasycalc'` and `import { createFantasyProsClient } from '@main/sources/fantasypros'`; in `ctx` add `fantasypros: createFantasyProsClient(),` and `fantasycalc: createFantasyCalcClient(),` after `nflverse`.
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green; 272 → 285 tests. If Prettier reflows the long `expect(...)` lines, run `npm run format` and re-run lint.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/main/sync/expertSync.ts src/main/sync/refresh.ts src/main/ipc/handlers.ts src/main/index.ts tests/main/sync/expertSync.test.ts tests/main/sync/refresh.test.ts
@@ -2298,7 +2349,7 @@ Pure attach: rows loaded once per build (`listExpertRanks(season, ROS_WEEK)` + `
 - Consumes: `ExpertRankRow`, `listExpertRanks`, `ROS_WEEK` (Task 4); `MarketValueRow`, `listMarketValues` (Task 4); `ExpertRos`, `MarketValue`, `ExpertWeek` (Task 1).
 - Produces: `ExpertBundle { ranks: ExpertRankRow[]; market: MarketValueRow[] }`, `NO_EXPERTS`, `ExpertIndex { ranks: Map; market: Map; ecrUpdatedAt; marketUpdatedAt }`, `indexExperts(bundle)`, `ecrDelta(ecrPosRank, rosRank)`, `expertRos(rank, rosRank): ExpertRos | null`, `marketValue(row): MarketValue | null`, `expertWeek(rank): ExpertWeek | null`; `assembleValue(bundle, experts = NO_EXPERTS)`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/main/value/expert.test.ts`:
 
@@ -2316,7 +2367,11 @@ import {
 } from '@main/value/expert'
 
 const TS = '2026-09-18T12:00:00.000Z'
-const rank = (playerId: string, posRank: number, over: Partial<ExpertRankRow> = {}): ExpertRankRow => ({
+const rank = (
+  playerId: string,
+  posRank: number,
+  over: Partial<ExpertRankRow> = {}
+): ExpertRankRow => ({
   playerId,
   scoring: 'PPR',
   rankEcr: posRank * 3,
@@ -2367,9 +2422,17 @@ describe('value/expert', () => {
       experts: 6,
       ecrDelta: 3
     })
-    expect(expertRos(rank('a', 4, { rankStd: null }), null)).toMatchObject({ spread: null, ecrDelta: null })
+    expect(expertRos(rank('a', 4, { rankStd: null }), null)).toMatchObject({
+      spread: null,
+      ecrDelta: null
+    })
     expect(expertRos(undefined, 1)).toBeNull()
-    expect(marketValue(market('a', 9000))).toEqual({ value: 9000, posRank: 1, tier: 2, trend30d: -120 })
+    expect(marketValue(market('a', 9000))).toEqual({
+      value: 9000,
+      posRank: 1,
+      tier: 2,
+      trend30d: -120
+    })
     expect(marketValue(undefined)).toBeNull()
     expect(expertWeek(rank('a', 7, { grade: 'B+', projPts: 14.2 }))).toEqual({
       ecrPosRank: 7,
@@ -2385,87 +2448,95 @@ describe('value/expert', () => {
 `tests/main/value/build.test.ts` — add to the imports `import { replaceExpertRanks, ROS_WEEK } from '@main/db/repos/expertRanks'` and `import { replaceMarketValues } from '@main/db/repos/marketValues'`, and this test inside `describe('buildValueSeason')` (after `attaches the schedule…`):
 
 ```ts
-  it('attaches the experts: ROS ECR with ecrDelta against rosRank, market value, and the context provenance', () => {
-    const TS = '2026-09-18T15:00:00.000Z'
-    const rank = { rankAve: null, rankStd: 0.5, rankMin: null, rankMax: null, experts: 6, grade: null, projPts: null }
-    replaceExpertRanks(
-      db,
-      SEASON,
-      ROS_WEEK,
-      'PPR',
-      [
-        { playerId: '4866', rankEcr: 5, posRank: 4, ...rank },
-        { playerId: '8259', rankEcr: 60, posRank: 20, ...rank, rankStd: null },
-        { playerId: 'JAX', rankEcr: 160, posRank: 12, ...rank } // no players row: harmless
-      ],
-      TS
-    )
-    replaceMarketValues(
-      db,
-      SEASON,
-      [{ playerId: '4866', value: 9340, overallRank: 2, posRank: 1, tier: 1, trend30d: -310 }],
-      TS
-    )
-    build = buildValueSeason(db, 'L1', SEASON)
-    // Barkley: our RB1 (rosRank 1) vs the experts' RB4 → +3
-    expect(row('4866')).toMatchObject({
-      expert: { ecrRank: 5, ecrPosRank: 4, spread: 0.5, experts: 6, ecrDelta: 3 },
-      market: { value: 9340, posRank: 1, tier: 1, trend30d: -310 }
-    })
-    // Cook: rosRank 3 vs RB20 → +17, no spread, no market row
-    expect(row('8259')).toMatchObject({
-      expert: { ecrPosRank: 20, spread: null, ecrDelta: 17 },
-      market: null
-    })
-    expect(row('6794')).toMatchObject({ expert: null, market: null })
-    expect(build.context.expert).toEqual({ scoring: 'PPR', ecrUpdatedAt: TS, marketUpdatedAt: TS })
-    expect(build.rows.some((r) => r.playerId === 'JAX')).toBe(false)
+it('attaches the experts: ROS ECR with ecrDelta against rosRank, market value, and the context provenance', () => {
+  const TS = '2026-09-18T15:00:00.000Z'
+  const rank = {
+    rankAve: null,
+    rankStd: 0.5,
+    rankMin: null,
+    rankMax: null,
+    experts: 6,
+    grade: null,
+    projPts: null
+  }
+  replaceExpertRanks(
+    db,
+    SEASON,
+    ROS_WEEK,
+    'PPR',
+    [
+      { playerId: '4866', rankEcr: 5, posRank: 4, ...rank },
+      { playerId: '8259', rankEcr: 60, posRank: 20, ...rank, rankStd: null },
+      { playerId: 'JAX', rankEcr: 160, posRank: 12, ...rank } // no players row: harmless
+    ],
+    TS
+  )
+  replaceMarketValues(
+    db,
+    SEASON,
+    [{ playerId: '4866', value: 9340, overallRank: 2, posRank: 1, tier: 1, trend30d: -310 }],
+    TS
+  )
+  build = buildValueSeason(db, 'L1', SEASON)
+  // Barkley: our RB1 (rosRank 1) vs the experts' RB4 → +3
+  expect(row('4866')).toMatchObject({
+    expert: { ecrRank: 5, ecrPosRank: 4, spread: 0.5, experts: 6, ecrDelta: 3 },
+    market: { value: 9340, posRank: 1, tier: 1, trend30d: -310 }
   })
+  // Cook: rosRank 3 vs RB20 → +17, no spread, no market row
+  expect(row('8259')).toMatchObject({
+    expert: { ecrPosRank: 20, spread: null, ecrDelta: 17 },
+    market: null
+  })
+  expect(row('6794')).toMatchObject({ expert: null, market: null })
+  expect(build.context.expert).toEqual({ scoring: 'PPR', ecrUpdatedAt: TS, marketUpdatedAt: TS })
+  expect(build.rows.some((r) => r.playerId === 'JAX')).toBe(false)
+})
 ```
 
 `tests/main/db/playersWeek.test.ts` — add `import { replaceExpertRanks } from '@main/db/repos/expertRanks'` and, inside `describe('playersWeek')`, this test:
 
 ```ts
-  it('joins the week\'s FantasyPros row as PlayerWeekRow.expert', () => {
-    replaceExpertRanks(
-      db,
-      S,
-      1,
-      'PPR',
-      [
-        {
-          playerId: '4866',
-          rankEcr: 1,
-          posRank: 1,
-          rankAve: 1.4,
-          rankStd: 0.6,
-          rankMin: 1,
-          rankMax: 3,
-          experts: 153,
-          grade: 'A+',
-          projPts: 22.4
-        }
-      ],
-      SEED_TS
-    )
-    const { rows } = playersWeek(db, 'L1', S, 1)
-    expect(rows.find((r) => r.playerId === '4866')?.expert).toEqual({
-      ecrPosRank: 1,
-      grade: 'A+',
-      projPts: 22.4,
-      spread: 0.6
-    })
-    expect(rows.find((r) => r.playerId === '6794')?.expert).toBeNull()
-    expect(playersWeek(db, 'L1', S, 2).rows.find((r) => r.playerId === '4866')?.expert).toBeNull()
+it("joins the week's FantasyPros row as PlayerWeekRow.expert", () => {
+  replaceExpertRanks(
+    db,
+    S,
+    1,
+    'PPR',
+    [
+      {
+        playerId: '4866',
+        rankEcr: 1,
+        posRank: 1,
+        rankAve: 1.4,
+        rankStd: 0.6,
+        rankMin: 1,
+        rankMax: 3,
+        experts: 153,
+        grade: 'A+',
+        projPts: 22.4
+      }
+    ],
+    SEED_TS
+  )
+  const { rows } = playersWeek(db, 'L1', S, 1)
+  expect(rows.find((r) => r.playerId === '4866')?.expert).toEqual({
+    ecrPosRank: 1,
+    grade: 'A+',
+    projPts: 22.4,
+    spread: 0.6
   })
+  expect(rows.find((r) => r.playerId === '6794')?.expert).toBeNull()
+  expect(playersWeek(db, 'L1', S, 2).rows.find((r) => r.playerId === '4866')?.expert).toBeNull()
+})
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `npx vitest run tests/main/value/expert.test.ts tests/main/value/build.test.ts tests/main/db/playersWeek.test.ts`
 Expected: FAIL — module not found; `expert: null` where a block is expected.
 
-- [ ] **Step 3: Write `src/main/value/expert.ts`**
+- [x] **Step 3: Write `src/main/value/expert.ts`**
 
 ```ts
 import type { ExpertRankRow } from '@main/db/repos/expertRanks'
@@ -2502,7 +2573,10 @@ export function ecrDelta(ecrPosRank: number | null, rosRank: number | null): num
   return ecrPosRank === null || rosRank === null ? null : ecrPosRank - rosRank
 }
 
-export function expertRos(rank: ExpertRankRow | undefined, rosRank: number | null): ExpertRos | null {
+export function expertRos(
+  rank: ExpertRankRow | undefined,
+  rosRank: number | null
+): ExpertRos | null {
   if (!rank) return null
   return {
     ecrRank: rank.rankEcr,
@@ -2520,11 +2594,16 @@ export function marketValue(row: MarketValueRow | undefined): MarketValue | null
 
 export function expertWeek(rank: ExpertRankRow | undefined): ExpertWeek | null {
   if (!rank) return null
-  return { ecrPosRank: rank.posRank, grade: rank.grade, projPts: rank.projPts, spread: rank.rankStd }
+  return {
+    ecrPosRank: rank.posRank,
+    grade: rank.grade,
+    projPts: rank.projPts,
+    spread: rank.rankStd
+  }
 }
 ```
 
-- [ ] **Step 4: Wire the build — `src/main/value/build.ts`**
+- [x] **Step 4: Wire the build — `src/main/value/build.ts`**
 
 Imports: add
 
@@ -2558,22 +2637,22 @@ export function buildValueSeason(db: Db, leagueId: string, season: number): Valu
 }
 ```
 
-- [ ] **Step 5: Join the week — `src/main/db/repos/playersWeek.ts`**
+- [x] **Step 5: Join the week — `src/main/db/repos/playersWeek.ts`**
 
 Add imports `import { expertWeek } from '@main/value/expert'` and `import { listExpertRanks } from './expertRanks'`. In `playersWeek`, after `const byes = teamByeWeeks(db, season)`:
 
 ```ts
-  const experts = new Map(listExpertRanks(db, season, week).map((r) => [r.playerId, r]))
+const experts = new Map(listExpertRanks(db, season, week).map((r) => [r.playerId, r]))
 ```
 
 and in the row literal replace `expert: null,` with `expert: expertWeek(experts.get(r.player_id)),`.
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green; 285 → 290 tests. `series.test.ts` / `roster.test.ts` / `signals.test.ts` / `schedule.test.ts` are untouched (they never call `assembleValue` with a second argument, and the default keeps the old behaviour).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/main/value/expert.ts src/main/value/build.ts src/main/db/repos/playersWeek.ts tests/main/value/expert.test.ts tests/main/value/build.test.ts tests/main/db/playersWeek.test.ts
@@ -2594,7 +2673,7 @@ git commit -m "feat(value): attach expert ranks and market values"
 - Consumes: `PlayerValueRow.expert` / `.market`, `PlayerWeekRow.expert` (Task 1).
 - Produces: `ColumnKind` includes `'expert'`; `CellFormat` gains `'signedInt'` (sign + integer, no decimals — `+5`, `-310`); `ExpertField = 'ecrPosRank' | 'ecrDelta' | 'spread' | 'marketValue' | 'marketTrend' | 'weekPosRank' | 'weekGrade'`; `Column.expert?: ExpertField`; keys `expert:<field>`; `GRADE_ORDER`, `gradeValue(grade)`; `ECR_DELTA_TONE = 3`; `expertValue(row, field)`, `expertText(row, col)`, `expertTone(row, col): 'pos' | 'neg' | 'warn' | null`; `columnGroups` returns the Experts group after Signals (value) / after Fantasy (proj).
 
-- [ ] **Step 1: Update and add the tests**
+- [x] **Step 1: Update and add the tests**
 
 `tests/renderer/lib/playersTableView.test.ts`:
 
@@ -2602,19 +2681,23 @@ git commit -m "feat(value): attach expert ranks and market values"
 - `columnGroups` test `follows the tab and hides Δ / usage outside stats mode`: the `columnGroups('FLEX', 'proj')` expectation becomes `['Fantasy', 'Experts', 'Rushing', 'Receiving', 'Passing']` and `columnGroups('DEF', 'proj')` becomes `['Fantasy', 'Experts', 'Defense', 'Allowed']`. Stats-mode expectations stay (no Experts there).
 - `value mode` › `has the same three groups on every tab` → rename to `has the same four groups on every tab`, labels `['Season', 'Rest of season', 'Signals', 'Experts']`, and append to the key list:
   ```ts
-        'expert:ecrPosRank',
-        'expert:ecrDelta',
-        'expert:spread',
-        'expert:marketValue',
-        'expert:marketTrend'
+  ;('expert:ecrPosRank',
+    'expert:ecrDelta',
+    'expert:spread',
+    'expert:marketValue',
+    'expert:marketTrend')
   ```
 - `mine group`: the destructuring becomes `const [, , , , mineGroup] = columnGroups('ALL', 'value', true)`; in `is the fourth value-mode group…` (rename to `is the fifth…`) the two label lists gain `'Experts'` before `'Mine'` / after `'Signals'`.
 - Add a new describe:
 
 ```ts
 describe('experts', () => {
-  const valueCols = columnGroups('ALL', 'value').flatMap((g) => g.columns).filter((c) => c.kind === 'expert')
-  const weekCols = columnGroups('RB', 'proj').flatMap((g) => g.columns).filter((c) => c.kind === 'expert')
+  const valueCols = columnGroups('ALL', 'value')
+    .flatMap((g) => g.columns)
+    .filter((c) => c.kind === 'expert')
+  const weekCols = columnGroups('RB', 'proj')
+    .flatMap((g) => g.columns)
+    .filter((c) => c.kind === 'expert')
   const col = (cols: Column[], field: ExpertField): Column => {
     const c = cols.find((c) => c.expert === field)
     if (!c) throw new Error(`no column for ${field}`)
@@ -2626,7 +2709,12 @@ describe('experts', () => {
   })
 
   it('projection mode has ECR and GRADE after Fantasy; stats mode has no Experts group', () => {
-    expect(columnGroups('QB', 'proj').map((g) => g.label)).toEqual(['Fantasy', 'Experts', 'Passing', 'Rushing'])
+    expect(columnGroups('QB', 'proj').map((g) => g.label)).toEqual([
+      'Fantasy',
+      'Experts',
+      'Passing',
+      'Rushing'
+    ])
     expect(weekCols.map((c) => [c.key, c.label])).toEqual([
       ['expert:weekPosRank', 'ECR'],
       ['expert:weekGrade', 'GRADE']
@@ -2637,8 +2725,16 @@ describe('experts', () => {
   })
 
   it('reads value-row cells through cellValue and formats them; nulls render —', () => {
-    expect(valueCols.map((c) => cellValue(withExperts, c, 'value'))).toEqual([4, 5, 2.5, 9340, -310])
-    expect(valueCols.map((c) => expertText(withExperts, c))).toEqual(['4', '+5', '2.5', '9340', '-310'])
+    expect(valueCols.map((c) => cellValue(withExperts, c, 'value'))).toEqual([
+      4, 5, 2.5, 9340, -310
+    ])
+    expect(valueCols.map((c) => expertText(withExperts, c))).toEqual([
+      '4',
+      '+5',
+      '2.5',
+      '9340',
+      '-310'
+    ])
     expect(valueCols.map((c) => expertText(valueRow(), c))).toEqual(['—', '—', '—', '—', '—'])
     expect(cellValue(row(), col(valueCols, 'ecrPosRank'), 'proj')).toBeNull()
   })
@@ -2650,7 +2746,12 @@ describe('experts', () => {
     expect(expertText(graded, col(weekCols, 'weekGrade'))).toBe('B+')
     expect(expertText(graded, col(weekCols, 'weekPosRank'))).toBe('7')
     expect(expertText(row(), col(weekCols, 'weekGrade'))).toBe('—')
-    expect(expertValue(row({ expert: { ecrPosRank: 7, grade: 'Z', projPts: null, spread: null } }), 'weekGrade')).toBeNull()
+    expect(
+      expertValue(
+        row({ expert: { ecrPosRank: 7, grade: 'Z', projPts: null, spread: null } }),
+        'weekGrade'
+      )
+    ).toBeNull()
     expect(expertValue(withExperts, 'weekGrade')).toBeNull()
     expect(GRADE_ORDER[0]).toBe('F')
     expect(GRADE_ORDER.at(-1)).toBe('A+')
@@ -2659,7 +2760,10 @@ describe('experts', () => {
   it('tones Δ ECR: green above +3, amber below −3, none in between; TREND by sign; the rest none', () => {
     const delta = col(valueCols, 'ecrDelta')
     const tone = (ecrDelta: number | null): ReturnType<typeof expertTone> =>
-      expertTone(valueRow({ expert: { ecrRank: 1, ecrPosRank: 1, spread: null, experts: 6, ecrDelta } }), delta)
+      expertTone(
+        valueRow({ expert: { ecrRank: 1, ecrPosRank: 1, spread: null, experts: 6, ecrDelta } }),
+        delta
+      )
     expect(ECR_DELTA_TONE).toBe(3)
     expect(tone(4)).toBe('pos')
     expect(tone(3)).toBeNull()
@@ -2677,16 +2781,34 @@ describe('experts', () => {
     const rows = [
       valueRow({ playerId: 'a', fullName: 'A' }),
       withExperts,
-      valueRow({ playerId: 'c', fullName: 'C', expert: { ecrRank: 2, ecrPosRank: 1, spread: null, experts: 6, ecrDelta: -2 } })
+      valueRow({
+        playerId: 'c',
+        fullName: 'C',
+        expert: { ecrRank: 2, ecrPosRank: 1, spread: null, experts: 6, ecrDelta: -2 }
+      })
     ]
-    expect(sortRows(rows, { key: 'expert:ecrDelta', dir: 'desc' }, 'value').map((r) => r.playerId)).toEqual(['v1', 'c', 'a'])
-    expect(sortRows(rows, { key: 'expert:ecrDelta', dir: 'asc' }, 'value').map((r) => r.playerId)).toEqual(['c', 'v1', 'a'])
+    expect(
+      sortRows(rows, { key: 'expert:ecrDelta', dir: 'desc' }, 'value').map((r) => r.playerId)
+    ).toEqual(['v1', 'c', 'a'])
+    expect(
+      sortRows(rows, { key: 'expert:ecrDelta', dir: 'asc' }, 'value').map((r) => r.playerId)
+    ).toEqual(['c', 'v1', 'a'])
     const weeks = [
-      row({ playerId: 'x', fullName: 'X', expert: { ecrPosRank: 3, grade: 'C', projPts: null, spread: null } }),
-      row({ playerId: 'y', fullName: 'Y', expert: { ecrPosRank: 1, grade: 'A+', projPts: null, spread: null } }),
+      row({
+        playerId: 'x',
+        fullName: 'X',
+        expert: { ecrPosRank: 3, grade: 'C', projPts: null, spread: null }
+      }),
+      row({
+        playerId: 'y',
+        fullName: 'Y',
+        expert: { ecrPosRank: 1, grade: 'A+', projPts: null, spread: null }
+      }),
       row({ playerId: 'z', fullName: 'Z' })
     ]
-    expect(sortRows(weeks, { key: 'expert:weekGrade', dir: 'desc' }, 'proj').map((r) => r.playerId)).toEqual(['y', 'x', 'z'])
+    expect(
+      sortRows(weeks, { key: 'expert:weekGrade', dir: 'desc' }, 'proj').map((r) => r.playerId)
+    ).toEqual(['y', 'x', 'z'])
   })
 
   it('titles expert headers with their description', () => {
@@ -2695,12 +2817,12 @@ describe('experts', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `npx vitest run tests/renderer/lib/playersTableView.test.ts`
 Expected: FAIL — group lists differ; `expertText` etc. not exported.
 
-- [ ] **Step 3: Implement in `src/renderer/src/lib/playersTableView.ts`**
+- [x] **Step 3: Implement in `src/renderer/src/lib/playersTableView.ts`**
 
 Types (replace the `ColumnKind` line and extend `Column`):
 
@@ -2717,13 +2839,7 @@ export type ColumnKind =
   | 'expert'
 /** Value rows read `expert` (ROS) and `market`; week rows read `expert` (this week's ECR + grade). */
 export type ExpertField =
-  | 'ecrPosRank'
-  | 'ecrDelta'
-  | 'spread'
-  | 'marketValue'
-  | 'marketTrend'
-  | 'weekPosRank'
-  | 'weekGrade'
+  'ecrPosRank' | 'ecrDelta' | 'spread' | 'marketValue' | 'marketTrend' | 'weekPosRank' | 'weekGrade'
 export type CellFormat = 'int' | 'fixed' | 'signed' | 'signedInt' | 'pct' | 'signedPct'
 ```
 
@@ -2778,7 +2894,7 @@ const EXPERTS_WEEK = group('Experts', [
     'weekPosRank',
     'ECR',
     'int',
-    "FantasyPros start/sit expert consensus rank within the position for this week"
+    'FantasyPros start/sit expert consensus rank within the position for this week'
   ),
   expert(
     'weekGrade',
@@ -2821,7 +2937,7 @@ export function columnGroups(tabId: string, mode: TableMode, mine = false): Colu
 `sortValue`: after the `signal:` branch add
 
 ```ts
-  if (key.startsWith('expert:')) return expertValue(row, key.slice(7) as ExpertField)
+if (key.startsWith('expert:')) return expertValue(row, key.slice(7) as ExpertField)
 ```
 
 Update the `TableSort.key` doc comment to include `` `expert:<field>` ``.
@@ -2890,18 +3006,19 @@ export function expertTone(row: TableRow, col: Column): 'pos' | 'neg' | 'warn' |
   if (!col.expert) return null
   const v = expertValue(row, col.expert)
   if (v === null) return null
-  if (col.expert === 'ecrDelta') return v > ECR_DELTA_TONE ? 'pos' : v < -ECR_DELTA_TONE ? 'warn' : null
+  if (col.expert === 'ecrDelta')
+    return v > ECR_DELTA_TONE ? 'pos' : v < -ECR_DELTA_TONE ? 'warn' : null
   if (col.format === 'signed' || col.format === 'signedInt') return v >= 0 ? 'pos' : 'neg'
   return null
 }
 ```
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green; 290 → 296 tests. (`ValueHelp.tsx` still compiles: its Signals list filters on `kind === 'signal'`.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/renderer/src/lib/playersTableView.ts tests/renderer/lib/playersTableView.test.ts
@@ -2922,25 +3039,25 @@ git commit -m "feat(ui): Experts column groups in the table model"
 
 - Consumes: `expertText`, `expertTone` (Task 7); `ValueContext.expert` (Task 1); `relativeTime` (`@/lib/format`).
 
-- [ ] **Step 1: Render expert cells in `PlayersScreen.tsx`**
+- [x] **Step 1: Render expert cells in `PlayersScreen.tsx`**
 
 Add `expertText,` and `expertTone,` to the `@/lib/playersTableView` import (alphabetically after `DEFAULT_SORT`, before `filterRows`). In the cell map:
 
 ```tsx
-                const tone =
-                  col.kind === 'signal'
-                    ? signalTone(p, col)
-                    : col.kind === 'expert'
-                      ? expertTone(p, col)
-                      : col.kind === 'droppable'
-                        ? value !== null
-                          ? 'neg'
-                          : null
-                        : signed && value !== null
-                          ? value >= 0
-                            ? 'pos'
-                            : 'neg'
-                          : null
+const tone =
+  col.kind === 'signal'
+    ? signalTone(p, col)
+    : col.kind === 'expert'
+      ? expertTone(p, col)
+      : col.kind === 'droppable'
+        ? value !== null
+          ? 'neg'
+          : null
+        : signed && value !== null
+          ? value >= 0
+            ? 'pos'
+            : 'neg'
+          : null
 ```
 
 and in the `<TableCell>`:
@@ -2961,7 +3078,7 @@ and in the `<TableCell>`:
                         : cellText(value, col, effectiveMode)}
 ```
 
-- [ ] **Step 2: Add the Experts section to `ValueHelp.tsx`**
+- [x] **Step 2: Add the Experts section to `ValueHelp.tsx`**
 
 Add `import { relativeTime } from '@/lib/format'`. Between the Signals `</dl>` and `{context?.hasMyTeam && (`:
 
@@ -3004,12 +3121,12 @@ Add `import { relativeTime } from '@/lib/format'`. Between the Signals `</dl>` a
       </dl>
 ```
 
-- [ ] **Step 3: Update `docs/reference/value-and-signals.md`**
+- [x] **Step 3: Update `docs/reference/value-and-signals.md`**
 
 - Intro paragraph: "the current v0.6.0 presentation" → "the current v0.8.0 presentation"; add a sentence after the rationale line: "Slice 5 (expert layer) rationale: `docs/superpowers/specs/2026-09-18-slice5-expert-layer-design.md`."
 - `## How the data reaches the renderer` table: add a row
-  `| `week({ season, week })` | `PlayersWeek { rows: PlayerWeekRow[] }` | Same candidates with one week of data; since v0.8.0 each row also carries `expert: ExpertWeek \| null` — this week's FantasyPros `{ ecrPosRank, grade, projPts, spread }`. |`
-- `## ValueContext` table: add `| `expert` | `{ scoring, ecrUpdatedAt, marketUpdatedAt }`: the FantasyPros scoring bucket derived from the rules' `rec` points (`PPR` ≥ 1, `HALF` in (0, 1), else `STD`), and the `updated_at` of the stored ROS rankings / market values (`null` when none are stored — e.g. a past season). |`
+  `| `week({ season, week })`|`PlayersWeek { rows: PlayerWeekRow[] }`| Same candidates with one week of data; since v0.8.0 each row also carries`expert: ExpertWeek \| null`— this week's FantasyPros`{ ecrPosRank, grade, projPts, spread }`. |`
+- `## ValueContext` table: add `| `expert`|`{ scoring, ecrUpdatedAt, marketUpdatedAt }`: the FantasyPros scoring bucket derived from the rules' `rec` points (`PPR`≥ 1,`HALF`in (0, 1), else`STD`), and the `updated_at` of the stored ROS rankings / market values (`null` when none are stored — e.g. a past season). |`
 - After `### Roster-relative (added in v0.7.0)` add:
 
 ```markdown
@@ -3017,17 +3134,17 @@ Add `import { relativeTime } from '@/lib/format'`. Between the Signals `</dl>` a
 
 Slice 5 spec §4; attached in `src/main/value/expert.ts` from `expert_ranks` (week 0 = rest of season) and `market_values`, both synced by `src/main/sync/expertSync.ts` from keyless endpoints (FantasyPros legacy partner API, FantasyCalc). Current season only; both blocks are `null` for past seasons.
 
-| Field                | Definition                                                                                                                                                                        | `null` when                                       |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `expert.ecrRank`     | FantasyPros rest-of-season expert consensus rank, overall across positions.                                                                                                       | no FP ROS row for the player (whole block `null`) |
-| `expert.ecrPosRank`  | The same rank within the player's position (numeric part of FP's `RB12`).                                                                                                         | —                                                 |
-| `expert.spread`      | `rank_std`: standard deviation of the experts' ranks — disagreement.                                                                                                              | FP omits it                                       |
-| `expert.experts`     | Number of experts behind the consensus (ROS: ~6).                                                                                                                                 | —                                                 |
-| `expert.ecrDelta`    | `ecrPosRank − rosRank`. **Positive = we rank the player higher than the experts** (they are cheaper than we think: buy cue); negative = lower (sell-high cue). No team-count adjustment: both ranks are ordinal within position, but FLEX is in our replacement level and not in ECR. | no `rosRank`                                      |
-| `market.value`       | FantasyCalc redraft trade value (top ≈ 10 000), from real Sleeper/MFL trades; format-agnostic.                                                                                    | outside FantasyCalc's list (whole block `null`)   |
-| `market.posRank`     | FantasyCalc rank within position.                                                                                                                                                 | —                                                 |
-| `market.tier`        | FantasyCalc tier.                                                                                                                                                                 | FantasyCalc gives none                            |
-| `market.trend30d`    | 30-day change of `value`.                                                                                                                                                         | —                                                 |
+| Field               | Definition                                                                                                                                                                                                                                                                            | `null` when                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `expert.ecrRank`    | FantasyPros rest-of-season expert consensus rank, overall across positions.                                                                                                                                                                                                           | no FP ROS row for the player (whole block `null`) |
+| `expert.ecrPosRank` | The same rank within the player's position (numeric part of FP's `RB12`).                                                                                                                                                                                                             | —                                                 |
+| `expert.spread`     | `rank_std`: standard deviation of the experts' ranks — disagreement.                                                                                                                                                                                                                  | FP omits it                                       |
+| `expert.experts`    | Number of experts behind the consensus (ROS: ~6).                                                                                                                                                                                                                                     | —                                                 |
+| `expert.ecrDelta`   | `ecrPosRank − rosRank`. **Positive = we rank the player higher than the experts** (they are cheaper than we think: buy cue); negative = lower (sell-high cue). No team-count adjustment: both ranks are ordinal within position, but FLEX is in our replacement level and not in ECR. | no `rosRank`                                      |
+| `market.value`      | FantasyCalc redraft trade value (top ≈ 10 000), from real Sleeper/MFL trades; format-agnostic.                                                                                                                                                                                        | outside FantasyCalc's list (whole block `null`)   |
+| `market.posRank`    | FantasyCalc rank within position.                                                                                                                                                                                                                                                     | —                                                 |
+| `market.tier`       | FantasyCalc tier.                                                                                                                                                                                                                                                                     | FantasyCalc gives none                            |
+| `market.trend30d`   | 30-day change of `value`.                                                                                                                                                                                                                                                             | —                                                 |
 
 Join (spec §3.3): FP `player_id` → `crosswalk.fantasypros_id` → Sleeper id, else normalized name + position against Sleeper players, DST by team code through `FP_TO_SLEEPER_TEAM` (`JAC → JAX`); unmatched rows are dropped and counted in the step message. FantasyCalc rows join on their own `sleeperId`.
 ```
@@ -3035,23 +3152,24 @@ Join (spec §3.3): FP `player_id` → `crosswalk.fantasypros_id` → Sleeper id,
 - `## Where each number is shown today (v0.7.0)` → `(v0.8.0)`; in the Value-mode table add after the Signals rows and before Mine:
 
 ```markdown
-| Experts        | ECR     | `expert.ecrPosRank`                                                                                                                                  | integer        | —                    |
-|                | Δ ECR   | `expert.ecrDelta`                                                                                                                                    | signed integer | green > +3 / amber < −3 |
-|                | SPREAD  | `expert.spread`                                                                                                                                      | 1 decimal      | —                    |
-|                | MKT     | `market.value`                                                                                                                                       | integer        | —                    |
-|                | TREND   | `market.trend30d`                                                                                                                                    | signed integer | green ≥ 0 / red < 0  |
+| Experts | ECR | `expert.ecrPosRank` | integer | — |
+| | Δ ECR | `expert.ecrDelta` | signed integer | green > +3 / amber < −3 |
+| | SPREAD | `expert.spread` | 1 decimal | — |
+| | MKT | `market.value` | integer | — |
+| | TREND | `market.trend30d` | signed integer | green ≥ 0 / red < 0 |
 ```
 
-  and a paragraph after the table's notes: "**Projection mode** gains an Experts group right after Fantasy on every tab: `ECR` (`PlayerWeekRow.expert.ecrPosRank`) and `GRADE` (`expert.grade`, shown as the letter, sorted by `GRADE_ORDER`). Stats mode is unchanged. Not shown: `expert.ecrRank`, `expert.experts`, `market.posRank`, `market.tier`, `ExpertWeek.projPts` / `.spread`."
+and a paragraph after the table's notes: "**Projection mode** gains an Experts group right after Fantasy on every tab: `ECR` (`PlayerWeekRow.expert.ecrPosRank`) and `GRADE` (`expert.grade`, shown as the letter, sorted by `GRADE_ORDER`). Stats mode is unchanged. Not shown: `expert.ecrRank`, `expert.experts`, `market.posRank`, `market.tier`, `ExpertWeek.projPts` / `.spread`."
+
 - `## Constants` table: add rows
-  `| `src/main/sync/expertSync.ts` | `FP_PAST_WEEK_FRESHNESS_MS = 30 d`, `FP_CURRENT_WEEK_FRESHNESS_MS = 3 h`, `FP_ROS_FRESHNESS_MS = 12 h`, `FANTASYCALC_FRESHNESS_MS = 12 h`, `WEEKLY_POSITIONS = FLX QB K DST` |`
-  `| `src/shared/rules.ts`, `src/shared/teams.ts` | `scoringFormat(rules)` (rec ≥ 1 PPR / (0, 1) HALF / STD), `FP_TO_SLEEPER_TEAM = { JAC: 'JAX' }` |`
+  `| `src/main/sync/expertSync.ts`|`FP_PAST_WEEK_FRESHNESS_MS = 30 d`, `FP_CURRENT_WEEK_FRESHNESS_MS = 3 h`, `FP_ROS_FRESHNESS_MS = 12 h`, `FANTASYCALC_FRESHNESS_MS = 12 h`, `WEEKLY_POSITIONS = FLX QB K DST` |`
+  `| `src/shared/rules.ts`, `src/shared/teams.ts`|`scoringFormat(rules)`(rec ≥ 1 PPR / (0, 1) HALF / STD),`FP_TO_SLEEPER_TEAM = { JAC: 'JAX' }` |`
   and extend the `playersTableView.ts` row with `` `ECR_DELTA_TONE = 3`, `GRADE_ORDER` (F … A+) ``.
 - `## Module map`: add rows
-  `| `src/main/value/expert.ts` | Pure attach of the expert / market blocks and `ecrDelta`; `expertWeek` for the week rows. |`
-  `| `src/main/sync/expertSync.ts`, `src/main/sources/{fantasypros,fantasycalc}.ts`, `src/main/db/repos/{expertRanks,marketValues}.ts` | Expert-layer sync: clients, FP → Sleeper join, one `sync_log` step per unit, replace-per-key storage. |`
+  `| `src/main/value/expert.ts`| Pure attach of the expert / market blocks and`ecrDelta`; `expertWeek` for the week rows. |`
+  `| `src/main/sync/expertSync.ts`, `src/main/sources/{fantasypros,fantasycalc}.ts`, `src/main/db/repos/{expertRanks,marketValues}.ts`| Expert-layer sync: clients, FP → Sleeper join, one`sync_log` step per unit, replace-per-key storage. |`
 
-- [ ] **Step 4: Verify, then check in the dev app against the live endpoints**
+- [x] **Step 4: Verify, then check in the dev app against the live endpoints**
 
 Run: `npm run typecheck && npm run lint && npm test` — green, 296 tests.
 
@@ -3062,7 +3180,7 @@ Dev app (`npx electron-vite dev -- --no-sandbox --disable-gpu --in-process-gpu`,
 - Switch the season select to 2025: Experts cells all `—`, help says "never" for freshness.
 - Record the uncached `players.value` build time from the main-process log if it is printed, else skip.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/renderer/src/screens/PlayersScreen.tsx src/renderer/src/components/ValueHelp.tsx docs/reference/value-and-signals.md
@@ -3075,10 +3193,10 @@ git commit -m "feat(ui): Experts cells, help section, data reference"
 
 Only after the user has checked Task 8 in the dev app and asked for the build.
 
-- [ ] **Step 1:** `package.json` / `package-lock.json` version `0.7.0` → `0.8.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.8.0` (with the Co-Authored-By trailer).
-- [ ] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.8.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
+- [x] **Step 1:** `package.json` / `package-lock.json` version `0.7.0` → `0.8.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.8.0` (with the Co-Authored-By trailer).
+- [x] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.8.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
 - [ ] **Step 3:** User installs over 0.7.0 — this one **migrates** (005): on first launch the crosswalk is re-downloaded (its `sync_log` rows were cleared), identity re-resolves, then the expert steps run. Check the status bar shows no error, that Value mode has the Experts group populated, and that a couple of `Δ ECR` extremes read sensibly (a big positive on a player we like more than the market; a big negative on one we like less). Record the FP match counts in the progress notes.
-- [ ] **Step 4:** Progress notes appended to this plan, commit `docs(plan): mark plan H complete`, tag `v0.8.0`, fast-forward `main`, delete the branch.
+- [x] **Step 4:** Progress notes appended to this plan, commit `docs(plan): mark plan H complete`, tag `v0.8.0`, fast-forward `main`, delete the branch.
 
 ---
 
@@ -3087,3 +3205,15 @@ Only after the user has checked Task 8 in the dev app and asked for the build.
 - **Spec coverage:** §1 constraint (keyless JSON, isolated steps — T3 clients, T5 one `runStep` per unit; non-goals respected: no draft snapshot, no history, no injuries, no LLM, no past-season fetch — T5 current season only, T6/T8 empty cells). §2 sources and facts: FLX remap and separate QB/K/DST calls (T5 `WEEKLY_POSITIONS`), `count: 0` before publication (T5 `NOT_PUBLISHED_MESSAGE`), string-typed `rank_*` (T3 `num`), DST team-level ids + `JAC` (T2 `FP_TO_SLEEPER_TEAM`, T5 `joinFantasyPros`), FantasyCalc `sleeperId` join + `numTeams` + `ppr` (T5). §3.1 clients (T3). §3.2 step keys, freshness buckets, regular-season gate, weekly stop on 404/410, `count: 0` → skipped, scoring format from `rec`, `numQbs` from `SUPER_FLEX`, scoring-change staleness for FP only, cache invalidation via `onStep` (T5; global constraint). §3.3 migration 005 with `fantasypros_id` + crosswalk freshness reset (T2), id → name fallback → dropped and counted with the exact "{matched} matched, {unmatched} unmatched" message (T5), DST alias (T2/T5), unknown Sleeper id stored anyway (T6 test `JAX`). §3.4 tables and replace-per-key writes in one transaction (T2, T4, T5 `withTransaction`). §4.1 shared types (T1; `spread` nullable deviation noted). §4.2 pure `value/expert.ts`, loaded once per build, `players.week` join, no new IPC, ordinal-rank note in help (T6, T8). §4.3 `Column.kind = 'expert'`, Experts groups in value (after Signals, before Mine) and proj (after Fantasy) modes, stats unchanged, `Δ ECR` tones ±3, sorting with nulls last (T7), help paragraph with sources / scoring / meaning / freshness / FLEX / past seasons (T8), data reference (T8). §6 sync side: gated/removed → error or skipped with stored rows kept and age in help (T5, T8); not published → skipped; off-season → one skip; crosswalk failure → `0 matched, N unmatched` (T5 join yields nothing without ids — covered by the name fallback only for players whose names match). Read side: `ecrDelta` null rules (T6), `market` null (T6), empty cells sorted last (T7). §7 fixtures (T3), pure units (T1 `scoringFormat`, T3 mappers, T5 `numQbsFor` / join, T6 attach + sign), sync steps with fake fetch/clients (T5: freshness, `count: 0`, 404 stop, scoring change, unmatched message, `onStep` statuses), repos (T4) and migration (T2), renderer view functions (T7), manual (T8, T9). §8 files: all created/modified as listed (`sleeperNews.ts`, `newsView.ts`, `PlayerDetailPanel` news are Plan I). §9 row H → `v0.8.0` (T9).
 - **Placeholder scan:** none — the Task 1 `expert: null` / `market: null` / `ecrUpdatedAt: null` stubs are code steps replaced in Task 6; every test and implementation step shows its code; the dev-app check lists concrete things to look at.
 - **Type consistency:** `ScoringFormat` (T1) is what `FpQuery.scoring` (T3), `replaceExpertRanks` / `storedScoring` / `ExpertRankRow.scoring` (T4), `scoringFormat` (T1) and `ExpertContext.scoring` (T1) use. `FpRankings.players: FpPlayer[]` + `.totalExperts` (T3) feed `joinFantasyPros(players, experts, index)` → `ExpertRankRecord[]` (T5 → T4 `replaceExpertRanks`). `FcRecord.sleeperId/positionRank/trend30Day/tier` (T3) map onto `MarketValueRecord.playerId/posRank/trend30d/tier` (T5 → T4). `listExpertRanks` returns `ExpertRankRow[]` (T4) which is `ExpertBundle.ranks` (T6) and the map values `expertRos` / `expertWeek` take; `listMarketValues` → `MarketValueRow[]` → `marketValue`. `assembleValue(bundle, experts = NO_EXPERTS)` keeps every existing caller valid. `ExpertSyncDeps extends SyncDeps` (T5) so `runStep(deps, …)` accepts it; `AppSyncDeps = NflverseSyncDeps & ExpertSyncDeps` satisfies `refreshSleeper` (`SyncDeps`), `refreshNflverse` (`NflverseSyncDeps`) and `refreshExperts`; `syncDeps(ctx)` (T5) returns it with the two clients that `AppContext` (T5) and `index.ts` (T5) provide. `Column.expert?: ExpertField` and keys `expert:<field>` (T7) are what `cellValue`, `sortValue`, `expertText`, `expertTone` (T7) and the screen (T8) switch on; `expertTone`'s `'warn'` maps to `text-amber-400` (T8); the `'signedInt'` `CellFormat` (T7) is what `cellText` renders and `expertTone` treats as signed. `columnGroups(tab, 'value', true)` now yields five groups: the test destructuring and the `ValueHelp` Mine filter (by label) both handle it (T7, T8). `ValueContext.expert.ecrUpdatedAt` / `.marketUpdatedAt` (T1, T6) are what `ValueHelp` formats with `relativeTime` (T8).
+
+## Progress notes (2026-09-19)
+
+- Tasks 1–9 executed inline on `feat/expert-rankings`; typecheck, lint and Vitest clean at every commit (256 → 296 tests, exactly as planned). Task 8 checked by the user in the WSL dev app: "fine".
+- **Live sync (dev DB, 2026-09-19, week 2):** after migration 005 the crosswalk re-downloaded (12 502 rows, 5 000+ with both `fantasypros_id` and `sleeper_id`); `fantasypros:weekly:2026:1` → `579 matched, 1 unmatched`, `fantasypros:weekly:2026:2` → `610 matched, 1 unmatched`, `fantasypros:ros:2026` → `404 matched, 0 unmatched`, `fantasycalc:2026` → 197 rows, none without a Sleeper id. Week 1 stored 578 rows for 579 written (one FP row pair resolved to the same Sleeper id — harmless `INSERT OR REPLACE`). No DST row unmatched, so `FP_TO_SLEEPER_TEAM` stays `{ JAC: 'JAX' }`.
+- **Timing:** `buildValueSeason` on the dev DB copy 180–185 ms (Plan G: 185–191 ms) — the expert attach is noise. The four expert steps take ~1.2 s of wall time on a warm network.
+- **Real-data sanity read:** 828 candidates, 391 with a ROS ECR block, 197 with a market block; week 2 rows: 594 with a weekly block (grades present, e.g. Stafford ECR#15 C proj 17.6). My roster: McBride TE ros#1 / ECR#1 (Δ 0), Cook RB ros#7 / ECR#3 (Δ −4), Coker WR ros#24 / ECR#45 (Δ +21), Mevis K Δ +6, Odunze WR Δ −9, Singleton RB Δ −15. Extremes are players without projections: Tyreek Hill ros#280 vs ECR 135 (Δ −145), Charbonnet Δ −124; top positive Demarcus Robinson Δ +40. 2025: no expert rows, both timestamps `null`. Reads as intended.
+- **Deviations from the task text:**
+  - Task 1: the `tests/shared/rules.test.ts` helper needed an explicit `: Rules` return type and the "no `rec` entry" case uses `delete scoring.rec` (the destructuring form tripped `no-unused-vars`).
+  - Task 3/5/7: Prettier re-wrapped several long test lines (`npm run format` equivalent on the touched files only).
+  - Task 9: killing the dev app with a `pgrep -f` pattern that appears in the command line itself kills the harness shell (same trap as Plan G); the app was stopped by PID and the version bump re-run separately.
+- Windows build: `dist/FantasyCompanion-Setup-0.8.0.exe` (94 MB), copied to `C:\Users\habie\OneDrive\Bureau`. Install over 0.7.0 (migration 005 → crosswalk re-download → expert steps on first launch) pending the user's check (Task 9 step 3).
