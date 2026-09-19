@@ -1,16 +1,17 @@
 # Value & signals — data reference
 
-What the app computes per player from the synced data, how each number is defined, and where it is shown today. Written for the UI redesign: the **data** sections are the contract (types in `src/shared/types.ts`, computed in `src/main/value/`); the **rendering** section is the current v0.8.0 presentation and is free to change.
+What the app computes per player from the synced data, how each number is defined, and where it is shown today. Written for the UI redesign: the **data** sections are the contract (types in `src/shared/types.ts`, computed in `src/main/value/`); the **rendering** section is the current v0.9.0 presentation and is free to change.
 
 Design rationale lives in `docs/superpowers/specs/2026-09-17-slice4-value-and-signals-design.md`; slice 5 (expert layer) rationale in `docs/superpowers/specs/2026-09-18-slice5-expert-layer-design.md`. This file documents what shipped.
 
 ## How the data reaches the renderer
 
-| Call (`window.api.players`) | Returns                                                                                | Notes                                                                                                                                                                                          |
-| --------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `value(season)`             | `PlayersValue { context: ValueContext; rows: PlayerValueRow[] }`                       | One row per candidate player: lineup positions only (`QB RB WR TE K DEF`, FB counted as RB), and the player is rostered in the league, on the watchlist, or on an NFL team and not `Inactive`. |
-| `detail(season, playerId)`  | `PlayerDetail { row: PlayerValueRow; weeks: DetailWeek[]; schedule: ScheduleEntry[] }` | Same build, plus the per-week series and the remaining schedule.                                                                                                                               |
-| `week({ season, week })`    | `PlayersWeek { rows: PlayerWeekRow[] }`                                                | Same candidates with one week of data; since v0.8.0 each row also carries `expert: ExpertWeek \| null` — this week's FantasyPros `{ ecrPosRank, grade, projPts, spread }`.                     |
+| Call (`window.api.players`) | Returns                                                                                | Notes                                                                                                                                                                                                                                                                                                                 |
+| --------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `value(season)`             | `PlayersValue { context: ValueContext; rows: PlayerValueRow[] }`                       | One row per candidate player: lineup positions only (`QB RB WR TE K DEF`, FB counted as RB), and the player is rostered in the league, on the watchlist, or on an NFL team and not `Inactive`.                                                                                                                        |
+| `detail(season, playerId)`  | `PlayerDetail { row: PlayerValueRow; weeks: DetailWeek[]; schedule: ScheduleEntry[] }` | Same build, plus the per-week series and the remaining schedule.                                                                                                                                                                                                                                                      |
+| `week({ season, week })`    | `PlayersWeek { rows: PlayerWeekRow[] }`                                                | Same candidates with one week of data; since v0.8.0 each row also carries `expert: ExpertWeek \| null` — this week's FantasyPros `{ ecrPosRank, grade, projPts, spread }`.                                                                                                                                            |
+| `news(playerId, force?)`    | `PlayerNews { items: NewsItem[]; fetchedAt: string }`                                  | Sleeper's aggregated player news (FantasyPros, RotoWire, RotoBaller), newest first, ≤ 25 items. Not from the value build: its own per-player in-memory cache (`src/main/news/newsCache.ts`, 15 min), `force` refetches, failures are never cached, nothing is stored, nothing in `sync_log`. Empty for team defenses. |
 
 Both read a per-(league, season) build cached in the main process (`valueCache` in `src/main/ipc/handlers.ts`). The cache is cleared on a successful sync and on a rules change; a watchlist toggle only re-decorates `watched`. A full-season build costs ~0.1 s (current season) to ~0.5 s (18 played weeks) on the dev DB. Nothing is persisted — every number below is recomputed from the DB.
 
@@ -156,17 +157,34 @@ Built from the regular-season `games` table (Sleeper codes) and the played weeks
 | `weeks: DetailWeek[]`       | Every week 1–18 with a game, a projection or a points row, ascending: `week`, `opponent`, `played`, `points`, `projected` (scored under league rules), `snapPct`, `targetShare`, `rushShare`, `wopr`, and `stats` — the actual line in **Sleeper stat keys** (`rush_att`, `rec_tgt`, `pass_yd`, …, plus display-only `fga`, `xpa`, `fgm_0_39`); `{}` when not played. |
 | `schedule: ScheduleEntry[]` | Remaining weeks for the player's team: `{ week, opponent, rank }`, `opponent: null` on a bye, `rank: null` when that defense is unranked at the player's position. Empty when the season is over or the team has no stored games.                                                                                                                                     |
 
+## `PlayerNews` (added in v0.9.0)
+
+Slice 5 spec §5; fetched on demand by `src/main/sources/sleeperNews.ts` (`POST https://sleeper.com/graphql`, `get_player_news`, keyless, 8 s timeout) and shaped by its pure mapper. Transient: never written to the DB.
+
+| Field                 | Content                                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `items[].id`          | `${source}:${source_key}` — unique per outlet article (React key).                                                                                       |
+| `items[].source`      | `fantasy_pros` \| `rotowire` \| `rotoballer` \| any outlet Sleeper adds (`unknown` when missing). Rendered as `FP` / `RW` / `RB` / raw by `sourceBadge`. |
+| `items[].publishedAt` | ISO, from Sleeper's millisecond timestamp. Items without one are dropped.                                                                                |
+| `items[].title`       | Headline; items without one are dropped.                                                                                                                 |
+| `items[].description` | Factual one-liner, `null` when blank.                                                                                                                    |
+| `items[].analysis`    | Analyst paragraph, `null` when the outlet gives none (RotoBaller).                                                                                       |
+| `items[].url`         | Source article; `null` unless `http(s)`.                                                                                                                 |
+| `fetchedAt`           | When the main process fetched it (shown as the section note).                                                                                            |
+
 ## Constants (single sources)
 
-| Where                                                     | Constants                                                                                                                                                                                               |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/main/value/signals.ts`                               | `RECENT_GAMES = 3`, `SHARE_TREND_THRESHOLD = 0.03`, `SNAP_TREND_THRESHOLD = 0.05`, `MIN_GAMES_USAGE = 2`, `MIN_GAMES_CONSISTENCY = 3`, `TD_FLAG_THRESHOLD = 1.5`, `OPPORTUNITY_POSITIONS = QB RB WR TE` |
-| `src/main/value/roster.ts`                                | `UNSTARTABLE_SLOTS = {ir, taxi}` — roster slots that never count as "my players at the position"                                                                                                        |
-| `src/main/sync/expertSync.ts`                             | `FP_PAST_WEEK_FRESHNESS_MS = 30 d`, `FP_CURRENT_WEEK_FRESHNESS_MS = 3 h`, `FP_ROS_FRESHNESS_MS = 12 h`, `FANTASYCALC_FRESHNESS_MS = 12 h`, `WEEKLY_POSITIONS = FLX QB K DST`                            |
-| `src/shared/rules.ts`, `src/shared/teams.ts`              | `scoringFormat(rules)` (rec ≥ 1 PPR / (0, 1) HALF / STD), `FP_TO_SLEEPER_TEAM = { JAC: 'JAX' }`                                                                                                         |
-| `src/renderer/src/lib/playersTableView.ts` (display only) | `PRIMARY_USAGE` (RB → snap %, WR/TE → target share), `TREND_ARROW` (↑ → ↓), SOS tint buckets `SOS_HARD_MAX = 11` / `SOS_EASY_MIN = 22`, `ECR_DELTA_TONE = 3`, `GRADE_ORDER` (F … A+)                    |
+| Where                                                           | Constants                                                                                                                                                                                               |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/main/value/signals.ts`                                     | `RECENT_GAMES = 3`, `SHARE_TREND_THRESHOLD = 0.03`, `SNAP_TREND_THRESHOLD = 0.05`, `MIN_GAMES_USAGE = 2`, `MIN_GAMES_CONSISTENCY = 3`, `TD_FLAG_THRESHOLD = 1.5`, `OPPORTUNITY_POSITIONS = QB RB WR TE` |
+| `src/main/value/roster.ts`                                      | `UNSTARTABLE_SLOTS = {ir, taxi}` — roster slots that never count as "my players at the position"                                                                                                        |
+| `src/main/sync/expertSync.ts`                                   | `FP_PAST_WEEK_FRESHNESS_MS = 30 d`, `FP_CURRENT_WEEK_FRESHNESS_MS = 3 h`, `FP_ROS_FRESHNESS_MS = 12 h`, `FANTASYCALC_FRESHNESS_MS = 12 h`, `WEEKLY_POSITIONS = FLX QB K DST`                            |
+| `src/shared/rules.ts`, `src/shared/teams.ts`                    | `scoringFormat(rules)` (rec ≥ 1 PPR / (0, 1) HALF / STD), `FP_TO_SLEEPER_TEAM = { JAC: 'JAX' }`                                                                                                         |
+| `src/main/sources/sleeperNews.ts`, `src/main/news/newsCache.ts` | `NEWS_LIMIT = 25`, `NEWS_TIMEOUT_MS = 8 s`, `SLEEPER_NEWS_USER_AGENT`, `NEWS_TTL_MS = 15 min`, `NEWS_CACHE_MAX = 64`                                                                                    |
+| `src/renderer/src/lib/playersTableView.ts` (display only)       | `PRIMARY_USAGE` (RB → snap %, WR/TE → target share), `TREND_ARROW` (↑ → ↓), SOS tint buckets `SOS_HARD_MAX = 11` / `SOS_EASY_MIN = 22`, `ECR_DELTA_TONE = 3`, `GRADE_ORDER` (F … A+)                    |
+| `src/renderer/src/lib/newsView.ts` (display only)               | `NEWS_PAGE_SIZE = 8`, badge map `fantasy_pros → FP`, `rotowire → RW`, `rotoballer → RB`                                                                                                                 |
 
-## Where each number is shown today (v0.8.0)
+## Where each number is shown today (v0.9.0)
 
 ### Players table, Value mode (`columnGroups(tab, 'value')` — identical on every position tab)
 
@@ -209,6 +227,7 @@ Not shown in the table: `stdev`, `ypo`, `ypoDelta`, `vsProjPoints`, `tdDelta` as
 4. **Signals** — text lines from `signalLines()`: TDs `tdDelta` vs expected (+ flag wording) · Yds/opp `ypo` and `ypoDelta` · vs projection `vsProjPoints` (`vsProjPct`) · Floor/Ceiling/start-worthy (`floor`, `ceiling`, `startRate`) or "Consistency: needs 3 games (N played)".
 5. **Upcoming schedule** — one chip per `schedule` entry: `Wk N OPP · rank`, `BYE` for byes, tinted with the SOS buckets.
 6. **Game log** — played `weeks`: points, snap %, and the position's stat columns from `stats`.
+7. **News** — `NewsSection` from `players.news`, under the game log, requested when the panel opens in parallel with `players.detail`: per item a source badge, `newsAge` (`5m` / `2h` / `3d` / `Sep 12`), the title (a link opening in the system browser through `setWindowOpenHandler`), the description, and an _Analysis_ toggle open on the newest item only; 8 items then "Show more (N)". States: skeleton / "Couldn't load news" + Retry (`force`) / "No news". Not rendered for DEF rows.
 
 Not shown in the panel: `stdev`, `airYardsShare`, `overallRank`.
 
@@ -224,5 +243,7 @@ Not shown in the panel: `stdev`, `airYardsShare`, `overallRank`.
 | `src/main/value/expert.ts`                                                                                                        | Pure attach of the expert / market blocks and `ecrDelta`; `expertWeek` for the week rows.                                                |
 | `src/main/value/build.ts`                                                                                                         | Assembles rows, context, detail.                                                                                                         |
 | `src/main/sync/expertSync.ts`, `src/main/sources/{fantasypros,fantasycalc}.ts`, `src/main/db/repos/{expertRanks,marketValues}.ts` | Expert-layer sync: clients, FP → Sleeper join, one `sync_log` step per unit, replace-per-key storage.                                    |
+| `src/main/sources/sleeperNews.ts`, `src/main/news/newsCache.ts`                                                                   | Player news: GraphQL client + pure mapper; per-player 15-min in-memory cache behind `players.news`.                                      |
 | `src/renderer/src/lib/playersTableView.ts`                                                                                        | Column model, cell values/text/tones, sorting.                                                                                           |
 | `src/renderer/src/lib/detailView.ts`, `charts.ts`                                                                                 | Panel view model (usage rows, bar items, signal text) and SVG geometry.                                                                  |
+| `src/renderer/src/lib/newsView.ts`, `src/renderer/src/components/NewsSection.tsx`                                                 | News view helpers (badge, age) and the panel section with its own fetch and states.                                                      |
