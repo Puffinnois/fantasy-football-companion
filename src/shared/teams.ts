@@ -48,3 +48,11 @@ const NFLVERSE_TO_SLEEPER_TEAM: Record<string, string> = Object.fromEntries(
 export function toSleeperTeam(nflverseTeam: string): string {
   return NFLVERSE_TO_SLEEPER_TEAM[nflverseTeam] ?? nflverseTeam
 }
+
+/** Where FantasyPros spells a team differently from Sleeper (DST rows join by team code). Extend if a DST row goes unmatched. */
+export const FP_TO_SLEEPER_TEAM: Record<string, string> = { JAC: 'JAX' }
+
+/** Sleeper's DEF player id for a FantasyPros team code. */
+export function toSleeperDefId(fpTeam: string): string {
+  return FP_TO_SLEEPER_TEAM[fpTeam] ?? fpTeam
+}

@@ -123,6 +123,7 @@ describe('parseCrosswalk', () => {
     expect(records).toHaveLength(6)
     expect(records[0]).toEqual({
       sleeperId: '4866',
+      fantasyprosId: '17240',
       gsisId: '00-0034844',
       pfrId: 'BarkSa00',
       sportradarId: 'sr-1',
@@ -131,6 +132,8 @@ describe('parseCrosswalk', () => {
       position: 'RB'
     })
     expect(records[2].sleeperId).toBeNull()
+    expect(records[2].fantasyprosId).toBeNull()
+    expect(records[1].fantasyprosId).toBe('19236')
     expect(records[4].gsisId).toBeNull()
     expect(records[5].gsisId).toBeNull() // placeholder id, not a GSIS id
     const realRows = parseCrosswalk(real('db_playerids.csv')).records

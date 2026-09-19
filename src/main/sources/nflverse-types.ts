@@ -60,6 +60,7 @@ export interface GameRecord {
 /** One row of the DynastyProcess `db_playerids.csv` crosswalk. `team` is deliberately not read (MFL codes). */
 export interface CrosswalkRecord {
   sleeperId: string | null
+  fantasyprosId: string | null
   gsisId: string | null
   pfrId: string | null
   sportradarId: string | null

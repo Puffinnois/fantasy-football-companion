@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { openDatabase, withTransaction } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
+import { migrations } from '@main/db/migrations'
 
 describe('migrate', () => {
   it('creates all slice-1 tables on an empty database', () => {
@@ -11,7 +12,7 @@ describe('migrate', () => {
         name: string
       }[]
     ).map((r) => r.name)
-    expect(version).toBe(4)
+    expect(version).toBe(5)
     expect(tables).toEqual(
       expect.arrayContaining([
         'app_settings',
@@ -33,6 +34,8 @@ describe('migrate', () => {
         'player_week_points',
         'player_week_projections',
         'watchlist',
+        'expert_ranks',
+        'market_values',
         'schema_version'
       ])
     )
@@ -43,7 +46,37 @@ describe('migrate', () => {
     migrate(db)
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('SELECT COUNT(*) AS n FROM schema_version').get() as { n: number }
-    expect(row.n).toBe(4)
+    expect(row.n).toBe(5)
+  })
+
+  it('005 adds crosswalk.fantasypros_id and forgets the crosswalk step so it is re-downloaded', () => {
+    const db = openDatabase(':memory:')
+    // apply 001–004 by hand, then a crosswalk step that would otherwise still be fresh
+    db.exec(
+      'CREATE TABLE schema_version (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)'
+    )
+    for (const m of migrations.slice(0, 4)) {
+      db.exec(m.sql)
+      db.prepare('INSERT INTO schema_version (version, name, applied_at) VALUES (?, ?, ?)').run(
+        m.version,
+        m.name,
+        'x'
+      )
+    }
+    db.prepare(
+      `INSERT INTO sync_log (source, started_at, finished_at, status, message, rows_written)
+       VALUES ('nflverse:crosswalk', 't', 't', 'ok', NULL, 10), ('nflverse:games', 't', 't', 'ok', NULL, 1)`
+    ).run()
+
+    expect(migrate(db)).toBe(5)
+    const columns = (db.prepare('PRAGMA table_info(crosswalk)').all() as { name: string }[]).map(
+      (c) => c.name
+    )
+    expect(columns).toContain('fantasypros_id')
+    const sources = (
+      db.prepare('SELECT source FROM sync_log ORDER BY source').all() as { source: string }[]
+    ).map((r) => r.source)
+    expect(sources).toEqual(['nflverse:games'])
   })
 
   it('enforces foreign keys', () => {

@@ -162,6 +162,7 @@ export function validGsis(value: string | null): string | null {
 export function parseCrosswalk(text: string): ParseResult<CrosswalkRecord> {
   const records = parseCsv(text).map((row) => ({
     sleeperId: strOrNull(row.sleeper_id),
+    fantasyprosId: strOrNull(row.fantasypros_id),
     gsisId: validGsis(strOrNull(row.gsis_id)),
     pfrId: strOrNull(row.pfr_id),
     sportradarId: strOrNull(row.sportradar_id),

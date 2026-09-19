@@ -35,6 +35,7 @@ export interface ScoringIdentity {
 
 interface CrosswalkRow {
   sleeper_id: string | null
+  fantasypros_id: string | null
   gsis_id: string | null
   pfr_id: string | null
   sportradar_id: string | null
@@ -72,13 +73,14 @@ interface ScoringRow {
 export function replaceCrosswalk(db: Db, records: CrosswalkRecord[], updatedAt: string): number {
   db.exec('DELETE FROM crosswalk')
   const insert = db.prepare(
-    `INSERT INTO crosswalk (sleeper_id, gsis_id, pfr_id, sportradar_id, espn_id, name, position, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO crosswalk (sleeper_id, fantasypros_id, gsis_id, pfr_id, sportradar_id, espn_id, name, position, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
   let written = 0
   for (const r of records) {
     insert.run(
       r.sleeperId,
+      r.fantasyprosId,
       r.gsisId,
       r.pfrId,
       r.sportradarId,
@@ -95,11 +97,12 @@ export function replaceCrosswalk(db: Db, records: CrosswalkRecord[], updatedAt: 
 export function listCrosswalk(db: Db): CrosswalkRecord[] {
   const rows = db
     .prepare(
-      'SELECT sleeper_id, gsis_id, pfr_id, sportradar_id, espn_id, name, position FROM crosswalk ORDER BY rowid'
+      'SELECT sleeper_id, fantasypros_id, gsis_id, pfr_id, sportradar_id, espn_id, name, position FROM crosswalk ORDER BY rowid'
     )
     .all() as unknown as CrosswalkRow[]
   return rows.map((r) => ({
     sleeperId: r.sleeper_id,
+    fantasyprosId: r.fantasypros_id,
     gsisId: r.gsis_id,
     pfrId: r.pfr_id,
     sportradarId: r.sportradar_id,
