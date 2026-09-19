@@ -284,6 +284,29 @@ export interface PlayerDetail {
   schedule: ScheduleEntry[]
 }
 
+/** One item of Sleeper's aggregated player news (slice 5 spec §5.1). */
+export interface NewsItem {
+  /** `${source}:${source_key}` — unique per outlet article. */
+  id: string
+  /** `fantasy_pros` | `rotowire` | `rotoballer` | any outlet Sleeper adds later. */
+  source: string
+  /** ISO timestamp (Sleeper sends milliseconds). */
+  publishedAt: string
+  title: string
+  /** Factual one-liner. */
+  description: string | null
+  /** Analyst paragraph (the fantasy take); absent on some outlets. */
+  analysis: string | null
+  /** Source article; only `http(s)` links are kept. */
+  url: string | null
+}
+
+export interface PlayerNews {
+  /** Newest first. */
+  items: NewsItem[]
+  fetchedAt: string
+}
+
 export interface PlayersWeek {
   rows: PlayerWeekRow[]
 }
