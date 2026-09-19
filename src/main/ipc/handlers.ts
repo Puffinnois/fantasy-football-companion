@@ -9,6 +9,7 @@ import { getNflState } from '@main/db/repos/state'
 import { getLastError, getLastSync, getLastSyncLike } from '@main/db/repos/syncLog'
 import { listRoster, listTeams } from '@main/db/repos/teams'
 import { listWatched, toggleWatch } from '@main/db/repos/watchlist'
+import type { NewsCache } from '@main/news/newsCache'
 import { normalizeRules } from '@main/scoring/normalize'
 import { recomputePoints } from '@main/scoring/recompute'
 import type { FantasyCalcClient } from '@main/sources/fantasycalc'
@@ -26,6 +27,7 @@ import type { Rules } from '@shared/rules'
 import type {
   League,
   PlayerDetail,
+  PlayerNews,
   PlayersOptions,
   PlayersValue,
   PlayersWeek,
@@ -43,6 +45,7 @@ export interface AppContext {
   nflverse: NflverseClient
   fantasypros: FantasyProsClient
   fantasycalc: FantasyCalcClient
+  news: NewsCache
   getWindow: () => BrowserWindow | null
 }
 
@@ -227,6 +230,10 @@ export function registerIpcHandlers(ctx: AppContext): void {
     const watched = listWatched(ctx.db).includes(playerId)
     return { ...detail, row: { ...detail.row, watched } }
   })
+
+  ipcMain.handle(IPC.playersNews, (_event, playerId: string, force: boolean): Promise<PlayerNews> =>
+    ctx.news.get(playerId, force)
+  )
 
   ipcMain.handle(IPC.watchlistToggle, (_event, playerId: string): boolean => {
     const watched = toggleWatch(ctx.db, playerId, new Date().toISOString())

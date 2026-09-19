@@ -6,10 +6,12 @@ import { openDatabase, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
 import { registerIpcHandlers, startRefresh, type AppContext } from '@main/ipc/handlers'
+import { createNewsCache } from '@main/news/newsCache'
 import { createFantasyCalcClient } from '@main/sources/fantasycalc'
 import { createFantasyProsClient } from '@main/sources/fantasypros'
 import { createNflverseClient } from '@main/sources/nflverse'
 import { createSleeperClient } from '@main/sources/sleeper'
+import { createSleeperNewsClient } from '@main/sources/sleeperNews'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -71,6 +73,7 @@ app.whenReady().then(() => {
     nflverse: createNflverseClient(),
     fantasypros: createFantasyProsClient(),
     fantasycalc: createFantasyCalcClient(),
+    news: createNewsCache(createSleeperNewsClient()),
     getWindow: () => mainWindow
   }
   registerIpcHandlers(ctx)

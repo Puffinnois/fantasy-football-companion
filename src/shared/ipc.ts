@@ -3,6 +3,7 @@ import type {
   LeagueSummary,
   PlayersOptions,
   PlayerDetail,
+  PlayerNews,
   PlayersValue,
   PlayersWeek,
   WeekQuery,
@@ -40,6 +41,8 @@ export interface Api {
     value(season: number): Promise<PlayersValue>
     /** One player's value row plus its week series; served from the same cache. */
     detail(season: number, playerId: string): Promise<PlayerDetail>
+    /** Sleeper's aggregated news for one player, newest first; cached in main for 15 min, `force` refetches. */
+    news(playerId: string, force?: boolean): Promise<PlayerNews>
   }
   watchlist: {
     /** Returns the new state. */
@@ -70,6 +73,7 @@ export const IPC = {
   playersWeek: 'players:week',
   playersValue: 'players:value',
   playersDetail: 'players:detail',
+  playersNews: 'players:news',
   watchlistToggle: 'watchlist:toggle',
   rulesGet: 'rules:get',
   rulesUpdate: 'rules:update',
