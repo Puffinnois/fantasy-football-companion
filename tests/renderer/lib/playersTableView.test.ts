@@ -4,8 +4,13 @@ import {
   cellValue,
   columnGroups,
   DEFAULT_SORT,
+  ECR_DELTA_TONE,
+  expertText,
+  expertTone,
+  expertValue,
   filterRows,
   gameLabel,
+  GRADE_ORDER,
   kickoffLabel,
   mineCellTitle,
   mineLabel,
@@ -17,6 +22,7 @@ import {
   subLabel,
   valueHeaderTitle,
   type Column,
+  type ExpertField,
   type SignalField
 } from '@/lib/playersTableView'
 import type { PlayerValueRow, PlayerWeekRow, ValueContext } from '@shared/types'
@@ -83,6 +89,7 @@ describe('columnGroups', () => {
     expect(all[0].columns.map((c) => c.key)).toEqual(['points', 'delta'])
     expect(columnGroups('FLEX', 'proj').map((g) => g.label)).toEqual([
       'Fantasy',
+      'Experts',
       'Rushing',
       'Receiving',
       'Passing'
@@ -103,6 +110,7 @@ describe('columnGroups', () => {
     expect(columnGroups('K', 'stats').map((g) => g.label)).toEqual(['Fantasy', 'Field goals', 'XP'])
     expect(columnGroups('DEF', 'proj').map((g) => g.label)).toEqual([
       'Fantasy',
+      'Experts',
       'Defense',
       'Allowed'
     ])
@@ -294,10 +302,10 @@ describe('filterRows / sortRows', () => {
 })
 
 describe('value mode', () => {
-  it('has the same three groups on every tab', () => {
+  it('has the same four groups on every tab', () => {
     for (const tab of ['ALL', 'QB', 'K', 'FLEX']) {
       const groups = columnGroups(tab, 'value')
-      expect(groups.map((g) => g.label)).toEqual(['Season', 'Rest of season', 'Signals'])
+      expect(groups.map((g) => g.label)).toEqual(['Season', 'Rest of season', 'Signals', 'Experts'])
       expect(groups.flatMap((g) => g.columns.map((c) => c.key))).toEqual([
         'value:gamesPlayed',
         'value:ppg',
@@ -313,7 +321,12 @@ describe('value mode', () => {
         'signal:startRate',
         'signal:usage',
         'signal:tdDelta',
-        'signal:vsProjPct'
+        'signal:vsProjPct',
+        'expert:ecrPosRank',
+        'expert:ecrDelta',
+        'expert:spread',
+        'expert:marketValue',
+        'expert:marketTrend'
       ])
     }
   })
@@ -503,7 +516,7 @@ describe('value mode', () => {
 })
 
 describe('mine group', () => {
-  const [, , , mineGroup] = columnGroups('ALL', 'value', true)
+  const [, , , , mineGroup] = columnGroups('ALL', 'value', true)
   const [vsMine, droppable] = mineGroup.columns
   const context: ValueContext = {
     season: 2026,
@@ -524,16 +537,18 @@ describe('mine group', () => {
     owner: null
   }
 
-  it('is the fourth value-mode group, only when a team is mine', () => {
+  it('is the fifth value-mode group, only when a team is mine', () => {
     expect(columnGroups('ALL', 'value').map((g) => g.label)).toEqual([
       'Season',
       'Rest of season',
-      'Signals'
+      'Signals',
+      'Experts'
     ])
     expect(columnGroups('K', 'value', true).map((g) => g.label)).toEqual([
       'Season',
       'Rest of season',
       'Signals',
+      'Experts',
       'Mine'
     ])
     expect(mineGroup.columns.map((c) => [c.key, c.label, c.kind])).toEqual([
@@ -618,5 +633,130 @@ describe('mine group', () => {
     ).toBeUndefined()
     expect(mineCellTitle(valueRow({ position: 'K' }), vsMine, null)).toBeUndefined()
     expect(mineCellTitle(row(), vsMine, context)).toBeUndefined()
+  })
+})
+
+describe('experts', () => {
+  const valueCols = columnGroups('ALL', 'value')
+    .flatMap((g) => g.columns)
+    .filter((c) => c.kind === 'expert')
+  const weekCols = columnGroups('RB', 'proj')
+    .flatMap((g) => g.columns)
+    .filter((c) => c.kind === 'expert')
+  const col = (cols: Column[], field: ExpertField): Column => {
+    const c = cols.find((c) => c.expert === field)
+    if (!c) throw new Error(`no column for ${field}`)
+    return c
+  }
+  const withExperts = valueRow({
+    expert: { ecrRank: 12, ecrPosRank: 4, spread: 2.5, experts: 6, ecrDelta: 5 },
+    market: { value: 9340, posRank: 1, tier: 1, trend30d: -310 }
+  })
+
+  it('projection mode has ECR and GRADE after Fantasy; stats mode has no Experts group', () => {
+    expect(columnGroups('QB', 'proj').map((g) => g.label)).toEqual([
+      'Fantasy',
+      'Experts',
+      'Passing',
+      'Rushing'
+    ])
+    expect(weekCols.map((c) => [c.key, c.label])).toEqual([
+      ['expert:weekPosRank', 'ECR'],
+      ['expert:weekGrade', 'GRADE']
+    ])
+    expect(columnGroups('QB', 'stats').map((g) => g.label)).not.toContain('Experts')
+    expect(valueCols.map((c) => c.label)).toEqual(['ECR', 'Δ ECR', 'SPREAD', 'MKT', 'TREND'])
+    expect(valueCols.every((c) => c.description)).toBe(true)
+  })
+
+  it('reads value-row cells through cellValue and formats them; nulls render —', () => {
+    expect(valueCols.map((c) => cellValue(withExperts, c, 'value'))).toEqual([
+      4, 5, 2.5, 9340, -310
+    ])
+    expect(valueCols.map((c) => expertText(withExperts, c))).toEqual([
+      '4',
+      '+5',
+      '2.5',
+      '9340',
+      '-310'
+    ])
+    expect(valueCols.map((c) => expertText(valueRow(), c))).toEqual(['—', '—', '—', '—', '—'])
+    expect(cellValue(row(), col(valueCols, 'ecrPosRank'), 'proj')).toBeNull()
+  })
+
+  it('reads week-row cells: ECR as a number, GRADE as a letter sorting by GRADE_ORDER', () => {
+    const graded = row({ expert: { ecrPosRank: 7, grade: 'B+', projPts: 14.2, spread: 1.1 } })
+    expect(expertValue(graded, 'weekPosRank')).toBe(7)
+    expect(expertValue(graded, 'weekGrade')).toBe(GRADE_ORDER.indexOf('B+'))
+    expect(expertText(graded, col(weekCols, 'weekGrade'))).toBe('B+')
+    expect(expertText(graded, col(weekCols, 'weekPosRank'))).toBe('7')
+    expect(expertText(row(), col(weekCols, 'weekGrade'))).toBe('—')
+    expect(
+      expertValue(
+        row({ expert: { ecrPosRank: 7, grade: 'Z', projPts: null, spread: null } }),
+        'weekGrade'
+      )
+    ).toBeNull()
+    expect(expertValue(withExperts, 'weekGrade')).toBeNull()
+    expect(GRADE_ORDER[0]).toBe('F')
+    expect(GRADE_ORDER.at(-1)).toBe('A+')
+  })
+
+  it('tones Δ ECR: green above +3, amber below −3, none in between; TREND by sign; the rest none', () => {
+    const delta = col(valueCols, 'ecrDelta')
+    const tone = (ecrDelta: number | null): ReturnType<typeof expertTone> =>
+      expertTone(
+        valueRow({ expert: { ecrRank: 1, ecrPosRank: 1, spread: null, experts: 6, ecrDelta } }),
+        delta
+      )
+    expect(ECR_DELTA_TONE).toBe(3)
+    expect(tone(4)).toBe('pos')
+    expect(tone(3)).toBeNull()
+    expect(tone(0)).toBeNull()
+    expect(tone(-3)).toBeNull()
+    expect(tone(-4)).toBe('warn')
+    expect(tone(null)).toBeNull()
+    expect(expertTone(withExperts, col(valueCols, 'marketTrend'))).toBe('neg')
+    expect(expertTone(withExperts, col(valueCols, 'ecrPosRank'))).toBeNull()
+    expect(expertTone(withExperts, col(valueCols, 'marketValue'))).toBeNull()
+    expect(expertTone(valueRow(), delta)).toBeNull()
+  })
+
+  it('sorts by an expert column with nulls last, in both modes', () => {
+    const rows = [
+      valueRow({ playerId: 'a', fullName: 'A' }),
+      withExperts,
+      valueRow({
+        playerId: 'c',
+        fullName: 'C',
+        expert: { ecrRank: 2, ecrPosRank: 1, spread: null, experts: 6, ecrDelta: -2 }
+      })
+    ]
+    expect(
+      sortRows(rows, { key: 'expert:ecrDelta', dir: 'desc' }, 'value').map((r) => r.playerId)
+    ).toEqual(['v1', 'c', 'a'])
+    expect(
+      sortRows(rows, { key: 'expert:ecrDelta', dir: 'asc' }, 'value').map((r) => r.playerId)
+    ).toEqual(['c', 'v1', 'a'])
+    const weeks = [
+      row({
+        playerId: 'x',
+        fullName: 'X',
+        expert: { ecrPosRank: 3, grade: 'C', projPts: null, spread: null }
+      }),
+      row({
+        playerId: 'y',
+        fullName: 'Y',
+        expert: { ecrPosRank: 1, grade: 'A+', projPts: null, spread: null }
+      }),
+      row({ playerId: 'z', fullName: 'Z' })
+    ]
+    expect(
+      sortRows(weeks, { key: 'expert:weekGrade', dir: 'desc' }, 'proj').map((r) => r.playerId)
+    ).toEqual(['y', 'x', 'z'])
+  })
+
+  it('titles expert headers with their description', () => {
+    expect(valueHeaderTitle(col(valueCols, 'ecrDelta'), null, ['RB'])).toContain('positive')
   })
 })

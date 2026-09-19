@@ -18,22 +18,34 @@ export const isValueRow = (row: TableRow): row is PlayerValueRow => 'ppg' in row
 export const isWeekRow = (row: TableRow): row is PlayerWeekRow => 'game' in row
 
 export type ColumnKind =
-  'points' | 'delta' | 'stat' | 'snapPct' | 'targetShare' | 'value' | 'signal' | 'droppable'
+  | 'points'
+  | 'delta'
+  | 'stat'
+  | 'snapPct'
+  | 'targetShare'
+  | 'value'
+  | 'signal'
+  | 'droppable'
+  | 'expert'
+/** Value rows read `expert` (ROS) and `market`; week rows read `expert` (this week's ECR + grade). */
+export type ExpertField =
+  'ecrPosRank' | 'ecrDelta' | 'spread' | 'marketValue' | 'marketTrend' | 'weekPosRank' | 'weekGrade'
+export type CellFormat = 'int' | 'fixed' | 'signed' | 'signedInt' | 'pct' | 'signedPct'
 export type ValueField =
   'gamesPlayed' | 'ppg' | 'stdValue' | 'stdRank' | 'rosPoints' | 'rosValue' | 'rosRank' | 'vsMine'
 /** `usage` is the position's primary metric (spec §3.1); the rest read PlayerSignals directly. */
 export type SignalField =
   'rosSos' | 'byesRemaining' | 'floor' | 'ceiling' | 'startRate' | 'usage' | 'tdDelta' | 'vsProjPct'
-export type CellFormat = 'int' | 'fixed' | 'signed' | 'pct' | 'signedPct'
 
 export interface Column {
-  /** Sort key (`points`, `delta`, `snapPct`, `targetShare`, `stat:<key>`, `value:<field>`, `signal:<field>`, `droppable`). */
+  /** Sort key (`points`, `delta`, `snapPct`, `targetShare`, `stat:<key>`, `value:<field>`, `signal:<field>`, `expert:<field>`, `droppable`). */
   key: string
   label: string
   kind: ColumnKind
   statKey?: string
   field?: ValueField
   signal?: SignalField
+  expert?: ExpertField
   /** Value / signal columns: how the number renders. */
   format?: CellFormat
   /** Value / signal columns: one-line definition shown in the header tooltip and the help panel. */
@@ -171,6 +183,62 @@ const SIGNALS = group('Signals', [
   )
 ])
 
+const expert = (
+  field: ExpertField,
+  label: string,
+  format: CellFormat,
+  description: string
+): Column => ({
+  key: `expert:${field}`,
+  label,
+  kind: 'expert',
+  expert: field,
+  format,
+  description
+})
+/** Slice 5 spec §4.3: outside opinion next to our numbers; Δ ECR is the headline. */
+const EXPERTS_VALUE = group('Experts', [
+  expert(
+    'ecrPosRank',
+    'ECR',
+    'int',
+    'FantasyPros rest-of-season expert consensus rank within the position'
+  ),
+  expert(
+    'ecrDelta',
+    'Δ ECR',
+    'signedInt',
+    'ECR minus our ROS RK: positive = we rank the player higher than the experts (a buy cue above +3), negative = lower (a sell-high cue below −3)'
+  ),
+  expert(
+    'spread',
+    'SPREAD',
+    'fixed',
+    "Standard deviation of the experts' ROS ranks — how much they disagree"
+  ),
+  expert(
+    'marketValue',
+    'MKT',
+    'int',
+    'FantasyCalc trade-market value, from real redraft trades (top ~130 players only)'
+  ),
+  expert('marketTrend', 'TREND', 'signedInt', '30-day change of the FantasyCalc value')
+])
+const EXPERTS_WEEK = group('Experts', [
+  expert(
+    'weekPosRank',
+    'ECR',
+    'int',
+    'FantasyPros start/sit expert consensus rank within the position for this week'
+  ),
+  expert(
+    'weekGrade',
+    'GRADE',
+    'int',
+    'FantasyPros start/sit grade for this week (A+ … F); sorts best first'
+  )
+])
+
 const DROPPABLE: Column = {
   key: 'droppable',
   label: 'DROP?',
@@ -189,26 +257,30 @@ const MINE = group('Mine', [
   DROPPABLE
 ])
 
-/** Sleeper's column groups per tab; Δ and usage only exist for played weeks (stats mode); Mine only when a team is mine. */
+/** Sleeper's column groups per tab; Δ and usage only exist for played weeks (stats mode); Experts in value and proj modes; Mine only when a team is mine. */
 export function columnGroups(tabId: string, mode: TableMode, mine = false): ColumnGroup[] {
   if (mode === 'value')
-    return mine ? [SEASON, REST_OF_SEASON, SIGNALS, MINE] : [SEASON, REST_OF_SEASON, SIGNALS]
+    return mine
+      ? [SEASON, REST_OF_SEASON, SIGNALS, EXPERTS_VALUE, MINE]
+      : [SEASON, REST_OF_SEASON, SIGNALS, EXPERTS_VALUE]
   const fantasy = group('Fantasy', mode === 'stats' ? [POINTS, DELTA] : [POINTS])
+  const experts = mode === 'proj' ? [EXPERTS_WEEK] : []
   const usage = (...cols: Column[]): ColumnGroup[] =>
     mode === 'stats' ? [group('Usage', cols)] : []
   switch (tabId) {
     case 'QB':
-      return [fantasy, PASSING_QB, RUSHING, ...usage(SNAP)]
+      return [fantasy, ...experts, PASSING_QB, RUSHING, ...usage(SNAP)]
     case 'K':
-      return [fantasy, FIELD_GOALS, XP]
+      return [fantasy, ...experts, FIELD_GOALS, XP]
     case 'DEF':
-      return [fantasy, DEFENSE, ALLOWED]
+      return [fantasy, ...experts, DEFENSE, ALLOWED]
     default:
-      return [fantasy, RUSHING, RECEIVING, PASSING, ...usage(SNAP, TGT)]
+      return [fantasy, ...experts, RUSHING, RECEIVING, PASSING, ...usage(SNAP, TGT)]
   }
 }
 
 export function cellValue(row: TableRow, col: Column, mode: TableMode): number | null {
+  if (col.kind === 'expert') return col.expert ? expertValue(row, col.expert) : null
   if (col.kind === 'droppable') return isValueRow(row) ? (row.droppable?.delta ?? null) : null
   if (col.kind === 'value') return col.field && isValueRow(row) ? row[col.field] : null
   if (col.kind === 'signal')
@@ -233,9 +305,10 @@ export function cellValue(row: TableRow, col: Column, mode: TableMode): number |
 export function cellText(value: number | null, col: Column, mode: TableMode): string {
   if (col.kind === 'droppable') return value === null ? '' : '●'
   if (value === null) return '—'
-  if (col.kind === 'value' || col.kind === 'signal') {
+  if (col.kind === 'value' || col.kind === 'signal' || col.kind === 'expert') {
     if (col.format === 'int') return String(value)
     if (col.format === 'signed') return fmtSigned(value)
+    if (col.format === 'signedInt') return `${value > 0 ? '+' : ''}${value}`
     if (col.format === 'pct') return fmtPct(value)
     if (col.format === 'signedPct') return fmtSignedPct(value)
     return value.toFixed(1)
@@ -290,7 +363,7 @@ export interface TableFilters {
 }
 
 export interface TableSort {
-  /** 'points' | 'delta' | 'name' | 'snapPct' | 'targetShare' | 'droppable' | `stat:<key>` | `value:<field>` | `signal:<field>` */
+  /** 'points' | 'delta' | 'name' | 'snapPct' | 'targetShare' | 'droppable' | `stat:<key>` | `value:<field>` | `signal:<field>` | `expert:<field>` */
   key: string
   dir: 'asc' | 'desc'
 }
@@ -324,6 +397,7 @@ function sortValue(row: TableRow, key: string, mode: TableMode): number | string
   if (key.startsWith('value:')) return isValueRow(row) ? row[key.slice(6) as ValueField] : null
   if (key.startsWith('signal:'))
     return isValueRow(row) ? signalValue(row, key.slice(7) as SignalField) : null
+  if (key.startsWith('expert:')) return expertValue(row, key.slice(7) as ExpertField)
   if (key === 'droppable') return isValueRow(row) ? (row.droppable?.delta ?? null) : null
   if (!isWeekRow(row)) return null
   if (key === 'points') return mode === 'proj' ? row.projected : row.points
@@ -484,5 +558,72 @@ export function signalTone(row: TableRow, col: Column): 'pos' | 'neg' | null {
     const v = row.signals.vsProjPct
     return v === null ? null : v >= 0 ? 'pos' : 'neg'
   }
+  return null
+}
+
+/** FantasyPros start/sit grades, worst to best; the GRADE column sorts by this index. */
+export const GRADE_ORDER = [
+  'F',
+  'D-',
+  'D',
+  'D+',
+  'C-',
+  'C',
+  'C+',
+  'B-',
+  'B',
+  'B+',
+  'A-',
+  'A',
+  'A+'
+] as const
+
+export function gradeValue(grade: string | null): number | null {
+  if (grade === null) return null
+  const i = (GRADE_ORDER as readonly string[]).indexOf(grade)
+  return i === -1 ? null : i
+}
+
+/** Numeric value of an expert column (sorting, colouring): ROS/market fields on value rows, weekly fields on week rows. */
+export function expertValue(row: TableRow, field: ExpertField): number | null {
+  if (isValueRow(row)) {
+    switch (field) {
+      case 'ecrPosRank':
+        return row.expert?.ecrPosRank ?? null
+      case 'ecrDelta':
+        return row.expert?.ecrDelta ?? null
+      case 'spread':
+        return row.expert?.spread ?? null
+      case 'marketValue':
+        return row.market?.value ?? null
+      case 'marketTrend':
+        return row.market?.trend30d ?? null
+      default:
+        return null
+    }
+  }
+  if (field === 'weekPosRank') return row.expert?.ecrPosRank ?? null
+  if (field === 'weekGrade') return gradeValue(row.expert?.grade ?? null)
+  return null
+}
+
+/** Text of an expert cell: the grade letter for GRADE, else the formatted number; "—" for null. */
+export function expertText(row: TableRow, col: Column): string {
+  if (!col.expert) return '—'
+  if (col.expert === 'weekGrade') return isWeekRow(row) ? (row.expert?.grade ?? '—') : '—'
+  return cellText(expertValue(row, col.expert), col, 'value')
+}
+
+/** Spec §4.3: |Δ ECR| beyond this is a cue — green (we like them more: buy), amber (we like them less: sell high). */
+export const ECR_DELTA_TONE = 3
+
+/** Colour of an expert cell: Δ ECR by the cue thresholds, other signed columns (TREND) by sign, the rest none. */
+export function expertTone(row: TableRow, col: Column): 'pos' | 'neg' | 'warn' | null {
+  if (!col.expert) return null
+  const v = expertValue(row, col.expert)
+  if (v === null) return null
+  if (col.expert === 'ecrDelta')
+    return v > ECR_DELTA_TONE ? 'pos' : v < -ECR_DELTA_TONE ? 'warn' : null
+  if (col.format === 'signed' || col.format === 'signedInt') return v >= 0 ? 'pos' : 'neg'
   return null
 }
