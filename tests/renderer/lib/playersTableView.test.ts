@@ -42,6 +42,7 @@ const row = (over: Partial<PlayerWeekRow> = {}): PlayerWeekRow => ({
   projection: { rush_yd: 84.5 },
   snapPct: 0.83,
   targetShare: null,
+  expert: null,
   statsAvailable: true,
   ...over
 })
@@ -69,6 +70,8 @@ const valueRow = (over: Partial<PlayerValueRow> = {}): PlayerValueRow => ({
   signals: signalsFixture(),
   vsMine: null,
   droppable: null,
+  expert: null,
+  market: null,
   statsAvailable: true,
   ...over
 })
@@ -460,7 +463,8 @@ describe('value mode', () => {
       replacement: {
         RB: { std: { level: 8.36, starters: 44 }, ros: { level: 91.2, starters: 43 } },
         WR: { std: null, ros: { level: 80, starters: 45 } }
-      }
+      },
+      expert: { scoring: 'PPR', ecrUpdatedAt: null, marketUpdatedAt: null }
     }
     expect(replacementLabel(context, ['RB', 'WR'], 'std')).toBe(
       'Replacement PPG · RB 8.4 (44 starters) · WR —'
@@ -479,7 +483,8 @@ describe('value mode', () => {
       teamCount: 16,
       hasMyTeam: false,
       mine: {},
-      replacement: { RB: { std: { level: 8, starters: 44 }, ros: null } }
+      replacement: { RB: { std: { level: 8, starters: 44 }, ros: null } },
+      expert: { scoring: 'PPR', ecrUpdatedAt: null, marketUpdatedAt: null }
     }
     const [season, ros] = columnGroups('ALL', 'value')
     expect(valueHeaderTitle(season.columns[1], context, ['RB'])).toBe(
@@ -507,7 +512,8 @@ describe('mine group', () => {
     teamCount: 16,
     hasMyTeam: true,
     mine: { RB: { playerId: 'm', fullName: 'Saquon Barkley', rosValue: 8 }, K: null },
-    replacement: {}
+    replacement: {},
+    expert: { scoring: 'PPR', ecrUpdatedAt: null, marketUpdatedAt: null }
   }
   const filters = {
     search: '',

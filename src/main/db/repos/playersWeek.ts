@@ -187,6 +187,7 @@ export function playersWeek(db: Db, leagueId: string, season: number, week: numb
       projection: projLine ? (withKickingBuckets(projLine) as Record<string, number>) : null,
       snapPct,
       targetShare,
+      expert: null,
       statsAvailable: r.gsis_id !== null || r.nflverse_team !== null
     }
   })

@@ -1,6 +1,6 @@
 import type { Db } from '@main/db/connection'
 import { round2 } from '@main/db/repos/points'
-import { LINEUP_POSITIONS } from '@shared/rules'
+import { LINEUP_POSITIONS, scoringFormat } from '@shared/rules'
 import type {
   PlayerDetail,
   PlayerSignals,
@@ -173,6 +173,8 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
       signals,
       vsMine: roster.byPlayer.get(series.base.playerId)?.vsMine ?? null,
       droppable: roster.byPlayer.get(series.base.playerId)?.droppable ?? null,
+      expert: null,
+      market: null,
       statsAvailable: series.statsAvailable
     }
   })
@@ -191,7 +193,8 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
       teamCount: bundle.teamCount,
       hasMyTeam: bundle.hasMyTeam,
       mine,
-      replacement
+      replacement,
+      expert: { scoring: scoringFormat(bundle.rules), ecrUpdatedAt: null, marketUpdatedAt: null }
     },
     rows,
     series: new Map(bundle.players.map((p) => [p.base.playerId, p])),

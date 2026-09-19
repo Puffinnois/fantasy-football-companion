@@ -1,3 +1,5 @@
+import type { ScoringFormat } from './types'
+
 /**
  * Sleeper's scoring vocabulary (`pass_yd`, `rec`, `fgm_40_49`, `pts_allow_7_13`, …).
  * A plain string: unknown keys coming from Sleeper are kept as-is. See `statKeys.ts`
@@ -78,4 +80,10 @@ export interface Rules {
 /** Sleeper values carry float noise (0.03999999910593033); 4 decimals keep 0.025-style settings intact. */
 export function roundPoints(value: number): number {
   return Math.round(value * 10000) / 10000
+}
+
+/** Slice 5 spec §3.2: the base `rec` points decide the FantasyPros bucket — ≥ 1 PPR, between 0 and 1 HALF, else STD. */
+export function scoringFormat(rules: Rules | null): ScoringFormat {
+  const rec = rules?.scoring.rec ?? 0
+  return rec >= 1 ? 'PPR' : rec > 0 ? 'HALF' : 'STD'
 }

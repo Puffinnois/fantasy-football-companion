@@ -106,6 +106,8 @@ export interface PlayerWeekRow extends PlayerBaseRow {
   projection: Record<string, number> | null
   snapPct: number | null
   targetShare: number | null
+  /** FantasyPros start/sit consensus for this week; null when unpublished or unranked. */
+  expert: ExpertWeek | null
   statsAvailable: boolean
 }
 
@@ -174,6 +176,49 @@ export interface MyBaseline {
   rosValue: number
 }
 
+/** FantasyPros scoring bucket, derived from the league's base `rec` points (slice 5 spec §3.2). */
+export type ScoringFormat = 'PPR' | 'HALF' | 'STD'
+
+/** Experts' rest-of-season consensus (FantasyPros ECR); null when they have no ROS row for the player. */
+export interface ExpertRos {
+  /** Overall consensus rank across positions. */
+  ecrRank: number
+  /** Consensus rank within the player's position. */
+  ecrPosRank: number
+  /** Standard deviation of the experts' ranks — how much they disagree; null when FantasyPros omits it. */
+  spread: number | null
+  experts: number
+  /** ecrPosRank − rosRank: positive = we rank the player higher than the experts. Null when either rank is missing. */
+  ecrDelta: number | null
+}
+
+/** FantasyCalc trade-market consensus; null outside its top list (~130 players). */
+export interface MarketValue {
+  value: number
+  posRank: number
+  tier: number | null
+  trend30d: number
+}
+
+/** This week's start/sit consensus; null when the week isn't published or the player is unranked. */
+export interface ExpertWeek {
+  ecrPosRank: number
+  /** FantasyPros start/sit grade ("A+" … "F"). */
+  grade: string | null
+  /** FantasyPros' own projected points under the synced scoring format. */
+  projPts: number | null
+  spread: number | null
+}
+
+/** Provenance of the expert blocks: which scoring bucket was synced and how old the stored rows are. */
+export interface ExpertContext {
+  scoring: ScoringFormat
+  /** `updated_at` of the stored ROS rankings; null when none are stored for the season. */
+  ecrUpdatedAt: string | null
+  /** `updated_at` of the stored market values; null when none are stored for the season. */
+  marketUpdatedAt: string | null
+}
+
 /** One player's season value (spec §2); ranks are 1-based within position, overall by ROS value. */
 export interface PlayerValueRow extends PlayerBaseRow {
   gamesPlayed: number
@@ -190,6 +235,10 @@ export interface PlayerValueRow extends PlayerBaseRow {
   vsMine: number | null
   /** My startable players only: the best free agent at the position when strictly better. */
   droppable: Droppable | null
+  /** FantasyPros rest-of-season consensus; null when the experts have no row for the player. */
+  expert: ExpertRos | null
+  /** FantasyCalc trade-market value; null outside its list. */
+  market: MarketValue | null
   statsAvailable: boolean
 }
 
@@ -205,6 +254,7 @@ export interface ValueContext {
   mine: Record<string, MyBaseline | null>
   /** Per lineup position; null when no player has the metric. */
   replacement: Record<string, { std: ReplacementLevel | null; ros: ReplacementLevel | null }>
+  expert: ExpertContext
 }
 
 export interface PlayersValue {

@@ -23,7 +23,8 @@ describe('buildValueSeason', () => {
       season: SEASON,
       currentWeek: 3,
       projectionsStored: true,
-      teamCount: 2
+      teamCount: 2,
+      expert: { scoring: 'PPR', ecrUpdatedAt: null, marketUpdatedAt: null }
     })
     // 2 teams × (RB 2 + WR 2 + FLEX 1 …): RB std [20, 12] → worst; ROS [8, 7, 0] → Cook's 0
     expect(build.context.replacement.RB).toEqual({
