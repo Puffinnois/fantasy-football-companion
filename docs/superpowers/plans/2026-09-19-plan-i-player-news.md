@@ -35,27 +35,27 @@
 
 ## File map
 
-| File                                                            | Responsibility                                                                                                                                                                 |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/shared/types.ts` (modify)                                  | `NewsItem`, `PlayerNews`                                                                                                                                                       |
-| `src/main/sources/sleeperNews.ts` (create)                      | `SleeperNewsRawItem`, `SleeperNewsResponse`, `SLEEPER_GRAPHQL_URL`, `SLEEPER_NEWS_USER_AGENT`, `NEWS_LIMIT`, `NEWS_TIMEOUT_MS`, `newsQuery`, `mapPlayerNews`, `SleeperNewsError`, `SleeperNewsClient`, `createSleeperNewsClient` |
-| `src/main/news/newsCache.ts` (create)                           | `NEWS_TTL_MS`, `NEWS_CACHE_MAX`, `NewsCache`, `NewsCacheOptions`, `createNewsCache`                                                                                            |
-| `src/shared/ipc.ts` (modify)                                    | `Api.players.news(playerId, force?)`, `IPC.playersNews`                                                                                                                        |
-| `src/preload/index.ts` (modify)                                 | `players.news` bridge                                                                                                                                                          |
-| `src/main/ipc/handlers.ts` (modify)                             | `AppContext.news: NewsCache`; `players:news` handler                                                                                                                           |
-| `src/main/index.ts` (modify)                                    | `news: createNewsCache(createSleeperNewsClient())`                                                                                                                             |
-| `src/renderer/src/lib/newsView.ts` (create)                     | `NEWS_PAGE_SIZE`, `sourceBadge`, `newsAge`                                                                                                                                     |
-| `src/renderer/src/components/Section.tsx` (create)              | `Section` (moved verbatim out of the panel)                                                                                                                                    |
-| `src/renderer/src/components/NewsSection.tsx` (create)          | `NewsSection` — fetch, states, list, analysis toggle, show more                                                                                                                |
-| `src/renderer/src/components/PlayerDetailPanel.tsx` (modify)    | import `Section`; render `<NewsSection>` after the game log                                                                                                                    |
-| `vitest.config.ts`, `package.json` (modify)                     | `.tsx` tests, automatic JSX, dev dependencies                                                                                                                                  |
-| `tests/fixtures/sleeperNews.ts` (create)                        | raw GraphQL items + response (main-side tests only — imports `@main`)                                                                                                          |
-| `tests/fixtures/news.ts` (create)                               | `newsItem`, `newsList` factories (renderer-safe — imports `@shared/types` only)                                                                                                 |
-| `tests/main/sources/sleeperNews.test.ts` (create)               | mapper + client                                                                                                                                                                |
-| `tests/main/news/newsCache.test.ts` (create)                    | cache semantics                                                                                                                                                                |
-| `tests/renderer/lib/newsView.test.ts` (create)                  | badge + age                                                                                                                                                                    |
-| `tests/renderer/components/NewsSection.test.tsx` (create)       | the five states, retry, show more, analysis toggle, links, player change                                                                                                       |
-| `docs/reference/value-and-signals.md` (modify)                  | `news` call, `PlayerNews`, panel item 7, constants, module map, v0.9.0                                                                                                         |
+| File                                                         | Responsibility                                                                                                                                                                                                                   |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/types.ts` (modify)                               | `NewsItem`, `PlayerNews`                                                                                                                                                                                                         |
+| `src/main/sources/sleeperNews.ts` (create)                   | `SleeperNewsRawItem`, `SleeperNewsResponse`, `SLEEPER_GRAPHQL_URL`, `SLEEPER_NEWS_USER_AGENT`, `NEWS_LIMIT`, `NEWS_TIMEOUT_MS`, `newsQuery`, `mapPlayerNews`, `SleeperNewsError`, `SleeperNewsClient`, `createSleeperNewsClient` |
+| `src/main/news/newsCache.ts` (create)                        | `NEWS_TTL_MS`, `NEWS_CACHE_MAX`, `NewsCache`, `NewsCacheOptions`, `createNewsCache`                                                                                                                                              |
+| `src/shared/ipc.ts` (modify)                                 | `Api.players.news(playerId, force?)`, `IPC.playersNews`                                                                                                                                                                          |
+| `src/preload/index.ts` (modify)                              | `players.news` bridge                                                                                                                                                                                                            |
+| `src/main/ipc/handlers.ts` (modify)                          | `AppContext.news: NewsCache`; `players:news` handler                                                                                                                                                                             |
+| `src/main/index.ts` (modify)                                 | `news: createNewsCache(createSleeperNewsClient())`                                                                                                                                                                               |
+| `src/renderer/src/lib/newsView.ts` (create)                  | `NEWS_PAGE_SIZE`, `sourceBadge`, `newsAge`                                                                                                                                                                                       |
+| `src/renderer/src/components/Section.tsx` (create)           | `Section` (moved verbatim out of the panel)                                                                                                                                                                                      |
+| `src/renderer/src/components/NewsSection.tsx` (create)       | `NewsSection` — fetch, states, list, analysis toggle, show more                                                                                                                                                                  |
+| `src/renderer/src/components/PlayerDetailPanel.tsx` (modify) | import `Section`; render `<NewsSection>` after the game log                                                                                                                                                                      |
+| `vitest.config.ts`, `package.json` (modify)                  | `.tsx` tests, automatic JSX, dev dependencies                                                                                                                                                                                    |
+| `tests/fixtures/sleeperNews.ts` (create)                     | raw GraphQL items + response (main-side tests only — imports `@main`)                                                                                                                                                            |
+| `tests/fixtures/news.ts` (create)                            | `newsItem`, `newsList` factories (renderer-safe — imports `@shared/types` only)                                                                                                                                                  |
+| `tests/main/sources/sleeperNews.test.ts` (create)            | mapper + client                                                                                                                                                                                                                  |
+| `tests/main/news/newsCache.test.ts` (create)                 | cache semantics                                                                                                                                                                                                                  |
+| `tests/renderer/lib/newsView.test.ts` (create)               | badge + age                                                                                                                                                                                                                      |
+| `tests/renderer/components/NewsSection.test.tsx` (create)    | the five states, retry, show more, analysis toggle, links, player change                                                                                                                                                         |
+| `docs/reference/value-and-signals.md` (modify)               | `news` call, `PlayerNews`, panel item 7, constants, module map, v0.9.0                                                                                                                                                           |
 
 Baseline before Task 1: 43 test files, 296 tests. Expected after Task 4: 47 files, ≈ 324 tests.
 
@@ -75,13 +75,13 @@ Baseline before Task 1: 43 test files, 296 tests. Expected after Task 4: 47 file
 - Consumes: nothing new.
 - Produces: `NewsItem`, `PlayerNews` (`@shared/types`); `SleeperNewsClient { getPlayerNews(playerId: string, limit?: number): Promise<PlayerNews> }`, `createSleeperNewsClient(options?: SleeperNewsClientOptions): SleeperNewsClient`, `mapPlayerNews(raw: SleeperNewsRawItem[], fetchedAt: string): PlayerNews`, `newsQuery(playerId: string, limit: number): string`, `SleeperNewsError` (with `.status: number | null`), constants `SLEEPER_GRAPHQL_URL`, `SLEEPER_NEWS_USER_AGENT = 'FantasyCompanion'`, `NEWS_LIMIT = 25`, `NEWS_TIMEOUT_MS = 8_000`.
 
-- [ ] **Step 1: Create the branch**
+- [x] **Step 1: Create the branch**
 
 ```bash
 git checkout -b feat/player-news main
 ```
 
-- [ ] **Step 2: Add the shared types**
+- [x] **Step 2: Add the shared types**
 
 In `src/shared/types.ts`, right after the `PlayerDetail` interface (before `PlayersWeek`), add:
 
@@ -110,7 +110,7 @@ export interface PlayerNews {
 }
 ```
 
-- [ ] **Step 3: Write the fixture**
+- [x] **Step 3: Write the fixture**
 
 Create `tests/fixtures/sleeperNews.ts` (trimmed from the live payload captured 2026-09-19; `topic_id` dropped because the mapper never reads it):
 
@@ -155,7 +155,8 @@ export const rotowireItem = {
   published: 1789300000000,
   metadata: {
     title: 'Patrick Mahomes: Throws for 300 yards in win',
-    description: 'Mahomes completed 27 of 36 passes for 312 yards and two touchdowns in the Sunday win.',
+    description:
+      'Mahomes completed 27 of 36 passes for 312 yards and two touchdowns in the Sunday win.',
     analysis: 'A routine outing that keeps him inside the top five at the position.',
     url: 'https://www.rotowire.com/football/player/patrick-mahomes-12142'
   }
@@ -167,7 +168,7 @@ export const rawNews: SleeperNewsRawItem[] = [rotowireItem, fantasyProsItem, rot
 export const newsResponse: SleeperNewsResponse = { data: { get_player_news: rawNews } }
 ```
 
-- [ ] **Step 4: Write the failing tests**
+- [x] **Step 4: Write the failing tests**
 
 Create `tests/main/sources/sleeperNews.test.ts`:
 
@@ -182,7 +183,13 @@ import {
   SLEEPER_NEWS_USER_AGENT,
   SleeperNewsError
 } from '@main/sources/sleeperNews'
-import { fantasyProsItem, newsResponse, rawNews, rotoballerItem, rotowireItem } from '../../fixtures/sleeperNews'
+import {
+  fantasyProsItem,
+  newsResponse,
+  rawNews,
+  rotoballerItem,
+  rotowireItem
+} from '../../fixtures/sleeperNews'
 
 interface Call {
   url: string
@@ -316,7 +323,9 @@ describe('createSleeperNewsClient', () => {
 
   it('rejects on an HTTP error with the status', async () => {
     const { fetchImpl } = fakeFetch(403, 'forbidden')
-    await expect(createSleeperNewsClient({ fetchImpl }).getPlayerNews('4046')).rejects.toMatchObject({
+    await expect(
+      createSleeperNewsClient({ fetchImpl }).getPlayerNews('4046')
+    ).rejects.toMatchObject({
       name: 'SleeperNewsError',
       status: 403
     })
@@ -344,12 +353,12 @@ describe('createSleeperNewsClient', () => {
 })
 ```
 
-- [ ] **Step 5: Run the tests to verify they fail**
+- [x] **Step 5: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/sources/sleeperNews.test.ts`
 Expected: FAIL — `Failed to resolve import "@main/sources/sleeperNews"`.
 
-- [ ] **Step 6: Implement the client and mapper**
+- [x] **Step 6: Implement the client and mapper**
 
 Create `src/main/sources/sleeperNews.ts`:
 
@@ -476,19 +485,20 @@ export function createSleeperNewsClient(options: SleeperNewsClientOptions = {}):
       }
       const payload = (await res.json()) as SleeperNewsResponse | null
       const items = payload?.data?.get_player_news
-      if (!Array.isArray(items)) throw new SleeperNewsError('Sleeper news: unexpected payload shape')
+      if (!Array.isArray(items))
+        throw new SleeperNewsError('Sleeper news: unexpected payload shape')
       return mapPlayerNews(items as SleeperNewsRawItem[], now().toISOString())
     }
   }
 }
 ```
 
-- [ ] **Step 7: Run the tests to verify they pass**
+- [x] **Step 7: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/sources/sleeperNews.test.ts`
 Expected: PASS — 11 tests.
 
-- [ ] **Step 8: Full verification and commit**
+- [x] **Step 8: Full verification and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green, 307 tests (296 + 11).
@@ -516,13 +526,18 @@ git commit -m "feat(news): Sleeper GraphQL news client and mapper"
 - Consumes: `SleeperNewsClient`, `createSleeperNewsClient` (Task 1); `PlayerNews` (Task 1).
 - Produces: `NewsCache { get(playerId: string, force?: boolean): Promise<PlayerNews>; clear(): void }`, `createNewsCache(client: SleeperNewsClient, options?: NewsCacheOptions): NewsCache`, `NewsCacheOptions { ttlMs?: number; max?: number; now?: () => number }`, `NEWS_TTL_MS = 900_000`, `NEWS_CACHE_MAX = 64`; `Api.players.news(playerId: string, force?: boolean): Promise<PlayerNews>`; `IPC.playersNews = 'players:news'`; `AppContext.news: NewsCache`.
 
-- [ ] **Step 1: Write the failing cache tests**
+- [x] **Step 1: Write the failing cache tests**
 
 Create `tests/main/news/newsCache.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
-import { createNewsCache, NEWS_TTL_MS, type NewsCache, type NewsCacheOptions } from '@main/news/newsCache'
+import {
+  createNewsCache,
+  NEWS_TTL_MS,
+  type NewsCache,
+  type NewsCacheOptions
+} from '@main/news/newsCache'
 import type { SleeperNewsClient } from '@main/sources/sleeperNews'
 import type { PlayerNews } from '@shared/types'
 
@@ -646,12 +661,12 @@ describe('createNewsCache', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/news/newsCache.test.ts`
 Expected: FAIL — `Failed to resolve import "@main/news/newsCache"`.
 
-- [ ] **Step 3: Implement the cache**
+- [x] **Step 3: Implement the cache**
 
 Create `src/main/news/newsCache.ts`:
 
@@ -734,12 +749,12 @@ export function createNewsCache(
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/news/newsCache.test.ts`
 Expected: PASS — 7 tests.
 
-- [ ] **Step 5: Add the IPC channel**
+- [x] **Step 5: Add the IPC channel**
 
 `src/shared/ipc.ts` — add `PlayerNews,` to the type import list (alphabetically after `PlayerDetail`), add to `Api.players` after `detail`:
 
@@ -757,21 +772,21 @@ and to the `IPC` map after `playersDetail`:
 `src/preload/index.ts` — in the `players` block after `detail`:
 
 ```ts
-    news: (playerId, force) => ipcRenderer.invoke(IPC.playersNews, playerId, force ?? false)
+news: (playerId, force) => ipcRenderer.invoke(IPC.playersNews, playerId, force ?? false)
 ```
 
 `src/main/ipc/handlers.ts` — add the import `import type { NewsCache } from '@main/news/newsCache'` (alphabetically after the `@main/db/repos/...` imports, before `@main/scoring/normalize`), add `PlayerNews,` to the `@shared/types` type import (after `PlayerDetail`), add to `AppContext` after `fantasycalc`:
 
 ```ts
-  news: NewsCache
+news: NewsCache
 ```
 
 and after the `IPC.playersDetail` handler:
 
 ```ts
-  ipcMain.handle(IPC.playersNews, (_event, playerId: string, force: boolean): Promise<PlayerNews> =>
-    ctx.news.get(playerId, force)
-  )
+ipcMain.handle(IPC.playersNews, (_event, playerId: string, force: boolean): Promise<PlayerNews> =>
+  ctx.news.get(playerId, force)
+)
 ```
 
 `src/main/index.ts` — add the imports `import { createNewsCache } from '@main/news/newsCache'` (after the `@main/ipc/handlers` import) and `import { createSleeperNewsClient } from '@main/sources/sleeperNews'` (after `@main/sources/sleeper`), and in `ctx` after `fantasycalc`:
@@ -780,7 +795,7 @@ and after the `IPC.playersDetail` handler:
     news: createNewsCache(createSleeperNewsClient()),
 ```
 
-- [ ] **Step 6: Full verification and commit**
+- [x] **Step 6: Full verification and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green, 314 tests (307 + 7). The `Api` type forces preload and handlers to agree — a missing `news` in either fails `typecheck`.
@@ -804,7 +819,7 @@ git commit -m "feat(news): players.news IPC with 15-minute cache"
 - Consumes: nothing.
 - Produces: `NEWS_PAGE_SIZE = 8`, `sourceBadge(source: string): string`, `newsAge(publishedAt: string, now?: number): string`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/renderer/lib/newsView.test.ts`:
 
@@ -855,12 +870,12 @@ describe('newsAge', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/lib/newsView.test.ts`
 Expected: FAIL — `Failed to resolve import "@/lib/newsView"`.
 
-- [ ] **Step 3: Implement the helpers**
+- [x] **Step 3: Implement the helpers**
 
 Create `src/renderer/src/lib/newsView.ts`:
 
@@ -894,17 +909,19 @@ export function newsAge(publishedAt: string, now: number = Date.now()): string {
   const sameYear = date.getFullYear() === new Date(now).getFullYear()
   return date.toLocaleDateString(
     'en-US',
-    sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' }
+    sameYear
+      ? { month: 'short', day: 'numeric' }
+      : { month: 'short', day: 'numeric', year: 'numeric' }
   )
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/lib/newsView.test.ts`
 Expected: PASS — 6 tests.
 
-- [ ] **Step 5: Full verification and commit**
+- [x] **Step 5: Full verification and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green, 320 tests (314 + 6).
@@ -932,7 +949,7 @@ git commit -m "feat(ui): news view helpers"
 - Consumes: `api.players.news(playerId, force?)` (Task 2); `NewsItem`, `PlayerNews` (Task 1); `NEWS_PAGE_SIZE`, `newsAge`, `sourceBadge` (Task 3); `errorMessage`, `relativeTime` (`@/lib/format`).
 - Produces: `Section({ title, note?, children })`, `NewsSection({ playerId: string; position: string | null })`.
 
-- [ ] **Step 1: Install the DOM test dependencies and enable `.tsx` tests**
+- [x] **Step 1: Install the DOM test dependencies and enable `.tsx` tests**
 
 ```bash
 npm install --save-dev jsdom @testing-library/react @testing-library/dom
@@ -966,7 +983,7 @@ export default defineConfig({
 
 Run: `npm test` — still 320 tests (nothing new picked up yet).
 
-- [ ] **Step 2: Move `Section` out of the panel**
+- [x] **Step 2: Move `Section` out of the panel**
 
 Create `src/renderer/src/components/Section.tsx` (the body is the panel's current `Section`, verbatim):
 
@@ -997,7 +1014,7 @@ In `src/renderer/src/components/PlayerDetailPanel.tsx`: delete the local `functi
 
 Run: `npm run typecheck && npm run lint` — green.
 
-- [ ] **Step 3: Write the renderer-safe fixture**
+- [x] **Step 3: Write the renderer-safe fixture**
 
 Create `tests/fixtures/news.ts` (imports `@shared/types` only, so `typecheck:web` accepts it):
 
@@ -1021,7 +1038,7 @@ export function newsItem(i: number, over: Partial<NewsItem> = {}): NewsItem {
 export const newsList = (n: number): NewsItem[] => Array.from({ length: n }, (_, i) => newsItem(i))
 ```
 
-- [ ] **Step 4: Write the failing component tests**
+- [x] **Step 4: Write the failing component tests**
 
 Create `tests/renderer/components/NewsSection.test.tsx`:
 
@@ -1143,12 +1160,12 @@ describe('NewsSection', () => {
 })
 ```
 
-- [ ] **Step 5: Run the tests to verify they fail**
+- [x] **Step 5: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/components/NewsSection.test.tsx`
 Expected: FAIL — `Failed to resolve import "@/components/NewsSection"`.
 
-- [ ] **Step 6: Implement `NewsSection`**
+- [x] **Step 6: Implement `NewsSection`**
 
 Create `src/renderer/src/components/NewsSection.tsx`:
 
@@ -1305,22 +1322,24 @@ export function NewsSection({ playerId, position }: NewsSectionProps): React.JSX
 }
 ```
 
-- [ ] **Step 7: Run the component tests to verify they pass**
+- [x] **Step 7: Run the component tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/components/NewsSection.test.tsx`
 Expected: PASS — 8 tests. If `vi.mocked(api.players.news)` complains about types, keep the mock factory as written and cast: `const newsMock = api.players.news as unknown as ReturnType<typeof vi.fn>`.
 
-- [ ] **Step 8: Render the section in the panel**
+- [x] **Step 8: Render the section in the panel**
 
 In `src/renderer/src/components/PlayerDetailPanel.tsx`, add `import { NewsSection } from '@/components/NewsSection'` (after the `BarsVsMarker` import), and after the game-log block (the `{played.length > 0 && ( <Table …> … )}` expression, just before `</SlideOver>`) add:
 
 ```tsx
-      {player && <NewsSection playerId={player.playerId} position={player.position} />}
+{
+  player && <NewsSection playerId={player.playerId} position={player.position} />
+}
 ```
 
 The section mounts as soon as the panel has a player, so its request starts alongside `players.detail` and never waits on it.
 
-- [ ] **Step 9: Full verification and commit**
+- [x] **Step 9: Full verification and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: green, 47 files, 328 tests (320 + 8).
@@ -1344,13 +1363,13 @@ git commit -m "feat(ui): News section in the player detail panel"
 
 - Consumes: everything above.
 
-- [ ] **Step 1: Update `docs/reference/value-and-signals.md`**
+- [x] **Step 1: Update `docs/reference/value-and-signals.md`**
 
 - Intro paragraph: "the current v0.8.0 presentation" → "the current v0.9.0 presentation".
 - `## How the data reaches the renderer` table: add a row after `week({ season, week })`:
 
 ```markdown
-| `news(playerId, force?)`    | `PlayerNews { items: NewsItem[]; fetchedAt: string }`                                  | Sleeper's aggregated player news (FantasyPros, RotoWire, RotoBaller), newest first, ≤ 25 items. Not from the value build: its own per-player in-memory cache (`src/main/news/newsCache.ts`, 15 min), `force` refetches, failures are never cached, nothing is stored, nothing in `sync_log`. Empty for team defenses. |
+| `news(playerId, force?)` | `PlayerNews { items: NewsItem[]; fetchedAt: string }` | Sleeper's aggregated player news (FantasyPros, RotoWire, RotoBaller), newest first, ≤ 25 items. Not from the value build: its own per-player in-memory cache (`src/main/news/newsCache.ts`, 15 min), `force` refetches, failures are never cached, nothing is stored, nothing in `sync_log`. Empty for team defenses. |
 ```
 
 - After the `## \`PlayerDetail\`` table add:
@@ -1360,16 +1379,16 @@ git commit -m "feat(ui): News section in the player detail panel"
 
 Slice 5 spec §5; fetched on demand by `src/main/sources/sleeperNews.ts` (`POST https://sleeper.com/graphql`, `get_player_news`, keyless, 8 s timeout) and shaped by its pure mapper. Transient: never written to the DB.
 
-| Field                  | Content                                                                                                                                                              |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `items[].id`           | `${source}:${source_key}` — unique per outlet article (React key).                                                                                                    |
-| `items[].source`       | `fantasy_pros` \| `rotowire` \| `rotoballer` \| any outlet Sleeper adds (`unknown` when missing). Rendered as `FP` / `RW` / `RB` / raw by `sourceBadge`.                |
-| `items[].publishedAt`  | ISO, from Sleeper's millisecond timestamp. Items without one are dropped.                                                                                            |
-| `items[].title`        | Headline; items without one are dropped.                                                                                                                             |
-| `items[].description`  | Factual one-liner, `null` when blank.                                                                                                                                |
-| `items[].analysis`     | Analyst paragraph, `null` when the outlet gives none (RotoBaller).                                                                                                   |
-| `items[].url`          | Source article; `null` unless `http(s)`.                                                                                                                             |
-| `fetchedAt`            | When the main process fetched it (shown as the section note).                                                                                                        |
+| Field                 | Content                                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `items[].id`          | `${source}:${source_key}` — unique per outlet article (React key).                                                                                       |
+| `items[].source`      | `fantasy_pros` \| `rotowire` \| `rotoballer` \| any outlet Sleeper adds (`unknown` when missing). Rendered as `FP` / `RW` / `RB` / raw by `sourceBadge`. |
+| `items[].publishedAt` | ISO, from Sleeper's millisecond timestamp. Items without one are dropped.                                                                                |
+| `items[].title`       | Headline; items without one are dropped.                                                                                                                 |
+| `items[].description` | Factual one-liner, `null` when blank.                                                                                                                    |
+| `items[].analysis`    | Analyst paragraph, `null` when the outlet gives none (RotoBaller).                                                                                       |
+| `items[].url`         | Source article; `null` unless `http(s)`.                                                                                                                 |
+| `fetchedAt`           | When the main process fetched it (shown as the section note).                                                                                            |
 ```
 
 - `### Player detail panel` list: add
@@ -1398,7 +1417,7 @@ and, after the `src/renderer/src/lib/playersTableView.ts (display only)` row:
 | `src/renderer/src/lib/newsView.ts`, `src/renderer/src/components/NewsSection.tsx` | News view helpers (badge, age) and the panel section with its own fetch and states. |
 ```
 
-- [ ] **Step 2: Verify, then check in the dev app against the live endpoint**
+- [x] **Step 2: Verify, then check in the dev app against the live endpoint**
 
 Run: `npm run typecheck && npm run lint && npm test` — green, 328 tests.
 
@@ -1411,7 +1430,7 @@ Dev app (`npx electron-vite dev -- --no-sandbox --disable-gpu --in-process-gpu`;
 - Failure state: temporarily set `SLEEPER_GRAPHQL_URL` to `https://sleeper.com/graphql-nope` (or disconnect), reopen a player: "Couldn't load news. Retry" within ~8 s; restore the URL / network, click _Retry_ → list. Revert the edit before committing.
 - Record in the progress notes: the item count for Mahomes, how long the first fetch took (rough), and any outlet other than the three known ones (its raw name shows as the badge).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/reference/value-and-signals.md
@@ -1424,10 +1443,10 @@ git commit -m "docs: player news in the data reference"
 
 Only after the user has checked Task 5 in the dev app and asked for the build.
 
-- [ ] **Step 1:** `package.json` / `package-lock.json` version `0.8.0` → `0.9.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.9.0` (with the Co-Authored-By trailer).
-- [ ] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.9.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
+- [x] **Step 1:** `package.json` / `package-lock.json` version `0.8.0` → `0.9.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.9.0` (with the Co-Authored-By trailer).
+- [x] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.9.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
 - [ ] **Step 3:** User installs over 0.8.0 — no migration this time. Check: open a detail panel, the _News_ section loads from the packaged app (the POST carries the `FantasyCompanion` User-Agent; if Sleeper ever 403s it, the failure state shows and nothing else breaks); a title link opens the system browser; a DEF row has no section.
-- [ ] **Step 4:** Progress notes appended to this plan, commit `docs(plan): mark plan I complete`, tag `v0.9.0`, fast-forward `main`, delete the branch. Slice 5 is complete at `v0.9.0` (spec §9); slice 6 (decision tools) has no spec yet — brainstorm first.
+- [x] **Step 4:** Progress notes appended to this plan, commit `docs(plan): mark plan I complete`, tag `v0.9.0`, fast-forward `main`, delete the branch. Slice 5 is complete at `v0.9.0` (spec §9); slice 6 (decision tools) has no spec yet — brainstorm first.
 
 ---
 
@@ -1436,3 +1455,14 @@ Only after the user has checked Task 5 in the dev app and asked for the build.
 - **Spec coverage:** §1 constraint (one keyless POST isolated behind one IPC call — T1 client, T2 channel; removal degrades the panel section only — T4 error state). §1 non-goals respected: no news screen or table marker (news exists only inside `NewsSection`), no LLM, no storage. §2 row 3 + facts (`metadata.title/description/analysis/url`, `published` in ms, empty list for DEF ids — T1 mapper, T4 `position !== 'DEF'`). §5.1 `sources/sleeperNews.ts`, `getPlayerNews(playerId, limit)`, POST with a User-Agent, 8 s timeout, `NewsItem` / `PlayerNews` exactly as specified (T1), "a response without `data.get_player_news` as an array is a fetch error" (T1 test "rejects when the payload has no news array"). §5.2 one channel `players.news`, limit 25, in-memory per-player cache with a 15-minute TTL, failures not cached, `force` bypass (T2), no table, not in the sync pipeline (global constraint — `invalidateCaches` untouched, nothing in `sync_log`). §5.3 `News` section under the game log, requested on open in parallel with `players.detail` (T4 step 8 — mounted with the panel, own effect); item = badge `FP`/`RW`/`RB`/raw (T3 `sourceBadge`), relative time then a date (T3 `newsAge`), title link through the existing window-open handler (`target="_blank"` → `setWindowOpenHandler` → `shell.openExternal`, T4), description, analysis collapsed except the newest (T4 `isOpen`), newest first (T1 sort), 8 shown + "Show more" (T3 `NEWS_PAGE_SIZE`, T4), states loading / error+retry / empty (T4), not rendered for DEF (T4), strings as text (T4 test "renders every string as text"). §6 news side: shape drift or network failure → error state with retry, cache never stores a failure (T1, T2, T4); request budget "one POST per player per panel open per 15 minutes" (T2 TTL + coalescing). §7: fixture "one GraphQL news response" (T1 `tests/fixtures/sleeperNews.ts`), pure units "ms → ISO" (T1), "news view model (relative time, badge label)" (T3), component states "loading / error+retry / empty / list / hidden for DEF with a mocked `api`" (T4), manual dev-app check (T5) and Windows installer (T6). §8 files: `sleeperNews.ts`, `newsView.ts`, `PlayerDetailPanel.tsx` News section, `types.ts` `NewsItem` / `PlayerNews`, `handlers.ts` `players.news` — all present; the cache and the section component are split into their own files (deviations listed). §9 row I → `v0.9.0`, slice 5 complete (T6).
 - **Placeholder scan:** none — every code step shows its code; the dev-app check lists concrete players, states and what to record; the docs step gives the exact rows.
 - **Type consistency:** `NewsItem` / `PlayerNews` (T1) are what `mapPlayerNews` returns, `SleeperNewsClient.getPlayerNews` resolves, `NewsCache.get` resolves (T2), `Api.players.news` returns (T2), `NewsResult.news` holds (T4) and `tests/fixtures/news.ts` builds (T4). `createNewsCache(client: SleeperNewsClient, options)` (T2) takes the T1 client; `index.ts` passes `createSleeperNewsClient()` with no options. `NewsCacheOptions.now: () => number` (T2 tests pass `() => t`) vs `SleeperNewsClientOptions.now: () => Date` (T1 tests pass `() => new Date(FETCHED)`) — different on purpose, each matches its test. `IPC.playersNews` (T2) is used by the preload (`invoke(IPC.playersNews, playerId, force ?? false)`) and the handler (`(_event, playerId: string, force: boolean)`); the handler returns `ctx.news.get(playerId, force)` whose signature is `(playerId: string, force?: boolean)`. `NewsSection` props `{ playerId: string; position: string | null }` (T4) match `TableRow.playerId: string` and `.position: string | null` in the panel. `sourceBadge`, `newsAge`, `NEWS_PAGE_SIZE` (T3) are the only `newsView` imports in T4. `Section` keeps its exact prop shape (T4 step 2), so the panel's five existing usages compile unchanged. `errorMessage` and `relativeTime` exist in `@/lib/format` today. Test counts: 296 → 307 (T1: 5 mapper + 1 query + 5 client) → 314 (T2: 7) → 320 (T3: 6) → 328 (T4: 8).
+
+## Progress notes (2026-09-19)
+
+- Tasks 1–6 executed inline on `feat/player-news`; typecheck, lint and Vitest clean at every commit (296 → 328 tests, exactly as planned). Task 5 checked by the user in the WSL dev app: "all good".
+- **Live endpoint (2026-09-19, through the real client + cache):** Mahomes (4046) 25 items in 196 ms, Jayden Daniels (11566) 25 items in 131 ms — both with all three outlets (`rotoballer`, `fantasy_pros`, `rotowire`); 14 / 10 items carry `analysis`, **18 / 25 carry a URL** (Sleeper omits it on some items, so those titles render as plain text — handled by design). `LAR` → 0 items in 88 ms. Second `get` per player was a cache hit.
+- **Deviations from the task text:**
+  - Task 1/2: Prettier re-wrapped a few long lines (`npx prettier --write` on the touched files); the cache-test harness needed a `Resolve` type alias — `hold` receives the promise's `resolve`, not a `PlayerNews` (typecheck caught it, the tests already passed).
+  - Task 4: the panel's `Section` import was placed alphabetically (before `SlideOver`); `jsdom` 30.1, `@testing-library/react` 16.3, `@testing-library/dom` 10.4 installed. The eight component tests passed on the first run.
+  - Task 6: `npm version --no-git-tag-version` did not touch `package-lock.json`; the lock's two version fields were set by hand and `npm install --package-lock-only` re-validated it (it also recorded the bundled optional wasm sub-dependencies of `@tailwindcss/oxide-wasm32-wasi` — lock-only, no dependency change). Stopping the dev app with a `pkill -f` pattern killed the harness shell again (same trap as Plans G and H) — stop it by the recorded PID only.
+- Windows build: `dist/FantasyCompanion-Setup-0.9.0.exe` (94 MB), copied to `C:\Users\habie\OneDrive\Bureau`. Install over 0.8.0 (no migration) pending the user's check (Task 6 step 3).
+- Slice 5 is complete at `v0.9.0`. Reviewer-deferred polish still open: retry on network errors (user decision), IPC arg validation.
