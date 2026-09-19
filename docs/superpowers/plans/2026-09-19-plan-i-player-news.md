@@ -1445,7 +1445,7 @@ Only after the user has checked Task 5 in the dev app and asked for the build.
 
 - [x] **Step 1:** `package.json` / `package-lock.json` version `0.8.0` → `0.9.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.9.0` (with the Co-Authored-By trailer).
 - [x] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.9.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
-- [ ] **Step 3:** User installs over 0.8.0 — no migration this time. Check: open a detail panel, the _News_ section loads from the packaged app (the POST carries the `FantasyCompanion` User-Agent; if Sleeper ever 403s it, the failure state shows and nothing else breaks); a title link opens the system browser; a DEF row has no section.
+- [x] **Step 3:** User installs over 0.8.0 — no migration this time. Check: open a detail panel, the _News_ section loads from the packaged app (the POST carries the `FantasyCompanion` User-Agent; if Sleeper ever 403s it, the failure state shows and nothing else breaks); a title link opens the system browser; a DEF row has no section.
 - [x] **Step 4:** Progress notes appended to this plan, commit `docs(plan): mark plan I complete`, tag `v0.9.0`, fast-forward `main`, delete the branch. Slice 5 is complete at `v0.9.0` (spec §9); slice 6 (decision tools) has no spec yet — brainstorm first.
 
 ---
@@ -1464,5 +1464,5 @@ Only after the user has checked Task 5 in the dev app and asked for the build.
   - Task 1/2: Prettier re-wrapped a few long lines (`npx prettier --write` on the touched files); the cache-test harness needed a `Resolve` type alias — `hold` receives the promise's `resolve`, not a `PlayerNews` (typecheck caught it, the tests already passed).
   - Task 4: the panel's `Section` import was placed alphabetically (before `SlideOver`); `jsdom` 30.1, `@testing-library/react` 16.3, `@testing-library/dom` 10.4 installed. The eight component tests passed on the first run.
   - Task 6: `npm version --no-git-tag-version` did not touch `package-lock.json`; the lock's two version fields were set by hand and `npm install --package-lock-only` re-validated it (it also recorded the bundled optional wasm sub-dependencies of `@tailwindcss/oxide-wasm32-wasi` — lock-only, no dependency change). Stopping the dev app with a `pkill -f` pattern killed the harness shell again (same trap as Plans G and H) — stop it by the recorded PID only.
-- Windows build: `dist/FantasyCompanion-Setup-0.9.0.exe` (94 MB), copied to `C:\Users\habie\OneDrive\Bureau`. Install over 0.8.0 (no migration) pending the user's check (Task 6 step 3).
+- Windows build: `dist/FantasyCompanion-Setup-0.9.0.exe` (94 MB), copied to `C:\Users\habie\OneDrive\Bureau`. Installed over 0.8.0 (no migration) and checked by the user on Windows: news works.
 - Slice 5 is complete at `v0.9.0`. Reviewer-deferred polish still open: retry on network errors (user decision), IPC arg validation.
