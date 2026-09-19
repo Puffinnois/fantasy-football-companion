@@ -6,6 +6,8 @@ import { openDatabase, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
 import { registerIpcHandlers, startRefresh, type AppContext } from '@main/ipc/handlers'
+import { createFantasyCalcClient } from '@main/sources/fantasycalc'
+import { createFantasyProsClient } from '@main/sources/fantasypros'
 import { createNflverseClient } from '@main/sources/nflverse'
 import { createSleeperClient } from '@main/sources/sleeper'
 
@@ -67,6 +69,8 @@ app.whenReady().then(() => {
     db: openAppDatabase(),
     sleeper: createSleeperClient(),
     nflverse: createNflverseClient(),
+    fantasypros: createFantasyProsClient(),
+    fantasycalc: createFantasyCalcClient(),
     getWindow: () => mainWindow
   }
   registerIpcHandlers(ctx)

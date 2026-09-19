@@ -11,11 +11,13 @@ import { listRoster, listTeams } from '@main/db/repos/teams'
 import { listWatched, toggleWatch } from '@main/db/repos/watchlist'
 import { normalizeRules } from '@main/scoring/normalize'
 import { recomputePoints } from '@main/scoring/recompute'
+import type { FantasyCalcClient } from '@main/sources/fantasycalc'
+import type { FantasyProsClient } from '@main/sources/fantasypros'
 import type { NflverseClient } from '@main/sources/nflverse'
 import type { SleeperClient } from '@main/sources/sleeper'
 import { mapLeagueSummary } from '@main/sync/mappers'
-import { STATS_SOURCE_PREFIX, type NflverseSyncDeps } from '@main/sync/nflverseSync'
-import { importAll, refreshAll } from '@main/sync/refresh'
+import { STATS_SOURCE_PREFIX } from '@main/sync/nflverseSync'
+import { importAll, refreshAll, type AppSyncDeps } from '@main/sync/refresh'
 import { reimportRules, SOURCE_LEAGUE } from '@main/sync/sleeperSync'
 import { buildValueSeason, detailFor, type ValueBuild } from '@main/value/build'
 import type { RefreshOptions } from '@main/sync/step'
@@ -39,6 +41,8 @@ export interface AppContext {
   db: Db
   sleeper: SleeperClient
   nflverse: NflverseClient
+  fantasypros: FantasyProsClient
+  fantasycalc: FantasyCalcClient
   getWindow: () => BrowserWindow | null
 }
 
@@ -91,11 +95,13 @@ function cachedValue(ctx: AppContext, leagueId: string, season: number): ValueBu
   return built
 }
 
-export function syncDeps(ctx: AppContext): NflverseSyncDeps {
+export function syncDeps(ctx: AppContext): AppSyncDeps {
   return {
     db: ctx.db,
     sleeper: ctx.sleeper,
     nflverse: ctx.nflverse,
+    fantasypros: ctx.fantasypros,
+    fantasycalc: ctx.fantasycalc,
     onStep: (entry) => {
       if (entry.status === 'ok') invalidateCaches()
       ctx.getWindow()?.webContents.send(IPC.syncProgress, entry)
