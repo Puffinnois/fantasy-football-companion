@@ -8,7 +8,9 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { BarsVsMarker } from '@/components/BarsVsMarker'
+import { NewsSection } from '@/components/NewsSection'
 import { PositionBadge } from '@/components/PositionBadge'
+import { Section } from '@/components/Section'
 import { SlideOver } from '@/components/SlideOver'
 import { Sparkline } from '@/components/Sparkline'
 import { api } from '@/lib/api'
@@ -86,26 +88,6 @@ function HeaderStrip({
       <Stat label="Next" value={nextValue} sub={nextSub} />
       <Stat label="Byes" value={signals ? String(signals.byesRemaining) : '—'} sub="remaining" />
     </dl>
-  )
-}
-
-function Section({
-  title,
-  note,
-  children
-}: {
-  title: string
-  note?: string
-  children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <section className="mt-5">
-      <h3 className="text-[11px] uppercase tracking-wide text-muted-foreground">
-        {title}
-        {note && <span className="ml-2 normal-case tracking-normal">{note}</span>}
-      </h3>
-      <div className="mt-2">{children}</div>
-    </section>
   )
 }
 
@@ -302,6 +284,7 @@ export function PlayerDetailPanel({
           </TableBody>
         </Table>
       )}
+      {player && <NewsSection playerId={player.playerId} position={player.position} />}
     </SlideOver>
   )
 }
