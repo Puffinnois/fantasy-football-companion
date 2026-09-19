@@ -7,6 +7,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { SlideOver } from '@/components/SlideOver'
+import { relativeTime } from '@/lib/format'
 import { columnGroups } from '@/lib/playersTableView'
 import { LINEUP_POSITIONS } from '@shared/rules'
 import type { ReplacementLevel, ValueContext } from '@shared/types'
@@ -78,6 +79,42 @@ export function ValueHelp({ open, onClose, context }: ValueHelpProps): React.JSX
         <Term name="Gates">
           Usage trends need 2 games with the metric; floor, ceiling and start % need 3 games.
           Players not matched to nflverse have no signals.
+        </Term>
+      </dl>
+      <h3 className="mt-5 text-sm font-semibold">Experts</h3>
+      <dl className="mt-2 space-y-3 text-sm">
+        {columnGroups('ALL', 'value')
+          .flatMap((g) => g.columns)
+          .filter((c) => c.kind === 'expert')
+          .map((c) => (
+            <Term key={c.key} name={c.label}>
+              {c.description}
+            </Term>
+          ))}
+        <Term name="Sources">
+          FantasyPros expert consensus rankings (ECR), fetched in {context?.expert.scoring ?? 'PPR'}{' '}
+          scoring because this league awards{' '}
+          {context?.expert.scoring === 'PPR'
+            ? 'a full point or more'
+            : context?.expert.scoring === 'HALF'
+              ? 'less than a point'
+              : 'nothing'}{' '}
+          per reception; FantasyCalc trade values, computed from real redraft trades and independent
+          of scoring. In Projection mode the Experts group shows the week&apos;s start/sit ECR and
+          grade from the same FantasyPros source. Neither source is fetched for past seasons, so
+          their columns are empty there.
+        </Term>
+        <Term name="Reading Δ ECR">
+          Both ranks are ordinal within the position, so +9 on an RB means the experts rank him nine
+          RB spots lower than our ROS VAL does. FLEX is folded into our replacement level but not
+          into ECR, so RB/WR/TE gaps deserve a second look. Above +3 reads green (a buy cue), below
+          −3 amber (a sell-high cue); the experts&apos; SPREAD says how much they agree.
+        </Term>
+        <Term name="Freshness">
+          ECR updated {relativeTime(context?.expert.ecrUpdatedAt)} · market values updated{' '}
+          {relativeTime(context?.expert.marketUpdatedAt)}. Rankings refresh with the rest of the
+          data: the current week&apos;s ECR every 3 h, rest-of-season ECR and market values every 12
+          h; a scoring change re-fetches the rankings on the next refresh.
         </Term>
       </dl>
       {context?.hasMyTeam && (

@@ -20,6 +20,8 @@ import {
   cellValue,
   columnGroups,
   DEFAULT_SORT,
+  expertText,
+  expertTone,
   filterRows,
   mineCellTitle,
   signalText,
@@ -423,15 +425,17 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
                 const tone =
                   col.kind === 'signal'
                     ? signalTone(p, col)
-                    : col.kind === 'droppable'
-                      ? value !== null
-                        ? 'neg'
-                        : null
-                      : signed && value !== null
-                        ? value >= 0
-                          ? 'pos'
-                          : 'neg'
-                        : null
+                    : col.kind === 'expert'
+                      ? expertTone(p, col)
+                      : col.kind === 'droppable'
+                        ? value !== null
+                          ? 'neg'
+                          : null
+                        : signed && value !== null
+                          ? value >= 0
+                            ? 'pos'
+                            : 'neg'
+                          : null
                 return (
                   <TableCell
                     key={col.key}
@@ -440,12 +444,15 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
                       'text-right tabular-nums',
                       (col.kind === 'points' || col.field === 'rosValue') && 'font-medium',
                       tone === 'pos' && 'text-pos-rb',
-                      tone === 'neg' && 'text-destructive'
+                      tone === 'neg' && 'text-destructive',
+                      tone === 'warn' && 'text-amber-400'
                     )}
                   >
                     {col.kind === 'signal'
                       ? signalText(p, col)
-                      : cellText(value, col, effectiveMode)}
+                      : col.kind === 'expert'
+                        ? expertText(p, col)
+                        : cellText(value, col, effectiveMode)}
                   </TableCell>
                 )
               })}
