@@ -7,6 +7,7 @@ import {
 } from '@main/scoring/adapters'
 import { scoreStatLine, type StatLine } from '@main/scoring/engine'
 import { pointsAllowedIndex } from '@main/scoring/recompute'
+import { expertWeek } from '@main/value/expert'
 import { asPosition, FLEX_ELIGIBILITY, LINEUP_POSITIONS, type RosterSlotCount } from '@shared/rules'
 import { toNflverseTeam, toSleeperTeam } from '@shared/teams'
 import { kickoffIso } from '@shared/time'
@@ -20,6 +21,7 @@ import type {
   RosterSlot
 } from '@shared/types'
 import type { Db } from '../connection'
+import { listExpertRanks } from './expertRanks'
 import { getLeague } from './leagues'
 import { latestPointsWeek, listPointsByWeek, round2 } from './points'
 import { listProjections, listProjectionWeeks } from './projections'
@@ -150,6 +152,7 @@ export function playersWeek(db: Db, leagueId: string, season: number, week: numb
   const projections = new Map(listProjections(db, season, week).map((p) => [p.playerId, p.stats]))
   const snaps = listSnapsByWeek(db, season, week)
   const byes = teamByeWeeks(db, season)
+  const experts = new Map(listExpertRanks(db, season, week).map((r) => [r.playerId, r]))
 
   const rows: PlayerWeekRow[] = candidates.map((r) => {
     const position = asPosition(r.pos)
@@ -187,7 +190,7 @@ export function playersWeek(db: Db, leagueId: string, season: number, week: numb
       projection: projLine ? (withKickingBuckets(projLine) as Record<string, number>) : null,
       snapPct,
       targetShare,
-      expert: null,
+      expert: expertWeek(experts.get(r.player_id)),
       statsAvailable: r.gsis_id !== null || r.nflverse_team !== null
     }
   })

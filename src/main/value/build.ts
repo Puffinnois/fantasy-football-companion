@@ -1,4 +1,6 @@
 import type { Db } from '@main/db/connection'
+import { listExpertRanks, ROS_WEEK } from '@main/db/repos/expertRanks'
+import { listMarketValues } from '@main/db/repos/marketValues'
 import { round2 } from '@main/db/repos/points'
 import { LINEUP_POSITIONS, scoringFormat } from '@shared/rules'
 import type {
@@ -8,6 +10,7 @@ import type {
   ScheduleEntry,
   ValueContext
 } from '@shared/types'
+import { expertRos, indexExperts, marketValue, NO_EXPERTS, type ExpertBundle } from './expert'
 import { replacementLevels } from './replacement'
 import { rosterRelative } from './roster'
 import { defenseRanks, lastScheduledWeek, playerSchedule } from './schedule'
@@ -91,7 +94,10 @@ function ranked(v: Valued, value: number | null, raw: number | null): Ranked | n
 const present = (e: Ranked | null): e is Ranked => e !== null
 
 /** Pure part of the build: rows and context from a loaded bundle (spec §2). */
-export function assembleValue(bundle: SeriesBundle): ValueBuild {
+export function assembleValue(
+  bundle: SeriesBundle,
+  experts: ExpertBundle = NO_EXPERTS
+): ValueBuild {
   const aggregates = bundle.players.map((p) => aggregate(bundle, p))
   const slots = bundle.rules?.rosterSlots ?? []
   const stdLevels = replacementLevels(
@@ -146,6 +152,7 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
     })),
     bundle.hasMyTeam
   )
+  const ex = indexExperts(experts)
 
   const rows: PlayerValueRow[] = valued.map((v) => {
     const series = v.a.series
@@ -160,6 +167,7 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
           byesRemaining: sched.byesRemaining
         }
       : null
+    const rosRank = rosRanks.get(series.base.playerId) ?? null
     return {
       ...series.base,
       gamesPlayed: v.a.gamesPlayed,
@@ -168,13 +176,13 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
       stdRank: stdRanks.get(series.base.playerId) ?? null,
       rosPoints: v.a.rosPoints,
       rosValue: v.rosValue,
-      rosRank: rosRanks.get(series.base.playerId) ?? null,
+      rosRank,
       overallRank: overallRanks.get(series.base.playerId) ?? null,
       signals,
       vsMine: roster.byPlayer.get(series.base.playerId)?.vsMine ?? null,
       droppable: roster.byPlayer.get(series.base.playerId)?.droppable ?? null,
-      expert: null,
-      market: null,
+      expert: expertRos(ex.ranks.get(series.base.playerId), rosRank),
+      market: marketValue(ex.market.get(series.base.playerId)),
       statsAvailable: series.statsAvailable
     }
   })
@@ -194,7 +202,11 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
       hasMyTeam: bundle.hasMyTeam,
       mine,
       replacement,
-      expert: { scoring: scoringFormat(bundle.rules), ecrUpdatedAt: null, marketUpdatedAt: null }
+      expert: {
+        scoring: scoringFormat(bundle.rules),
+        ecrUpdatedAt: ex.ecrUpdatedAt,
+        marketUpdatedAt: ex.marketUpdatedAt
+      }
     },
     rows,
     series: new Map(bundle.players.map((p) => [p.base.playerId, p])),
@@ -203,7 +215,10 @@ export function assembleValue(bundle: SeriesBundle): ValueBuild {
 }
 
 export function buildValueSeason(db: Db, leagueId: string, season: number): ValueBuild {
-  return assembleValue(loadSeries(db, leagueId, season))
+  return assembleValue(loadSeries(db, leagueId, season), {
+    ranks: listExpertRanks(db, season, ROS_WEEK),
+    market: listMarketValues(db, season)
+  })
 }
 
 /** The detail panel payload for one player of a build; null for an unknown player. */

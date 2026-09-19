@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Db } from '@main/db/connection'
 import { buildValueSeason, detailFor, type ValueBuild } from '@main/value/build'
+import { replaceExpertRanks, ROS_WEEK } from '@main/db/repos/expertRanks'
+import { replaceMarketValues } from '@main/db/repos/marketValues'
 import { upsertPlayers } from '@main/db/repos/players'
 import { replaceProjections } from '@main/db/repos/projections'
 import { LINEUP_POSITIONS } from '@shared/rules'
@@ -149,6 +151,51 @@ describe('buildValueSeason', () => {
     ])
     // BUF has no game in the fixture
     expect(detailFor(build, '8259')?.schedule).toEqual([])
+  })
+
+  it('attaches the experts: ROS ECR with ecrDelta against rosRank, market value, and the context provenance', () => {
+    const TS = '2026-09-18T15:00:00.000Z'
+    const rank = {
+      rankAve: null,
+      rankStd: 0.5,
+      rankMin: null,
+      rankMax: null,
+      experts: 6,
+      grade: null,
+      projPts: null
+    }
+    replaceExpertRanks(
+      db,
+      SEASON,
+      ROS_WEEK,
+      'PPR',
+      [
+        { playerId: '4866', rankEcr: 5, posRank: 4, ...rank },
+        { playerId: '8259', rankEcr: 60, posRank: 20, ...rank, rankStd: null },
+        { playerId: 'JAX', rankEcr: 160, posRank: 12, ...rank } // no players row: harmless
+      ],
+      TS
+    )
+    replaceMarketValues(
+      db,
+      SEASON,
+      [{ playerId: '4866', value: 9340, overallRank: 2, posRank: 1, tier: 1, trend30d: -310 }],
+      TS
+    )
+    build = buildValueSeason(db, 'L1', SEASON)
+    // Barkley: our RB1 (rosRank 1) vs the experts' RB4 → +3
+    expect(row('4866')).toMatchObject({
+      expert: { ecrRank: 5, ecrPosRank: 4, spread: 0.5, experts: 6, ecrDelta: 3 },
+      market: { value: 9340, posRank: 1, tier: 1, trend30d: -310 }
+    })
+    // Cook: rosRank 3 vs RB20 → +17, no spread, no market row
+    expect(row('8259')).toMatchObject({
+      expert: { ecrPosRank: 20, spread: null, ecrDelta: 17 },
+      market: null
+    })
+    expect(row('6794')).toMatchObject({ expert: null, market: null })
+    expect(build.context.expert).toEqual({ scoring: 'PPR', ecrUpdatedAt: TS, marketUpdatedAt: TS })
+    expect(build.rows.some((r) => r.playerId === 'JAX')).toBe(false)
   })
 })
 

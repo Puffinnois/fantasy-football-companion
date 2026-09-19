@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Db } from '@main/db/connection'
+import { replaceExpertRanks } from '@main/db/repos/expertRanks'
 import { replacePlayerIds } from '@main/db/repos/playerIds'
 import { playersOptions, playersWeek, tabsForSlots } from '@main/db/repos/playersWeek'
 import { replacePoints } from '@main/db/repos/points'
@@ -257,6 +258,39 @@ describe('playersWeek', () => {
       awayScore: null
     })
     expect(rows.find((r) => r.playerId === '7564')?.game).toBeNull() // CIN is not in the fixture schedule at all
+  })
+
+  it("joins the week's FantasyPros row as PlayerWeekRow.expert", () => {
+    replaceExpertRanks(
+      db,
+      S,
+      1,
+      'PPR',
+      [
+        {
+          playerId: '4866',
+          rankEcr: 1,
+          posRank: 1,
+          rankAve: 1.4,
+          rankStd: 0.6,
+          rankMin: 1,
+          rankMax: 3,
+          experts: 153,
+          grade: 'A+',
+          projPts: 22.4
+        }
+      ],
+      SEED_TS
+    )
+    const { rows } = playersWeek(db, 'L1', S, 1)
+    expect(rows.find((r) => r.playerId === '4866')?.expert).toEqual({
+      ecrPosRank: 1,
+      grade: 'A+',
+      projPts: 22.4,
+      spread: 0.6
+    })
+    expect(rows.find((r) => r.playerId === '6794')?.expert).toBeNull()
+    expect(playersWeek(db, 'L1', S, 2).rows.find((r) => r.playerId === '4866')?.expert).toBeNull()
   })
 
   it('FB players show as RB', () => {
