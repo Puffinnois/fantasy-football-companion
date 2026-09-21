@@ -1,7 +1,7 @@
-import { BookOpen, Settings, Trophy, Users } from 'lucide-react'
+import { BookOpen, ClipboardList, Settings, Trophy, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type Screen = 'setup' | 'league' | 'rules' | 'players'
+export type Screen = 'setup' | 'league' | 'rules' | 'players' | 'lineup'
 
 interface SidebarProps {
   current: Screen
@@ -18,6 +18,7 @@ const items: {
   { id: 'league', label: 'League', icon: Trophy, enabled: (hasLeague) => hasLeague },
   { id: 'rules', label: 'Rules', icon: BookOpen, enabled: (hasLeague) => hasLeague },
   { id: 'players', label: 'Players', icon: Users, enabled: (hasLeague) => hasLeague },
+  { id: 'lineup', label: 'Lineup', icon: ClipboardList, enabled: (hasLeague) => hasLeague },
   { id: 'setup', label: 'Setup', icon: Settings, enabled: () => true }
 ]
 

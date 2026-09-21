@@ -16,20 +16,20 @@ import { Sparkline } from '@/components/Sparkline'
 import { api } from '@/lib/api'
 import { barItems, signalLines, usageRows } from '@/lib/detailView'
 import { errorMessage, fmtPct, fmtPoints, fmtSigned } from '@/lib/format'
-import {
-  cellText,
-  columnGroups,
-  sosTone,
-  TREND_ARROW,
-  type TableRow as PlayerRow
-} from '@/lib/playersTableView'
+import { cellText, columnGroups, sosTone, TREND_ARROW } from '@/lib/playersTableView'
 import { cn } from '@/lib/utils'
-import type { PlayerDetail, PlayerValueRow, ScheduleEntry, UsageTrend } from '@shared/types'
+import type {
+  DetailTarget,
+  PlayerDetail,
+  PlayerValueRow,
+  ScheduleEntry,
+  UsageTrend
+} from '@shared/types'
 
 interface PlayerDetailPanelProps {
   season: number
-  /** The clicked table row (week or value); null closes the panel. */
-  player: PlayerRow | null
+  /** The clicked player (any row that carries id, name, position, team and statsAvailable); null closes the panel. */
+  player: DetailTarget | null
   onClose: () => void
 }
 
