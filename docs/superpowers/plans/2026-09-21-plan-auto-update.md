@@ -36,7 +36,7 @@
 - Consumes: nothing.
 - Produces: the workflow name `Release` (used by `gh run list --workflow=release.yml` in Task 5); electron-builder's `publish` config (used by `electron-updater` at runtime — it reads `app-update.yml` that electron-builder generates from this block into the packaged app).
 
-- [ ] **Step 1: Add the publish block to `electron-builder.yml`**
+- [x] **Step 1: Add the publish block to `electron-builder.yml`**
 
 Append to the end of the file (after `npmRebuild: false`):
 
@@ -48,7 +48,7 @@ publish:
   releaseType: draft
 ```
 
-- [ ] **Step 2: Make local builds never publish**
+- [x] **Step 2: Make local builds never publish**
 
 In `package.json`, change the four `build:*` scripts so they read exactly:
 
@@ -61,7 +61,7 @@ In `package.json`, change the four `build:*` scripts so they read exactly:
 
 (`build:unpack` is unchanged: `--dir` never publishes.)
 
-- [ ] **Step 3: Create the workflow**
+- [x] **Step 3: Create the workflow**
 
 Create `.github/workflows/release.yml`:
 
@@ -106,7 +106,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-- [ ] **Step 4: Validate both YAML files parse and the config is picked up**
+- [x] **Step 4: Validate both YAML files parse and the config is picked up**
 
 Run:
 
@@ -125,7 +125,7 @@ electron-builder.yml ok {"provider":"github","owner":"Puffinnois","repo":"fantas
 
 Then confirm the scripts: `grep -n '"build:' package.json` must show `--publish never` on `build:win`, `build:mac`, `build:linux`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add electron-builder.yml package.json .github/workflows/release.yml
@@ -168,7 +168,7 @@ export function installAutoUpdater(deps: UpdaterDeps): void
 
 `electron-updater`'s real `autoUpdater` is structurally assignable to `UpdaterLike` (verified against 6.8.9), and Electron's `dialog` to `DialogLike`.
 
-- [ ] **Step 1: Install the dependency**
+- [x] **Step 1: Install the dependency**
 
 ```bash
 npm install electron-updater@^6.8.9
@@ -176,7 +176,7 @@ npm install electron-updater@^6.8.9
 
 Expected: `package.json` `dependencies` now lists `"electron-updater": "^6.8.9"` (not `devDependencies`). Check with `grep -n electron-updater package.json`.
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Create `tests/main/updater.test.ts`:
 
@@ -305,13 +305,13 @@ describe('installAutoUpdater', () => {
 })
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/updater.test.ts`
 
 Expected: FAIL — `Failed to resolve import "@main/updater"` (module does not exist yet).
 
-- [ ] **Step 4: Implement the module**
+- [x] **Step 4: Implement the module**
 
 Create `src/main/updater.ts`:
 
@@ -378,19 +378,19 @@ async function promptRestart(deps: UpdaterDeps, version: string): Promise<void> 
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/updater.test.ts`
 
 Expected: `Tests  6 passed (6)`.
 
-- [ ] **Step 6: Typecheck and lint**
+- [x] **Step 6: Typecheck and lint**
 
 Run: `npm run typecheck && npm run lint`
 
 Expected: both exit 0 with no output besides the commands. If prettier formatting differs, run `npx prettier --write src/main/updater.ts tests/main/updater.test.ts` and re-run lint.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add package.json package-lock.json src/main/updater.ts tests/main/updater.test.ts
@@ -408,7 +408,7 @@ git commit -m "feat(updater): auto-update module with restart prompt"
 - Consumes: `installAutoUpdater(deps: UpdaterDeps)` from `@main/updater` (Task 2); `autoUpdater` from `electron-updater`; `dialog` from `electron` (already imported); `mainWindow` module variable (already exists).
 - Produces: nothing new.
 
-- [ ] **Step 1: Add the imports**
+- [x] **Step 1: Add the imports**
 
 At the top of `src/main/index.ts`, the first line currently reads:
 
@@ -428,7 +428,7 @@ and after the other `@main/...` imports (alphabetical, so after `@main/sources/s
 import { installAutoUpdater } from '@main/updater'
 ```
 
-- [ ] **Step 2: Call it after the window exists**
+- [x] **Step 2: Call it after the window exists**
 
 In the `app.whenReady().then(() => { ... })` block, the current lines are:
 
@@ -454,19 +454,19 @@ Change to:
   if (getSetting(ctx.db, SETTING_ACTIVE_LEAGUE)) {
 ```
 
-- [ ] **Step 3: Typecheck, lint, full test run**
+- [x] **Step 3: Typecheck, lint, full test run**
 
 Run: `npm run typecheck && npm run lint && npm test`
 
 Expected: typecheck and lint silent; vitest ends with all suites passed (the count includes the 6 new updater tests). A typecheck error on `updater: autoUpdater` or `dialog` would mean the `UpdaterLike` / `DialogLike` shapes in Task 2 drifted from the spec — fix the interfaces there, not with a cast here.
 
-- [ ] **Step 4: Confirm the dependency is externalized, not bundled**
+- [x] **Step 4: Confirm the dependency is externalized, not bundled**
 
 Run: `npm run build && grep -c 'require("electron-updater")' out/main/index.js`
 
 Expected: the build succeeds and the grep prints `1` — electron-vite leaves `electron-updater` as a runtime `require`, which is why it must live in `dependencies` (Task 2 Step 1). A `0` means it was inlined; check that `package.json` lists it under `dependencies`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/index.ts
@@ -486,7 +486,7 @@ git commit -m "feat(updater): check for updates at launch"
 - Consumes: the workflow from Task 1 (referenced by name in the README).
 - Produces: `npm version <bump>` producing the commit `build: bump version to X.Y.Z` and tag `vX.Y.Z` (used in Task 5).
 
-- [ ] **Step 1: Commit-message template for `npm version`**
+- [x] **Step 1: Commit-message template for `npm version`**
 
 Create `.npmrc` with exactly:
 
@@ -498,7 +498,7 @@ Verify: `npm config get message` prints `build: bump version to %s`.
 
 (`.npmrc` is already excluded from the packaged app by `electron-builder.yml` and is not gitignored.)
 
-- [ ] **Step 2: README**
+- [x] **Step 2: README**
 
 Replace the two lines
 
@@ -516,7 +516,7 @@ with
 - Auto-update: packaged Windows builds check GitHub Releases once at launch and offer **Restart now / Later** once a newer version has downloaded (Later installs on next quit). Installs ≤ 0.10.0 have no updater — reinstall once from the `v0.10.1` release.
 ```
 
-- [ ] **Step 3: Roadmap line in the 6a spec**
+- [x] **Step 3: Roadmap line in the 6a spec**
 
 In `docs/superpowers/specs/2026-09-20-slice6a-lineup-model-design.md` §9 Phasing, between the **Plan J** and **Plan K** bullets, insert:
 
@@ -524,13 +524,13 @@ In `docs/superpowers/specs/2026-09-20-slice6a-lineup-model-design.md` §9 Phasin
 - **Auto-update** (own spec: `2026-09-21-auto-update-design.md`, plan: `2026-09-21-plan-auto-update.md`) — GitHub Releases + in-app updater → `v0.10.1`.
 ```
 
-- [ ] **Step 4: Check formatting**
+- [x] **Step 4: Check formatting**
 
 Run: `npx prettier --check README.md .npmrc docs/superpowers/specs/2026-09-20-slice6a-lineup-model-design.md`
 
 Expected: `All matched files use Prettier code style!` (if `.npmrc` is reported as unsupported, that is fine — prettier ignores it).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add .npmrc README.md docs/superpowers/specs/2026-09-20-slice6a-lineup-model-design.md
