@@ -108,7 +108,11 @@ describe('lineupView', () => {
       'Start A. Adams (WR, +12.10)'
     )
     expect(swapsEmptyText(teamLineup())).toBe('Your lineup is optimal')
+    expect(swapsEmptyText(teamLineup({ isMe: false }))).toBe('Their lineup is optimal')
     expect(swapsEmptyText(teamLineup({ current: null }))).toBe('Lineup not set on Sleeper yet')
+    expect(swapsEmptyText(teamLineup({ isMe: false, current: null }))).toBe(
+      'Lineup not set on Sleeper yet'
+    )
   })
 
   it('describes both sides of a close call', () => {

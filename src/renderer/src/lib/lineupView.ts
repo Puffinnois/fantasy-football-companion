@@ -115,8 +115,10 @@ export function swapLine(s: Swap): string {
     : `Start ${s.in.fullName} (${where})`
 }
 
+/** Empty state of a swaps list, for my team or the opponent's. */
 export function swapsEmptyText(t: TeamLineup): string {
-  return t.current === null ? 'Lineup not set on Sleeper yet' : 'Your lineup is optimal'
+  if (t.current === null) return 'Lineup not set on Sleeper yet'
+  return t.isMe ? 'Your lineup is optimal' : 'Their lineup is optimal'
 }
 
 function describePlayer(p: LineupPlayer): string {

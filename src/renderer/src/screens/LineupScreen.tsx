@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -116,7 +117,7 @@ function SlotTable({
       <TableHeader>
         <TableRow>
           <TableHead className="w-16">Slot</TableHead>
-          <TableHead>Your starter</TableHead>
+          <TableHead>{team.isMe ? 'Your starter' : 'Their starter'}</TableHead>
           <TableHead className="w-16 text-right">Pts</TableHead>
           <TableHead>Optimal</TableHead>
           <TableHead className="w-16 text-right">Pts</TableHead>
@@ -171,6 +172,63 @@ function SlotTable({
         })}
       </TableBody>
     </Table>
+  )
+}
+
+function SwapsList({ team }: { team: TeamLineup }): React.JSX.Element {
+  if (team.swaps.length === 0) {
+    return <p className="text-sm text-muted-foreground">{swapsEmptyText(team)}</p>
+  }
+  return (
+    <ul className="space-y-1 text-sm">
+      {team.swaps.map((s) => (
+        <li key={`${s.slot}:${s.in.playerId}`}>{swapLine(s)}</li>
+      ))}
+    </ul>
+  )
+}
+
+/** Spec §5.1 item 5: the opponent's current-vs-optimal table and swaps, collapsed by default. */
+function OpponentCard({
+  team,
+  onOpen
+}: {
+  team: TeamLineup
+  onOpen: (p: DetailTarget) => void
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  return (
+    <Card>
+      <CardHeader>
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          className="flex w-full items-center justify-between gap-2 text-left"
+        >
+          {/* A span, not CardTitle: a div may not sit inside a button. */}
+          <span className="text-base leading-none font-semibold">Opponent · {team.name}</span>
+          <ChevronDown
+            aria-hidden="true"
+            className={cn(
+              'size-4 shrink-0 text-muted-foreground transition-transform',
+              open && 'rotate-180'
+            )}
+          />
+        </button>
+      </CardHeader>
+      {open && (
+        <CardContent className="space-y-4">
+          <SlotTable team={team} onOpen={onOpen} />
+          <div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Their swaps
+            </div>
+            <SwapsList team={team} />
+          </div>
+        </CardContent>
+      )}
+    </Card>
   )
 }
 
@@ -300,15 +358,7 @@ export function LineupScreen({ dataVersion }: LineupScreenProps): React.JSX.Elem
               <CardTitle className="text-base">Swaps</CardTitle>
             </CardHeader>
             <CardContent>
-              {me.swaps.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{swapsEmptyText(me)}</p>
-              ) : (
-                <ul className="space-y-1 text-sm">
-                  {me.swaps.map((s) => (
-                    <li key={`${s.slot}:${s.in.playerId}`}>{swapLine(s)}</li>
-                  ))}
-                </ul>
-              )}
+              <SwapsList team={me} />
             </CardContent>
           </Card>
 
@@ -318,6 +368,8 @@ export function LineupScreen({ dataVersion }: LineupScreenProps): React.JSX.Elem
           </div>
         </>
       )}
+
+      {data?.opponent && <OpponentCard team={data.opponent} onOpen={setSelected} />}
 
       <PlayerDetailPanel season={season ?? 0} player={selected} onClose={() => setSelected(null)} />
     </div>

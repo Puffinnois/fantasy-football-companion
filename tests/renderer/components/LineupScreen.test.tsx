@@ -102,4 +102,59 @@ describe('LineupScreen', () => {
     render(<LineupScreen dataVersion={0} />)
     expect(await screen.findByText('boom')).toBeTruthy()
   })
+
+  it('keeps the opponent collapsed and expands to their slot table and swaps', async () => {
+    const wr2 = lineupPlayer({
+      playerId: 'wr2',
+      fullName: 'Puka Nacua',
+      position: 'WR',
+      team: 'LAR',
+      value: 14
+    })
+    const wr3 = lineupPlayer({
+      playerId: 'wr3',
+      fullName: 'Jauan Jennings',
+      position: 'WR',
+      team: 'SF',
+      value: 9.5
+    })
+    weekMock.mockResolvedValue(
+      lineupWeek({
+        opponent: teamLineup({
+          rosterId: 2,
+          name: 'Rival',
+          isMe: false,
+          optimal: [slotEntry('WR', wr2)],
+          optimalTotal: 14,
+          current: [slotEntry('WR', wr3)],
+          currentTotal: 9.5,
+          bench: [wr3],
+          swaps: [{ slot: 'WR', out: wr3, in: wr2, delta: 4.5 }]
+        })
+      })
+    )
+    render(<LineupScreen dataVersion={0} />)
+    const toggle = await screen.findByRole('button', { name: 'Opponent · Rival', expanded: false })
+    expect(screen.getByText('Your starter')).toBeTruthy()
+    expect(screen.queryByText('Their starter')).toBeNull()
+    expect(screen.queryByText('Puka Nacua')).toBeNull()
+    fireEvent.click(toggle)
+    expect(screen.getByRole('button', { name: 'Opponent · Rival', expanded: true })).toBeTruthy()
+    expect(screen.getByText('Their starter')).toBeTruthy()
+    expect(screen.getByText('Puka Nacua')).toBeTruthy()
+    expect(screen.getByText('Start Puka Nacua over Jauan Jennings (WR, +4.50)')).toBeTruthy()
+    fireEvent.click(toggle)
+    expect(screen.queryByText('Their starter')).toBeNull()
+  })
+
+  it('shows the opponent optimal state and hides the section without a matchup', async () => {
+    weekMock.mockResolvedValueOnce(lineupWeek())
+    render(<LineupScreen dataVersion={0} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Opponent · Rival' }))
+    expect(screen.getByText('Their lineup is optimal')).toBeTruthy()
+    weekMock.mockResolvedValueOnce(lineupWeek({ week: 6, opponent: null, matchupId: null }))
+    fireEvent.change(screen.getByLabelText('Week'), { target: { value: '6' } })
+    expect(await screen.findByText('No matchup this week')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /^Opponent/ })).toBeNull()
+  })
 })
