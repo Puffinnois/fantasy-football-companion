@@ -99,7 +99,7 @@ Behaviour:
 A footer block with `mt-auto` under the nav items:
 
 - `UpdatePill` (new component, `components/UpdatePill.tsx`): rendered when `status` is `available`, `downloading` or `ready`. A full-width green button (`bg-emerald-600 hover:bg-emerald-500`, white text, `ArrowUpCircle` icon from lucide): label `Update to {version}`; while `downloading`, `Downloading {percent}%`. Always clickable → `onOpen()`.
-- Version label: `v{version}` from `api.app.version()` (fetched once in the Sidebar), muted (`text-xs text-sidebar-foreground/50`), always rendered.
+- Version label: `v{version}` (`api.app.version()`, fetched once in `App.tsx` and passed to both the Sidebar and the dialog), muted (`text-xs text-sidebar-foreground/50`), always rendered.
 
 ### 3.3 Popup — `src/renderer/src/components/UpdateDialog.tsx`
 
@@ -143,5 +143,5 @@ src/renderer/src/components/UpdateDialog.tsx popup
 src/renderer/src/components/Sidebar.tsx      footer: pill + version label
 src/renderer/src/App.tsx                     hook, dialog mount, open state
 docs/superpowers/specs/2026-09-20-slice6a-lineup-model-design.md   Plan K → v0.12.0
-package.json                                 dompurify (+ @types/dompurify if needed), radix dialog via shadcn
+package.json                                 dompurify (ships its own types), radix dialog via shadcn
 ```
