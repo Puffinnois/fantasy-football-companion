@@ -7,7 +7,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { SlideOver } from '@/components/SlideOver'
-import { relativeTime } from '@/lib/format'
+import { fmtPoints, relativeTime } from '@/lib/format'
 import { columnGroups } from '@/lib/playersTableView'
 import { LINEUP_POSITIONS } from '@shared/rules'
 import type { ReplacementLevel, ValueContext } from '@shared/types'
@@ -27,7 +27,7 @@ function Term({ name, children }: { name: string; children: React.ReactNode }): 
   )
 }
 
-const level = (r: ReplacementLevel | null): string => (r ? r.level.toFixed(1) : '—')
+const level = (r: ReplacementLevel | null): string => (r ? fmtPoints(r.level) : '—')
 const starters = (r: ReplacementLevel | null): string => (r ? String(r.starters) : '—')
 
 /** Plain-language definitions of the Value columns (spec §2) plus this league's replacement table. */

@@ -1,5 +1,5 @@
 import type { BarItem } from '@/lib/charts'
-import { fmtPct, fmtSigned, fmtSignedPct } from '@/lib/format'
+import { fmtPct, fmtPoints, fmtSigned, fmtSignedPct } from '@/lib/format'
 import type { DetailWeek, PlayerSignals, UsageMetric } from '@shared/types'
 
 /** Usage metrics the detail weeks carry (air-yards share exists only as a trend). */
@@ -39,10 +39,10 @@ export function signalLines(s: PlayerSignals, gamesPlayed: number): string[] {
   if (s.tdDelta !== null) {
     const note =
       s.tdFlag === 'down' ? ' — regression candidate' : s.tdFlag === 'up' ? ' — due for more' : ''
-    lines.push(`TDs ${fmtSigned(s.tdDelta)} vs expected${note}`)
+    lines.push(`TDs ${fmtSigned(s.tdDelta, 1)} vs expected${note}`)
   }
   if (s.ypo !== null && s.ypoDelta !== null) {
-    lines.push(`Yds/opp ${s.ypo.toFixed(1)} · ${fmtSigned(s.ypoDelta)} vs position`)
+    lines.push(`Yds/opp ${s.ypo.toFixed(1)} · ${fmtSigned(s.ypoDelta, 1)} vs position`)
   }
   if (s.vsProjPoints !== null) {
     const pct = s.vsProjPct === null ? '' : ` (${fmtSignedPct(s.vsProjPct)})`
@@ -50,7 +50,7 @@ export function signalLines(s: PlayerSignals, gamesPlayed: number): string[] {
   }
   if (s.floor !== null && s.ceiling !== null) {
     const start = s.startRate === null ? '' : ` · start-worthy ${fmtPct(s.startRate)}`
-    lines.push(`Floor ${s.floor.toFixed(1)} · Ceiling ${s.ceiling.toFixed(1)}${start}`)
+    lines.push(`Floor ${fmtPoints(s.floor)} · Ceiling ${fmtPoints(s.ceiling)}${start}`)
   } else {
     lines.push(`Consistency: needs 3 games (${gamesPlayed} played)`)
   }

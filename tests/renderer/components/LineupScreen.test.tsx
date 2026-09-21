@@ -34,9 +34,9 @@ describe('LineupScreen', () => {
   it('loads the current week, shows the matchup header, the slot table and the optimal state', async () => {
     weekMock.mockResolvedValue(lineupWeek())
     render(<LineupScreen dataVersion={0} />)
-    expect(await screen.findByText('You 34.6 optimal · 34.6 current')).toBeTruthy()
+    expect(await screen.findByText('You 34.60 optimal · 34.60 current')).toBeTruthy()
     expect(weekMock).toHaveBeenCalledWith({ season: 2026, week: 3 })
-    expect(screen.getByText('Rival 28.7 current')).toBeTruthy()
+    expect(screen.getByText('Rival 28.70 current')).toBeTruthy()
     expect(screen.getAllByText('Saquon Barkley')).toHaveLength(2) // current and optimal columns
     expect(screen.getByText('Your lineup is optimal')).toBeTruthy()
     expect((screen.getByLabelText('Week') as HTMLSelectElement).value).toBe('3')
@@ -73,12 +73,12 @@ describe('LineupScreen', () => {
       })
     )
     render(<LineupScreen dataVersion={0} />)
-    expect(await screen.findByText('Start Chase Brown over Old Starter (RB, +7.2)')).toBeTruthy()
+    expect(await screen.findByText('Start Chase Brown over Old Starter (RB, +7.20)')).toBeTruthy()
     expect(screen.getByText('Q')).toBeTruthy()
     expect(screen.getAllByText('O').length).toBeGreaterThan(0)
     expect(screen.getByText('≈ Rico Dowdle').getAttribute('title')).toMatch(/^Close call\n/)
     expect(screen.getByText('Rico Dowdle')).toBeTruthy() // bench list
-    expect(screen.getByText('+7.2')).toBeTruthy() // row delta
+    expect(screen.getByText('+7.20')).toBeTruthy() // row delta
   })
 
   it('shows the not-set and no-team states, and refetches on a week change', async () => {

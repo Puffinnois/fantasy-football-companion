@@ -8,8 +8,8 @@ describe('signalLines', () => {
     expect(signalLines(signalsFixture(), 5)).toEqual([
       'TDs +1.8 vs expected — regression candidate',
       'Yds/opp 8.2 · -0.4 vs position',
-      'vs projection +12.3 pts (+9%)',
-      'Floor 6.1 · Ceiling 17.4 · start-worthy 63%'
+      'vs projection +12.30 pts (+9%)',
+      'Floor 6.10 · Ceiling 17.40 · start-worthy 63%'
     ])
     expect(signalLines(signalsFixture({ tdFlag: 'up', tdDelta: -1.6 }), 5)[0]).toBe(
       'TDs -1.6 vs expected — due for more'
@@ -33,8 +33,10 @@ describe('signalLines', () => {
       startRate: null
     })
     expect(signalLines(bare, 2)).toEqual(['Consistency: needs 3 games (2 played)'])
-    expect(signalLines(signalsFixture({ vsProjPct: null }), 5)[2]).toBe('vs projection +12.3 pts')
-    expect(signalLines(signalsFixture({ startRate: null }), 5)[3]).toBe('Floor 6.1 · Ceiling 17.4')
+    expect(signalLines(signalsFixture({ vsProjPct: null }), 5)[2]).toBe('vs projection +12.30 pts')
+    expect(signalLines(signalsFixture({ startRate: null }), 5)[3]).toBe(
+      'Floor 6.10 · Ceiling 17.40'
+    )
   })
 })
 

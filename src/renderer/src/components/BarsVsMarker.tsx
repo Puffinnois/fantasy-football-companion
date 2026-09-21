@@ -1,4 +1,5 @@
 import { barPath, barsLayout, type BarItem } from '@/lib/charts'
+import { fmtPoints } from '@/lib/format'
 
 interface BarsVsMarkerProps {
   items: BarItem[]
@@ -13,7 +14,7 @@ const LABEL_HEIGHT = 14
 export function BarsVsMarker({
   items,
   height = 72,
-  format = (v) => v.toFixed(1)
+  format = (v) => fmtPoints(v)
 }: BarsVsMarkerProps): React.JSX.Element {
   const width = Math.max(1, items.length) * BAND
   const { bars } = barsLayout(items, width, height)

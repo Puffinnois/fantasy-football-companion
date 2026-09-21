@@ -107,7 +107,7 @@ export function LeagueScreen(): React.JSX.Element {
                   {t.ties ? `-${t.ties}` : ''}
                 </span>
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  PF {t.fpts.toFixed(1)} · PA {t.fptsAgainst.toFixed(1)}
+                  PF {fmtPoints(t.fpts)} · PA {fmtPoints(t.fptsAgainst)}
                 </span>
               </div>
             </button>

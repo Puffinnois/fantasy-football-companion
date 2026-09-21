@@ -1,4 +1,4 @@
-import { fmtPct, fmtSigned, fmtSignedPct } from '@/lib/format'
+import { fmtPct, fmtPoints, fmtSigned, fmtSignedPct } from '@/lib/format'
 import type {
   GameInfo,
   PlayerBaseRow,
@@ -30,7 +30,9 @@ export type ColumnKind =
 /** Value rows read `expert` (ROS) and `market`; week rows read `expert` (this week's ECR + grade). */
 export type ExpertField =
   'ecrPosRank' | 'ecrDelta' | 'spread' | 'marketValue' | 'marketTrend' | 'weekPosRank' | 'weekGrade'
-export type CellFormat = 'int' | 'fixed' | 'signed' | 'signedInt' | 'pct' | 'signedPct'
+/** `pts` / `signedPts` are fantasy points (two decimals, like Sleeper); `fixed` / `signed` are other one-decimal stats. */
+export type CellFormat =
+  'int' | 'fixed' | 'signed' | 'pts' | 'signedPts' | 'signedInt' | 'pct' | 'signedPct'
 export type ValueField =
   'gamesPlayed' | 'ppg' | 'stdValue' | 'stdRank' | 'rosPoints' | 'rosValue' | 'rosRank' | 'vsMine'
 /** `usage` is the position's primary metric (spec §3.1); the rest read PlayerSignals directly. */
@@ -108,7 +110,7 @@ const ALLOWED = group('Allowed', [stat('pts_allow', 'PTS'), stat('yds_allow', 'Y
 const value = (
   field: ValueField,
   label: string,
-  format: 'int' | 'fixed' | 'signed',
+  format: 'int' | 'pts' | 'signedPts',
   description: string
 ): Column => ({
   key: `value:${field}`,
@@ -120,8 +122,8 @@ const value = (
 })
 const SEASON = group('Season', [
   value('gamesPlayed', 'G', 'int', 'Games played (weeks with a points row)'),
-  value('ppg', 'PPG', 'fixed', 'League points per game over games played'),
-  value('stdValue', 'VAL', 'signed', "PPG minus the position's replacement PPG"),
+  value('ppg', 'PPG', 'pts', 'League points per game over games played'),
+  value('stdValue', 'VAL', 'signedPts', "PPG minus the position's replacement PPG"),
   value('stdRank', 'RK', 'int', 'Rank within position by VAL')
 ])
 const signal = (
@@ -141,10 +143,10 @@ const REST_OF_SEASON = group('Rest of season', [
   value(
     'rosPoints',
     'ROS',
-    'fixed',
+    'pts',
     "Projected points for the remaining weeks under this league's rules"
   ),
-  value('rosValue', 'VAL', 'signed', "ROS minus the position's replacement ROS points"),
+  value('rosValue', 'VAL', 'signedPts', "ROS minus the position's replacement ROS points"),
   value('rosRank', 'RK', 'int', 'Rank within position by ROS VAL'),
   signal(
     'rosSos',
@@ -155,8 +157,8 @@ const REST_OF_SEASON = group('Rest of season', [
   signal('byesRemaining', 'BYES', 'int', 'Remaining weeks without a game')
 ])
 const SIGNALS = group('Signals', [
-  signal('floor', 'FLOOR', 'fixed', '25th percentile of weekly points (3+ games)'),
-  signal('ceiling', 'CEIL', 'fixed', '75th percentile of weekly points (3+ games)'),
+  signal('floor', 'FLOOR', 'pts', '25th percentile of weekly points (3+ games)'),
+  signal('ceiling', 'CEIL', 'pts', '75th percentile of weekly points (3+ games)'),
   signal(
     'startRate',
     'START%',
@@ -251,7 +253,7 @@ const MINE = group('Mine', [
   value(
     'vsMine',
     'VS MINE',
-    'signed',
+    'signedPts',
     'Free agents only: ROS VAL minus the ROS VAL of my lowest-valued startable player at the same position (IR and taxi excluded; FLEX is not modelled)'
   ),
   DROPPABLE
@@ -307,14 +309,16 @@ export function cellText(value: number | null, col: Column, mode: TableMode): st
   if (value === null) return '—'
   if (col.kind === 'value' || col.kind === 'signal' || col.kind === 'expert') {
     if (col.format === 'int') return String(value)
-    if (col.format === 'signed') return fmtSigned(value)
+    if (col.format === 'pts') return fmtPoints(value)
+    if (col.format === 'signedPts') return fmtSigned(value)
+    if (col.format === 'signed') return fmtSigned(value, 1)
     if (col.format === 'signedInt') return `${value > 0 ? '+' : ''}${value}`
     if (col.format === 'pct') return fmtPct(value)
     if (col.format === 'signedPct') return fmtSignedPct(value)
     return value.toFixed(1)
   }
   if (col.kind === 'snapPct' || col.kind === 'targetShare') return fmtPct(value)
-  if (col.kind === 'points') return value.toFixed(1)
+  if (col.kind === 'points') return fmtPoints(value)
   if (col.kind === 'delta') return fmtSigned(value)
   if (mode === 'proj') return value.toFixed(1)
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
@@ -443,7 +447,7 @@ export function replacementLabel(
   if (!context) return ''
   const parts = positions.map((pos) => {
     const level = context.replacement[pos]?.[kind] ?? null
-    return level ? `${pos} ${level.level.toFixed(1)} (${level.starters} starters)` : `${pos} —`
+    return level ? `${pos} ${fmtPoints(level.level)} (${level.starters} starters)` : `${pos} —`
   })
   return [kind === 'std' ? 'Replacement PPG' : 'Replacement ROS pts', ...parts].join(' · ')
 }
@@ -624,6 +628,7 @@ export function expertTone(row: TableRow, col: Column): 'pos' | 'neg' | 'warn' |
   if (v === null) return null
   if (col.expert === 'ecrDelta')
     return v > ECR_DELTA_TONE ? 'pos' : v < -ECR_DELTA_TONE ? 'warn' : null
-  if (col.format === 'signed' || col.format === 'signedInt') return v >= 0 ? 'pos' : 'neg'
+  if (col.format === 'signed' || col.format === 'signedPts' || col.format === 'signedInt')
+    return v >= 0 ? 'pos' : 'neg'
   return null
 }

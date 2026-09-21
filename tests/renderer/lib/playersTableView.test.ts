@@ -133,11 +133,11 @@ describe('cells', () => {
     expect(cellValue(row(), snap, 'stats')).toBe(0.83)
   })
 
-  it('formats: dash, signed delta, one decimal for projections and fractions, percent for usage', () => {
+  it('formats: dash, two-decimal points and delta, one decimal for projections and fractions, percent for usage', () => {
     expect(cellText(null, pts, 'stats')).toBe('—')
-    expect(cellText(18.4, pts, 'stats')).toBe('18.4')
-    expect(cellText(-0.18, delta, 'stats')).toBe('-0.2')
-    expect(cellText(6.2, delta, 'stats')).toBe('+6.2')
+    expect(cellText(18.4, pts, 'stats')).toBe('18.40')
+    expect(cellText(-0.18, delta, 'stats')).toBe('-0.18')
+    expect(cellText(6.2, delta, 'stats')).toBe('+6.20')
     expect(cellText(60, rushYd, 'stats')).toBe('60')
     expect(cellText(2.5, rushYd, 'stats')).toBe('2.5')
     expect(cellText(84.5, rushYd, 'proj')).toBe('84.5')
@@ -345,8 +345,8 @@ describe('value mode', () => {
     expect(signalColumns.map((c) => signalText(rb, c))).toEqual([
       '18.5',
       '1',
-      '6.1',
-      '17.4',
+      '6.10',
+      '17.40',
       '63%',
       '80% ↑',
       '↓',
@@ -417,13 +417,13 @@ describe('value mode', () => {
     const r = valueRow()
     expect(season.columns.map((c) => cellText(cellValue(r, c, 'value'), c, 'value'))).toEqual([
       '3',
-      '18.4',
-      '+6.3',
+      '18.40',
+      '+6.28',
       '2'
     ])
     expect(ros.columns.map((c) => cellText(cellValue(r, c, 'value'), c, 'value'))).toEqual([
-      '120.5',
-      '-1.5',
+      '120.50',
+      '-1.50',
       '9',
       '18.5',
       '1'
@@ -480,10 +480,10 @@ describe('value mode', () => {
       expert: { scoring: 'PPR', ecrUpdatedAt: null, marketUpdatedAt: null }
     }
     expect(replacementLabel(context, ['RB', 'WR'], 'std')).toBe(
-      'Replacement PPG · RB 8.4 (44 starters) · WR —'
+      'Replacement PPG · RB 8.36 (44 starters) · WR —'
     )
     expect(replacementLabel(context, ['RB'], 'ros')).toBe(
-      'Replacement ROS pts · RB 91.2 (43 starters)'
+      'Replacement ROS pts · RB 91.20 (43 starters)'
     )
     expect(replacementLabel(null, ['RB'], 'ros')).toBe('')
   })
@@ -504,7 +504,7 @@ describe('value mode', () => {
       'League points per game over games played'
     )
     expect(valueHeaderTitle(season.columns[2], context, ['RB'])).toBe(
-      "PPG minus the position's replacement PPG\nReplacement PPG · RB 8.0 (44 starters)"
+      "PPG minus the position's replacement PPG\nReplacement PPG · RB 8.00 (44 starters)"
     )
     expect(valueHeaderTitle(ros.columns[1], null, ['RB'])).toBe(
       "ROS minus the position's replacement ROS points"
@@ -560,7 +560,7 @@ describe('mine group', () => {
 
   it('renders vs mine as a signed number and droppable as a marker that sorts by its delta', () => {
     const fa = valueRow({ vsMine: 1.25 })
-    expect(cellText(cellValue(fa, vsMine, 'value'), vsMine, 'value')).toBe('+1.3')
+    expect(cellText(cellValue(fa, vsMine, 'value'), vsMine, 'value')).toBe('+1.25')
     expect(cellValue(fa, droppable, 'value')).toBeNull()
     expect(cellText(null, droppable, 'value')).toBe('')
     const mine = valueRow({
@@ -604,11 +604,13 @@ describe('mine group', () => {
   })
 
   it('titles the VS MINE header with my baselines and the droppable header with its definition', () => {
-    expect(mineLabel(context, ['RB', 'K'])).toBe('My lowest ROS VAL · RB Saquon Barkley +8.0 · K —')
+    expect(mineLabel(context, ['RB', 'K'])).toBe(
+      'My lowest ROS VAL · RB Saquon Barkley +8.00 · K —'
+    )
     expect(mineLabel({ ...context, hasMyTeam: false }, ['RB'])).toBe('')
     expect(mineLabel(null, ['RB'])).toBe('')
     expect(valueHeaderTitle(vsMine, context, ['RB'])).toBe(
-      `${vsMine.description}\nMy lowest ROS VAL · RB Saquon Barkley +8.0`
+      `${vsMine.description}\nMy lowest ROS VAL · RB Saquon Barkley +8.00`
     )
     expect(valueHeaderTitle(vsMine, null, ['RB'])).toBe(vsMine.description)
     expect(valueHeaderTitle(droppable, context, ['RB'])).toBe(droppable.description)
@@ -620,7 +622,7 @@ describe('mine group', () => {
       ownerIsMe: true,
       droppable: { playerId: 'f', fullName: 'Free Agent', delta: 2.5 }
     })
-    expect(mineCellTitle(mine, droppable, context)).toBe('Free agent Free Agent: +2.5 ROS VAL')
+    expect(mineCellTitle(mine, droppable, context)).toBe('Free agent Free Agent: +2.50 ROS VAL')
     expect(mineCellTitle(valueRow(), droppable, context)).toBeUndefined()
     expect(mineCellTitle(valueRow({ position: 'K' }), vsMine, context)).toBe('no K rostered')
     expect(mineCellTitle(valueRow({ position: 'RB' }), vsMine, context)).toBeUndefined() // baseline exists: a ROS value is missing instead

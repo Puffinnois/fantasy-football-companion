@@ -39,8 +39,8 @@ describe('lineupView', () => {
 
   it('formats the header for upcoming, final and matchup-less weeks', () => {
     expect(matchupHeader(lineupWeek())).toEqual({
-      mine: 'You 34.6 optimal · 34.6 current',
-      theirs: 'Rival 28.7 current',
+      mine: 'You 34.60 optimal · 34.60 current',
+      theirs: 'Rival 28.70 current',
       result: null,
       note: null
     })
@@ -55,8 +55,8 @@ describe('lineupView', () => {
       })
     })
     expect(matchupHeader(unset)).toMatchObject({
-      mine: 'You 34.6 optimal',
-      theirs: 'Rival 30.1 optimal'
+      mine: 'You 34.60 optimal',
+      theirs: 'Rival 30.10 optimal'
     })
     const final = lineupWeek({
       status: 'final',
@@ -64,8 +64,8 @@ describe('lineupView', () => {
       opponent: teamLineup({ isMe: false, name: 'Rival', actualTotal: 98 })
     })
     expect(matchupHeader(final)).toEqual({
-      mine: 'You 121.3',
-      theirs: 'Rival 98.0',
+      mine: 'You 121.30',
+      theirs: 'Rival 98.00',
       result: 'W',
       note: null
     })
@@ -102,10 +102,10 @@ describe('lineupView', () => {
     const a = lineupPlayer({ playerId: 'a', fullName: 'A. Adams', value: 12.1 })
     const b = lineupPlayer({ playerId: 'b', fullName: 'B. Brown', value: 9 })
     expect(swapLine({ slot: 'FLEX', out: b, in: a, delta: 3.1 })).toBe(
-      'Start A. Adams over B. Brown (FLEX, +3.1)'
+      'Start A. Adams over B. Brown (FLEX, +3.10)'
     )
     expect(swapLine({ slot: 'WR', out: null, in: a, delta: 12.1 })).toBe(
-      'Start A. Adams (WR, +12.1)'
+      'Start A. Adams (WR, +12.10)'
     )
     expect(swapsEmptyText(teamLineup())).toBe('Your lineup is optimal')
     expect(swapsEmptyText(teamLineup({ current: null }))).toBe('Lineup not set on Sleeper yet')
@@ -134,7 +134,7 @@ describe('lineupView', () => {
       dvpRank: null
     })
     expect(closeCallTitle(starter, alt)).toBe(
-      'Close call\nA. Adams: 11.0 · floor 5.5 / ceiling 17.0 · ECR RB14 (B+) · vs DAL (DvP 20)\nB. Brown: 9.6'
+      'Close call\nA. Adams: 11.00 · floor 5.50 / ceiling 17.00 · ECR RB14 (B+) · vs DAL (DvP 20)\nB. Brown: 9.60'
     )
   })
 })

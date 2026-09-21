@@ -82,7 +82,7 @@ function HeaderStrip({
         sub={
           row.rosPoints === null
             ? 'no projections'
-            : `${rank(row.rosRank)} · ${row.rosPoints.toFixed(1)} pts`
+            : `${rank(row.rosRank)} · ${fmtPoints(row.rosPoints)} pts`
         }
       />
       <Stat label="Next" value={nextValue} sub={nextSub} />

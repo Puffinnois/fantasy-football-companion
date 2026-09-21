@@ -23,7 +23,7 @@ Both read a per-(league, season) build cached in the main process (`valueCache` 
 - **Current week** = Sleeper's `nfl_state.week`, clamped to 1–18; a past season is fully played (19), a future one untouched (1).
 - **Shares and rates are 0–1 fractions** (`0.24` = 24 %). Points are league points under the league's own scoring rules.
 - **`null` = not computable** (gate not met, no data, no projections). The UI renders `—`.
-- Points-like values are rounded to 2 decimals in the payload; the UI shows 1.
+- Points-like values are rounded to 2 decimals in the payload and shown with 2 (as Sleeper does); other one-decimal stats (SOS, expert spread, TD delta, yards per opportunity) keep 1.
 - Team codes are Sleeper's (`LAR`, `WAS`, …).
 
 ## `ValueContext`
@@ -247,16 +247,16 @@ Not shown yet: `TeamStrength` (Plan K), the opponent's slot table (Plan K), `exp
 | Group          | Column  | Field                                                                                                                                                | Format         | Colour                  |
 | -------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ----------------------- |
 | Season         | G       | `gamesPlayed`                                                                                                                                        | integer        | —                       |
-|                | PPG     | `ppg`                                                                                                                                                | 1 decimal      | —                       |
+|                | PPG     | `ppg`                                                                                                                                                | 2 decimals     | —                       |
 |                | VAL     | `stdValue`                                                                                                                                           | signed         | green ≥ 0 / red < 0     |
 |                | RK      | `stdRank`                                                                                                                                            | integer        | —                       |
-| Rest of season | ROS     | `rosPoints`                                                                                                                                          | 1 decimal      | —                       |
+| Rest of season | ROS     | `rosPoints`                                                                                                                                          | 2 decimals     | —                       |
 |                | VAL     | `rosValue`                                                                                                                                           | signed, bold   | green / red             |
 |                | RK      | `rosRank`                                                                                                                                            | integer        | —                       |
 |                | SOS     | `signals.rosSos`                                                                                                                                     | 1 decimal      | red ≤ 11, green ≥ 22    |
 |                | BYES    | `signals.byesRemaining`                                                                                                                              | integer        | —                       |
-| Signals        | FLOOR   | `signals.floor`                                                                                                                                      | 1 decimal      | —                       |
-|                | CEIL    | `signals.ceiling`                                                                                                                                    | 1 decimal      | —                       |
+| Signals        | FLOOR   | `signals.floor`                                                                                                                                      | 2 decimals     | —                       |
+|                | CEIL    | `signals.ceiling`                                                                                                                                    | 2 decimals     | —                       |
 |                | START%  | `signals.startRate`                                                                                                                                  | percent        | —                       |
 |                | USAGE   | primary usage `recent` + trend arrow (`27% ↑`)                                                                                                       | percent        | —                       |
 |                | TD      | `signals.tdFlag` as a badge: `↓` regression candidate (red), `↑` due for more (green), blank when inside the band, `—` when null; sorts by `tdDelta` | badge          | red / green             |
