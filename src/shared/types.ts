@@ -223,6 +223,94 @@ export interface ExpertContext {
 /** Slice 6a spec §2.3: why a lineup player's week value is 0 or needs a second look. */
 export type LineupFlag = 'out' | 'doubtful' | 'questionable' | 'bye' | null
 
+/** What the player detail panel needs to open for a player from any screen. */
+export interface DetailTarget {
+  playerId: string
+  fullName: string
+  position: string | null
+  team: string | null
+  statsAvailable: boolean
+}
+
+/** Slice 6a spec §4.3: one player's week as the lineup engine sees it. */
+export interface LineupPlayer extends DetailTarget {
+  /** NFL opponent that week; null on a bye. */
+  opponent: string | null
+  /** Defense-vs-position rank of that opponent at the player's position, 1 = allows the fewest. */
+  dvpRank: number | null
+  /** Spec §2.2 after §2.3: points when played, else the league-scored projection, 0 when unavailable / bye. */
+  value: number
+  played: boolean
+  injuryStatus: string | null
+  flag: LineupFlag
+  /** FantasyPros weekly consensus for that week; null when the player has no row. */
+  expert: { ecrPosRank: number; grade: string | null } | null
+  floor: number | null
+  ceiling: number | null
+}
+
+export interface SlotEntry {
+  slot: string
+  player: LineupPlayer | null
+  /** The best eligible bench alternative within CLOSE_CALL_PTS of `player`; only on the optimal lineup. */
+  closeCall: LineupPlayer | null
+}
+
+export interface Swap {
+  slot: string
+  /** null when the current lineup had that slot empty. */
+  out: LineupPlayer | null
+  in: LineupPlayer
+  delta: number
+}
+
+export interface TeamLineup {
+  rosterId: number
+  name: string
+  isMe: boolean
+  optimal: SlotEntry[]
+  optimalTotal: number
+  /** The lineup set on Sleeper; null when unknown (no matchups row, no starters, no roster_positions). */
+  current: SlotEntry[] | null
+  currentTotal: number | null
+  /** Sleeper's score for a final week; null otherwise. */
+  actualTotal: number | null
+  /** Startable players left out of the optimal lineup, best first. */
+  bench: LineupPlayer[]
+  /** IR / taxi players and, in the current week, Out / Doubtful players. */
+  unavailable: LineupPlayer[]
+  swaps: Swap[]
+}
+
+/** none of the team's players with a game has played / some / all (a past week is always final). */
+export type LineupWeekStatus = 'upcoming' | 'inProgress' | 'final'
+
+export interface LineupWeek {
+  season: number
+  week: number
+  currentWeek: number
+  status: LineupWeekStatus
+  projectionsStored: boolean
+  matchupId: number | null
+  /** null when no team is flagged is_me. */
+  me: TeamLineup | null
+  /** null on a bye week or without a matchups row. */
+  opponent: TeamLineup | null
+}
+
+export interface TeamStrength {
+  rosterId: number
+  name: string
+  isMe: boolean
+  /** Optimal total of the current week. */
+  thisWeek: number | null
+  /** Σ optimal totals over weeks currentWeek..18 on the current roster. */
+  rosTotal: number | null
+  rosPerWeek: number | null
+  /** 1 = strongest; null when rosTotal is null. */
+  rank: number | null
+}
+
 export interface PlayerValueRow extends PlayerBaseRow {
   gamesPlayed: number
   ppg: number | null

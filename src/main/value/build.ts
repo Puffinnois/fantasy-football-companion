@@ -13,7 +13,7 @@ import type {
 import { expertRos, indexExperts, marketValue, NO_EXPERTS, type ExpertBundle } from './expert'
 import { replacementLevels } from './replacement'
 import { rosterRelative } from './roster'
-import { defenseRanks, lastScheduledWeek, playerSchedule } from './schedule'
+import { defenseRanks, lastScheduledWeek, playerSchedule, type DefenseRanks } from './schedule'
 import { loadSeries, type PlayerSeries, type SeriesBundle } from './series'
 import { positionTotals, statSignals } from './signals'
 
@@ -23,6 +23,8 @@ export interface ValueBuild {
   series: Map<string, PlayerSeries>
   /** Remaining weeks per player, for the detail panel. */
   schedules: Map<string, ScheduleEntry[]>
+  /** Defense-vs-position ranks (team → position → rank), reused by the lineup build. */
+  defense: DefenseRanks
 }
 
 interface Aggregate {
@@ -210,7 +212,8 @@ export function assembleValue(
     },
     rows,
     series: new Map(bundle.players.map((p) => [p.base.playerId, p])),
-    schedules
+    schedules,
+    defense
   }
 }
 
