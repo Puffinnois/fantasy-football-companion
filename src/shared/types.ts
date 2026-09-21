@@ -220,6 +220,9 @@ export interface ExpertContext {
 }
 
 /** One player's season value (spec §2); ranks are 1-based within position, overall by ROS value. */
+/** Slice 6a spec §2.3: why a lineup player's week value is 0 or needs a second look. */
+export type LineupFlag = 'out' | 'doubtful' | 'questionable' | 'bye' | null
+
 export interface PlayerValueRow extends PlayerBaseRow {
   gamesPlayed: number
   ppg: number | null
