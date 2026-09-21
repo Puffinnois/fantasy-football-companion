@@ -564,7 +564,7 @@ This task is run by the user with Claude driving the commands; it needs GitHub a
 - Consumes: everything above.
 - Produces: published releases `v0.10.1` and `v0.10.2`.
 
-- [ ] **Step 1: Bump, tag, push**
+- [x] **Step 1: Bump, tag, push**
 
 Working tree must be clean (`git status --short` prints nothing). Then:
 
@@ -579,7 +579,7 @@ Expected: `build: bump version to 0.10.1` and tag `v0.10.1`. Then push branch an
 git push -u origin main --follow-tags
 ```
 
-- [ ] **Step 2: Watch the workflow**
+- [x] **Step 2: Watch the workflow**
 
 The run appears a few seconds after the push:
 
@@ -599,7 +599,7 @@ git tag -f v0.10.1 && git push -f origin v0.10.1
 
 (`package.json` still says 0.10.1, so the guard passes.) Re-run Step 2.
 
-- [ ] **Step 3: Verify the draft assets and publish**
+- [x] **Step 3: Verify the draft assets and publish**
 
 ```bash
 gh release view v0.10.1 --json isDraft,assets -q '{draft: .isDraft, files: [.assets[].name]}'
@@ -617,11 +617,11 @@ Publish:
 gh release edit v0.10.1 --draft=false --notes "Auto-update: this and later versions update themselves. Installs of 0.10.0 or older must be reinstalled from this release once."
 ```
 
-- [ ] **Step 4: Install on Windows**
+- [x] **Step 4: Install on Windows**
 
 Download `FantasyCompanion-Setup-0.10.1.exe` from the release page on the Windows machine, run it (SmartScreen: More info → Run anyway), launch the app once. Expected: app runs as before; no update dialog (there is nothing newer).
 
-- [ ] **Step 5: Throwaway `v0.10.2` to exercise the update path**
+- [x] **Step 5: Throwaway `v0.10.2` to exercise the update path**
 
 On WSL, make a README-only change (e.g. add a `- Changelog: GitHub Releases` line under the docs bullets), then:
 
@@ -633,12 +633,26 @@ gh run watch --exit-status $(gh run list --workflow=release.yml --limit 1 --json
 gh release edit v0.10.2 --draft=false --notes "Verifies the auto-update path."
 ```
 
-- [ ] **Step 6: Observe the update**
+- [x] **Step 6: Observe the update**
 
 On Windows, launch the installed 0.10.1 app. Expected within ~30 s: dialog **Update ready** — *FantasyCompanion 0.10.2 is ready to install.* Press **Restart now**. Expected: the app quits, the installer runs silently, the app relaunches; Windows *Apps → Installed apps* shows FantasyCompanion 0.10.2.
 
 If no dialog appears: on Windows, start the installed exe from a terminal so `console.error` output is visible — default install folder `%LOCALAPPDATA%\Programs\FantasyCompanion\FantasyCompanion.exe` — and look for `auto-update ...` lines. A downloaded-but-not-installed update sits in `%LOCALAPPDATA%\fantasycompanion-updater\pending\`. The most common cause is the release still being a draft (`gh release view v0.10.2 --json isDraft`).
 
-- [ ] **Step 7: Close out**
+- [x] **Step 7: Close out**
 
 Mark this plan's tasks done, and update the FFC project status memory (slice list, `v0.10.2` current, plan K next).
+
+---
+
+## Progress notes (2026-09-21)
+
+All five tasks complete. `v0.10.1` and `v0.10.2` published; the installed 0.10.1 showed the **Update ready** dialog and relaunched as 0.10.2 (user-verified on Windows).
+
+Deviations from the plan as written:
+
+- **Upload moved from electron-builder to `gh`.** On the first `v0.10.1` run electron-builder's GitHub publisher created two publisher instances concurrently, each made its own draft with the same tag, and the job exited 0 with the files split between them. The workflow now runs `electron-builder --win --publish never` (the `publish` block still makes it write `latest.yml`), checks the three files exist, and uploads with `gh release create --draft --generate-notes`. Verified on two runs.
+- **Pushing needed two one-off fixes:** `gh auth setup-git` (no git credential helper for HTTPS) and `gh auth refresh -s workflow` (the OAuth token lacked the scope to push `.github/workflows/`).
+- **First push fired no workflow run** (branch + tag + new workflow file in one push to the empty repo). Re-pushing the tag alone (`git push origin :refs/tags/vX && git push origin vX`) triggers it.
+- **Draft releases do not bind to a tag** — `gh release view vX` can show a stale duplicate draft. List with `gh api repos/<owner>/<repo>/releases` and delete by id.
+- Publishing a draft is a public-surface action Claude cannot perform under auto mode; it is the user's click (or `gh release edit vX --draft=false --notes ...`).
