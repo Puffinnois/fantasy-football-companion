@@ -40,6 +40,8 @@ export interface LineupInputs {
   matchups: MatchupRow[]
   /** Current starters by slot index per roster (`roster_players`): the current-week fallback. */
   starterIndexes: Map<number, (string | null)[]>
+  /** `LeagueSettings.tradeDeadlineWeek` (the last week trades are allowed); null without one. */
+  tradeDeadlineWeek: number | null
 }
 
 /** One player's week: the engine's candidate and the payload row (expert block filled at serve time). */

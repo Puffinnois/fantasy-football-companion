@@ -113,13 +113,15 @@ function cachedLineup(ctx: AppContext, leagueId: string, season: number): Lineup
   const key = `${leagueId}|${season}`
   const hit = lineupCache.get(key)
   if (hit) return hit
+  const rules = getRules(ctx.db, leagueId)
   const built = buildLineups({
     value: cachedValue(ctx, leagueId, season),
     teams: listTeams(ctx.db, leagueId),
-    rosterSlots: getRules(ctx.db, leagueId)?.rosterSlots ?? [],
+    rosterSlots: rules?.rosterSlots ?? [],
     rosterPositions: leagueRosterPositions(ctx.db, leagueId),
     matchups: listMatchups(ctx.db, leagueId, season),
-    starterIndexes: listStarterIndexes(ctx.db, leagueId)
+    starterIndexes: listStarterIndexes(ctx.db, leagueId),
+    tradeDeadlineWeek: rules?.settings.tradeDeadlineWeek ?? null
   })
   if (lineupCache.size >= VALUE_CACHE_MAX) {
     const oldest = lineupCache.keys().next().value

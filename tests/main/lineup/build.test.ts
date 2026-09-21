@@ -33,6 +33,7 @@ function inputs(db: Db, over: Partial<LineupInputs> = {}): LineupInputs {
     rosterPositions: leagueRosterPositions(db, 'L1'),
     matchups: listMatchups(db, 'L1', SEASON),
     starterIndexes: listStarterIndexes(db, 'L1'),
+    tradeDeadlineWeek: getRules(db, 'L1')?.settings.tradeDeadlineWeek ?? null,
     ...over
   }
 }
