@@ -19,6 +19,7 @@ import {
   SOURCE_STATE,
   sourceProjections
 } from '@main/sync/sleeperSync'
+import { sourceMatchups } from '@main/sync/matchupsSync'
 import { rules } from '../../fixtures/rules'
 import * as fx from '../../fixtures/sleeper'
 
@@ -57,11 +58,12 @@ describe('sleeper sync', () => {
       'L1',
       'u1'
     )
-    expect(result.steps).toHaveLength(3 + 18)
+    expect(result.steps).toHaveLength(4 + 18)
     expect(result.steps.every((s) => s.status === 'ok')).toBe(true)
-    expect(steps.slice(0, 4)).toEqual([
+    expect(steps.slice(0, 5)).toEqual([
       `${SOURCE_STATE}:ok`,
       `${SOURCE_LEAGUE}:ok`,
+      `${sourceMatchups(2026)}:ok`,
       `${SOURCE_PLAYERS}:ok`,
       `${sourceProjections(2026, 1)}:ok`
     ])
@@ -86,12 +88,24 @@ describe('sleeper sync', () => {
     await importLeague({ db, sleeper, now }, 'L1', 'u1')
 
     const fresh = await refreshSleeper({ db, sleeper, now })
-    expect(fresh.steps.every((s) => s.status === 'skipped')).toBe(true)
+    // The matchups step has no freshness of its own (current and future weeks are re-fetched every refresh).
+    expect(
+      fresh.steps
+        .filter((s) => s.source !== 'sleeper:matchups:2026')
+        .every((s) => s.status === 'skipped')
+    ).toBe(true)
+    expect(fresh.steps.find((s) => s.source === 'sleeper:matchups:2026')?.status).toBe('ok')
     expect(sleeper.getLeague).toHaveBeenCalledTimes(1)
 
     clock = new Date('2026-09-15T12:11:00.000Z')
     const stale = await refreshSleeper({ db, sleeper, now })
-    expect(stale.steps.slice(0, 4).map((s) => s.status)).toEqual(['ok', 'ok', 'skipped', 'skipped'])
+    expect(stale.steps.slice(0, 5).map((s) => s.status)).toEqual([
+      'ok',
+      'ok',
+      'ok',
+      'skipped',
+      'skipped'
+    ])
     expect(sleeper.getLeague).toHaveBeenCalledTimes(2)
     expect(sleeper.getAllPlayers).toHaveBeenCalledTimes(1)
 
@@ -141,7 +155,7 @@ describe('sleeper sync', () => {
     })
     const result = await importLeague({ db, sleeper: fakeClient(), now, onStep }, 'L1', 'u1')
     expect(result.steps.every((s) => s.status === 'ok')).toBe(true)
-    expect(onStep).toHaveBeenCalledTimes(3 + 18)
+    expect(onStep).toHaveBeenCalledTimes(4 + 18)
   })
 
   it('projections: every regular-season week, freshness by past/current/future, gone → stop', async () => {

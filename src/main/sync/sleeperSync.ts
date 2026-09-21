@@ -23,6 +23,7 @@ import {
   mapRules,
   mapTeams
 } from './mappers'
+import { refreshMatchups } from './matchupsSync'
 import { nowOf, runStep as runSyncStep, SkipStep, type RefreshOptions, type SyncDeps } from './step'
 
 export type { RefreshOptions, SyncDeps } from './step'
@@ -163,6 +164,7 @@ export async function importLeague(
   if (leagueEntry.status === 'ok') {
     setSetting(deps.db, SETTING_ACTIVE_LEAGUE, leagueId)
     if (myUserId) setSetting(deps.db, SETTING_MY_USER, myUserId)
+    steps.push(await refreshMatchups(deps, leagueId, true))
   }
   steps.push(await syncPlayers(deps, false))
   steps.push(...(await syncProjections(deps, false)))
@@ -178,7 +180,10 @@ export async function refreshSleeper(
   const myUserId = getSetting(deps.db, SETTING_MY_USER)
   const steps: SyncLogEntry[] = []
   steps.push(await syncState(deps, force))
-  if (leagueId) steps.push(await syncLeague(deps, leagueId, myUserId, force))
+  if (leagueId) {
+    steps.push(await syncLeague(deps, leagueId, myUserId, force))
+    steps.push(await refreshMatchups(deps, leagueId, force))
+  }
   steps.push(await syncPlayers(deps, force))
   steps.push(...(await syncProjections(deps, force)))
   return { steps }
