@@ -1,6 +1,7 @@
 import type {
   SleeperLeague,
   SleeperLeagueUser,
+  SleeperMatchup,
   SleeperNflState,
   SleeperPlayer,
   SleeperProjection,
@@ -293,5 +294,23 @@ export const projections: SleeperProjection[] = [
     team: 'FA',
     opponent: null,
     stats: { pass_yd: 1 }
+  }
+]
+
+/** Two-team league: rosters 1 and 2 meet every week; scores only for weeks before 3. */
+export const matchups = (week: number): SleeperMatchup[] => [
+  {
+    roster_id: 1,
+    matchup_id: 1,
+    starters: ['4866', '6794', '0', 'LAR'],
+    players: ['4866', '6794', '8259', 'LAR'],
+    points: week < 3 ? 100 + week : 0
+  },
+  {
+    roster_id: 2,
+    matchup_id: 1,
+    starters: ['7564'],
+    players: ['7564', '9509'],
+    points: week < 3 ? 90 + week : 0
   }
 ]

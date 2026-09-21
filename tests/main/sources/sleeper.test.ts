@@ -109,4 +109,36 @@ describe('createSleeperClient', () => {
     const denied = createSleeperClient({ fetchImpl: fakeFetch([{ status: 403, body: 'nope' }]) })
     await expect(denied.getProjections('2026', 1)).rejects.toThrow(/403/)
   })
+
+  it('getMatchups hits /league/{id}/matchups/{week} and maps an empty week to []', async () => {
+    const fetchImpl = fakeFetch([
+      { status: 200, body: fx.matchups(3) },
+      { status: 200, body: [] }
+    ])
+    const client = createSleeperClient({ fetchImpl })
+    const rows = await client.getMatchups('L1', 3)
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toMatchObject({
+      roster_id: 1,
+      matchup_id: 1,
+      starters: ['4866', '6794', '0', 'LAR']
+    })
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.sleeper.app/v1/league/L1/matchups/3',
+      expect.anything()
+    )
+    expect(await client.getMatchups('L1', 17)).toEqual([])
+  })
+
+  it('getMatchups treats a 404 as an empty week and throws on other errors', async () => {
+    expect(
+      await createSleeperClient({ fetchImpl: fakeFetch([{ status: 404 }]) }).getMatchups('L1', 1)
+    ).toEqual([])
+    await expect(
+      createSleeperClient({ fetchImpl: fakeFetch([{ status: 403, body: 'nope' }]) }).getMatchups(
+        'L1',
+        1
+      )
+    ).rejects.toThrow(/403/)
+  })
 })

@@ -1,6 +1,7 @@
 import type {
   SleeperLeague,
   SleeperLeagueUser,
+  SleeperMatchup,
   SleeperNflState,
   SleeperPlayer,
   SleeperProjection,
@@ -18,6 +19,8 @@ export interface SleeperClient {
   getNflState(): Promise<SleeperNflState>
   /** Unofficial weekly projections; `null` when the endpoint is gone (404/410). */
   getProjections(season: string, week: number): Promise<SleeperProjection[] | null>
+  /** Weekly matchups (documented endpoint); `[]` for a week Sleeper has none for yet (playoffs before the bracket). */
+  getMatchups(leagueId: string, week: number): Promise<SleeperMatchup[]>
 }
 
 export class SleeperHttpError extends Error {
@@ -93,6 +96,10 @@ export function createSleeperClient(options: SleeperClientOptions = {}): Sleeper
       getJson<SleeperProjection[]>(
         `/projections/nfl/${encodeURIComponent(season)}/${week}?season_type=regular${PROJECTION_POSITIONS}`,
         projectionsBaseUrl
-      )
+      ),
+    getMatchups: async (leagueId, week) =>
+      (await getJson<SleeperMatchup[]>(
+        `/league/${encodeURIComponent(leagueId)}/matchups/${week}`
+      )) ?? []
   }
 }

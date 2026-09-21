@@ -21,7 +21,8 @@ describe('refreshAll / importAll', () => {
     getLeagueRosters: vi.fn(async () => fx.rosters),
     getAllPlayers: vi.fn(async () => fx.players),
     getNflState: vi.fn(async () => fx.nflState),
-    getProjections: vi.fn(async () => [])
+    getProjections: vi.fn(async () => []),
+    getMatchups: vi.fn(async () => [])
   }
   const nflverse: NflverseClient = {
     getPlayerWeekStats: vi.fn(async () => null),

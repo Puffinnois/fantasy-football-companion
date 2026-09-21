@@ -46,6 +46,19 @@ export interface SleeperRoster {
   settings: SleeperRosterSettings | null
 }
 
+/**
+ * `GET /league/{id}/matchups/{week}`: one row per roster. `starters` is ordered like the league's
+ * `roster_positions` without its BN/IR/TAXI entries, `'0'` = empty slot; the two rosters sharing a
+ * `matchup_id` play each other (`null` on a bye week).
+ */
+export interface SleeperMatchup {
+  roster_id: number
+  matchup_id: number | null
+  starters: string[] | null
+  players: string[] | null
+  points: number | null
+}
+
 export interface SleeperPlayer {
   player_id: string
   full_name?: string | null
