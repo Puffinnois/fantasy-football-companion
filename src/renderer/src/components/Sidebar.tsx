@@ -1,5 +1,7 @@
 import { BookOpen, ClipboardList, Settings, Trophy, Users } from 'lucide-react'
+import { UpdatePill } from '@/components/UpdatePill'
 import { cn } from '@/lib/utils'
+import type { UpdateState } from '@shared/types'
 
 export type Screen = 'setup' | 'league' | 'rules' | 'players' | 'lineup'
 
@@ -7,6 +9,9 @@ interface SidebarProps {
   current: Screen
   onNavigate: (screen: Screen) => void
   hasLeague: boolean
+  update: UpdateState
+  version: string | null
+  onOpenUpdate: () => void
 }
 
 const items: {
@@ -22,7 +27,14 @@ const items: {
   { id: 'setup', label: 'Setup', icon: Settings, enabled: () => true }
 ]
 
-export function Sidebar({ current, onNavigate, hasLeague }: SidebarProps): React.JSX.Element {
+export function Sidebar({
+  current,
+  onNavigate,
+  hasLeague,
+  update,
+  version,
+  onOpenUpdate
+}: SidebarProps): React.JSX.Element {
   return (
     <nav className="flex w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar p-3">
       <div className="mb-6 px-2 pt-2 text-sm font-semibold tracking-wide text-sidebar-foreground/90">
@@ -49,6 +61,12 @@ export function Sidebar({ current, onNavigate, hasLeague }: SidebarProps): React
           </button>
         )
       })}
+      <div className="mt-auto flex flex-col gap-2 pt-4">
+        <UpdatePill state={update} onOpen={onOpenUpdate} />
+        {version !== null && (
+          <div className="px-2 text-xs text-sidebar-foreground/50">v{version}</div>
+        )}
+      </div>
     </nav>
   )
 }
