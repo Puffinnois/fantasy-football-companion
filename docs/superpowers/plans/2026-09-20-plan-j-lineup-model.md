@@ -58,7 +58,7 @@
 
 ### Task 0: Branch
 
-- [ ] **Step 1:** `git checkout -b feat/lineup-model` from `main` (clean, at `1949140` or later).
+- [x] **Step 1:** `git checkout -b feat/lineup-model` from `main` (clean, at `1949140` or later).
 
 ---
 
@@ -72,7 +72,7 @@
 **Interfaces:**
 - Produces: `SleeperMatchup { roster_id: number; matchup_id: number | null; starters: string[] | null; players: string[] | null; points: number | null }`; `SleeperClient.getMatchups(leagueId: string, week: number): Promise<SleeperMatchup[]>` (never null — `[]` when the week has none).
 
-- [ ] **Step 1: Fixture.** Append to `tests/fixtures/sleeper.ts` (import `SleeperMatchup` from `@main/sources/sleeper-types` at the top):
+- [x] **Step 1: Fixture.** Append to `tests/fixtures/sleeper.ts` (import `SleeperMatchup` from `@main/sources/sleeper-types` at the top):
 
 ```ts
 /** Two-team league: rosters 1 and 2 meet every week; scores only for weeks before 3. */
@@ -94,7 +94,7 @@ export const matchups = (week: number): SleeperMatchup[] => [
 ]
 ```
 
-- [ ] **Step 2: Failing test.** Append to `tests/main/sources/sleeper.test.ts` inside the `describe`:
+- [x] **Step 2: Failing test.** Append to `tests/main/sources/sleeper.test.ts` inside the `describe`:
 
 ```ts
   it('getMatchups hits /league/{id}/matchups/{week} and maps an empty week to []', async () => {
@@ -115,9 +115,9 @@ export const matchups = (week: number): SleeperMatchup[] => [
   })
 ```
 
-- [ ] **Step 3: Run** `npx vitest run tests/main/sources/sleeper.test.ts` — expected: FAIL (`getMatchups is not a function`, and a type error on `fx.matchups`).
+- [x] **Step 3: Run** `npx vitest run tests/main/sources/sleeper.test.ts` — expected: FAIL (`getMatchups is not a function`, and a type error on `fx.matchups`).
 
-- [ ] **Step 4: Type.** In `src/main/sources/sleeper-types.ts`, after `SleeperRoster`:
+- [x] **Step 4: Type.** In `src/main/sources/sleeper-types.ts`, after `SleeperRoster`:
 
 ```ts
 /**
@@ -134,7 +134,7 @@ export interface SleeperMatchup {
 }
 ```
 
-- [ ] **Step 5: Client.** In `src/main/sources/sleeper.ts`: add `SleeperMatchup` to the type import; in `SleeperClient` after `getProjections`:
+- [x] **Step 5: Client.** In `src/main/sources/sleeper.ts`: add `SleeperMatchup` to the type import; in `SleeperClient` after `getProjections`:
 
 ```ts
   /** Weekly matchups (documented endpoint); `[]` for a week Sleeper has none for yet (playoffs before the bracket). */
@@ -150,11 +150,11 @@ and in the returned object after `getProjections`:
       )) ?? []
 ```
 
-- [ ] **Step 6: Mocks.** `tests/main/sync/sleeperSync.test.ts` `fakeClient`: add `getMatchups: vi.fn(async (_leagueId: string, week: number) => fx.matchups(week)),` after `getProjections`. `tests/main/sync/refresh.test.ts` client mock: add `getMatchups: vi.fn(async () => [])` next to `getProjections`. Grep for any other object literal typed `SleeperClient` (`grep -rn "getProjections: vi.fn" tests`) and add the same line.
+- [x] **Step 6: Mocks.** `tests/main/sync/sleeperSync.test.ts` `fakeClient`: add `getMatchups: vi.fn(async (_leagueId: string, week: number) => fx.matchups(week)),` after `getProjections`. `tests/main/sync/refresh.test.ts` client mock: add `getMatchups: vi.fn(async () => [])` next to `getProjections`. Grep for any other object literal typed `SleeperClient` (`grep -rn "getProjections: vi.fn" tests`) and add the same line.
 
-- [ ] **Step 7: Run** `npx vitest run tests/main/sources/sleeper.test.ts tests/main/sync` then `npm run typecheck && npm run lint` — expected: all PASS.
+- [x] **Step 7: Run** `npx vitest run tests/main/sources/sleeper.test.ts tests/main/sync` then `npm run typecheck && npm run lint` — expected: all PASS.
 
-- [ ] **Step 8: Commit** — `feat(sources): Sleeper matchups client`.
+- [x] **Step 8: Commit** — `feat(sources): Sleeper matchups client`.
 
 ---
 
@@ -167,7 +167,7 @@ and in the returned object after `getProjections`:
 **Interfaces:**
 - Produces: `MatchupRecord { rosterId; matchupId: number | null; starters: string[]; players: string[]; points: number }`, `MatchupRow extends MatchupRecord { week: number; updatedAt: string }`; `replaceMatchupsWeek(db, leagueId, season: number, week, records, updatedAt): number`; `listMatchups(db, leagueId, season): MatchupRow[]` (by week, roster); `matchupsWeekUpdatedAt(db, leagueId, season, week): string | null`; `listStarterIndexes(db, leagueId): Map<number, (string | null)[]>`; `leagueRosterPositions(db, leagueId): string[] | null`.
 
-- [ ] **Step 1: Migration.** Create `src/main/db/migrations/006_matchups.sql`:
+- [x] **Step 1: Migration.** Create `src/main/db/migrations/006_matchups.sql`:
 
 ```sql
 -- Sleeper weekly matchups (slice 6a spec §3.2): one row per roster and week, replaced per week.
@@ -188,7 +188,7 @@ CREATE TABLE matchups (
 
 In `src/main/db/migrations/index.ts` add `import matchupsSql from './006_matchups.sql?raw'` and `{ version: 6, name: 'matchups', sql: matchupsSql }`. In `tests/main/db/migrate.test.ts` change both `5` expectations (`toBe(5)` at lines 15 and 49) to `6`.
 
-- [ ] **Step 2: Failing repo test.** Create `tests/main/db/matchupsRepo.test.ts`:
+- [x] **Step 2: Failing repo test.** Create `tests/main/db/matchupsRepo.test.ts`:
 
 ```ts
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -257,9 +257,9 @@ describe('matchups repo', () => {
 
 (Check the fixture's exact `roster_positions` list in `tests/fixtures/sleeper.ts:46-63` and paste it verbatim into the last expectation.)
 
-- [ ] **Step 3: Run** `npx vitest run tests/main/db/matchupsRepo.test.ts` — expected: FAIL (module not found).
+- [x] **Step 3: Run** `npx vitest run tests/main/db/matchupsRepo.test.ts` — expected: FAIL (module not found).
 
-- [ ] **Step 4: Repo.** Create `src/main/db/repos/matchups.ts`:
+- [x] **Step 4: Repo.** Create `src/main/db/repos/matchups.ts`:
 
 ```ts
 import type { Db } from '../connection'
@@ -358,7 +358,7 @@ export function matchupsWeekUpdatedAt(
 }
 ```
 
-- [ ] **Step 5: Starters by index + roster_positions.** Append to `src/main/db/repos/teams.ts`:
+- [x] **Step 5: Starters by index + roster_positions.** Append to `src/main/db/repos/teams.ts`:
 
 ```ts
 /**
@@ -405,7 +405,7 @@ export function leagueRosterPositions(db: Db, leagueId: string): string[] | null
 }
 ```
 
-- [ ] **Step 6: Unfiltered starter index.** In `src/main/sync/mappers.ts` replace the body of `mapRosterPlayers` (lines 69–86) with:
+- [x] **Step 6: Unfiltered starter index.** In `src/main/sync/mappers.ts` replace the body of `mapRosterPlayers` (lines 69–86) with:
 
 ```ts
 export function mapRosterPlayers(rosters: SleeperRoster[]): RosterPlayerRecord[] {
@@ -432,9 +432,9 @@ export function mapRosterPlayers(rosters: SleeperRoster[]): RosterPlayerRecord[]
 
 In `tests/main/sync/mappers.test.ts:72` change `{ rosterId: 1, playerId: 'LAR', slot: 'starter', starterIndex: 2 }` to `starterIndex: 3`.
 
-- [ ] **Step 7: Run** `npx vitest run tests/main/db tests/main/sync/mappers.test.ts` then `npm run typecheck && npm run lint` — expected: PASS (migrate 6, repo tests green, mappers updated).
+- [x] **Step 7: Run** `npx vitest run tests/main/db tests/main/sync/mappers.test.ts` then `npm run typecheck && npm run lint` — expected: PASS (migrate 6, repo tests green, mappers updated).
 
-- [ ] **Step 8: Commit** — `feat(db): matchups table and repo, starters by slot`.
+- [x] **Step 8: Commit** — `feat(db): matchups table and repo, starters by slot`.
 
 ---
 
@@ -448,7 +448,7 @@ In `tests/main/sync/mappers.test.ts:72` change `{ rosterId: 1, playerId: 'LAR', 
 - Consumes: `SleeperClient.getMatchups`, `replaceMatchupsWeek`, `matchupsWeekUpdatedAt`, `runStep`/`SkipStep`/`nowOf` from `./step`, `LAST_WEEK` from `@main/value/series`.
 - Produces: `sourceMatchups(season): string` (`sleeper:matchups:{season}`), `MATCHUPS_PAST_FRESHNESS_MS`, `mapMatchups(items: SleeperMatchup[]): MatchupRecord[]`, `refreshMatchups(deps: SyncDeps, leagueId: string, force: boolean): Promise<SyncLogEntry>`.
 
-- [ ] **Step 1: Failing test.** Create `tests/main/sync/matchupsSync.test.ts`:
+- [x] **Step 1: Failing test.** Create `tests/main/sync/matchupsSync.test.ts`:
 
 ```ts
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -543,9 +543,9 @@ describe('refreshMatchups', () => {
 })
 ```
 
-- [ ] **Step 2: Run** `npx vitest run tests/main/sync/matchupsSync.test.ts` — expected: FAIL (module not found).
+- [x] **Step 2: Run** `npx vitest run tests/main/sync/matchupsSync.test.ts` — expected: FAIL (module not found).
 
-- [ ] **Step 3: Implementation.** Create `src/main/sync/matchupsSync.ts`:
+- [x] **Step 3: Implementation.** Create `src/main/sync/matchupsSync.ts`:
 
 ```ts
 import { withTransaction } from '@main/db/connection'
@@ -610,7 +610,7 @@ export async function refreshMatchups(
 }
 ```
 
-- [ ] **Step 4: Wire into the Sleeper refresh.** In `src/main/sync/sleeperSync.ts` add `import { refreshMatchups } from './matchupsSync'`. In `refreshSleeper` change the league line to:
+- [x] **Step 4: Wire into the Sleeper refresh.** In `src/main/sync/sleeperSync.ts` add `import { refreshMatchups } from './matchupsSync'`. In `refreshSleeper` change the league line to:
 
 ```ts
   if (leagueId) {
@@ -621,9 +621,9 @@ export async function refreshMatchups(
 
 In `importLeague`, inside `if (leagueEntry.status === 'ok') { … }` after the two `setSetting` calls add `steps.push(await refreshMatchups(deps, leagueId, true))`.
 
-- [ ] **Step 5: Run** `npx vitest run tests/main/sync` — expected: PASS. If `refresh.test.ts` or `sleeperSync.test.ts` count steps by position (`steps[1]`…), adjust the expectation for the new `sleeper:matchups:2026` entry after the league step — keep the assertion on `source` names, not on indexes.
+- [x] **Step 5: Run** `npx vitest run tests/main/sync` — expected: PASS. If `refresh.test.ts` or `sleeperSync.test.ts` count steps by position (`steps[1]`…), adjust the expectation for the new `sleeper:matchups:2026` entry after the league step — keep the assertion on `source` names, not on indexes.
 
-- [ ] **Step 6:** `npm run typecheck && npm run lint && npm test` — PASS. **Commit** — `feat(sync): matchups sync step`.
+- [x] **Step 6:** `npm run typecheck && npm run lint && npm test` — PASS. **Commit** — `feat(sync): matchups sync step`.
 
 ---
 
@@ -637,14 +637,14 @@ In `importLeague`, inside `if (leagueEntry.status === 'ok') { … }` after the t
 - Consumes: `FLEX_ELIGIBILITY`, `LINEUP_POSITIONS`, `RosterSlotCount` from `@shared/rules`; `round2` from `@main/db/repos/points`.
 - Produces (all exported): `CLOSE_CALL_PTS = 2`, `UNAVAILABLE_STATUSES`, `QUESTIONABLE_STATUS`, `RESERVE_SLOTS`; `LineupSlot { slot; eligible }`, `Candidate { id; name; position; value }`, `Placed { slot; player: Candidate | null }`, `Optimal { starters: Placed[]; total; bench: Candidate[] }`, `SwapPair { slot; out: Candidate | null; in: Candidate; delta }`, `WeekLine { played; points; projected; hasGame }`; `lineupSlots(rosterSlots)`, `currentAssignments(rosterPositions, starters)`, `assign(cost)`, `optimalLineup(slots, candidates)`, `swapsBetween(optimal, current)`, `closeCall(slot, starter, bench)`, `weekValue(line)`, `weekFlag(line, injuryStatus, isCurrentWeek)`, `isUnavailable(flag)`, `byValueDesc(a, b)`.
 
-- [ ] **Step 1: `LineupFlag`.** In `src/shared/types.ts`, before `PlayerValueRow`:
+- [x] **Step 1: `LineupFlag`.** In `src/shared/types.ts`, before `PlayerValueRow`:
 
 ```ts
 /** Slice 6a spec §2.3: why a lineup player's week value is 0 or needs a second look. */
 export type LineupFlag = 'out' | 'doubtful' | 'questionable' | 'bye' | null
 ```
 
-- [ ] **Step 2: Failing tests.** Create `tests/main/lineup/optimal.test.ts`:
+- [x] **Step 2: Failing tests.** Create `tests/main/lineup/optimal.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -899,9 +899,9 @@ describe('weekValue / weekFlag', () => {
 })
 ```
 
-- [ ] **Step 3: Run** `npx vitest run tests/main/lineup/optimal.test.ts` — expected: FAIL (module not found).
+- [x] **Step 3: Run** `npx vitest run tests/main/lineup/optimal.test.ts` — expected: FAIL (module not found).
 
-- [ ] **Step 4: Implementation.** Create `src/main/lineup/optimal.ts`:
+- [x] **Step 4: Implementation.** Create `src/main/lineup/optimal.ts`:
 
 ```ts
 import { round2 } from '@main/db/repos/points'
@@ -1192,9 +1192,9 @@ export function isUnavailable(flag: LineupFlag): boolean {
 }
 ```
 
-- [ ] **Step 5: Run** `npx vitest run tests/main/lineup/optimal.test.ts` — expected: PASS (the property test takes well under a second). If the brute-force comparison fails for a seed, print `slots` and `players` for that seed and fix the engine — never the oracle.
+- [x] **Step 5: Run** `npx vitest run tests/main/lineup/optimal.test.ts` — expected: PASS (the property test takes well under a second). If the brute-force comparison fails for a seed, print `slots` and `players` for that seed and fix the engine — never the oracle.
 
-- [ ] **Step 6:** `npm run typecheck && npm run lint` — PASS. **Commit** — `feat(lineup): optimal lineup engine`.
+- [x] **Step 6:** `npm run typecheck && npm run lint` — PASS. **Commit** — `feat(lineup): optimal lineup engine`.
 
 ---
 
@@ -1208,7 +1208,7 @@ export function isUnavailable(flag: LineupFlag): boolean {
 - Consumes: Task 4 engine; `ValueBuild { context, rows, series, schedules }` (+ new `defense: DefenseRanks`); `MatchupRow`; `Team`; `ExpertRankRow` (`posRank`, `grade`).
 - Produces: shared types `DetailTarget`, `LineupPlayer`, `SlotEntry`, `Swap`, `TeamLineup`, `LineupWeekStatus`, `LineupWeek`, `TeamStrength`; `LineupInputs`, `LineupBuild`, `buildLineups(inputs): LineupBuild`, `teamWeek(build, rosterId, week): TeamWeek`, `weekStatus(week, currentWeek, games, played)`, `lineupWeek(build, week, experts: Map<string, ExpertRankRow>): LineupWeek`, `teamStrengths(build): TeamStrength[]`.
 
-- [ ] **Step 1: Shared types.** In `src/shared/types.ts`, right after `LineupFlag`:
+- [x] **Step 1: Shared types.** In `src/shared/types.ts`, right after `LineupFlag`:
 
 ```ts
 /** What the player detail panel needs to open for a player from any screen. */
@@ -1300,9 +1300,9 @@ export interface TeamStrength {
 }
 ```
 
-- [ ] **Step 2: `ValueBuild.defense`.** In `src/main/value/build.ts`: import `type DefenseRanks` from `./schedule`; add `/** Defense-vs-position ranks (team → position → rank), reused by the lineup build. */ defense: DefenseRanks` to `ValueBuild`; add `defense,` to the object `assembleValue` returns (the local `defense` from `defenseRanks(bundle.players)` already exists at ~line 144). Run `npx vitest run tests/main/value` — still PASS.
+- [x] **Step 2: `ValueBuild.defense`.** In `src/main/value/build.ts`: import `type DefenseRanks` from `./schedule`; add `/** Defense-vs-position ranks (team → position → rank), reused by the lineup build. */ defense: DefenseRanks` to `ValueBuild`; add `defense,` to the object `assembleValue` returns (the local `defense` from `defenseRanks(bundle.players)` already exists at ~line 144). Run `npx vitest run tests/main/value` — still PASS.
 
-- [ ] **Step 3: Failing tests.** Create `tests/main/lineup/build.test.ts`:
+- [x] **Step 3: Failing tests.** Create `tests/main/lineup/build.test.ts`:
 
 ```ts
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -1487,9 +1487,9 @@ describe('weekStatus', () => {
 
 If the fixture's `players` table stores the projection for `LAR` in week 3 under a different id or not at all, `seriesValue(build, 'LAR', 3)` is simply `0` — the expectations are written against the series so they stay true either way. Check the fixture DEF id with `build.inputs.value.series.has('LAR')` if the first test fails.
 
-- [ ] **Step 4: Run** `npx vitest run tests/main/lineup/build.test.ts` — expected: FAIL (module not found).
+- [x] **Step 4: Run** `npx vitest run tests/main/lineup/build.test.ts` — expected: FAIL (module not found).
 
-- [ ] **Step 5: Implementation.** Create `src/main/lineup/build.ts`:
+- [x] **Step 5: Implementation.** Create `src/main/lineup/build.ts`:
 
 ```ts
 import type { ExpertRankRow } from '@main/db/repos/expertRanks'
@@ -1864,9 +1864,9 @@ export function teamStrengths(build: LineupBuild): TeamStrength[] {
 }
 ```
 
-- [ ] **Step 6: Run** `npx vitest run tests/main/lineup` — expected: PASS. Where a fixture-dependent expectation (e.g. `past.games > 0`, the `LAR` week-3 projection) disagrees with the seeded data, read the seeded rows through `build.inputs.value.series` and correct the *test's* expectation to what the fixture actually holds — the engine rules are fixed by the spec.
+- [x] **Step 6: Run** `npx vitest run tests/main/lineup` — expected: PASS. Where a fixture-dependent expectation (e.g. `past.games > 0`, the `LAR` week-3 projection) disagrees with the seeded data, read the seeded rows through `build.inputs.value.series` and correct the *test's* expectation to what the fixture actually holds — the engine rules are fixed by the spec.
 
-- [ ] **Step 7:** `npm run typecheck && npm run lint && npm test` — PASS. **Commit** — `feat(lineup): per-team lineups, swaps and strength`.
+- [x] **Step 7:** `npm run typecheck && npm run lint && npm test` — PASS. **Commit** — `feat(lineup): per-team lineups, swaps and strength`.
 
 ---
 
@@ -1880,7 +1880,7 @@ export function teamStrengths(build: LineupBuild): TeamStrength[] {
 - Consumes: Task 5 `buildLineups` / `lineupWeek` / `teamStrengths`; repos `listMatchups`, `listStarterIndexes`, `leagueRosterPositions`, `listExpertRanks`, `listTeams`, `getRules`.
 - Produces: `IPC.lineupWeek = 'lineup:week'`, `IPC.lineupStrength = 'lineup:strength'`; `api.lineup.week(query: WeekQuery): Promise<LineupWeek>`, `api.lineup.strength(season): Promise<TeamStrength[]>`; view helpers `WEEKS`, `flagBadge(flag): FlagBadge | null`, `isNewStarter(entry, current): boolean`, `rowDelta(optimal, current): number | null`, `leftOnBench(team): number | null`, `matchupHeader(week): MatchupHeader`, `swapLine(swap): string`, `swapsEmptyText(team): string`, `closeCallTitle(starter, alt): string`; fixtures `lineupPlayer`, `slotEntry`, `teamLineup`, `lineupWeek`.
 
-- [ ] **Step 1: Shared IPC.** In `src/shared/ipc.ts` add `LineupWeek`, `TeamStrength` to the type import; in `Api` after `players`:
+- [x] **Step 1: Shared IPC.** In `src/shared/ipc.ts` add `LineupWeek`, `TeamStrength` to the type import; in `Api` after `players`:
 
 ```ts
   lineup: {
@@ -1893,7 +1893,7 @@ export function teamStrengths(build: LineupBuild): TeamStrength[] {
 
 and in `IPC` after `playersNews`: `lineupWeek: 'lineup:week',` `lineupStrength: 'lineup:strength',`.
 
-- [ ] **Step 2: Preload.** In `src/preload/index.ts` after the `players` block:
+- [x] **Step 2: Preload.** In `src/preload/index.ts` after the `players` block:
 
 ```ts
   lineup: {
@@ -1902,7 +1902,7 @@ and in `IPC` after `playersNews`: `lineupWeek: 'lineup:week',` `lineupStrength: 
   },
 ```
 
-- [ ] **Step 3: Handlers.** In `src/main/ipc/handlers.ts`:
+- [x] **Step 3: Handlers.** In `src/main/ipc/handlers.ts`:
 
 Imports to add:
 
@@ -1968,7 +1968,7 @@ In `registerIpcHandlers` after the `playersNews` handler:
 
 Run `npm run typecheck` — PASS (the renderer has no caller yet; that is fine).
 
-- [ ] **Step 4: Fixture.** Create `tests/fixtures/lineup.ts`:
+- [x] **Step 4: Fixture.** Create `tests/fixtures/lineup.ts`:
 
 ```ts
 import type { LineupPlayer, LineupWeek, SlotEntry, TeamLineup } from '@shared/types'
@@ -2034,7 +2034,7 @@ export function lineupWeek(over: Partial<LineupWeek> = {}): LineupWeek {
 }
 ```
 
-- [ ] **Step 5: Failing tests.** Create `tests/renderer/lib/lineupView.test.ts`:
+- [x] **Step 5: Failing tests.** Create `tests/renderer/lib/lineupView.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -2126,9 +2126,9 @@ describe('lineupView', () => {
 })
 ```
 
-- [ ] **Step 6: Run** `npx vitest run tests/renderer/lib/lineupView.test.ts` — expected: FAIL (module not found).
+- [x] **Step 6: Run** `npx vitest run tests/renderer/lib/lineupView.test.ts` — expected: FAIL (module not found).
 
-- [ ] **Step 7: Implementation.** Create `src/renderer/src/lib/lineupView.ts`:
+- [x] **Step 7: Implementation.** Create `src/renderer/src/lib/lineupView.ts`:
 
 ```ts
 import type {
@@ -2263,9 +2263,9 @@ export function closeCallTitle(starter: LineupPlayer, alt: LineupPlayer): string
 }
 ```
 
-- [ ] **Step 8: Run** `npx vitest run tests/renderer/lib/lineupView.test.ts` — PASS. `npm run typecheck && npm run lint && npm test` — PASS.
+- [x] **Step 8: Run** `npx vitest run tests/renderer/lib/lineupView.test.ts` — PASS. `npm run typecheck && npm run lint && npm test` — PASS.
 
-- [ ] **Step 9: Commit** — `feat(ipc): lineup.week and lineup.strength channels` (handlers, ipc, preload) and `feat(ui): lineup view helpers` (lib + fixture + test) — two commits.
+- [x] **Step 9: Commit** — `feat(ipc): lineup.week and lineup.strength channels` (handlers, ipc, preload) and `feat(ui): lineup view helpers` (lib + fixture + test) — two commits.
 
 ---
 
@@ -2279,7 +2279,7 @@ export function closeCallTitle(starter: LineupPlayer, alt: LineupPlayer): string
 - Consumes: `api.players.options()` (season, `currentWeek`), `api.lineup.week`, Task 6 helpers, `PlayerDetailPanel`, `PositionBadge`, shadcn `Card`/`Table`.
 - Produces: `Screen` union gains `'lineup'`; `PlayerDetailPanel` prop `player: DetailTarget | null`.
 
-- [ ] **Step 1: Detail panel target.** In `src/renderer/src/components/PlayerDetailPanel.tsx`: remove `type TableRow as PlayerRow` from the `playersTableView` import (keep the other names), add `DetailTarget` to the `@shared/types` import, and change the prop to:
+- [x] **Step 1: Detail panel target.** In `src/renderer/src/components/PlayerDetailPanel.tsx`: remove `type TableRow as PlayerRow` from the `playersTableView` import (keep the other names), add `DetailTarget` to the `@shared/types` import, and change the prop to:
 
 ```ts
   /** The clicked player (any row that carries id, name, position, team and statsAvailable); null closes the panel. */
@@ -2288,9 +2288,9 @@ export function closeCallTitle(starter: LineupPlayer, alt: LineupPlayer): string
 
 `PlayersScreen` keeps passing its `TableRow` — it is structurally a `DetailTarget`. Run `npm run typecheck:web` — PASS.
 
-- [ ] **Step 2: Sidebar + App.** In `Sidebar.tsx`: import `ClipboardList` from `lucide-react`; `export type Screen = 'setup' | 'league' | 'rules' | 'players' | 'lineup'`; insert after the players item: `{ id: 'lineup', label: 'Lineup', icon: ClipboardList, enabled: (hasLeague) => hasLeague },`. In `App.tsx`: `import { LineupScreen } from '@/screens/LineupScreen'` and after the players route: `{screen === 'lineup' && <LineupScreen dataVersion={dataVersion} />}`.
+- [x] **Step 2: Sidebar + App.** In `Sidebar.tsx`: import `ClipboardList` from `lucide-react`; `export type Screen = 'setup' | 'league' | 'rules' | 'players' | 'lineup'`; insert after the players item: `{ id: 'lineup', label: 'Lineup', icon: ClipboardList, enabled: (hasLeague) => hasLeague },`. In `App.tsx`: `import { LineupScreen } from '@/screens/LineupScreen'` and after the players route: `{screen === 'lineup' && <LineupScreen dataVersion={dataVersion} />}`.
 
-- [ ] **Step 3: Failing DOM test.** Create `tests/renderer/components/LineupScreen.test.tsx`:
+- [x] **Step 3: Failing DOM test.** Create `tests/renderer/components/LineupScreen.test.tsx`:
 
 ```tsx
 // @vitest-environment jsdom
@@ -2382,9 +2382,9 @@ describe('LineupScreen', () => {
 })
 ```
 
-- [ ] **Step 4: Run** `npx vitest run tests/renderer/components/LineupScreen.test.tsx` — FAIL (module not found).
+- [x] **Step 4: Run** `npx vitest run tests/renderer/components/LineupScreen.test.tsx` — FAIL (module not found).
 
-- [ ] **Step 5: Screen.** Create `src/renderer/src/screens/LineupScreen.tsx`:
+- [x] **Step 5: Screen.** Create `src/renderer/src/screens/LineupScreen.tsx`:
 
 ```tsx
 import { useEffect, useState } from 'react'
@@ -2718,9 +2718,9 @@ export function LineupScreen({ dataVersion }: LineupScreenProps): React.JSX.Elem
 }
 ```
 
-- [ ] **Step 6: Run** `npx vitest run tests/renderer/components/LineupScreen.test.tsx` — PASS. If `getByText('Q')` also matches the `PositionBadge` of a QB, there is no QB in the fixture; if `getAllByText('O')` is ambiguous, scope it with `within(screen.getByText('Unavailable').closest('div')!)` — keep the intent: the badge renders.
+- [x] **Step 6: Run** `npx vitest run tests/renderer/components/LineupScreen.test.tsx` — PASS. If `getByText('Q')` also matches the `PositionBadge` of a QB, there is no QB in the fixture; if `getAllByText('O')` is ambiguous, scope it with `within(screen.getByText('Unavailable').closest('div')!)` — keep the intent: the badge renders.
 
-- [ ] **Step 7:** `npm run typecheck && npm run lint && npm test` — PASS. **Commit** — `feat(ui): Lineup screen`.
+- [x] **Step 7:** `npm run typecheck && npm run lint && npm test` — PASS. **Commit** — `feat(ui): Lineup screen`.
 
 ---
 
@@ -2729,7 +2729,7 @@ export function LineupScreen({ dataVersion }: LineupScreenProps): React.JSX.Elem
 **Files:**
 - Modify: `docs/reference/value-and-signals.md`
 
-- [ ] **Step 1: Document.** Edits to `docs/reference/value-and-signals.md`:
+- [x] **Step 1: Document.** Edits to `docs/reference/value-and-signals.md`:
 
 - Intro paragraph: "the current v0.9.0 presentation" → "the current v0.10.0 presentation"; add "slice 6a (lineup model) rationale in `docs/superpowers/specs/2026-09-20-slice6a-lineup-model-design.md`" to the rationale sentence.
 - Table "How the data reaches the renderer": two rows —
@@ -2800,9 +2800,9 @@ Not shown yet: `TeamStrength` (Plan K), the opponent's slot table (Plan K), `exp
 - Module map: add `src/main/lineup/optimal.ts` (slots, assignment, placement, swaps, close calls, week value/flag), `src/main/lineup/build.ts` (team-weeks, current lineup mapping, `lineupWeek`, `teamStrengths`), `src/main/sync/matchupsSync.ts` + `src/main/db/repos/matchups.ts`, `src/renderer/src/lib/lineupView.ts` + `screens/LineupScreen.tsx`.
 - `## Where each number is shown today (v0.9.0)` → `(v0.10.0)`.
 
-- [ ] **Step 2: Dev-app check** (`npx electron-vite dev -- --no-sandbox --disable-gpu --in-process-gpu`; record the PID and stop it by PID afterwards — never with a `pgrep -f` pattern that matches the harness shell). Refresh → the status bar shows `sleeper:matchups:2026` ok with "18 weeks fetched, 16 teams" (or fewer weeks if playoff weeks are empty). Open **Lineup**: the current week loads; header shows both totals and the opponent's name; the slot table shows 10 slots (1 QB, 2 RB, 2 WR, 1 TE, 2 FLEX, 1 K, 1 DEF) with the Sleeper lineup on the left; swaps read sensibly (or "Your lineup is optimal"); switch to week 1 → final header with `Left on bench`; switch to a playoff week → `No matchup this week`. Click a name → the detail panel opens. Note the real numbers (my optimal/current totals, one close call) in the progress notes.
+- [x] **Step 2: Dev-app check** (`npx electron-vite dev -- --no-sandbox --disable-gpu --in-process-gpu`; record the PID and stop it by PID afterwards — never with a `pgrep -f` pattern that matches the harness shell). Refresh → the status bar shows `sleeper:matchups:2026` ok with "18 weeks fetched, 16 teams" (or fewer weeks if playoff weeks are empty). Open **Lineup**: the current week loads; header shows both totals and the opponent's name; the slot table shows 10 slots (1 QB, 2 RB, 2 WR, 1 TE, 2 FLEX, 1 K, 1 DEF) with the Sleeper lineup on the left; swaps read sensibly (or "Your lineup is optimal"); switch to week 1 → final header with `Left on bench`; switch to a playoff week → `No matchup this week`. Click a name → the detail panel opens. Note the real numbers (my optimal/current totals, one close call) in the progress notes.
 
-- [ ] **Step 3: Commit** — `docs: lineup model in the data reference`. Then ask the user to check the dev app before the build.
+- [x] **Step 3: Commit** — `docs: lineup model in the data reference`. Then ask the user to check the dev app before the build.
 
 ---
 
@@ -2810,10 +2810,10 @@ Not shown yet: `TeamStrength` (Plan K), the opponent's slot table (Plan K), `exp
 
 Only after the user has checked Task 8 in the dev app and asked for the build.
 
-- [ ] **Step 1:** `package.json` / `package-lock.json` version `0.9.0` → `0.10.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.10.0`.
-- [ ] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.10.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
-- [ ] **Step 3:** User installs over 0.9.0 — migration 006 runs on first launch, the first refresh adds the matchups step. Check: the Lineup screen for the current week, a past week's result and `Left on bench`, one close-call tooltip, a name opening the detail panel.
-- [ ] **Step 4:** Progress notes appended to this plan, commit `docs(plan): mark plan J complete`, tag `v0.10.0`, fast-forward `main`, delete the branch. Plan K (League cards power ranking + Opponent section) follows under the same spec → v0.11.0.
+- [x] **Step 1:** `package.json` / `package-lock.json` version `0.9.0` → `0.10.0`; `npm run typecheck && npm run lint && npm test`; commit `build: bump version to 0.10.0`.
+- [x] **Step 2:** `npm run build:win`; copy `dist/FantasyCompanion-Setup-0.10.0.exe` to `/mnt/c/Users/habie/OneDrive/Bureau/`.
+- [x] **Step 3:** User installs over 0.9.0 — migration 006 runs on first launch, the first refresh adds the matchups step. Check: the Lineup screen for the current week, a past week's result and `Left on bench`, one close-call tooltip, a name opening the detail panel.
+- [x] **Step 4:** Progress notes appended to this plan, commit `docs(plan): mark plan J complete`, tag `v0.10.0`, fast-forward `main`, delete the branch. Plan K (League cards power ranking + Opponent section) follows under the same spec → v0.11.0.
 
 ---
 
@@ -2823,3 +2823,15 @@ Only after the user has checked Task 8 in the dev app and asked for the build.
 - **Placeholders:** none; every step has its code or its exact command.
 - **Type consistency:** `Candidate`/`Placed`/`LineupSlot` (T4) are what T5 consumes; `LineupPlayer` includes `statsAvailable` (T5 types, T5 build, T7 `DetailTarget`); `WeekQuery { season, week }` reused for `lineup.week` (T6, T7); `TeamLineup.current: SlotEntry[] | null` drives `swapsEmptyText` and `isNewStarter` (T6, T7); `ExpertRankRow.posRank/grade` → `expert { ecrPosRank, grade }` (T5).
 - **Fixture caveat:** the Sleeper fixture's `starters` arrays are shorter than the 9 starting slots — the T5 tests exploit that deliberately (empty slots, moved players); expectations that depend on projection values read them back through `value.series` rather than hard-coding numbers.
+
+## Progress notes (2026-09-20)
+
+All tasks executed inline in one session on `feat/lineup-model`; 374 tests (from 328), typecheck and lint green at every commit.
+
+- **T1–T3 as planned.** Existing Sleeper sync tests counted steps by position (`3 + 18` → `4 + 18`) and assumed every step is `skipped` when fresh — the matchups step always runs by design, so those assertions now exclude it and check the order `state, league, matchups, players, projections…`. `SyncLogEntry.rowsWritten` (not `rows`) is the field name.
+- **T4:** the 150-seed brute-force property test passed on the first run; the whole engine suite runs in <200 ms.
+- **T5:** all 11 fixture-DB tests passed on the first run — the fixture's short `starters` arrays land on `QB, RB, RB(empty), WR` exactly as the plan predicted. One addition after the real-data read: `TeamLineup.swaps` is sorted by `delta` descending (spec §5.1 "largest Δ first"); the engine's own order (by the incoming player's value) is only for pairing.
+- **T6–T7 as planned.**
+- **T8 real-data read** (dev DB copy, live Sleeper fetch): `sleeper:matchups:2026` ok, "18 weeks fetched, 16 teams" in 788 ms; a second run skipped the fresh past week. Week 2 (in progress): my optimal 121.66 vs current 115.07 → swaps *Stafford over Young (+0.39, close call ≈ Young)*, *Buccaneers D over Texans (+2.93)*, *Rodriguez over E. Johnson (+3.27)*; Josh Jacobs unavailable (`NA`). Week 1 final: 134.94–124.76 W, 15.5 left on the bench. Strength: 16 teams in 30 ms, my roster #10 (leader 2 103.8 ROS, 123.8/wk). Whole-league lineup build 239 ms on top of the cached value build. Dev app checked by the user: "all good".
+- **Extra (user request during the dev-app check):** `fix(ui): show fantasy points with two decimals` — `fmtPoints` → 2 decimals, `fmtSigned(value, decimals = 2)`, table formats `pts` / `signedPts` for point-valued columns; SOS, expert spread, TD delta and yards/opp stay at 1 decimal. Data reference conventions updated.
+- **T9:** `v0.10.0` built with `npm run build:win`; installer copied to `C:\Users\habie\OneDrive\Bureau\FantasyCompanion-Setup-0.10.0.exe` (installing over 0.9.0 runs migration 006). **Windows install check is the one step left open until the user confirms.** Plan K (League cards power ranking + Opponent section → v0.11.0) is next under the same spec.
