@@ -5,6 +5,7 @@ Windows desktop companion for a Sleeper fantasy football league: league sync, st
 - Design: `docs/superpowers/specs/`
 - Data reference (value & signals payload, definitions, where each number is shown): `docs/reference/value-and-signals.md`
 - Plans: `docs/superpowers/plans/`
+- Changelog: GitHub Releases (`https://github.com/Puffinnois/fantasy-football-companion/releases`)
 - Dev (WSL2, Node 22 via nvm): `npm install && npm run dev`
 - Dev data (Linux): `~/.config/FantasyCompanion/companion.db`; packaged (Windows): `%APPDATA%\FantasyCompanion\companion.db`
 - Windows installer, local test build: `npm run build:win` → `dist/FantasyCompanion-Setup-<version>.exe` (never publishes)
