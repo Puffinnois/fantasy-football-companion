@@ -56,7 +56,7 @@ IPC.updateState = 'update:state', IPC.updateInstall = 'update:install',
 IPC.updateChanged = 'update:changed', IPC.appVersion = 'app:version'
 ```
 
-- [ ] **Step 1: Add the shared type and IPC names**
+- [x] **Step 1: Add the shared type and IPC names**
 
 Append to `src/shared/types.ts`:
 
@@ -91,7 +91,7 @@ Change to:
 } as const
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Replace `tests/main/updater.test.ts` entirely with:
 
@@ -268,13 +268,13 @@ describe('installAutoUpdater', () => {
 })
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/updater.test.ts`
 
 Expected: FAIL — type/shape errors such as `deps.onChange is not a function` / `installAutoUpdater(...)` returning `undefined` (`Cannot read properties of undefined (reading 'state')`).
 
-- [ ] **Step 4: Rewrite the module**
+- [x] **Step 4: Rewrite the module**
 
 Replace `src/main/updater.ts` entirely with:
 
@@ -374,13 +374,13 @@ function notesOf(raw: unknown): string | null {
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/updater.test.ts`
 
 Expected: `Tests  10 passed (10)`.
 
-- [ ] **Step 6: Typecheck (expect one known failure) and lint**
+- [x] **Step 6: Typecheck (expect one known failure) and lint**
 
 Run: `npm run typecheck:node 2>&1 | grep -E "error TS" | head`
 
@@ -389,7 +389,7 @@ Expected: exactly one error, in `src/main/index.ts` (the old `installAutoUpdater
 Run: `npx prettier --check src/main/updater.ts tests/main/updater.test.ts src/shared/types.ts src/shared/ipc.ts`
 Expected: `All matched files use Prettier code style!` (otherwise `npx prettier --write` those files).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/shared/types.ts src/shared/ipc.ts src/main/updater.ts tests/main/updater.test.ts
@@ -410,7 +410,7 @@ git commit -m "feat(updater): update state machine with hourly check"
 - Consumes: `UpdateController`, `installAutoUpdater` (Task 1); `IPC.updateState/updateInstall/updateChanged/appVersion`; `UpdateState`.
 - Produces (used by Tasks 5–6): `api.update.state(): Promise<UpdateState>`, `api.update.install(): Promise<void>`, `api.update.onChange(listener: (state: UpdateState) => void): () => void`, `api.app.version(): Promise<string>`.
 
-- [ ] **Step 1: Extend the `Api` interface**
+- [x] **Step 1: Extend the `Api` interface**
 
 In `src/shared/ipc.ts`, add `UpdateState` to the `import type { ... } from './types'` list (keep it alphabetical — it goes last). Then, in `interface Api`, after the `sync` block:
 
@@ -433,7 +433,7 @@ In `src/shared/ipc.ts`, add `UpdateState` to the `import type { ... } from './ty
 }
 ```
 
-- [ ] **Step 2: Handlers**
+- [x] **Step 2: Handlers**
 
 In `src/main/ipc/handlers.ts`:
 
@@ -467,7 +467,7 @@ At the end of `registerIpcHandlers`, after the `IPC.syncStatus` handler (the las
   ipcMain.handle(IPC.appVersion, (): string => app.getVersion())
 ```
 
-- [ ] **Step 3: `index.ts`**
+- [x] **Step 3: `index.ts`**
 
 Imports: add `import { IPC } from '@shared/ipc'` after the `@main/...` imports. Keep `autoUpdater` and `installAutoUpdater` imports (already present). `dialog` stays imported (used by `openAppDatabase`).
 
@@ -516,7 +516,7 @@ Change to:
 
 (A change that fires before the window exists is dropped; the renderer's initial `update.state()` call covers it.)
 
-- [ ] **Step 4: Preload**
+- [x] **Step 4: Preload**
 
 In `src/preload/index.ts`, line 3 `import type { SyncLogEntry } from '@shared/types'` → `import type { SyncLogEntry, UpdateState } from '@shared/types'`. Then, after the `sync` block of the `api` object (before the closing `}`):
 
@@ -549,13 +549,13 @@ In `src/preload/index.ts`, line 3 `import type { SyncLogEntry } from '@shared/ty
 }
 ```
 
-- [ ] **Step 5: Typecheck, lint, tests, build**
+- [x] **Step 5: Typecheck, lint, tests, build**
 
 Run: `npm run typecheck && npm run lint && npm test 2>&1 | grep -E "Test Files|Tests " && npm run build 2>&1 | grep -E "error|built in" | tail -2`
 
 Expected: typecheck and lint silent; `Test Files  54 passed (54)`, `Tests  384 passed (384)` (the 6 old updater tests became 10); build ends with `✓ built in …` and no `error` line.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/shared/ipc.ts src/main/ipc/handlers.ts src/main/index.ts src/preload/index.ts
@@ -575,7 +575,7 @@ git commit -m "feat(updater): expose update state and install over IPC"
 - Consumes: nothing.
 - Produces (used by Task 5): `renderNotes(html: string | null): string | null` — sanitized HTML or `null` when nothing is left.
 
-- [ ] **Step 1: Install DOMPurify**
+- [x] **Step 1: Install DOMPurify**
 
 ```bash
 npm install dompurify@^3.4.15
@@ -583,7 +583,7 @@ npm install dompurify@^3.4.15
 
 Expected: `"dompurify": "^3.4.15"` under `dependencies` in `package.json` (it ships its own types; no `@types` package).
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Create `tests/renderer/lib/updateNotes.test.ts`:
 
@@ -619,13 +619,13 @@ describe('renderNotes', () => {
 })
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/lib/updateNotes.test.ts`
 
 Expected: FAIL — `Failed to resolve import "@/lib/updateNotes"`.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 Create `src/renderer/src/lib/updateNotes.ts`:
 
@@ -670,19 +670,19 @@ export function renderNotes(html: string | null): string | null {
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/lib/updateNotes.test.ts`
 
 Expected: `Tests  4 passed (4)`. If the attribute order in the link test differs (`rel` before `target`), swap the expected string to match DOMPurify's output — the assertion is about both attributes being present with those values.
 
-- [ ] **Step 6: Typecheck and lint**
+- [x] **Step 6: Typecheck and lint**
 
 Run: `npm run typecheck:web && npm run lint`
 
 Expected: silent.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add package.json package-lock.json src/renderer/src/lib/updateNotes.ts tests/renderer/lib/updateNotes.test.ts
@@ -702,7 +702,7 @@ git commit -m "feat(ui): sanitizer for release notes"
 - Consumes: `UpdateState` (Task 1).
 - Produces (used by Task 6): `UpdatePill({ state, onOpen })`; `Sidebar` gains props `update: UpdateState`, `version: string | null`, `onOpenUpdate: () => void`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/renderer/components/UpdatePill.test.tsx`:
 
@@ -754,13 +754,13 @@ describe('UpdatePill', () => {
 
 (The repo has no jest-dom matchers, hence the plain `toBeTruthy()` / `innerHTML` assertions.)
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/components/UpdatePill.test.tsx`
 
 Expected: FAIL — `Failed to resolve import "@/components/UpdatePill"`.
 
-- [ ] **Step 3: Implement the pill**
+- [x] **Step 3: Implement the pill**
 
 Create `src/renderer/src/components/UpdatePill.tsx`:
 
@@ -802,13 +802,13 @@ export function UpdatePill({ state, onOpen }: UpdatePillProps): React.JSX.Elemen
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/components/UpdatePill.test.tsx`
 
 Expected: `Tests  4 passed (4)`.
 
-- [ ] **Step 5: Sidebar footer**
+- [x] **Step 5: Sidebar footer**
 
 In `src/renderer/src/components/Sidebar.tsx`:
 
@@ -840,7 +840,7 @@ Inside the `<nav>`, after the `{items.map(...)}` block and before `</nav>`, add:
       </div>
 ```
 
-- [ ] **Step 6: Typecheck (expect one known failure) and lint**
+- [x] **Step 6: Typecheck (expect one known failure) and lint**
 
 Run: `npm run typecheck:web 2>&1 | grep -E "error TS" | head`
 
@@ -848,7 +848,7 @@ Expected: exactly one error, in `src/renderer/src/App.tsx` (`Sidebar` now requir
 
 Run: `npm run lint` → silent. `npx prettier --check src/renderer/src/components/UpdatePill.tsx src/renderer/src/components/Sidebar.tsx tests/renderer/components/UpdatePill.test.tsx` → all formatted.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/renderer/src/components/UpdatePill.tsx src/renderer/src/components/Sidebar.tsx tests/renderer/components/UpdatePill.test.tsx
@@ -868,7 +868,7 @@ git commit -m "feat(ui): update pill in the sidebar footer"
 - Consumes: `renderNotes` (Task 3), `api.update.install` (Task 2), `UpdateState`, `Button` from `@/components/ui/button`.
 - Produces (used by Task 6): `UpdateDialog({ state, currentVersion, open, onOpenChange })`.
 
-- [ ] **Step 1: shadcn Dialog primitive**
+- [x] **Step 1: shadcn Dialog primitive**
 
 Create `src/renderer/src/components/ui/dialog.tsx` (hand-written from the shadcn "new-york" template on the `radix-ui` umbrella package the repo already uses; no animation classes because `tw-animate-css` is not installed):
 
@@ -985,7 +985,7 @@ export {
 
 (`components/ui/**` has the ESLint override, so no explicit return types are needed here.)
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Create `tests/renderer/components/UpdateDialog.test.tsx`:
 
@@ -1058,13 +1058,13 @@ describe('UpdateDialog', () => {
 })
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/components/UpdateDialog.test.tsx`
 
 Expected: FAIL — `Failed to resolve import "@/components/UpdateDialog"`.
 
-- [ ] **Step 4: Implement the dialog**
+- [x] **Step 4: Implement the dialog**
 
 Create `src/renderer/src/components/UpdateDialog.tsx`:
 
@@ -1147,17 +1147,17 @@ export function UpdateDialog({
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/components/UpdateDialog.test.tsx`
 
 Expected: `Tests  6 passed (6)`. Radix renders the content into `document.body` through a portal, which is why the queries use `screen`. If Radix logs a warning about a missing `Description`, the `DialogDescription` is not rendered — check the header markup.
 
-- [ ] **Step 6: Typecheck (still the one App.tsx error from Task 4) and lint**
+- [x] **Step 6: Typecheck (still the one App.tsx error from Task 4) and lint**
 
 Run: `npm run typecheck:web 2>&1 | grep -E "error TS" | head` → exactly the `App.tsx` `Sidebar` props error. `npm run lint` → silent. `npx prettier --check src/renderer/src/components/ui/dialog.tsx src/renderer/src/components/UpdateDialog.tsx tests/renderer/components/UpdateDialog.test.tsx` → formatted.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/renderer/src/components/ui/dialog.tsx src/renderer/src/components/UpdateDialog.tsx tests/renderer/components/UpdateDialog.test.tsx
@@ -1178,7 +1178,7 @@ git commit -m "feat(ui): update dialog with notes and progress"
 - Consumes: `api.update.*`, `api.app.version` (Task 2); `Sidebar` props (Task 4); `UpdateDialog` (Task 5).
 - Produces: `useUpdateState(): UpdateState`.
 
-- [ ] **Step 1: The hook**
+- [x] **Step 1: The hook**
 
 Create `src/renderer/src/lib/useUpdateState.ts`:
 
@@ -1209,7 +1209,7 @@ export function useUpdateState(): UpdateState {
 }
 ```
 
-- [ ] **Step 2: Wire `App.tsx`**
+- [x] **Step 2: Wire `App.tsx`**
 
 Imports — add:
 
@@ -1261,7 +1261,7 @@ and just before `<StatusBar .../>`:
       />
 ```
 
-- [ ] **Step 3: Docs**
+- [x] **Step 3: Docs**
 
 In `docs/superpowers/specs/2026-09-20-slice6a-lineup-model-design.md` §9 Phasing, the line
 
@@ -1282,17 +1282,17 @@ In `README.md`, the bullet starting `- Auto-update: packaged Windows builds chec
 - Auto-update: packaged Windows builds check GitHub Releases at launch and hourly. A green **Update to X.Y.Z** button appears at the bottom of the sidebar once a newer version is found; it opens a popup with the release notes and **Update & restart** (silent install, relaunch). Installs ≤ 0.10.0 have no updater — reinstall once from the latest release. Windows **Smart App Control** blocks the unsigned installer; it has to be off (code signing is the proper fix, not done yet).
 ```
 
-- [ ] **Step 4: Full verification**
+- [x] **Step 4: Full verification**
 
 Run: `npm run typecheck && npm run lint && npm test 2>&1 | grep -E "Test Files|Tests " && npm run build 2>&1 | grep -E "error|built in" | tail -2`
 
 Expected: typecheck and lint silent; `Test Files  57 passed (57)`, `Tests  398 passed (398)` (384 after Task 2 + 4 notes + 4 pill + 6 dialog); build succeeds.
 
-- [ ] **Step 5: Dev smoke**
+- [x] **Step 5: Dev smoke**
 
 Run the dev app the way this repo's notes say (`npx electron-vite dev -- --no-sandbox --disable-gpu --in-process-gpu`; record the PID and stop it by PID, never `pkill -f`). Expected: the sidebar shows `v0.11.0`-to-be (`v0.10.2` until the bump) at the bottom and **no** update pill (dev → `idle`). Stop the app.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/renderer/src/lib/useUpdateState.ts src/renderer/src/App.tsx docs/superpowers/specs/2026-09-20-slice6a-lineup-model-design.md README.md
