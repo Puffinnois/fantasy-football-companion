@@ -1,6 +1,6 @@
 # Value & signals — data reference
 
-What the app computes per player from the synced data, how each number is defined, and where it is shown today. Written for the UI redesign: the **data** sections are the contract (types in `src/shared/types.ts`, computed in `src/main/value/`); the **rendering** section is the current v0.10.0 presentation and is free to change.
+What the app computes per player from the synced data, how each number is defined, and where it is shown today. Written for the UI redesign: the **data** sections are the contract (types in `src/shared/types.ts`, computed in `src/main/value/`); the **rendering** section is the current v0.12.0 presentation and is free to change.
 
 Design rationale lives in `docs/superpowers/specs/2026-09-17-slice4-value-and-signals-design.md`; slice 5 (expert layer) rationale in `docs/superpowers/specs/2026-09-18-slice5-expert-layer-design.md`; slice 6a (lineup model) rationale in `docs/superpowers/specs/2026-09-20-slice6a-lineup-model-design.md`. This file documents what shipped.
 
@@ -13,7 +13,7 @@ Design rationale lives in `docs/superpowers/specs/2026-09-17-slice4-value-and-si
 | `week({ season, week })`                              | `PlayersWeek { rows: PlayerWeekRow[] }`                                                | Same candidates with one week of data; since v0.8.0 each row also carries `expert: ExpertWeek \| null` — this week's FantasyPros `{ ecrPosRank, grade, projPts, spread }`.                                                                                                                                                                       |
 | `news(playerId, force?)`                              | `PlayerNews { items: NewsItem[]; fetchedAt: string }`                                  | Sleeper's aggregated player news (FantasyPros, RotoWire, RotoBaller), newest first, ≤ 25 items. Not from the value build: its own per-player in-memory cache (`src/main/news/newsCache.ts`, 15 min), `force` refetches, failures are never cached, nothing is stored, nothing in `sync_log`. Empty for team defenses.                            |
 | `lineup.week({ season, week })` (`window.api.lineup`) | `LineupWeek`                                                                           | My team and its opponent for the week: optimal lineup, the lineup set on Sleeper, swaps, close calls, bench, unavailable, status. Built from the value build plus `matchups`, `roster_players.starter_index` and Sleeper's `roster_positions`; cached with the value build (same invalidation). FantasyPros weekly rank/grade attached per call. |
-| `lineup.strength(season)`                             | `TeamStrength[]`                                                                       | Every team's optimal totals over weeks `currentWeek..18` on its current roster, ranked; `null` without projections or after the season. Not shown yet (Plan K puts it on the League cards).                                                                                                                                                      |
+| `lineup.strength(season)`                             | `TeamStrength[]`                                                                       | Every team's optimal totals over weeks `currentWeek..18` on its current roster, ranked; `null` without projections or after the season. Shown on the League screen cards (`ROS {rosTotal} · #{rank}`) and drives their _ROS strength_ sort.                                                                                                      |
 
 Both read a per-(league, season) build cached in the main process (`valueCache` in `src/main/ipc/handlers.ts`). The cache is cleared on a successful sync and on a rules change; a watchlist toggle only re-decorates `watched`. A full-season build costs ~0.1 s (current season) to ~0.5 s (18 played weeks) on the dev DB. Nothing is persisted — every number below is recomputed from the DB.
 
@@ -218,14 +218,19 @@ Slice 6a spec §2–§4; engine `src/main/lineup/optimal.ts` (pure), assembly `s
 
 `rosterId`, `name`, `isMe`, `thisWeek` (optimal total of the current week), `rosTotal` (Σ over `currentWeek..18`), `rosPerWeek`, `rank` (1 = strongest). All `null` when `!projectionsStored` or the season is over.
 
-### Where it is shown (v0.10.0) — Lineup screen
+### Where it is shown (v0.12.0) — Lineup screen
 
 1. **Header** — week picker (default `currentWeek`); `You {optimalTotal} optimal · {currentTotal} current vs {opponent.name} {currentTotal ?? optimalTotal} current|optimal`; final weeks `You {actualTotal} – {opponent} {actualTotal} · W/L/T` and `Left on bench: +Δ` (`optimalTotal − actualTotal`) for both sides; notes `No matchup this week`, `No projections stored — values are actuals only`, `Your team isn't identified — re-import from Setup`.
 2. **Slot table** — Slot · Your starter · Pts · Optimal · Pts · Δ; rows whose optimal starter is not among the current starters are tinted and carry Δ = `value(optimal) − value(current in that slot ?? 0)`; `≈ {alt}` (amber) with the close-call tooltip (both players' value, floor/ceiling, ECR + grade, opponent + DvP); flags `Q` amber, `D`/`O` red, `BYE` muted; names open `PlayerDetailPanel`.
 3. **Swaps** — `Start A over B (SLOT, +Δ)`; empty states `Your lineup is optimal` / `Lineup not set on Sleeper yet`.
 4. **Bench** / **Unavailable** — name, team, opponent, flag, value.
+5. **Opponent** — a collapsed card `Opponent · {name}` (`aria-expanded` toggle) with the opponent's slot table (`Their starter` · Pts · Optimal · Pts · Δ, same tinting and close calls) and **Their swaps** (`Start A over B (SLOT, +Δ)`; empty states `Their lineup is optimal` / `Lineup not set on Sleeper yet`). Hidden when `opponent` is null.
 
-Not shown yet: `TeamStrength` (Plan K), the opponent's slot table (Plan K), `expert` on bench players (in the payload).
+### Where it is shown (v0.12.0) — League screen
+
+Each team card's third line is `ROS {rosTotal} · #{rank}` (`ROS —` when null; tooltip = the basis note). The header toggle **Record / ROS strength** (default Record) orders the cards by standings (wins, ties, points for) or by `rank` ascending with unranked teams last; while ROS strength is selected the note "Optimal lineup on Sleeper projections under your scoring, summed over the remaining weeks" is shown under the toggle. Helpers: `lib/leagueView.ts` (`rosLine`, `sortTeams`, `STRENGTH_NOTE`).
+
+Not shown yet: `TeamStrength.thisWeek` / `rosPerWeek` (in the payload), `expert` on bench players (in the payload).
 
 ## Constants (single sources)
 
@@ -240,7 +245,7 @@ Not shown yet: `TeamStrength` (Plan K), the opponent's slot table (Plan K), `exp
 | `src/renderer/src/lib/newsView.ts` (display only)               | `NEWS_PAGE_SIZE = 8`, badge map `fantasy_pros → FP`, `rotowire → RW`, `rotoballer → RB`                                                                                                                 |
 | `src/main/lineup/optimal.ts`, `src/main/sync/matchupsSync.ts`   | `CLOSE_CALL_PTS = 2`, `UNAVAILABLE_STATUSES` (`Out Doubtful IR PUP Sus COV NA DNR`), `QUESTIONABLE_STATUS`, `RESERVE_SLOTS = BN IR TAXI`; `MATCHUPS_PAST_FRESHNESS_MS = 30 d`                           |
 
-## Where each number is shown today (v0.10.0)
+## Where each number is shown today (v0.12.0)
 
 ### Players table, Value mode (`columnGroups(tab, 'value')` — identical on every position tab)
 
