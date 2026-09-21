@@ -1305,7 +1305,7 @@ git commit -m "feat(ui): wire in-app update flow"
 
 Run by the user with Claude driving the commands. The installed 0.10.2 still carries the *old* flow (native dialog → NSIS wizard), so this release is delivered through it; the new pill/popup/silent install is first exercised by the next release (Plan K's `v0.12.0`, or a throwaway `v0.11.1` if the user wants to see it sooner).
 
-- [ ] **Step 1: Bump, tag, push**
+- [x] **Step 1: Bump, tag, push**
 
 ```bash
 git status --short          # must be empty
@@ -1315,7 +1315,7 @@ git push --follow-tags
 
 If no `Release` run appears within ~20 s (`gh run list --workflow=release.yml --limit 1`), re-push the tag alone: `git push origin :refs/tags/v0.11.0 && git push origin v0.11.0`.
 
-- [ ] **Step 2: Watch the run and check the draft**
+- [x] **Step 2: Watch the run and check the draft**
 
 ```bash
 gh run watch --exit-status $(gh run list --workflow=release.yml --limit 1 --json databaseId -q '.[0].databaseId')
@@ -1324,7 +1324,7 @@ gh api repos/Puffinnois/fantasy-football-companion/releases -q '.[] | "\(.tag_na
 
 Expected: the run succeeds; `v0.11.0 draft=true assets=FantasyCompanion-Setup-0.11.0.exe,FantasyCompanion-Setup-0.11.0.exe.blockmap,latest.yml` and no duplicate `v0.11.0` entry.
 
-- [ ] **Step 3: Publish (user)**
+- [x] **Step 3: Publish (user)**
 
 ```bash
 gh release edit v0.11.0 --draft=false --notes "In-app updates: a green Update button in the sidebar, release notes in a popup, silent install and relaunch. Sidebar shows the current version."
@@ -1332,10 +1332,22 @@ gh release edit v0.11.0 --draft=false --notes "In-app updates: a green Update bu
 
 Verify: `curl -sL https://github.com/Puffinnois/fantasy-football-companion/releases/download/v0.11.0/latest.yml | head -1` prints `version: 0.11.0`.
 
-- [ ] **Step 4: Observe on Windows**
+- [x] **Step 4: Observe on Windows**
 
 Launch the installed 0.10.2: old **Update ready** dialog → **Restart now** → NSIS wizard (Smart App Control is off) → app relaunches. Expected: sidebar footer shows `v0.11.0`, no pill (nothing newer). Windows *Installed apps* shows 0.11.0.
 
-- [ ] **Step 5: Close out**
+- [x] **Step 5: Close out**
 
 Tick this plan, add progress notes at the end, update the project-status memory (auto-update UX shipped in `v0.11.0`; Plan K → `v0.12.0` next; the new flow is verified at the next release).
+
+---
+
+## Progress notes (2026-09-21)
+
+All seven tasks complete. `v0.11.0` delivered through the old native-dialog flow to the installed 0.10.2; `v0.11.1` (README-only) then exercised the new flow end to end on Windows, user-verified: green **Update to 0.11.1** pill in the sidebar footer → popup with the GitHub release notes and progress → **Update & restart** → silent install, relaunch on 0.11.1, no installer window.
+
+Deviations and lessons:
+
+- Task 6: the "close the dialog when the state goes idle/error" `useEffect` was dropped — the React Compiler lint rule (`set-state-in-effect`) rejects it, and `UpdateDialog` already renders nothing for those states, so it was redundant.
+- Publishing: the GitHub web UI's **Publish release** button works. GitHub's REST API (`gh release list`, `releases/tags/<tag>`) and the anonymous download URLs lag a publish by several minutes, which made two releases look like drafts right after the user had published them. Verify with the updater's own request — `curl -sL -H "Accept: application/json" https://github.com/Puffinnois/fantasy-football-companion/releases/latest` — and give it a few minutes before concluding anything.
+- The tag push triggered the workflow first time for both releases; the "re-push the tag" fallback was only needed on the repo's very first push.
