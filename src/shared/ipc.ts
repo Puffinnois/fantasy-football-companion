@@ -90,5 +90,9 @@ export const IPC = {
   rulesReimport: 'rules:reimport',
   syncRefresh: 'sync:refresh',
   syncStatus: 'sync:status',
-  syncProgress: 'sync:progress'
+  syncProgress: 'sync:progress',
+  updateState: 'update:state',
+  updateInstall: 'update:install',
+  updateChanged: 'update:changed',
+  appVersion: 'app:version'
 } as const
