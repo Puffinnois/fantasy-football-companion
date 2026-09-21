@@ -1,18 +1,30 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Sidebar, type Screen } from '@/components/Sidebar'
 import { StatusBar } from '@/components/StatusBar'
+import { UpdateDialog } from '@/components/UpdateDialog'
 import { SetupScreen } from '@/screens/SetupScreen'
 import { LeagueScreen } from '@/screens/LeagueScreen'
 import { RulesScreen } from '@/screens/RulesScreen'
 import { PlayersScreen } from '@/screens/PlayersScreen'
 import { LineupScreen } from '@/screens/LineupScreen'
 import { api } from '@/lib/api'
+import { useUpdateState } from '@/lib/useUpdateState'
 
 export default function App(): React.JSX.Element {
   const [screen, setScreen] = useState<Screen>('league')
   const [hasLeague, setHasLeague] = useState<boolean | null>(null)
   const [dataVersion, setDataVersion] = useState(0)
   const bumpData = useCallback(() => setDataVersion((v) => v + 1), [])
+  const update = useUpdateState()
+  const [version, setVersion] = useState<string | null>(null)
+  const [updateOpen, setUpdateOpen] = useState(false)
+
+  useEffect(() => {
+    void api.app
+      .version()
+      .then(setVersion)
+      .catch(() => setVersion(null))
+  }, [])
 
   useEffect(() => {
     void api.league
@@ -48,7 +60,14 @@ export default function App(): React.JSX.Element {
   return (
     <div className="flex h-full flex-col">
       <div className="flex min-h-0 flex-1">
-        <Sidebar current={screen} onNavigate={setScreen} hasLeague={hasLeague} />
+        <Sidebar
+          current={screen}
+          onNavigate={setScreen}
+          hasLeague={hasLeague}
+          update={update}
+          version={version}
+          onOpenUpdate={() => setUpdateOpen(true)}
+        />
         <main className="min-w-0 flex-1 overflow-auto p-6">
           {screen === 'setup' && (
             <SetupScreen
@@ -65,6 +84,12 @@ export default function App(): React.JSX.Element {
           {screen === 'lineup' && <LineupScreen dataVersion={dataVersion} />}
         </main>
       </div>
+      <UpdateDialog
+        state={update}
+        currentVersion={version ?? '?'}
+        open={updateOpen}
+        onOpenChange={setUpdateOpen}
+      />
       <StatusBar refreshKey={dataVersion} onRefreshed={bumpData} />
     </div>
   )

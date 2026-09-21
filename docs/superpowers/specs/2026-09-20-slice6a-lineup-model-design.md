@@ -242,6 +242,7 @@ Constants (single sources): `CLOSE_CALL_PTS = 2.0`, `UNAVAILABLE_STATUSES`, `QUE
 
 - **Plan J** — matchups (client, migration, repo, sync step), engine, build, both IPC calls, Lineup screen §5.1 items 1–4 (including the final-week header), data reference → `v0.10.0`.
 - **Auto-update** (own spec: `2026-09-21-auto-update-design.md`, plan: `2026-09-21-plan-auto-update.md`) — GitHub Releases + in-app updater → `v0.10.1`.
-- **Plan K** — League screen power ranking + sort toggle (§5.2), the Opponent section (§5.1 item 5) → `v0.11.0`.
+- **In-app update UX** (own spec: `2026-09-21-in-app-update-ux-design.md`, plan: `2026-09-21-plan-in-app-update-ux.md`) — sidebar Update button, custom popup, silent install → `v0.11.0`.
+- **Plan K** — League screen power ranking + sort toggle (§5.2), the Opponent section (§5.1 item 5) → `v0.12.0`.
 
 Then 6b (trade evaluator) and 6c (waiver recommendations), each brainstormed against this engine.
