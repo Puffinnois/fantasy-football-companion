@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
+import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { openDatabase, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
@@ -12,6 +13,7 @@ import { createFantasyProsClient } from '@main/sources/fantasypros'
 import { createNflverseClient } from '@main/sources/nflverse'
 import { createSleeperClient } from '@main/sources/sleeper'
 import { createSleeperNewsClient } from '@main/sources/sleeperNews'
+import { installAutoUpdater } from '@main/updater'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -78,6 +80,12 @@ app.whenReady().then(() => {
   }
   registerIpcHandlers(ctx)
   createWindow()
+  installAutoUpdater({
+    enabled: app.isPackaged && process.platform === 'win32',
+    updater: autoUpdater,
+    dialog,
+    getWindow: () => mainWindow
+  })
 
   if (getSetting(ctx.db, SETTING_ACTIVE_LEAGUE)) {
     startRefresh(ctx).catch((err) => console.error('background refresh failed', err))
