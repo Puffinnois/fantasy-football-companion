@@ -199,6 +199,7 @@ export function assembleValue(
     context: {
       season: bundle.season,
       currentWeek: bundle.currentWeek,
+      lastWeek: bundle.lastWeek,
       projectionsStored: bundle.projectionsStored,
       teamCount: bundle.teamCount,
       hasMyTeam: bundle.hasMyTeam,

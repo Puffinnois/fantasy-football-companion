@@ -7,10 +7,13 @@ import { getRules } from '@main/db/repos/rules'
 import { listStarterIndexes, listTeams } from '@main/db/repos/teams'
 import {
   buildLineups,
+  candidateFor,
   lineupWeek,
+  rosterWeek,
   teamStrengths,
   teamWeek,
   weekStatus,
+  windowWeeks,
   type LineupBuild,
   type LineupInputs
 } from '@main/lineup/build'
@@ -30,6 +33,7 @@ function inputs(db: Db, over: Partial<LineupInputs> = {}): LineupInputs {
     rosterPositions: leagueRosterPositions(db, 'L1'),
     matchups: listMatchups(db, 'L1', SEASON),
     starterIndexes: listStarterIndexes(db, 'L1'),
+    tradeDeadlineWeek: getRules(db, 'L1')?.settings.tradeDeadlineWeek ?? null,
     ...over
   }
 }
@@ -246,7 +250,7 @@ describe('lineup build on the fixture league (week 3, Thursday played)', () => {
     expect(blind.me?.swaps).toEqual([])
   })
 
-  it('ranks the teams by rest-of-season optimal totals', () => {
+  it('ranks the teams by rest-of-season optimal totals over the league window', () => {
     const rows = teamStrengths(build)
     expect(rows.map((r) => [r.rosterId, r.rank])).toEqual([
       [1, 1],
@@ -254,11 +258,54 @@ describe('lineup build on the fixture league (week 3, Thursday played)', () => {
     ])
     const me = rows[0]
     expect(me.thisWeek).toBeCloseTo(teamWeek(build, 1, 3).optimalTotal, 2)
+    // playoff_week_start 15 + 3 rounds (6 teams) − 1 = week 17: 15 weeks, not 16.
     let expected = 0
-    for (let w = 3; w <= 18; w++) expected += teamWeek(build, 1, w).optimalTotal
+    for (let w = 3; w <= 17; w++) expected += teamWeek(build, 1, w).optimalTotal
     expect(me.rosTotal).toBeCloseTo(expected, 1)
-    expect(me.rosPerWeek).toBeCloseTo(expected / 16, 1)
+    expect(me.rosPerWeek).toBeCloseTo(expected / 15, 1)
     expect(me.name).toBe('Cook Book')
+    expect(windowWeeks(build)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17])
+  })
+
+  it('solves a hypothetical roster like the team it copies', () => {
+    const mine = build.rosters.get(1) ?? []
+    for (const week of [3, 4, 5]) {
+      const hypothetical = rosterWeek(build, mine, week)
+      const real = teamWeek(build, 1, week)
+      expect(hypothetical.optimalTotal).toBeCloseTo(real.optimalTotal, 2)
+      expect(hypothetical.optimal.map((p) => p.player?.id ?? null)).toEqual(
+        real.optimal.map((p) => p.player?.id ?? null)
+      )
+    }
+    expect(build.weeks.has('1|5')).toBe(true) // teamWeek memoises …
+    const memoised = build.weeks.size
+    rosterWeek(build, mine, 6)
+    expect(build.weeks.size).toBe(memoised) // … rosterWeek never does
+  })
+
+  it('keeps a traded taxi player reserved on the receiving roster (spec 6b §2.2)', () => {
+    const bijan = build.inputs.value.series.get('9509') // taxi on roster 2, projected 7 in week 4
+    if (!bijan) throw new Error('fixture: Bijan missing')
+    const mine = build.rosters.get(1) ?? []
+    const week = rosterWeek(build, [...mine, bijan], 4)
+    expect(week.optimal.some((p) => p.player?.id === '9509')).toBe(false)
+    expect(week.unavailable.map((x) => x.player.playerId)).toContain('9509')
+    expect(week.optimalTotal).toBeCloseTo(teamWeek(build, 1, 4).optimalTotal, 2)
+    expect(candidateFor(build, bijan, 4)).toBeNull()
+  })
+
+  it('gives the engine candidate of an active player, with the week value', () => {
+    const chase = build.inputs.value.series.get('7564')
+    if (!chase) throw new Error('fixture: Chase missing')
+    expect(candidateFor(build, chase, 3)).toEqual({
+      id: '7564',
+      name: "Ja'Marr Chase",
+      position: 'WR',
+      value: 9 // 4 rec + 50 yd under the fixture scoring
+    })
+    expect(candidateFor(build, chase, 5)).toEqual(
+      expect.objectContaining({ id: '7564', value: 0 }) // no projection stored
+    )
   })
 
   it('has no strength without stored projections', () => {

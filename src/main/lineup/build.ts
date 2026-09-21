@@ -3,7 +3,7 @@ import type { MatchupRow } from '@main/db/repos/matchups'
 import { round2 } from '@main/db/repos/points'
 import type { ValueBuild } from '@main/value/build'
 import { UNSTARTABLE_SLOTS } from '@main/value/roster'
-import { LAST_WEEK, type PlayerSeries } from '@main/value/series'
+import type { PlayerSeries } from '@main/value/series'
 import type { RosterSlotCount } from '@shared/rules'
 import type {
   LineupPlayer,
@@ -40,6 +40,8 @@ export interface LineupInputs {
   matchups: MatchupRow[]
   /** Current starters by slot index per roster (`roster_players`): the current-week fallback. */
   starterIndexes: Map<number, (string | null)[]>
+  /** `LeagueSettings.tradeDeadlineWeek` (the last week trades are allowed); null without one. */
+  tradeDeadlineWeek: number | null
 }
 
 /** One player's week: the engine's candidate and the payload row (expert block filled at serve time). */
@@ -97,7 +99,7 @@ export function buildLineups(inputs: LineupInputs): LineupBuild {
   }
 }
 
-function teamName(t: Team): string {
+export function teamName(t: Team): string {
   return t.teamName ?? t.displayName
 }
 
@@ -177,21 +179,20 @@ function pool(build: LineupBuild, rosterId: number, week: number): PlayerSeries[
   return build.rosters.get(rosterId) ?? []
 }
 
-export function teamWeek(build: LineupBuild, rosterId: number, week: number): TeamWeek {
-  const key = `${rosterId}|${week}`
-  const hit = build.weeks.get(key)
-  if (hit) return hit
-  const { currentWeek } = build.inputs.value.context
-  const all = pool(build, rosterId, week).map((series) => ({
-    series,
-    wp: weekPlayer(build, series, week)
-  }))
-  // IR / taxi are facts about the roster now, so they only apply from the current week on.
-  const reserved = (s: PlayerSeries): boolean =>
-    week >= currentWeek &&
-    s.base.ownerRosterId === rosterId &&
-    s.rosterSlot !== null &&
-    UNSTARTABLE_SLOTS.has(s.rosterSlot)
+/** Spec 6a §2.3 / 6b §2.2: IR / taxi players sit out from the current week on; the slot follows the player through a trade. */
+function reservedNow(series: PlayerSeries, week: number, currentWeek: number): boolean {
+  return (
+    week >= currentWeek && series.rosterSlot !== null && UNSTARTABLE_SLOTS.has(series.rosterSlot)
+  )
+}
+
+function solveWeek(
+  build: LineupBuild,
+  roster: PlayerSeries[],
+  week: number,
+  reserved: (s: PlayerSeries) => boolean
+): TeamWeek {
+  const all = roster.map((series) => ({ series, wp: weekPlayer(build, series, week) }))
   const startable = all.filter(
     ({ series, wp }) => !reserved(series) && !isUnavailable(wp.player.flag)
   )
@@ -206,7 +207,7 @@ export function teamWeek(build: LineupBuild, rosterId: number, week: number): Te
       const wp = players.get(id)
       return wp ? [wp] : []
     })
-  const result: TeamWeek = {
+  return {
     optimal: optimal.starters,
     optimalTotal: optimal.total,
     bench: lookup(optimal.bench.map((c) => c.id)),
@@ -221,8 +222,40 @@ export function teamWeek(build: LineupBuild, rosterId: number, week: number): Te
     games: all.filter((x) => x.wp.player.opponent !== null).length,
     played: all.filter((x) => x.wp.player.played).length
   }
+}
+
+export function teamWeek(build: LineupBuild, rosterId: number, week: number): TeamWeek {
+  const key = `${rosterId}|${week}`
+  const hit = build.weeks.get(key)
+  if (hit) return hit
+  const { currentWeek } = build.inputs.value.context
+  // A past-week pool (matchups row) may list players now owned elsewhere: only this team's IR / taxi apply.
+  const result = solveWeek(
+    build,
+    pool(build, rosterId, week),
+    week,
+    (s) => s.base.ownerRosterId === rosterId && reservedNow(s, week, currentWeek)
+  )
   build.weeks.set(key, result)
   return result
+}
+
+/** Spec 6b §2.3: a hypothetical roster (after a trade) for a window week; never memoised. IR / taxi follow the player. */
+export function rosterWeek(build: LineupBuild, roster: PlayerSeries[], week: number): TeamWeek {
+  const { currentWeek } = build.inputs.value.context
+  return solveWeek(build, roster, week, (s) => reservedNow(s, week, currentWeek))
+}
+
+/** Spec 6b §2.3: the engine's candidate for a player joining a roster that week; null when he can't start. */
+export function candidateFor(
+  build: LineupBuild,
+  series: PlayerSeries,
+  week: number
+): Candidate | null {
+  const { currentWeek } = build.inputs.value.context
+  if (reservedNow(series, week, currentWeek)) return null
+  const wp = weekPlayer(build, series, week)
+  return isUnavailable(wp.player.flag) ? null : wp.candidate
 }
 
 /** Final before the current week, upcoming after it; in it: none played → upcoming, all → final, else in progress. */
@@ -354,10 +387,16 @@ export function lineupWeek(
 }
 
 /** Spec §4.1: every team's optimal totals over the remaining weeks on its current roster, ranked. */
-export function teamStrengths(build: LineupBuild): TeamStrength[] {
-  const { currentWeek, projectionsStored } = build.inputs.value.context
+/** Spec 6b §2.1: the weeks team strength and trade deltas are summed over; empty without projections. */
+export function windowWeeks(build: LineupBuild): number[] {
+  const { currentWeek, lastWeek, projectionsStored } = build.inputs.value.context
   const weeks: number[] = []
-  if (projectionsStored) for (let w = currentWeek; w <= LAST_WEEK; w++) weeks.push(w)
+  if (projectionsStored) for (let w = currentWeek; w <= lastWeek; w++) weeks.push(w)
+  return weeks
+}
+
+export function teamStrengths(build: LineupBuild): TeamStrength[] {
+  const weeks = windowWeeks(build)
   const rows = build.inputs.teams.map((t): TeamStrength => {
     const base = { rosterId: t.rosterId, name: teamName(t), isMe: t.isMe }
     if (weeks.length === 0) {

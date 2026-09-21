@@ -434,6 +434,15 @@ export function RulesScreen({ onSaved }: RulesScreenProps = {}): React.JSX.Eleme
                 className="w-full text-left"
               />
             </Field>
+            <Field label="Playoff round type (0 · 1 two-week final · 2 two-week rounds)">
+              <NumberField
+                value={draft.settings.playoffRoundType}
+                integer
+                placeholder="0"
+                onChange={(v) => setSetting('playoffRoundType', v)}
+                className="w-full text-left"
+              />
+            </Field>
           </CardContent>
         </Card>
       </div>

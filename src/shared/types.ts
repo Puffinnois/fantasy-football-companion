@@ -311,6 +311,83 @@ export interface TeamStrength {
   rank: number | null
 }
 
+/** Slice 6b spec §4.1: from my side — I give `give`, I get `get` from roster `rosterId`. */
+export interface TradeProposal {
+  rosterId: number
+  give: string[]
+  get: string[]
+}
+
+/** A player as the trade table shows him; extends DetailTarget so the detail panel opens from any row. */
+export interface TradePlayer extends DetailTarget {
+  injuryStatus: string | null
+  /** IR / taxi slot on his current roster; follows him through a trade. */
+  reserve: 'ir' | 'taxi' | null
+  rosPoints: number | null
+  rosValue: number | null
+  expert: ExpertRos | null
+  market: MarketValue | null
+  /** Window weeks in which he starts for his current owner (before the trade). */
+  starterWeeks: number
+}
+
+export interface TradeSideResult {
+  rosterId: number
+  name: string
+  isMe: boolean
+  give: TradePlayer[]
+  get: TradePlayer[]
+  /** Auto-picked to respect the roster size; empty when none needed. */
+  drops: TradePlayer[]
+  /** Σ optimal totals over the window, before and after the trade. */
+  before: number
+  after: number
+  delta: number
+  deltaPerWeek: number
+  thisWeekDelta: number
+  /** Σ FantasyCalc value of each list; a player without one counts 0. */
+  marketGive: number
+  marketGet: number
+  unvaluedGive: number
+  unvaluedGet: number
+  /** Window weeks whose optimal total moves. */
+  weeksChanged: number
+  thisWeekSwaps: Swap[]
+}
+
+export interface TradeEvaluation {
+  season: number
+  currentWeek: number
+  lastWeek: number
+  /** Window length, currentWeek..lastWeek. */
+  weeks: number
+  tradeDeadlinePassed: boolean
+  me: TradeSideResult
+  them: TradeSideResult
+  /** Both deltas > 0. */
+  winWin: boolean
+  /** Each side receives ≥ 90 % of the market value it gives. */
+  marketFair: boolean
+}
+
+export interface TradePoolTeam {
+  rosterId: number
+  name: string
+  players: TradePlayer[]
+}
+
+/** Slice 6b spec §4.1: everything the builder's pickers need in one call. */
+export interface TradePool {
+  season: number
+  currentWeek: number
+  lastWeek: number
+  weeks: number
+  tradeDeadlinePassed: boolean
+  me: TradePoolTeam
+  /** Every other team, alphabetical. */
+  teams: TradePoolTeam[]
+}
+
 export interface PlayerValueRow extends PlayerBaseRow {
   gamesPlayed: number
   ppg: number | null
@@ -337,6 +414,8 @@ export interface ValueContext {
   season: number
   /** ROS starts here (Sleeper's week; 19 for a past season). */
   currentWeek: number
+  /** Last fantasy week of the league (slice 6b spec §2.1); team strength and trade deltas sum currentWeek..lastWeek. */
+  lastWeek: number
   projectionsStored: boolean
   teamCount: number
   /** A `teams` row is flagged `is_me`; when false `vsMine`, `droppable` and every `mine` entry are null. */

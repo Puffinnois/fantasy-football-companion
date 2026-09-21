@@ -143,6 +143,7 @@ export function mapRules(l: SleeperLeague, updatedAt: string): Rules {
     settings.tradeDeadlineWeek = s.trade_deadline
   if (s.playoff_week_start !== undefined) settings.playoffStartWeek = s.playoff_week_start
   if (s.playoff_teams !== undefined) settings.playoffTeams = s.playoff_teams
+  if (s.playoff_round_type !== undefined) settings.playoffRoundType = s.playoff_round_type
 
   return { source: 'sleeper', updatedAt, scoring, positionOverrides: {}, rosterSlots, settings }
 }

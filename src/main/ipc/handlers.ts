@@ -13,6 +13,8 @@ import { listRoster, listStarterIndexes, listTeams } from '@main/db/repos/teams'
 import { listWatched, toggleWatch } from '@main/db/repos/watchlist'
 import { buildLineups, lineupWeek, teamStrengths, type LineupBuild } from '@main/lineup/build'
 import type { NewsCache } from '@main/news/newsCache'
+import { evaluateTrade } from '@main/trade/evaluate'
+import { tradePool } from '@main/trade/pool'
 import { normalizeRules } from '@main/scoring/normalize'
 import { recomputePoints } from '@main/scoring/recompute'
 import type { FantasyCalcClient } from '@main/sources/fantasycalc'
@@ -42,6 +44,9 @@ import type {
   SyncStatus,
   Team,
   TeamStrength,
+  TradeEvaluation,
+  TradePool,
+  TradeProposal,
   UpdateState,
   WeekQuery
 } from '@shared/types'
@@ -113,13 +118,15 @@ function cachedLineup(ctx: AppContext, leagueId: string, season: number): Lineup
   const key = `${leagueId}|${season}`
   const hit = lineupCache.get(key)
   if (hit) return hit
+  const rules = getRules(ctx.db, leagueId)
   const built = buildLineups({
     value: cachedValue(ctx, leagueId, season),
     teams: listTeams(ctx.db, leagueId),
-    rosterSlots: getRules(ctx.db, leagueId)?.rosterSlots ?? [],
+    rosterSlots: rules?.rosterSlots ?? [],
     rosterPositions: leagueRosterPositions(ctx.db, leagueId),
     matchups: listMatchups(ctx.db, leagueId, season),
-    starterIndexes: listStarterIndexes(ctx.db, leagueId)
+    starterIndexes: listStarterIndexes(ctx.db, leagueId),
+    tradeDeadlineWeek: rules?.settings.tradeDeadlineWeek ?? null
   })
   if (lineupCache.size >= VALUE_CACHE_MAX) {
     const oldest = lineupCache.keys().next().value
@@ -280,6 +287,21 @@ export function registerIpcHandlers(ctx: AppContext): void {
     if (!id) throw new Error('No league imported')
     return teamStrengths(cachedLineup(ctx, id, season))
   })
+
+  ipcMain.handle(IPC.tradePool, (_event, season: number): TradePool => {
+    const id = activeLeagueId()
+    if (!id) throw new Error('No league imported')
+    return tradePool(cachedLineup(ctx, id, season))
+  })
+
+  ipcMain.handle(
+    IPC.tradeEvaluate,
+    (_event, season: number, proposal: TradeProposal): TradeEvaluation => {
+      const id = activeLeagueId()
+      if (!id) throw new Error('No league imported')
+      return evaluateTrade(cachedLineup(ctx, id, season), proposal)
+    }
+  )
 
   ipcMain.handle(IPC.watchlistToggle, (_event, playerId: string): boolean => {
     const watched = toggleWatch(ctx.db, playerId, new Date().toISOString())

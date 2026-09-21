@@ -15,6 +15,9 @@ import type {
   SyncStatus,
   Team,
   TeamStrength,
+  TradeEvaluation,
+  TradePool,
+  TradeProposal,
   UpdateState
 } from './types'
 import type { Rules } from './rules'
@@ -52,6 +55,12 @@ export interface Api {
     week(query: WeekQuery): Promise<LineupWeek>
     /** Every team's rest-of-season strength on its current roster, ranked. */
     strength(season: number): Promise<TeamStrength[]>
+  }
+  trade: {
+    /** My roster and every other team's for the builder's pickers (slice 6b spec §4.2). */
+    pool(season: number): Promise<TradePool>
+    /** Both teams' window strength before / after the proposal, drops, market balance. */
+    evaluate(season: number, proposal: TradeProposal): Promise<TradeEvaluation>
   }
   watchlist: {
     /** Returns the new state. */
@@ -95,6 +104,8 @@ export const IPC = {
   playersNews: 'players:news',
   lineupWeek: 'lineup:week',
   lineupStrength: 'lineup:strength',
+  tradePool: 'trade:pool',
+  tradeEvaluate: 'trade:evaluate',
   watchlistToggle: 'watchlist:toggle',
   rulesGet: 'rules:get',
   rulesUpdate: 'rules:update',

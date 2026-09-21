@@ -11,7 +11,8 @@ const OPTIONAL_SETTINGS = [
   'faabBudget',
   'tradeDeadlineWeek',
   'playoffStartWeek',
-  'playoffTeams'
+  'playoffTeams',
+  'playoffRoundType'
 ] as const
 
 function cleanPoints(obj: unknown, where: string): Record<StatKey, number> {

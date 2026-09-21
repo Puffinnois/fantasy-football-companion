@@ -24,6 +24,10 @@ const api: Api = {
     week: (query) => ipcRenderer.invoke(IPC.lineupWeek, query),
     strength: (season) => ipcRenderer.invoke(IPC.lineupStrength, season)
   },
+  trade: {
+    pool: (season) => ipcRenderer.invoke(IPC.tradePool, season),
+    evaluate: (season, proposal) => ipcRenderer.invoke(IPC.tradeEvaluate, season, proposal)
+  },
   watchlist: {
     toggle: (playerId) => ipcRenderer.invoke(IPC.watchlistToggle, playerId)
   },

@@ -32,6 +32,7 @@ Both read a per-(league, season) build cached in the main process (`valueCache` 
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `season`            | Season the build covers.                                                                                                                                                                                                                                                                                                                                                                    |
 | `currentWeek`       | Rest-of-season starts here (see conventions).                                                                                                                                                                                                                                                                                                                                               |
+| `lastWeek`          | The league's last fantasy week from the playoff settings (`lastFantasyWeek`, slice 6b spec §2.1): `playoffStartWeek + rounds − 1` with `rounds = ceil(log2(playoffTeams))`, `+1` for a two-week final, `×2` for two-week rounds, capped at 18; 18 without playoffs. Team strength and trade deltas sum `currentWeek..lastWeek`.                                                             |
 | `projectionsStored` | Whether any Sleeper projection rows exist for the season. When `false`, every ROS field is `null`.                                                                                                                                                                                                                                                                                          |
 | `hasMyTeam`         | A `teams` row is flagged `is_me` (set at import from the Sleeper user). When `false`, `vsMine`, `droppable` and every `mine[pos]` are `null`, and the UI hides the Mine group and the My team chip.                                                                                                                                                                                         |
 | `mine[pos]`         | `{ playerId, fullName, rosValue } \| null` per lineup position: my startable player (not IR / taxi) with the lowest `rosValue` — the `vsMine` baseline. `null` when I roster nobody startable with a ROS value there.                                                                                                                                                                       |
@@ -216,7 +217,7 @@ Slice 6a spec §2–§4; engine `src/main/lineup/optimal.ts` (pure), assembly `s
 
 ### `TeamStrength`
 
-`rosterId`, `name`, `isMe`, `thisWeek` (optimal total of the current week), `rosTotal` (Σ over `currentWeek..18`), `rosPerWeek`, `rank` (1 = strongest). All `null` when `!projectionsStored` or the season is over.
+`rosterId`, `name`, `isMe`, `thisWeek` (optimal total of the current week), `rosTotal` (Σ over `currentWeek..lastWeek`, the league window), `rosPerWeek`, `rank` (1 = strongest). All `null` when `!projectionsStored` or the season is over.
 
 ### Where it is shown (v0.12.0) — Lineup screen
 
@@ -232,6 +233,49 @@ Each team card's third line is `ROS {rosTotal} · #{rank}` (`ROS —` when null;
 
 Not shown yet: `TeamStrength.thisWeek` / `rosPerWeek` (in the payload), `expert` on bench players (in the payload).
 
+## Trade (added in v0.13.0)
+
+Slice 6b spec §2–§4; pure modules `src/main/trade/{enter,player,evaluate,pool}.ts` on the cached `LineupBuild`; channels `trade:pool` and `trade:evaluate`.
+
+### Conventions
+
+- **Window** = `currentWeek..lastWeek`; `weeks` = its length. Everything below is summed over it. Error `NO_PROJECTIONS` without stored projections; `NO_ME` without a team flagged `is_me`.
+- Traded players keep their IR / taxi slot (`TradePlayer.reserve`) — a received IR player contributes 0 until a sync changes it.
+
+### `TradeEvaluation`
+
+| Field                                        | Meaning                                                                                           |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `season`, `currentWeek`, `lastWeek`, `weeks` | The window.                                                                                       |
+| `tradeDeadlinePassed`                        | `currentWeek > tradeDeadlineWeek` (Sleeper's `trade_deadline`, the last week trades are allowed). |
+| `me`, `them`                                 | `TradeSideResult` for each team.                                                                  |
+| `winWin`                                     | Both `delta > 0`.                                                                                 |
+| `marketFair`                                 | Each side's `marketGet / marketGive ≥ 0.90` (`+∞` when it gives no valued player).                |
+
+### `TradeSideResult`
+
+| Field                                                    | Meaning                                                                                                                                                                                                             |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `give`, `get`                                            | `TradePlayer` rows (`DetailTarget` + `injuryStatus`, `reserve`, `rosPoints`, `rosValue`, `expert`, `market`); `starterWeeks` = window weeks the player starts for his current owner.                                |
+| `drops`                                                  | Auto-picked when the after-roster exceeds the roster size (Sleeper `roster_positions` minus IR / TAXI): active players starting in the fewest weeks on the oversized roster, ties by lowest `rosPoints`, then name. |
+| `before`, `after`, `delta`, `deltaPerWeek`               | Σ optimal totals over the window on the current roster / on `roster − give + get − drops`; `delta / weeks`.                                                                                                         |
+| `thisWeekDelta`, `thisWeekSwaps`                         | The current week alone; swaps as on the Lineup screen.                                                                                                                                                              |
+| `marketGive`, `marketGet`, `unvaluedGive`, `unvaluedGet` | Σ FantasyCalc `market.value` per list; a player outside FantasyCalc's list counts 0 and is counted as unvalued.                                                                                                     |
+| `weeksChanged`                                           | Window weeks whose optimal total moves by ≥ 0.01.                                                                                                                                                                   |
+
+Week skip (spec §2.3, exact): a week is not re-solved when no removed player (given or dropped) starts that week and no received player passes `canEnter` — a slot reachable from his position through the flex chain is empty or holds a starter worth less.
+
+### `TradePool`
+
+`me` and `teams` (every other team, alphabetical) with `TradePlayer` rows ordered by lineup position (`QB RB WR TE K DEF`, others last), then `rosPoints` desc, then name; plus the window fields and `tradeDeadlinePassed`.
+
+### Where it is shown (v0.13.0) — Trade screen
+
+1. **Header** — `weeks {currentWeek}–{lastWeek} · {weeks} weeks`; amber banner when `tradeDeadlinePassed` (nothing disabled).
+2. **Builder** — Partner select (defaults to the first team); _I give_ / _I get_ cards with the chosen rows (`ROS {rosPoints} · ECR {ecrPosRank} · MKT {market.value} · starts {starterWeeks}/{weeks}`, `IR` / `TAXI` tag, name opens `PlayerDetailPanel`) and a picker grouped by position (`{name} · {team} · [IR|TAXI ·] ROS {rosPoints}`). Changing the partner clears _I get_ and the verdict; changing a side clears the verdict.
+3. **Verdict** — per side `{fmtSigned(delta)} ({fmtSigned(deltaPerWeek)}/wk)` (green / red / muted), `{before} → {after} · this week {thisWeekDelta} · {weeksChanged} weeks change`, `drop: …` (amber) when present, `gives {marketGive} → gets {marketGet} ({ratio %|∞|—})[ · n unvalued]`; badges **Win-win** / **Market-fair** (muted when false); **This week** = my `thisWeekSwaps` as `Start A over B (SLOT, ±Δ)` or "Your lineup this week does not change."
+4. Pool errors (`NO_PROJECTIONS`, `NO_ME`) replace the screen with their message; evaluate errors (`INVALID_TRADE`) show under the Evaluate button and keep the sides. Helpers: `lib/tradeView.ts`.
+
 ## Constants (single sources)
 
 | Where                                                           | Constants                                                                                                                                                                                               |
@@ -244,6 +288,7 @@ Not shown yet: `TeamStrength.thisWeek` / `rosPerWeek` (in the payload), `expert`
 | `src/renderer/src/lib/playersTableView.ts` (display only)       | `PRIMARY_USAGE` (RB → snap %, WR/TE → target share), `TREND_ARROW` (↑ → ↓), SOS tint buckets `SOS_HARD_MAX = 11` / `SOS_EASY_MIN = 22`, `ECR_DELTA_TONE = 3`, `GRADE_ORDER` (F … A+)                    |
 | `src/renderer/src/lib/newsView.ts` (display only)               | `NEWS_PAGE_SIZE = 8`, badge map `fantasy_pros → FP`, `rotowire → RW`, `rotoballer → RB`                                                                                                                 |
 | `src/main/lineup/optimal.ts`, `src/main/sync/matchupsSync.ts`   | `CLOSE_CALL_PTS = 2`, `UNAVAILABLE_STATUSES` (`Out Doubtful IR PUP Sus COV NA DNR`), `QUESTIONABLE_STATUS`, `RESERVE_SLOTS = BN IR TAXI`; `MATCHUPS_PAST_FRESHNESS_MS = 30 d`                           |
+| `src/main/trade/evaluate.ts`, `src/shared/rules.ts`             | `MARKET_FAIR = 0.90`, `CHANGED_PTS = 0.01`; `LAST_NFL_WEEK = 18` and `lastFantasyWeek(settings)` (the league window's end)                                                                              |
 
 ## Where each number is shown today (v0.12.0)
 
@@ -294,21 +339,24 @@ Not shown in the panel: `stdev`, `airYardsShare`, `overallRank`.
 
 ## Module map
 
-| Module                                                                                                                            | Role                                                                                                                                     |
-| --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/main/value/series.ts`                                                                                                        | The only DB reader: per player and week — points, scored projection, Sleeper-keyed line, usage shares, opponent; plus the team schedule. |
-| `src/main/value/replacement.ts`                                                                                                   | Starter counts (greedy flex) and replacement levels.                                                                                     |
-| `src/main/value/signals.ts`                                                                                                       | Usage trends, opportunities / production, positional totals, percentiles, `statSignals`.                                                 |
-| `src/main/value/schedule.ts`                                                                                                      | Defense-vs-position ranks, per-player remaining schedule (`nextOpponent`, `rosSos`, `byesRemaining`).                                    |
-| `src/main/value/roster.ts`                                                                                                        | Roster-relative view: `vsMine`, `droppable`, my per-position baseline.                                                                   |
-| `src/main/value/expert.ts`                                                                                                        | Pure attach of the expert / market blocks and `ecrDelta`; `expertWeek` for the week rows.                                                |
-| `src/main/value/build.ts`                                                                                                         | Assembles rows, context, detail.                                                                                                         |
-| `src/main/sync/expertSync.ts`, `src/main/sources/{fantasypros,fantasycalc}.ts`, `src/main/db/repos/{expertRanks,marketValues}.ts` | Expert-layer sync: clients, FP → Sleeper join, one `sync_log` step per unit, replace-per-key storage.                                    |
-| `src/main/sources/sleeperNews.ts`, `src/main/news/newsCache.ts`                                                                   | Player news: GraphQL client + pure mapper; per-player 15-min in-memory cache behind `players.news`.                                      |
-| `src/renderer/src/lib/playersTableView.ts`                                                                                        | Column model, cell values/text/tones, sorting.                                                                                           |
-| `src/renderer/src/lib/detailView.ts`, `charts.ts`                                                                                 | Panel view model (usage rows, bar items, signal text) and SVG geometry.                                                                  |
-| `src/renderer/src/lib/newsView.ts`, `src/renderer/src/components/NewsSection.tsx`                                                 | News view helpers (badge, age) and the panel section with its own fetch and states.                                                      |
-| `src/main/lineup/optimal.ts`                                                                                                      | Lineup engine (pure): slot expansion, Hungarian assignment, deterministic seating, swaps, close calls, week value / flag.                |
-| `src/main/lineup/build.ts`                                                                                                        | Per-team week lineups from the value build + matchups + starters, current-lineup mapping, `lineupWeek`, `teamStrengths`.                 |
-| `src/main/sync/matchupsSync.ts`, `src/main/db/repos/matchups.ts`                                                                  | Matchups sync step (one per refresh) and replace-per-week storage.                                                                       |
-| `src/renderer/src/lib/lineupView.ts`, `src/renderer/src/screens/LineupScreen.tsx`                                                 | Lineup view helpers (header, flags, swaps, close-call tooltip) and the screen.                                                           |
+| Module                                                                                                                            | Role                                                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/main/value/series.ts`                                                                                                        | The only DB reader: per player and week — points, scored projection, Sleeper-keyed line, usage shares, opponent; plus the team schedule.          |
+| `src/main/value/replacement.ts`                                                                                                   | Starter counts (greedy flex) and replacement levels.                                                                                              |
+| `src/main/value/signals.ts`                                                                                                       | Usage trends, opportunities / production, positional totals, percentiles, `statSignals`.                                                          |
+| `src/main/value/schedule.ts`                                                                                                      | Defense-vs-position ranks, per-player remaining schedule (`nextOpponent`, `rosSos`, `byesRemaining`).                                             |
+| `src/main/value/roster.ts`                                                                                                        | Roster-relative view: `vsMine`, `droppable`, my per-position baseline.                                                                            |
+| `src/main/value/expert.ts`                                                                                                        | Pure attach of the expert / market blocks and `ecrDelta`; `expertWeek` for the week rows.                                                         |
+| `src/main/value/build.ts`                                                                                                         | Assembles rows, context, detail.                                                                                                                  |
+| `src/main/sync/expertSync.ts`, `src/main/sources/{fantasypros,fantasycalc}.ts`, `src/main/db/repos/{expertRanks,marketValues}.ts` | Expert-layer sync: clients, FP → Sleeper join, one `sync_log` step per unit, replace-per-key storage.                                             |
+| `src/main/sources/sleeperNews.ts`, `src/main/news/newsCache.ts`                                                                   | Player news: GraphQL client + pure mapper; per-player 15-min in-memory cache behind `players.news`.                                               |
+| `src/renderer/src/lib/playersTableView.ts`                                                                                        | Column model, cell values/text/tones, sorting.                                                                                                    |
+| `src/renderer/src/lib/detailView.ts`, `charts.ts`                                                                                 | Panel view model (usage rows, bar items, signal text) and SVG geometry.                                                                           |
+| `src/renderer/src/lib/newsView.ts`, `src/renderer/src/components/NewsSection.tsx`                                                 | News view helpers (badge, age) and the panel section with its own fetch and states.                                                               |
+| `src/main/lineup/optimal.ts`                                                                                                      | Lineup engine (pure): slot expansion, Hungarian assignment, deterministic seating, swaps, close calls, week value / flag.                         |
+| `src/main/lineup/build.ts`                                                                                                        | Per-team week lineups from the value build + matchups + starters, current-lineup mapping, `lineupWeek`, `teamStrengths`.                          |
+| `src/main/sync/matchupsSync.ts`, `src/main/db/repos/matchups.ts`                                                                  | Matchups sync step (one per refresh) and replace-per-week storage.                                                                                |
+| `src/renderer/src/lib/lineupView.ts`, `src/renderer/src/screens/LineupScreen.tsx`                                                 | Lineup view helpers (header, flags, swaps, close-call tooltip) and the screen.                                                                    |
+| `src/main/trade/enter.ts`                                                                                                         | Reachable-slot closure over the flex chain and `canEnter` — the exact test behind the trade week skip.                                            |
+| `src/main/trade/player.ts`, `src/main/trade/evaluate.ts`, `src/main/trade/pool.ts`                                                | `TradePlayer` rows and `starterWeeks`; `evaluateTrade` (`TradeError`, drops, market sums, week skip, verdict flags); `tradePool` for the pickers. |
+| `src/renderer/src/lib/tradeView.ts`, `src/renderer/src/screens/TradeScreen.tsx`                                                   | Trade view helpers (window label, delta / range / market lines, picker text, badges) and the Trade screen (builder + verdict card).               |
