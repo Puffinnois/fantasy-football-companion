@@ -647,7 +647,7 @@ Mark this plan's tasks done, and update the FFC project status memory (slice lis
 
 ## Progress notes (2026-09-21)
 
-All five tasks complete. `v0.10.1` and `v0.10.2` published; the installed 0.10.1 showed the **Update ready** dialog and relaunched as 0.10.2 (user-verified on Windows).
+All five tasks complete. `v0.10.1` and `v0.10.2` published (the first two "Publish" attempts from the web UI did not stick — `gh release edit vX --draft=false` did). The installed 0.10.1 fetched `latest.yml`, downloaded 0.10.2 and showed the **Update ready** dialog; on **Restart now** the assisted NSIS installer ran (non-silent — `quitAndInstall()` defaults to `isSilent = false`) and **Windows Smart App Control blocked it** ("Smart App Control has blocked part of this app"). SAC hard-blocks unsigned binaries with no "run anyway"; the fix is code signing with an RSA certificate from a trusted CA (Azure Trusted Signing preferred), tracked as the next slice together with the in-app update UX the user asked for.
 
 Deviations from the plan as written:
 
