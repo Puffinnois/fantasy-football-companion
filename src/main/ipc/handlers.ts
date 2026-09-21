@@ -1,14 +1,17 @@
 import { ipcMain, type BrowserWindow } from 'electron'
 import { withTransaction, type Db } from '@main/db/connection'
-import { getLeague } from '@main/db/repos/leagues'
+import { listExpertRanks } from '@main/db/repos/expertRanks'
+import { getLeague, leagueRosterPositions } from '@main/db/repos/leagues'
+import { listMatchups } from '@main/db/repos/matchups'
 import { playersOptions, playersWeek } from '@main/db/repos/playersWeek'
 import { latestPointsWeek, NO_POINTS_CONTEXT } from '@main/db/repos/points'
 import { getRules, saveRules } from '@main/db/repos/rules'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
 import { getNflState } from '@main/db/repos/state'
 import { getLastError, getLastSync, getLastSyncLike } from '@main/db/repos/syncLog'
-import { listRoster, listTeams } from '@main/db/repos/teams'
+import { listRoster, listStarterIndexes, listTeams } from '@main/db/repos/teams'
 import { listWatched, toggleWatch } from '@main/db/repos/watchlist'
+import { buildLineups, lineupWeek, teamStrengths, type LineupBuild } from '@main/lineup/build'
 import type { NewsCache } from '@main/news/newsCache'
 import { normalizeRules } from '@main/scoring/normalize'
 import { recomputePoints } from '@main/scoring/recompute'
@@ -26,6 +29,7 @@ import { IPC, type FindLeaguesResult } from '@shared/ipc'
 import type { Rules } from '@shared/rules'
 import type {
   League,
+  LineupWeek,
   PlayerDetail,
   PlayerNews,
   PlayersOptions,
@@ -36,6 +40,7 @@ import type {
   SyncResult,
   SyncStatus,
   Team,
+  TeamStrength,
   WeekQuery
 } from '@shared/types'
 
@@ -79,10 +84,13 @@ function cachedWeek(ctx: AppContext, leagueId: string, query: WeekQuery): Player
  */
 const VALUE_CACHE_MAX = 2
 const valueCache = new Map<string, ValueBuild>()
+/** Lineups derive from the value build and the same DB rows; same key, same invalidation. */
+const lineupCache = new Map<string, LineupBuild>()
 
 export function invalidateCaches(): void {
   invalidateWeekCache()
   valueCache.clear()
+  lineupCache.clear()
 }
 
 function cachedValue(ctx: AppContext, leagueId: string, season: number): ValueBuild {
@@ -95,6 +103,26 @@ function cachedValue(ctx: AppContext, leagueId: string, season: number): ValueBu
     if (oldest !== undefined) valueCache.delete(oldest)
   }
   valueCache.set(key, built)
+  return built
+}
+
+function cachedLineup(ctx: AppContext, leagueId: string, season: number): LineupBuild {
+  const key = `${leagueId}|${season}`
+  const hit = lineupCache.get(key)
+  if (hit) return hit
+  const built = buildLineups({
+    value: cachedValue(ctx, leagueId, season),
+    teams: listTeams(ctx.db, leagueId),
+    rosterSlots: getRules(ctx.db, leagueId)?.rosterSlots ?? [],
+    rosterPositions: leagueRosterPositions(ctx.db, leagueId),
+    matchups: listMatchups(ctx.db, leagueId, season),
+    starterIndexes: listStarterIndexes(ctx.db, leagueId)
+  })
+  if (lineupCache.size >= VALUE_CACHE_MAX) {
+    const oldest = lineupCache.keys().next().value
+    if (oldest !== undefined) lineupCache.delete(oldest)
+  }
+  lineupCache.set(key, built)
   return built
 }
 
@@ -234,6 +262,21 @@ export function registerIpcHandlers(ctx: AppContext): void {
   ipcMain.handle(IPC.playersNews, (_event, playerId: string, force: boolean): Promise<PlayerNews> =>
     ctx.news.get(playerId, force)
   )
+
+  ipcMain.handle(IPC.lineupWeek, (_event, query: WeekQuery): LineupWeek => {
+    const id = activeLeagueId()
+    if (!id) throw new Error('No league imported')
+    const experts = new Map(
+      listExpertRanks(ctx.db, query.season, query.week).map((r) => [r.playerId, r])
+    )
+    return lineupWeek(cachedLineup(ctx, id, query.season), query.week, experts)
+  })
+
+  ipcMain.handle(IPC.lineupStrength, (_event, season: number): TeamStrength[] => {
+    const id = activeLeagueId()
+    if (!id) throw new Error('No league imported')
+    return teamStrengths(cachedLineup(ctx, id, season))
+  })
 
   ipcMain.handle(IPC.watchlistToggle, (_event, playerId: string): boolean => {
     const watched = toggleWatch(ctx.db, playerId, new Date().toISOString())

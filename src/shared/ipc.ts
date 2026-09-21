@@ -1,6 +1,7 @@
 import type {
   League,
   LeagueSummary,
+  LineupWeek,
   PlayersOptions,
   PlayerDetail,
   PlayerNews,
@@ -12,7 +13,8 @@ import type {
   SyncLogEntry,
   SyncResult,
   SyncStatus,
-  Team
+  Team,
+  TeamStrength
 } from './types'
 import type { Rules } from './rules'
 
@@ -44,6 +46,12 @@ export interface Api {
     /** Sleeper's aggregated news for one player, newest first; cached in main for 15 min, `force` refetches. */
     news(playerId: string, force?: boolean): Promise<PlayerNews>
   }
+  lineup: {
+    /** My optimal vs. current lineup for a week with my opponent (slice 6a spec §4.2); cached in main with the value build. */
+    week(query: WeekQuery): Promise<LineupWeek>
+    /** Every team's rest-of-season strength on its current roster, ranked. */
+    strength(season: number): Promise<TeamStrength[]>
+  }
   watchlist: {
     /** Returns the new state. */
     toggle(playerId: string): Promise<boolean>
@@ -74,6 +82,8 @@ export const IPC = {
   playersValue: 'players:value',
   playersDetail: 'players:detail',
   playersNews: 'players:news',
+  lineupWeek: 'lineup:week',
+  lineupStrength: 'lineup:strength',
   watchlistToggle: 'watchlist:toggle',
   rulesGet: 'rules:get',
   rulesUpdate: 'rules:update',
