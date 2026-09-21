@@ -24,6 +24,7 @@ describe('buildValueSeason', () => {
     expect(build.context).toMatchObject({
       season: SEASON,
       currentWeek: 3,
+      lastWeek: 17,
       projectionsStored: true,
       teamCount: 2,
       expert: { scoring: 'PPR', ecrUpdatedAt: null, marketUpdatedAt: null }

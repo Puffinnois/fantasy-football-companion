@@ -337,6 +337,8 @@ export interface ValueContext {
   season: number
   /** ROS starts here (Sleeper's week; 19 for a past season). */
   currentWeek: number
+  /** Last fantasy week of the league (slice 6b spec §2.1); team strength and trade deltas sum currentWeek..lastWeek. */
+  lastWeek: number
   projectionsStored: boolean
   teamCount: number
   /** A `teams` row is flagged `is_me`; when false `vsMine`, `droppable` and every `mine` entry are null. */

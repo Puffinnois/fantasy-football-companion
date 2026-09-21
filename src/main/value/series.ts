@@ -7,7 +7,7 @@ import {
 } from '@main/scoring/adapters'
 import { scoreStatLine } from '@main/scoring/engine'
 import { pointsAllowedIndex } from '@main/scoring/recompute'
-import { asPosition, type Rules } from '@shared/rules'
+import { asPosition, lastFantasyWeek, type Rules } from '@shared/rules'
 import { toNflverseTeam, toSleeperTeam } from '@shared/teams'
 import type { NflState, PlayerBaseRow, RosterSlot } from '@shared/types'
 import type { Db } from '../db/connection'
@@ -60,6 +60,8 @@ export interface PlayerSeries {
 export interface SeriesBundle {
   season: number
   currentWeek: number
+  /** Slice 6b spec §2.1: the league's last fantasy week; the strength window is currentWeek..lastWeek. */
+  lastWeek: number
   projectionsStored: boolean
   teamCount: number
   /** A `teams` row of the league is flagged `is_me`. */
@@ -231,6 +233,7 @@ export function loadSeries(db: Db, leagueId: string, season: number): SeriesBund
   return {
     season,
     currentWeek,
+    lastWeek: lastFantasyWeek(rules?.settings),
     projectionsStored: projectionRows.length > 0,
     teamCount: league?.totalRosters ?? 0,
     hasMyTeam: listTeams(db, leagueId).some((t) => t.isMe),

@@ -61,6 +61,26 @@ export interface LeagueSettings {
   tradeDeadlineWeek?: number
   playoffStartWeek?: number
   playoffTeams?: number
+  /** Sleeper `playoff_round_type`: 0 one week per round, 1 two-week final, 2 two weeks per round. */
+  playoffRoundType?: number
+}
+
+/** Last week the app models (NFL regular season + fantasy playoffs). */
+export const LAST_NFL_WEEK = 18
+
+/**
+ * Slice 6b spec §2.1: the league's last fantasy week from its playoff settings — the end of the
+ * window team strength and trade deltas are summed over. 18 without playoff settings.
+ */
+export function lastFantasyWeek(settings: LeagueSettings | null | undefined): number {
+  if (!settings || settings.playoffStartWeek === undefined || settings.playoffStartWeek < 1) {
+    return LAST_NFL_WEEK
+  }
+  const teams = settings.playoffTeams ?? 0
+  const rounds = teams > 1 ? Math.ceil(Math.log2(teams)) : 1
+  const type = settings.playoffRoundType ?? 0
+  const weeks = type === 1 ? rounds + 1 : type === 2 ? rounds * 2 : rounds
+  return Math.min(LAST_NFL_WEEK, settings.playoffStartWeek + weeks - 1)
 }
 
 export type RulesSource = 'sleeper' | 'custom'

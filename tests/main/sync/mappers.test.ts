@@ -134,6 +134,14 @@ describe('mappers', () => {
       })
     })
 
+    it('maps the playoff round type when Sleeper sends it', () => {
+      const rules = mapRules(
+        { ...fx.league, settings: { ...fx.league.settings, playoff_round_type: 1 } },
+        'T'
+      )
+      expect(rules.settings.playoffRoundType).toBe(1)
+    })
+
     it('rounds float noise and keeps unknown keys', () => {
       const rules = mapRules(
         { ...fx.league, scoring_settings: { pass_yd: 0.03999999910593033, def_3_and_out: 1 } },

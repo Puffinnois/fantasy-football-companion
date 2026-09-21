@@ -469,6 +469,7 @@ describe('value mode', () => {
     const context: ValueContext = {
       season: 2026,
       currentWeek: 3,
+      lastWeek: 18,
       projectionsStored: true,
       teamCount: 16,
       hasMyTeam: false,
@@ -492,6 +493,7 @@ describe('value mode', () => {
     const context: ValueContext = {
       season: 2026,
       currentWeek: 3,
+      lastWeek: 18,
       projectionsStored: true,
       teamCount: 16,
       hasMyTeam: false,
@@ -521,6 +523,7 @@ describe('mine group', () => {
   const context: ValueContext = {
     season: 2026,
     currentWeek: 3,
+    lastWeek: 18,
     projectionsStored: true,
     teamCount: 16,
     hasMyTeam: true,

@@ -11,6 +11,7 @@ import {
   teamStrengths,
   teamWeek,
   weekStatus,
+  windowWeeks,
   type LineupBuild,
   type LineupInputs
 } from '@main/lineup/build'
@@ -246,7 +247,7 @@ describe('lineup build on the fixture league (week 3, Thursday played)', () => {
     expect(blind.me?.swaps).toEqual([])
   })
 
-  it('ranks the teams by rest-of-season optimal totals', () => {
+  it('ranks the teams by rest-of-season optimal totals over the league window', () => {
     const rows = teamStrengths(build)
     expect(rows.map((r) => [r.rosterId, r.rank])).toEqual([
       [1, 1],
@@ -254,11 +255,13 @@ describe('lineup build on the fixture league (week 3, Thursday played)', () => {
     ])
     const me = rows[0]
     expect(me.thisWeek).toBeCloseTo(teamWeek(build, 1, 3).optimalTotal, 2)
+    // playoff_week_start 15 + 3 rounds (6 teams) − 1 = week 17: 15 weeks, not 16.
     let expected = 0
-    for (let w = 3; w <= 18; w++) expected += teamWeek(build, 1, w).optimalTotal
+    for (let w = 3; w <= 17; w++) expected += teamWeek(build, 1, w).optimalTotal
     expect(me.rosTotal).toBeCloseTo(expected, 1)
-    expect(me.rosPerWeek).toBeCloseTo(expected / 16, 1)
+    expect(me.rosPerWeek).toBeCloseTo(expected / 15, 1)
     expect(me.name).toBe('Cook Book')
+    expect(windowWeeks(build)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17])
   })
 
   it('has no strength without stored projections', () => {

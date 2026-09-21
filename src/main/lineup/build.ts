@@ -3,7 +3,7 @@ import type { MatchupRow } from '@main/db/repos/matchups'
 import { round2 } from '@main/db/repos/points'
 import type { ValueBuild } from '@main/value/build'
 import { UNSTARTABLE_SLOTS } from '@main/value/roster'
-import { LAST_WEEK, type PlayerSeries } from '@main/value/series'
+import type { PlayerSeries } from '@main/value/series'
 import type { RosterSlotCount } from '@shared/rules'
 import type {
   LineupPlayer,
@@ -354,10 +354,16 @@ export function lineupWeek(
 }
 
 /** Spec §4.1: every team's optimal totals over the remaining weeks on its current roster, ranked. */
-export function teamStrengths(build: LineupBuild): TeamStrength[] {
-  const { currentWeek, projectionsStored } = build.inputs.value.context
+/** Spec 6b §2.1: the weeks team strength and trade deltas are summed over; empty without projections. */
+export function windowWeeks(build: LineupBuild): number[] {
+  const { currentWeek, lastWeek, projectionsStored } = build.inputs.value.context
   const weeks: number[] = []
-  if (projectionsStored) for (let w = currentWeek; w <= LAST_WEEK; w++) weeks.push(w)
+  if (projectionsStored) for (let w = currentWeek; w <= lastWeek; w++) weeks.push(w)
+  return weeks
+}
+
+export function teamStrengths(build: LineupBuild): TeamStrength[] {
+  const weeks = windowWeeks(build)
   const rows = build.inputs.teams.map((t): TeamStrength => {
     const base = { rosterId: t.rosterId, name: teamName(t), isMe: t.isMe }
     if (weeks.length === 0) {
