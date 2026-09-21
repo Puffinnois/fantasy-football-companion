@@ -49,3 +49,19 @@ export function getLeague(db: Db, leagueId: string): League | null {
     syncedAt: row.synced_at
   }
 }
+
+/** Sleeper's `roster_positions` from the raw league payload; null when the league or the field is missing. */
+export function leagueRosterPositions(db: Db, leagueId: string): string[] | null {
+  const row = db.prepare('SELECT sleeper_raw FROM leagues WHERE league_id = ?').get(leagueId) as
+    { sleeper_raw: string } | undefined
+  if (!row) return null
+  try {
+    const raw = JSON.parse(row.sleeper_raw) as { roster_positions?: unknown }
+    return Array.isArray(raw.roster_positions) &&
+      raw.roster_positions.every((s) => typeof s === 'string')
+      ? (raw.roster_positions as string[])
+      : null
+  } catch {
+    return null
+  }
+}

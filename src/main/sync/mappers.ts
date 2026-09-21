@@ -69,11 +69,13 @@ export function mapTeams(
 export function mapRosterPlayers(rosters: SleeperRoster[]): RosterPlayerRecord[] {
   const out: RosterPlayerRecord[] = []
   for (const r of rosters) {
-    const starters = (r.starters ?? []).filter((id) => id !== EMPTY_STARTER_SLOT)
-    const starterSet = new Set(starters)
+    const starters = r.starters ?? []
+    const starterSet = new Set(starters.filter((id) => id !== EMPTY_STARTER_SLOT))
     const reserve = new Set(r.reserve ?? [])
     const taxi = new Set(r.taxi ?? [])
+    // starterIndex is the position in Sleeper's `starters` array, empty slots included, so it maps onto roster_positions.
     starters.forEach((playerId, starterIndex) => {
+      if (playerId === EMPTY_STARTER_SLOT) return
       out.push({ rosterId: r.roster_id, playerId, slot: 'starter', starterIndex })
     })
     for (const playerId of r.players ?? []) {

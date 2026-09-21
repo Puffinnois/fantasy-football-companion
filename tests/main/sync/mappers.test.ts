@@ -69,7 +69,7 @@ describe('mappers', () => {
     expect(rows.filter((r) => r.rosterId === 1)).toEqual([
       { rosterId: 1, playerId: '4866', slot: 'starter', starterIndex: 0 },
       { rosterId: 1, playerId: '6794', slot: 'starter', starterIndex: 1 },
-      { rosterId: 1, playerId: 'LAR', slot: 'starter', starterIndex: 2 },
+      { rosterId: 1, playerId: 'LAR', slot: 'starter', starterIndex: 3 },
       { rosterId: 1, playerId: '8259', slot: 'ir', starterIndex: null }
     ])
     expect(rows.filter((r) => r.rosterId === 2)).toEqual([

@@ -138,3 +138,25 @@ export function listRoster(
     statsAvailable: r.stats_available === 1
   }))
 }
+
+/**
+ * Per roster, the current starters by Sleeper slot index (`null` = empty slot) — the current-week
+ * fallback for the lineup screen when no matchups row exists yet (slice 6a spec §3.4).
+ */
+export function listStarterIndexes(db: Db, leagueId: string): Map<number, (string | null)[]> {
+  const rows = db
+    .prepare(
+      `SELECT roster_id, player_id, starter_index FROM roster_players
+       WHERE league_id = ? AND slot = 'starter' AND starter_index IS NOT NULL
+       ORDER BY roster_id, starter_index`
+    )
+    .all(leagueId) as unknown as { roster_id: number; player_id: string; starter_index: number }[]
+  const out = new Map<number, (string | null)[]>()
+  for (const r of rows) {
+    const starters = out.get(r.roster_id) ?? []
+    while (starters.length < r.starter_index) starters.push(null)
+    starters[r.starter_index] = r.player_id
+    out.set(r.roster_id, starters)
+  }
+  return out
+}
