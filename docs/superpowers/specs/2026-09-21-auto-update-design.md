@@ -56,12 +56,26 @@ publish:
 ### 3.1 `src/main/updater.ts`
 
 ```ts
+/** The slice of electron-updater's `autoUpdater` the module uses; the real object is structurally assignable. */
+export interface UpdaterLike {
+  checkForUpdates(): Promise<unknown>
+  quitAndInstall(): void
+  on(event: 'error', listener: (err: Error) => void): unknown
+  on(event: 'update-downloaded', listener: (info: { version: string }) => void): unknown
+}
+
+/** The slice of Electron's `dialog` the module uses. */
+export interface DialogLike {
+  showMessageBox(options: MessageBoxOptions): Promise<{ response: number }>
+  showMessageBox(window: BrowserWindow, options: MessageBoxOptions): Promise<{ response: number }>
+}
+
 export interface UpdaterDeps {
   enabled: boolean                         // app.isPackaged && process.platform === 'win32'
-  updater: Pick<AppUpdater, 'checkForUpdates' | 'quitAndInstall' | 'on'>
-  dialog: Pick<typeof dialog, 'showMessageBox'>
+  updater: UpdaterLike
+  dialog: DialogLike
   getWindow: () => BrowserWindow | null
-  log?: (message: string, err?: unknown) => void   // defaults to console.error
+  log?: (message: string, err: unknown) => void   // defaults to console.error
 }
 
 export function installAutoUpdater(deps: UpdaterDeps): void
@@ -71,7 +85,7 @@ Behaviour:
 
 1. If `!enabled`, return without touching `updater`.
 2. Register `updater.on('error', …)` → `log('auto-update failed', err)`. Never surfaces to the user.
-3. Register `updater.on('update-downloaded', info)` → `dialog.showMessageBox(window ?? undefined, { type: 'info', title: 'Update ready', message: 'FantasyCompanion <version> is ready to install.', detail: 'Restart now to update, or it will install the next time you quit.', buttons: ['Restart now', 'Later'], defaultId: 0, cancelId: 1 })`. Response `0` → `updater.quitAndInstall()`. Otherwise nothing; electron-updater's default `autoInstallOnAppQuit` installs at the next quit.
+3. Register `updater.on('update-downloaded', info)` → `dialog.showMessageBox(window, { type: 'info', title: 'Update ready', message: 'FantasyCompanion <version> is ready to install.', detail: 'Restart now to update, or it will install the next time you quit.', buttons: ['Restart now', 'Later'], defaultId: 0, cancelId: 1 })` — the one-argument form when there is no window. Response `0` → `updater.quitAndInstall()`. Otherwise nothing; electron-updater's default `autoInstallOnAppQuit` installs at the next quit.
 4. `updater.checkForUpdates().catch((err) => log('auto-update check failed', err))`. Fire and forget. `autoDownload` stays at its default (`true`), so the delta downloads in the background.
 
 Dependencies are injected so the module is tested without Electron. `src/main/index.ts` calls it once, after `createWindow()`, passing `autoUpdater` from `electron-updater`, Electron's `dialog`, and `() => mainWindow`.
