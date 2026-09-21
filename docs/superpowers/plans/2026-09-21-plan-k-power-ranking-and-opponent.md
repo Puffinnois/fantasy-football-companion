@@ -950,7 +950,7 @@ Record the PID; stop the app later with `kill <PID>` only (never `pkill -f` — 
 
 Run by the user with Claude driving the commands. This is the first release delivered through the new in-app flow on the user's installed `0.11.1` (pill → popup → silent install).
 
-- [ ] **Step 1: Merge to main and bump**
+- [x] **Step 1: Merge to main and bump**
 
 ```bash
 git checkout main && git merge --ff-only feat/power-ranking && git branch -d feat/power-ranking
@@ -961,7 +961,7 @@ git push --follow-tags
 
 If no `Release` run appears within ~20 s (`gh run list --workflow=release.yml --limit 1`), re-push the tag alone: `git push origin :refs/tags/v0.12.0 && git push origin v0.12.0`.
 
-- [ ] **Step 2: Watch the run and check the draft**
+- [x] **Step 2: Watch the run and check the draft**
 
 ```bash
 gh run watch --exit-status $(gh run list --workflow=release.yml --limit 1 --json databaseId -q '.[0].databaseId')
@@ -970,7 +970,7 @@ gh api repos/Puffinnois/fantasy-football-companion/releases -q '.[] | "\(.tag_na
 
 Expected: the run succeeds; `v0.12.0 draft=true assets=FantasyCompanion-Setup-0.12.0.exe,FantasyCompanion-Setup-0.12.0.exe.blockmap,latest.yml` and no duplicate `v0.12.0` entry.
 
-- [ ] **Step 3: Publish (user — Claude cannot publish under auto mode)**
+- [x] **Step 3: Publish (user — Claude cannot publish under auto mode)**
 
 Release notes (these feed the in-app popup):
 
@@ -980,11 +980,11 @@ gh release edit v0.12.0 --draft=false --notes "Power ranking: every team's rest-
 
 Verify with the updater's own request (GitHub's REST API and download URLs lag a publish by minutes): `curl -sL -H "Accept: application/json" https://github.com/Puffinnois/fantasy-football-companion/releases/latest | grep -o '"tag_name":"[^"]*"'` prints `"tag_name":"v0.12.0"`.
 
-- [ ] **Step 4: Observe on Windows (user)**
+- [x] **Step 4: Observe on Windows (user)**
 
 Launch the installed 0.11.1 (or wait for its hourly check): green **Update to 0.12.0** pill → popup with the notes above → **Update & restart** → silent install → relaunch. Expected: sidebar footer shows `v0.12.0`, no pill; League cards show the ROS line; the Opponent card is on the Lineup screen.
 
-- [ ] **Step 5: Close out**
+- [x] **Step 5: Close out**
 
 Tick this plan, append progress notes at the end (deviations, test count, timings), commit `docs(plan): mark plan K complete`, push `main`, and update the project-status memory: slice 6a complete (`v0.12.0`), next is brainstorming 6b (trade evaluator) against the lineup engine.
 
@@ -996,3 +996,12 @@ Tick this plan, append progress notes at the end (deviations, test count, timing
 - **Placeholders:** none — every code step shows the code, every run step its command and expected outcome.
 - **Type consistency:** `TeamSort` / `TEAM_SORTS` / `STRENGTH_NOTE` / `rosLine` / `sortTeams` / `teamLabel` are defined in T1 with the signatures T2 imports; `teamStrength` (T1 fixture, `tests/fixtures/lineup.ts`) and `team` (T1 fixture, `tests/fixtures/league.ts`) are what T1 and T2 tests import; `swapsEmptyText(t: TeamLineup)` keeps its signature (T3) so the existing call sites compile; `SwapsList` / `OpponentCard` are local to `LineupScreen.tsx` and take `TeamLineup` / `DetailTarget` from Plan J's types.
 - **Behaviour change to flag to the user:** the League cards no longer pin my team first (strict standings under *Record*); the `You` badge and the default roster selection are unchanged.
+
+## Progress notes (2026-09-21)
+
+All five tasks executed inline in one session on `feat/power-ranking`, fast-forwarded to `main`; 409 tests (from 398), typecheck and lint green at every commit. Released as `v0.12.0` through the CI draft → user publish → in-app pill/popup/silent install on the installed 0.11.1, user-verified ("published and updated fine"). Slice 6a is complete.
+
+- **T1–T3 as planned**; the only edits after the plan's own self-review were already folded into it (the `cards()` test helper must not match the "ROS strength" toggle; the opponent card title is a `span`, not `CardTitle`, because a `div` may not sit inside a `button`). Every DOM test passed on its first run against the implementation.
+- **T4 dev-app check:** user "all good" on both screens. Closing the app window ends the `electron-vite dev` process, so the recorded PID was already gone at clean-up time — harmless.
+- **T5:** the tag push triggered the Release run first time; the draft carried the three assets with no duplicate. The run carries a GitHub annotation that `actions/checkout@v4` / `actions/setup-node@v4` target Node 20 (deprecated) — bump them to v5 in a later `chore(ci)`.
+- **Behaviour change shipped:** League cards under *Record* are strict standings (my team is no longer pinned first); `You` badge and default roster selection unchanged.
