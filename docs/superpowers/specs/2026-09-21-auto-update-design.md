@@ -29,7 +29,7 @@ No server of our own: GitHub Releases hosts the three files `electron-updater` n
 - **Runner:** `windows-latest`. Node version from `.nvmrc` (`actions/setup-node` with `node-version-file`). `npm ci`.
 - **Permissions:** `contents: write` (needed to create the release and upload assets).
 - **Guard step:** compare the tag with `v` + `package.json` version; fail the job if they differ. electron-builder does not check this and would otherwise upload to a release named after `package.json`.
-- **Steps, in order:** `npm test` → `npm run build` (typecheck + electron-vite build) → `npx electron-builder --win --publish always` with `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`.
+- **Steps, in order:** `npm test` → `npm run build` (typecheck + electron-vite build) → `npx electron-builder --win --publish never` (the `publish` block still makes it write `latest.yml`) → check the three files exist → `gh release create --draft` uploads them with `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`. electron-builder's own GitHub publisher is not used: in CI it raced two publisher instances and exited before the exe upload finished.
 - **Result:** a draft release tagged `vX.Y.Z` holding `FantasyCompanion-Setup-X.Y.Z.exe`, `FantasyCompanion-Setup-X.Y.Z.exe.blockmap`, `latest.yml`.
 
 ### 2.2 `electron-builder.yml`

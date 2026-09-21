@@ -32,7 +32,20 @@ jobs:
       - run: npm test
       - run: npm run build
 
-      - name: Package and upload to a draft release
-        run: npx electron-builder --win --publish always
+      # The publish block in electron-builder.yml still makes it write latest.yml and app-update.yml;
+      # the upload itself is done with gh, which is deterministic (electron-builder's own GitHub
+      # publisher raced two publisher instances and exited before the exe finished uploading).
+      - name: Package
+        run: npx electron-builder --win --publish never
+
+      - name: Check release files
+        shell: bash
+        run: ls -l dist/FantasyCompanion-Setup-*.exe dist/FantasyCompanion-Setup-*.exe.blockmap dist/latest.yml
+
+      - name: Create draft release
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes \
+            dist/FantasyCompanion-Setup-*.exe dist/FantasyCompanion-Setup-*.exe.blockmap dist/latest.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
