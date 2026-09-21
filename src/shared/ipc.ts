@@ -14,7 +14,8 @@ import type {
   SyncResult,
   SyncStatus,
   Team,
-  TeamStrength
+  TeamStrength,
+  UpdateState
 } from './types'
 import type { Rules } from './rules'
 
@@ -67,6 +68,16 @@ export interface Api {
     refresh(force?: boolean): Promise<SyncResult>
     status(): Promise<SyncStatus>
     onProgress(listener: (entry: SyncLogEntry) => void): () => void
+  }
+  update: {
+    state(): Promise<UpdateState>
+    /** Silent install + relaunch; no-op unless the state is `ready`. */
+    install(): Promise<void>
+    /** Fires on every state change; returns the unsubscribe function. */
+    onChange(listener: (state: UpdateState) => void): () => void
+  }
+  app: {
+    version(): Promise<string>
   }
 }
 

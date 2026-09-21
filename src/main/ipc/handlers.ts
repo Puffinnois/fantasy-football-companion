@@ -1,4 +1,4 @@
-import { ipcMain, type BrowserWindow } from 'electron'
+import { app, ipcMain, type BrowserWindow } from 'electron'
 import { withTransaction, type Db } from '@main/db/connection'
 import { listExpertRanks } from '@main/db/repos/expertRanks'
 import { getLeague, leagueRosterPositions } from '@main/db/repos/leagues'
@@ -25,6 +25,7 @@ import { importAll, refreshAll, type AppSyncDeps } from '@main/sync/refresh'
 import { reimportRules, SOURCE_LEAGUE } from '@main/sync/sleeperSync'
 import { buildValueSeason, detailFor, type ValueBuild } from '@main/value/build'
 import type { RefreshOptions } from '@main/sync/step'
+import type { UpdateController } from '@main/updater'
 import { IPC, type FindLeaguesResult } from '@shared/ipc'
 import type { Rules } from '@shared/rules'
 import type {
@@ -41,6 +42,7 @@ import type {
   SyncStatus,
   Team,
   TeamStrength,
+  UpdateState,
   WeekQuery
 } from '@shared/types'
 
@@ -52,6 +54,7 @@ export interface AppContext {
   fantasycalc: FantasyCalcClient
   news: NewsCache
   getWindow: () => BrowserWindow | null
+  update: UpdateController
 }
 
 /**
@@ -295,4 +298,8 @@ export function registerIpcHandlers(ctx: AppContext): void {
     lastError: getLastError(ctx.db),
     activeLeagueId: activeLeagueId()
   }))
+
+  ipcMain.handle(IPC.updateState, (): UpdateState => ctx.update.state())
+  ipcMain.handle(IPC.updateInstall, (): void => ctx.update.install())
+  ipcMain.handle(IPC.appVersion, (): string => app.getVersion())
 }

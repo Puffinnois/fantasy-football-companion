@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IPC, type Api } from '@shared/ipc'
-import type { SyncLogEntry } from '@shared/types'
+import type { SyncLogEntry, UpdateState } from '@shared/types'
 
 const api: Api = {
   setup: {
@@ -42,6 +42,20 @@ const api: Api = {
         ipcRenderer.removeListener(IPC.syncProgress, handler)
       }
     }
+  },
+  update: {
+    state: () => ipcRenderer.invoke(IPC.updateState),
+    install: () => ipcRenderer.invoke(IPC.updateInstall),
+    onChange: (listener) => {
+      const handler = (_event: IpcRendererEvent, state: UpdateState): void => listener(state)
+      ipcRenderer.on(IPC.updateChanged, handler)
+      return () => {
+        ipcRenderer.removeListener(IPC.updateChanged, handler)
+      }
+    }
+  },
+  app: {
+    version: () => ipcRenderer.invoke(IPC.appVersion)
   }
 }
 

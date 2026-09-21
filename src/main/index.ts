@@ -14,6 +14,7 @@ import { createNflverseClient } from '@main/sources/nflverse'
 import { createSleeperClient } from '@main/sources/sleeper'
 import { createSleeperNewsClient } from '@main/sources/sleeperNews'
 import { installAutoUpdater } from '@main/updater'
+import { IPC } from '@shared/ipc'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -76,16 +77,15 @@ app.whenReady().then(() => {
     fantasypros: createFantasyProsClient(),
     fantasycalc: createFantasyCalcClient(),
     news: createNewsCache(createSleeperNewsClient()),
-    getWindow: () => mainWindow
+    getWindow: () => mainWindow,
+    update: installAutoUpdater({
+      enabled: app.isPackaged && process.platform === 'win32',
+      updater: autoUpdater,
+      onChange: (state) => mainWindow?.webContents.send(IPC.updateChanged, state)
+    })
   }
   registerIpcHandlers(ctx)
   createWindow()
-  installAutoUpdater({
-    enabled: app.isPackaged && process.platform === 'win32',
-    updater: autoUpdater,
-    dialog,
-    getWindow: () => mainWindow
-  })
 
   if (getSetting(ctx.db, SETTING_ACTIVE_LEAGUE)) {
     startRefresh(ctx).catch((err) => console.error('background refresh failed', err))
