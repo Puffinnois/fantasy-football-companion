@@ -1,17 +1,19 @@
 # Value & signals — data reference
 
-What the app computes per player from the synced data, how each number is defined, and where it is shown today. Written for the UI redesign: the **data** sections are the contract (types in `src/shared/types.ts`, computed in `src/main/value/`); the **rendering** section is the current v0.9.0 presentation and is free to change.
+What the app computes per player from the synced data, how each number is defined, and where it is shown today. Written for the UI redesign: the **data** sections are the contract (types in `src/shared/types.ts`, computed in `src/main/value/`); the **rendering** section is the current v0.10.0 presentation and is free to change.
 
-Design rationale lives in `docs/superpowers/specs/2026-09-17-slice4-value-and-signals-design.md`; slice 5 (expert layer) rationale in `docs/superpowers/specs/2026-09-18-slice5-expert-layer-design.md`. This file documents what shipped.
+Design rationale lives in `docs/superpowers/specs/2026-09-17-slice4-value-and-signals-design.md`; slice 5 (expert layer) rationale in `docs/superpowers/specs/2026-09-18-slice5-expert-layer-design.md`; slice 6a (lineup model) rationale in `docs/superpowers/specs/2026-09-20-slice6a-lineup-model-design.md`. This file documents what shipped.
 
 ## How the data reaches the renderer
 
-| Call (`window.api.players`) | Returns                                                                                | Notes                                                                                                                                                                                                                                                                                                                 |
-| --------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `value(season)`             | `PlayersValue { context: ValueContext; rows: PlayerValueRow[] }`                       | One row per candidate player: lineup positions only (`QB RB WR TE K DEF`, FB counted as RB), and the player is rostered in the league, on the watchlist, or on an NFL team and not `Inactive`.                                                                                                                        |
-| `detail(season, playerId)`  | `PlayerDetail { row: PlayerValueRow; weeks: DetailWeek[]; schedule: ScheduleEntry[] }` | Same build, plus the per-week series and the remaining schedule.                                                                                                                                                                                                                                                      |
-| `week({ season, week })`    | `PlayersWeek { rows: PlayerWeekRow[] }`                                                | Same candidates with one week of data; since v0.8.0 each row also carries `expert: ExpertWeek \| null` — this week's FantasyPros `{ ecrPosRank, grade, projPts, spread }`.                                                                                                                                            |
-| `news(playerId, force?)`    | `PlayerNews { items: NewsItem[]; fetchedAt: string }`                                  | Sleeper's aggregated player news (FantasyPros, RotoWire, RotoBaller), newest first, ≤ 25 items. Not from the value build: its own per-player in-memory cache (`src/main/news/newsCache.ts`, 15 min), `force` refetches, failures are never cached, nothing is stored, nothing in `sync_log`. Empty for team defenses. |
+| Call (`window.api.players`)                           | Returns                                                                                | Notes                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `value(season)`                                       | `PlayersValue { context: ValueContext; rows: PlayerValueRow[] }`                       | One row per candidate player: lineup positions only (`QB RB WR TE K DEF`, FB counted as RB), and the player is rostered in the league, on the watchlist, or on an NFL team and not `Inactive`.                                                                                                                                                   |
+| `detail(season, playerId)`                            | `PlayerDetail { row: PlayerValueRow; weeks: DetailWeek[]; schedule: ScheduleEntry[] }` | Same build, plus the per-week series and the remaining schedule.                                                                                                                                                                                                                                                                                 |
+| `week({ season, week })`                              | `PlayersWeek { rows: PlayerWeekRow[] }`                                                | Same candidates with one week of data; since v0.8.0 each row also carries `expert: ExpertWeek \| null` — this week's FantasyPros `{ ecrPosRank, grade, projPts, spread }`.                                                                                                                                                                       |
+| `news(playerId, force?)`                              | `PlayerNews { items: NewsItem[]; fetchedAt: string }`                                  | Sleeper's aggregated player news (FantasyPros, RotoWire, RotoBaller), newest first, ≤ 25 items. Not from the value build: its own per-player in-memory cache (`src/main/news/newsCache.ts`, 15 min), `force` refetches, failures are never cached, nothing is stored, nothing in `sync_log`. Empty for team defenses.                            |
+| `lineup.week({ season, week })` (`window.api.lineup`) | `LineupWeek`                                                                           | My team and its opponent for the week: optimal lineup, the lineup set on Sleeper, swaps, close calls, bench, unavailable, status. Built from the value build plus `matchups`, `roster_players.starter_index` and Sleeper's `roster_positions`; cached with the value build (same invalidation). FantasyPros weekly rank/grade attached per call. |
+| `lineup.strength(season)`                             | `TeamStrength[]`                                                                       | Every team's optimal totals over weeks `currentWeek..18` on its current roster, ranked; `null` without projections or after the season. Not shown yet (Plan K puts it on the League cards).                                                                                                                                                      |
 
 Both read a per-(league, season) build cached in the main process (`valueCache` in `src/main/ipc/handlers.ts`). The cache is cleared on a successful sync and on a rules change; a watchlist toggle only re-decorates `watched`. A full-season build costs ~0.1 s (current season) to ~0.5 s (18 played weeks) on the dev DB. Nothing is persisted — every number below is recomputed from the DB.
 
@@ -172,6 +174,59 @@ Slice 5 spec §5; fetched on demand by `src/main/sources/sleeperNews.ts` (`POST 
 | `items[].url`         | Source article; `null` unless `http(s)`.                                                                                                                 |
 | `fetchedAt`           | When the main process fetched it (shown as the section note).                                                                                            |
 
+## Lineup (added in v0.10.0)
+
+Slice 6a spec §2–§4; engine `src/main/lineup/optimal.ts` (pure), assembly `src/main/lineup/build.ts`, matchups synced by `src/main/sync/matchupsSync.ts` (one step `sleeper:matchups:{season}`, weeks 1–18; past weeks re-fetched after 30 d, current and future weeks every refresh) into `matchups` (migration 006).
+
+### Conventions
+
+- **Lineup slots** = the league's `rosterSlots` expanded one entry per slot in Sleeper's order: `QB RB WR TE K DEF` take their position, `FLEX / SUPER_FLEX / REC_FLEX / WRRB_FLEX` take `FLEX_ELIGIBILITY`; `BN IR TAXI`, IDP and unknown slots are not lineup slots.
+- **Week value** = `points` when the week is played, else the league-scored projection, else 0 (bye, no projection) — the `rosPoints` rule.
+- **Availability** — `ir` / `taxi` players never start (from the current week on). In the **current week only**, `injuryStatus ∈ UNAVAILABLE_STATUSES` (`Out Doubtful IR PUP Sus COV NA DNR`) → value 0, listed under `unavailable`; `Questionable` keeps its value and is flagged. Future weeks use raw projections.
+- **Optimal** = exact maximum-weight assignment (Hungarian); every slot that can be filled is filled; ties are seated deterministically (dedicated slots first, best player; then flex from the most restrictive).
+- **Current lineup** = Sleeper's `starters` mapped onto `roster_positions` minus `BN IR TAXI` (`'0'` = empty). Source: the week's `matchups` row, else `roster_players.starter_index` for the current week, else `null`.
+- **Roster basis** — a past week uses the roster that played (`matchups.players_json`); the current and future weeks use the current roster.
+
+### `LineupWeek`
+
+| Field                           | Meaning                                                                                                                                          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `season`, `week`, `currentWeek` | As the value build.                                                                                                                              |
+| `status`                        | `final` before the current week (and in it once every player with a game has played), `upcoming` after it or before any game, else `inProgress`. |
+| `projectionsStored`             | As `ValueContext`; when false values are actuals only.                                                                                           |
+| `matchupId`                     | Sleeper's pairing id for my team that week; `null` on a bye / without a row.                                                                     |
+| `me`                            | `TeamLineup` for the `is_me` team; `null` without one.                                                                                           |
+| `opponent`                      | `TeamLineup` for the roster sharing `matchupId`; `null` otherwise.                                                                               |
+
+### `TeamLineup`
+
+| Field                       | Meaning                                                                                                                                                                                                                       |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `optimal[]`                 | One `SlotEntry { slot, player, closeCall }` per lineup slot; `player` null when nobody eligible is left; `closeCall` = best eligible bench player within `CLOSE_CALL_PTS = 2.0`.                                              |
+| `optimalTotal`              | Σ values of the optimal starters.                                                                                                                                                                                             |
+| `current[]`, `currentTotal` | The Sleeper lineup as `SlotEntry` (no close calls) and its Σ; `null` when unknown.                                                                                                                                            |
+| `actualTotal`               | Sleeper's `points` for a `final` week; `null` otherwise.                                                                                                                                                                      |
+| `bench[]`                   | Startable players left out, best first.                                                                                                                                                                                       |
+| `unavailable[]`             | IR / taxi and current-week Out / Doubtful players.                                                                                                                                                                            |
+| `swaps[]`                   | `{ slot, out, in, delta }`: starters the optimal lineup adds, each paired with one it removes (same position first, weakest first); `out` null when the current slot was empty; a player who only changes slot is not a swap. |
+
+### `LineupPlayer`
+
+`playerId`, `fullName`, `position`, `team`, `statsAvailable` (the `DetailTarget` the detail panel opens on), `opponent` (NFL, `null` on a bye), `dvpRank` (that opponent's defense-vs-position rank at the player's position, 1 = hardest), `value`, `played`, `injuryStatus`, `flag` (`out | doubtful | questionable | bye | null`), `expert` (`{ ecrPosRank, grade }` from FantasyPros weekly, `null` without a row), `floor`, `ceiling` (from `signals`).
+
+### `TeamStrength`
+
+`rosterId`, `name`, `isMe`, `thisWeek` (optimal total of the current week), `rosTotal` (Σ over `currentWeek..18`), `rosPerWeek`, `rank` (1 = strongest). All `null` when `!projectionsStored` or the season is over.
+
+### Where it is shown (v0.10.0) — Lineup screen
+
+1. **Header** — week picker (default `currentWeek`); `You {optimalTotal} optimal · {currentTotal} current vs {opponent.name} {currentTotal ?? optimalTotal} current|optimal`; final weeks `You {actualTotal} – {opponent} {actualTotal} · W/L/T` and `Left on bench: +Δ` (`optimalTotal − actualTotal`) for both sides; notes `No matchup this week`, `No projections stored — values are actuals only`, `Your team isn't identified — re-import from Setup`.
+2. **Slot table** — Slot · Your starter · Pts · Optimal · Pts · Δ; rows whose optimal starter is not among the current starters are tinted and carry Δ = `value(optimal) − value(current in that slot ?? 0)`; `≈ {alt}` (amber) with the close-call tooltip (both players' value, floor/ceiling, ECR + grade, opponent + DvP); flags `Q` amber, `D`/`O` red, `BYE` muted; names open `PlayerDetailPanel`.
+3. **Swaps** — `Start A over B (SLOT, +Δ)`; empty states `Your lineup is optimal` / `Lineup not set on Sleeper yet`.
+4. **Bench** / **Unavailable** — name, team, opponent, flag, value.
+
+Not shown yet: `TeamStrength` (Plan K), the opponent's slot table (Plan K), `expert` on bench players (in the payload).
+
 ## Constants (single sources)
 
 | Where                                                           | Constants                                                                                                                                                                                               |
@@ -183,8 +238,9 @@ Slice 5 spec §5; fetched on demand by `src/main/sources/sleeperNews.ts` (`POST 
 | `src/main/sources/sleeperNews.ts`, `src/main/news/newsCache.ts` | `NEWS_LIMIT = 25`, `NEWS_TIMEOUT_MS = 8 s`, `SLEEPER_NEWS_USER_AGENT`, `NEWS_TTL_MS = 15 min`, `NEWS_CACHE_MAX = 64`                                                                                    |
 | `src/renderer/src/lib/playersTableView.ts` (display only)       | `PRIMARY_USAGE` (RB → snap %, WR/TE → target share), `TREND_ARROW` (↑ → ↓), SOS tint buckets `SOS_HARD_MAX = 11` / `SOS_EASY_MIN = 22`, `ECR_DELTA_TONE = 3`, `GRADE_ORDER` (F … A+)                    |
 | `src/renderer/src/lib/newsView.ts` (display only)               | `NEWS_PAGE_SIZE = 8`, badge map `fantasy_pros → FP`, `rotowire → RW`, `rotoballer → RB`                                                                                                                 |
+| `src/main/lineup/optimal.ts`, `src/main/sync/matchupsSync.ts`   | `CLOSE_CALL_PTS = 2`, `UNAVAILABLE_STATUSES` (`Out Doubtful IR PUP Sus COV NA DNR`), `QUESTIONABLE_STATUS`, `RESERVE_SLOTS = BN IR TAXI`; `MATCHUPS_PAST_FRESHNESS_MS = 30 d`                           |
 
-## Where each number is shown today (v0.9.0)
+## Where each number is shown today (v0.10.0)
 
 ### Players table, Value mode (`columnGroups(tab, 'value')` — identical on every position tab)
 
@@ -247,3 +303,7 @@ Not shown in the panel: `stdev`, `airYardsShare`, `overallRank`.
 | `src/renderer/src/lib/playersTableView.ts`                                                                                        | Column model, cell values/text/tones, sorting.                                                                                           |
 | `src/renderer/src/lib/detailView.ts`, `charts.ts`                                                                                 | Panel view model (usage rows, bar items, signal text) and SVG geometry.                                                                  |
 | `src/renderer/src/lib/newsView.ts`, `src/renderer/src/components/NewsSection.tsx`                                                 | News view helpers (badge, age) and the panel section with its own fetch and states.                                                      |
+| `src/main/lineup/optimal.ts`                                                                                                      | Lineup engine (pure): slot expansion, Hungarian assignment, deterministic seating, swaps, close calls, week value / flag.                |
+| `src/main/lineup/build.ts`                                                                                                        | Per-team week lineups from the value build + matchups + starters, current-lineup mapping, `lineupWeek`, `teamStrengths`.                 |
+| `src/main/sync/matchupsSync.ts`, `src/main/db/repos/matchups.ts`                                                                  | Matchups sync step (one per refresh) and replace-per-week storage.                                                                       |
+| `src/renderer/src/lib/lineupView.ts`, `src/renderer/src/screens/LineupScreen.tsx`                                                 | Lineup view helpers (header, flags, swaps, close-call tooltip) and the screen.                                                           |

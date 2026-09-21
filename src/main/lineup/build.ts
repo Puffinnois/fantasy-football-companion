@@ -290,13 +290,16 @@ function teamLineup(
   const placed = currentPlaced(build, team.rosterId, week, tw)
   const current: SlotEntry[] | null =
     placed?.map((e) => ({ slot: e.slot, player: decorate(e.player), closeCall: null })) ?? null
+  // Spec §5.1: largest gain first (the engine orders them by the incoming player's value for pairing).
   const swaps: Swap[] = placed
-    ? swapsBetween(tw.optimal, placed).map((s) => ({
-        slot: s.slot,
-        out: decorate(s.out),
-        in: withExpert(tw, s.in, experts),
-        delta: s.delta
-      }))
+    ? swapsBetween(tw.optimal, placed)
+        .map((s) => ({
+          slot: s.slot,
+          out: decorate(s.out),
+          in: withExpert(tw, s.in, experts),
+          delta: s.delta
+        }))
+        .sort((a, b) => b.delta - a.delta)
     : []
   const row = build.matchups.get(week)?.get(team.rosterId)
   return {
