@@ -47,7 +47,7 @@
 
 ### Task 0: Branch
 
-- [ ] **Step 1:** `git checkout -b feat/power-ranking` from `main` (clean, at `e5d9ac5` or later).
+- [x] **Step 1:** `git checkout -b feat/power-ranking` from `main` (clean, at `e5d9ac5` or later).
 
 ---
 
@@ -69,7 +69,7 @@
   - `function rosLine(s: TeamStrength | undefined): string`
   - `function sortTeams(teams: Team[], strengths: TeamStrength[], sort: TeamSort): Team[]`
 
-- [ ] **Step 1: Add the fixtures**
+- [x] **Step 1: Add the fixtures**
 
 Create `tests/fixtures/league.ts`:
 
@@ -114,7 +114,7 @@ export function teamStrength(over: Partial<TeamStrength> = {}): TeamStrength {
 }
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Create `tests/renderer/lib/leagueView.test.ts`:
 
@@ -192,12 +192,12 @@ describe('leagueView', () => {
 })
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 Run: `npx vitest run tests/renderer/lib/leagueView.test.ts`
 Expected: FAIL — `Failed to resolve import "@/lib/leagueView"`.
 
-- [ ] **Step 4: Implement `src/renderer/src/lib/leagueView.ts`**
+- [x] **Step 4: Implement `src/renderer/src/lib/leagueView.ts`**
 
 ```ts
 import type { Team, TeamStrength } from '@shared/types'
@@ -253,12 +253,12 @@ export function sortTeams(teams: Team[], strengths: TeamStrength[], sort: TeamSo
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `npx vitest run tests/renderer/lib/leagueView.test.ts`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -278,7 +278,7 @@ git commit -m "feat(ui): league card sort and ROS line helpers"
 - Consumes: Task 1's `rosLine`, `sortTeams`, `STRENGTH_NOTE`, `teamLabel`, `TEAM_SORTS`, `TeamSort`; `api.lineup.strength(season: number): Promise<TeamStrength[]>` (exists since Plan J); `api.league.pointsContext(): Promise<PointsContext>` (`{ season: number; lastWeek: number | null }`).
 - Produces: nothing new for later tasks. `LeagueScreen` keeps its prop-less signature (App mounts it with `key={dataVersion}`, so a sync remounts it and refetches strength).
 
-- [ ] **Step 1: Write the failing DOM test**
+- [x] **Step 1: Write the failing DOM test**
 
 Create `tests/renderer/components/LeagueScreen.test.tsx`:
 
@@ -399,12 +399,12 @@ describe('LeagueScreen', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/renderer/components/LeagueScreen.test.tsx`
 Expected: FAIL — `Unable to find an element with the text: ROS 1900.50 · #1`.
 
-- [ ] **Step 3: Rewrite `src/renderer/src/screens/LeagueScreen.tsx`**
+- [x] **Step 3: Rewrite `src/renderer/src/screens/LeagueScreen.tsx`**
 
 Replace the whole file with:
 
@@ -656,12 +656,12 @@ export function LeagueScreen(): React.JSX.Element {
 
 What changed vs. the current file: the local `teamLabel` moved to `leagueView.ts`; new `strengths` / `sort` state; the strength effect (cancellation flag, keyed on `season`); the header is now a `flex … justify-between` row with the toggle and the conditional note; cards iterate `ordered` and carry the third line. The roster panel is untouched (spec §5.2).
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run tests/renderer/components/LeagueScreen.test.tsx`
 Expected: PASS, 3 tests. If the third test's `boom` is not found, check that the strength rejection is not being cleared by a later `setError(null)` — the `get`/`teams` promises resolve in the first microtask flush, before the `season` effect fires; `mockRejectedValue` on `strength` therefore lands last.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -683,7 +683,7 @@ git commit -m "feat(ui): power ranking on the League screen cards"
 - Consumes: `TeamLineup.isMe`, `.name`, `.swaps`, `.current` (Plan J types); `swapLine`, `swapsEmptyText` from `@/lib/lineupView`; `ChevronDown` from `lucide-react`.
 - Produces: `swapsEmptyText(t: TeamLineup): string` now returns `'Their lineup is optimal'` when `!t.isMe`; screen-local `SwapsList({ team })` and `OpponentCard({ team, onOpen })` components (not exported).
 
-- [ ] **Step 1: Extend the pure test**
+- [x] **Step 1: Extend the pure test**
 
 In `tests/renderer/lib/lineupView.test.ts`, replace the two `swapsEmptyText` expectations at the end of `'writes swap lines and the empty-state text'` with:
 
@@ -696,12 +696,12 @@ In `tests/renderer/lib/lineupView.test.ts`, replace the two `swapsEmptyText` exp
     )
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run tests/renderer/lib/lineupView.test.ts`
 Expected: FAIL — `expected 'Your lineup is optimal' to be 'Their lineup is optimal'`.
 
-- [ ] **Step 3: Update `swapsEmptyText` in `src/renderer/src/lib/lineupView.ts`**
+- [x] **Step 3: Update `swapsEmptyText` in `src/renderer/src/lib/lineupView.ts`**
 
 Replace the function body:
 
@@ -713,12 +713,12 @@ export function swapsEmptyText(t: TeamLineup): string {
 }
 ```
 
-- [ ] **Step 4: Run it to verify it passes**
+- [x] **Step 4: Run it to verify it passes**
 
 Run: `npx vitest run tests/renderer/lib/lineupView.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing DOM test**
+- [x] **Step 5: Write the failing DOM test**
 
 In `tests/renderer/components/LineupScreen.test.tsx`, append inside `describe('LineupScreen', …)`:
 
@@ -779,12 +779,12 @@ In `tests/renderer/components/LineupScreen.test.tsx`, append inside `describe('L
   })
 ```
 
-- [ ] **Step 6: Run it to verify it fails**
+- [x] **Step 6: Run it to verify it fails**
 
 Run: `npx vitest run tests/renderer/components/LineupScreen.test.tsx`
 Expected: the two new tests FAIL — `Unable to find role="button" and name "Opponent · Rival"`; the four existing tests still pass.
 
-- [ ] **Step 7: Modify `src/renderer/src/screens/LineupScreen.tsx`**
+- [x] **Step 7: Modify `src/renderer/src/screens/LineupScreen.tsx`**
 
 (a) Add the icon import after the `react` import:
 
@@ -873,12 +873,12 @@ function OpponentCard({
       {data?.opponent && <OpponentCard team={data.opponent} onOpen={setSelected} />}
 ```
 
-- [ ] **Step 8: Run the DOM tests to verify they pass**
+- [x] **Step 8: Run the DOM tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/components/LineupScreen.test.tsx`
 Expected: PASS, 6 tests. `getByRole('button', { name: 'Opponent · Rival' })` resolves because the `svg` is `aria-hidden` and contributes nothing to the accessible name; if Testing Library reports the name with trailing whitespace, keep the title `span` text on one line as shown.
 
-- [ ] **Step 9: Verify and commit**
+- [x] **Step 9: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -895,7 +895,7 @@ git commit -m "feat(ui): opponent lineup section on the Lineup screen"
 
 No main-process code changed in this plan, so the spec §7 real-data step is the dev-app check itself (the strength numbers were already read on the dev DB in Plan J: 16 teams in 30 ms, my roster #10).
 
-- [ ] **Step 1: Document.** Edits to `docs/reference/value-and-signals.md` (exact old → new):
+- [x] **Step 1: Document.** Edits to `docs/reference/value-and-signals.md` (exact old → new):
 
 1. Line 3, intro: `the current v0.10.0 presentation` → `the current v0.12.0 presentation`.
 2. Table "How the data reaches the renderer", the `lineup.strength(season)` row: replace the trailing sentence `Not shown yet (Plan K puts it on the League cards).` with:
@@ -924,14 +924,14 @@ Not shown yet: `TeamStrength.thisWeek` / `rosPerWeek` (in the payload), `expert`
 
 Run `npm run format` (Prettier reflows the markdown tables), then `git diff --stat docs/reference/value-and-signals.md` to confirm only that file changed.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add docs/reference/value-and-signals.md
 git commit -m "docs: document power ranking and opponent section"
 ```
 
-- [ ] **Step 3: Dev-app check (user)**
+- [x] **Step 3: Dev-app check (user)**
 
 ```bash
 npx electron-vite dev -- --no-sandbox --disable-gpu --in-process-gpu & echo "DEV_PID=$!"
@@ -942,7 +942,7 @@ Record the PID; stop the app later with `kill <PID>` only (never `pkill -f` — 
 - League screen: every card shows `ROS … · #n`; my card (#10 on the dev DB) is no longer pinned first under *Record*; *ROS strength* reorders the cards and shows the note; the roster panel still opens on my team.
 - Lineup screen, current week: the `Opponent · {name}` card is collapsed; expanding shows their table with `Their starter`, their swaps or `Their lineup is optimal`; a name in their table opens the detail panel; a week with no matchup hides the card.
 
-- [ ] **Step 4: Tick this plan's tasks 0–4 and commit** `docs(plan): mark plan K tasks 0-4 done`.
+- [x] **Step 4: Tick this plan's tasks 0–4 and commit** `docs(plan): mark plan K tasks 0-4 done`.
 
 ---
 
