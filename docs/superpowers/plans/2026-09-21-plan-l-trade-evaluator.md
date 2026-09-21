@@ -1,5 +1,7 @@
 # Plan L — Trade evaluator (slice 6b, phase 1)
 
+**Status:** complete — merged to `main` as `d1023fe`, released as `v0.13.0` (2026-09-21). Follow-up recorded for 6b: multi-team (3+) trades, currently a spec non-goal.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Evaluate a proposed trade between my team and one other team by the change in both teams' rest-of-season strength (6a's optimal-lineup engine on the swapped rosters), with this-week delta, auto-drops, and the market balance — on a new Trade screen with a builder and a verdict card — and ship `v0.13.0`. Suggestions are Plan M.
@@ -20,7 +22,7 @@
 - Verification before every commit: `npm run typecheck && npm run lint && npm test`; run `npm run format` when Prettier complains. Conventional Commits, summary ≤ 50 chars, imperative, **no trailers** (no `Co-Authored-By`, no "Generated with").
 - ESLint is strict: explicit return types on every named function and component, `react-hooks/set-state-in-effect` is an error (state may only be set inside promise callbacks / event handlers, never synchronously in an effect body), no unused vars / imports.
 - Decisions locked in here (not in the spec):
-  - **`weeksChanged`** counts window weeks whose optimal *total* moves by ≥ 0.01 — a same-total reshuffle is not a change the user cares about.
+  - **`weeksChanged`** counts window weeks whose optimal _total_ moves by ≥ 0.01 — a same-total reshuffle is not a change the user cares about.
   - **`starterWeeks`** counts a player as starting when he is placed in the optimal lineup, even at value 0 (the engine prefers a 0-point player to an empty slot); with real projections this never matters.
   - **`tradeDeadlineWeek`** reaches the engine through a new `LineupInputs.tradeDeadlineWeek: number | null` (Sleeper's `trade_deadline` is the last week trades are allowed, so `passed = currentWeek > deadline`).
   - **Pool ordering**: partner teams alphabetically; players by lineup position (`QB RB WR TE K DEF`, then others), then `rosPoints` desc, then name.
@@ -32,13 +34,14 @@
 
 **Files:** none.
 
-- [ ] **Step 1:** `git checkout -b feat/trade-evaluator` from `main` (clean, at `588fc3e` or later).
+- [x] **Step 1:** `git checkout -b feat/trade-evaluator` from `main` (clean, at `588fc3e` or later).
 
 ---
 
 ### Task 1: League window — `lastFantasyWeek`, `playoffRoundType`, `ValueContext.lastWeek`, power ranking over the window
 
 **Files:**
+
 - Modify: `src/shared/rules.ts` (`LeagueSettings`, new `LAST_NFL_WEEK`, `lastFantasyWeek`)
 - Modify: `src/main/sync/mappers.ts:144-145` (map `playoff_round_type`)
 - Modify: `src/main/scoring/normalize.ts:10-15` (`OPTIONAL_SETTINGS`)
@@ -50,9 +53,10 @@
 - Test: `tests/shared/rules.test.ts`, `tests/main/sync/mappers.test.ts`, `tests/main/value/build.test.ts:23-30`, `tests/main/lineup/build.test.ts:249-262`, `tests/renderer/lib/playersTableView.test.ts` (three `ValueContext` literals)
 
 **Interfaces:**
+
 - Produces: `lastFantasyWeek(settings: LeagueSettings | null | undefined): number`; `LAST_NFL_WEEK = 18`; `LeagueSettings.playoffRoundType?: number`; `ValueContext.lastWeek: number`; `windowWeeks(build: LineupBuild): number[]` (exported from `@main/lineup/build`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/shared/rules.test.ts` (add `lastFantasyWeek` to the existing `@shared/rules` import):
 
@@ -82,13 +86,13 @@ describe('lastFantasyWeek (slice 6b spec §2.1)', () => {
 Add to the `mapRules` describe block in `tests/main/sync/mappers.test.ts` (next to the settings test around line 128):
 
 ```ts
-    it('maps the playoff round type when Sleeper sends it', () => {
-      const rules = mapRules(
-        { ...fx.league, settings: { ...fx.league.settings, playoff_round_type: 1 } },
-        'T'
-      )
-      expect(rules.settings.playoffRoundType).toBe(1)
-    })
+it('maps the playoff round type when Sleeper sends it', () => {
+  const rules = mapRules(
+    { ...fx.league, settings: { ...fx.league.settings, playoff_round_type: 1 } },
+    'T'
+  )
+  expect(rules.settings.playoffRoundType).toBe(1)
+})
 ```
 
 In `tests/main/value/build.test.ts:23-30`, add `lastWeek: 17,` after `currentWeek: 3,` inside the `toMatchObject` (the fixture league has `playoff_week_start: 15`, `playoff_teams: 6`).
@@ -96,34 +100,34 @@ In `tests/main/value/build.test.ts:23-30`, add `lastWeek: 17,` after `currentWee
 In `tests/main/lineup/build.test.ts:249-262` change the strength test to the window:
 
 ```ts
-  it('ranks the teams by rest-of-season optimal totals over the league window', () => {
-    const rows = teamStrengths(build)
-    expect(rows.map((r) => [r.rosterId, r.rank])).toEqual([
-      [1, 1],
-      [2, 2]
-    ])
-    const me = rows[0]
-    expect(me.thisWeek).toBeCloseTo(teamWeek(build, 1, 3).optimalTotal, 2)
-    // playoff_week_start 15 + 3 rounds (6 teams) − 1 = week 17: 15 weeks, not 16.
-    let expected = 0
-    for (let w = 3; w <= 17; w++) expected += teamWeek(build, 1, w).optimalTotal
-    expect(me.rosTotal).toBeCloseTo(expected, 1)
-    expect(me.rosPerWeek).toBeCloseTo(expected / 15, 1)
-    expect(me.name).toBe('Cook Book')
-    expect(windowWeeks(build)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17])
-  })
+it('ranks the teams by rest-of-season optimal totals over the league window', () => {
+  const rows = teamStrengths(build)
+  expect(rows.map((r) => [r.rosterId, r.rank])).toEqual([
+    [1, 1],
+    [2, 2]
+  ])
+  const me = rows[0]
+  expect(me.thisWeek).toBeCloseTo(teamWeek(build, 1, 3).optimalTotal, 2)
+  // playoff_week_start 15 + 3 rounds (6 teams) − 1 = week 17: 15 weeks, not 16.
+  let expected = 0
+  for (let w = 3; w <= 17; w++) expected += teamWeek(build, 1, w).optimalTotal
+  expect(me.rosTotal).toBeCloseTo(expected, 1)
+  expect(me.rosPerWeek).toBeCloseTo(expected / 15, 1)
+  expect(me.name).toBe('Cook Book')
+  expect(windowWeeks(build)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17])
+})
 ```
 
 and add `windowWeeks` to the `@main/lineup/build` import.
 
 In `tests/renderer/lib/playersTableView.test.ts`, add `lastWeek: 18,` after each `currentWeek: 3,` in the three `ValueContext` literals (around lines 472, 495, 524).
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/shared/rules.test.ts tests/main/sync/mappers.test.ts tests/main/value/build.test.ts tests/main/lineup/build.test.ts`
 Expected: FAIL — `lastFantasyWeek is not a function` / `windowWeeks is not a function`, `playoffRoundType` undefined, `lastWeek` missing, `rosTotal` off by week 18.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/shared/rules.ts` — extend the interface and add, after `LeagueSettings`:
 
@@ -161,7 +165,7 @@ export function lastFantasyWeek(settings: LeagueSettings | null | undefined): nu
 `src/main/sync/mappers.ts` — after line 145 (`playoffTeams`):
 
 ```ts
-  if (s.playoff_round_type !== undefined) settings.playoffRoundType = s.playoff_round_type
+if (s.playoff_round_type !== undefined) settings.playoffRoundType = s.playoff_round_type
 ```
 
 `src/main/scoring/normalize.ts` — `OPTIONAL_SETTINGS`:
@@ -179,8 +183,8 @@ const OPTIONAL_SETTINGS = [
 `src/main/value/series.ts` — `SeriesBundle` gains, after `currentWeek`:
 
 ```ts
-  /** Slice 6b spec §2.1: the league's last fantasy week; the strength window is currentWeek..lastWeek. */
-  lastWeek: number
+/** Slice 6b spec §2.1: the league's last fantasy week; the strength window is currentWeek..lastWeek. */
+lastWeek: number
 ```
 
 and `loadSeries` returns `lastWeek: lastFantasyWeek(rules?.settings),` after `currentWeek,` (import `lastFantasyWeek` from `@shared/rules`).
@@ -188,8 +192,8 @@ and `loadSeries` returns `lastWeek: lastFantasyWeek(rules?.settings),` after `cu
 `src/shared/types.ts` — `ValueContext`, after `currentWeek`:
 
 ```ts
-  /** Last fantasy week of the league (slice 6b spec §2.1); team strength and trade deltas sum currentWeek..lastWeek. */
-  lastWeek: number
+/** Last fantasy week of the league (slice 6b spec §2.1); team strength and trade deltas sum currentWeek..lastWeek. */
+lastWeek: number
 ```
 
 `src/main/value/build.ts:199-203` — add `lastWeek: bundle.lastWeek,` after `currentWeek: bundle.currentWeek,`.
@@ -215,23 +219,23 @@ export function teamStrengths(build: LineupBuild): TeamStrength[] {
 `src/renderer/src/screens/RulesScreen.tsx` — after the `Playoff teams` field (line 435):
 
 ```tsx
-            <Field label="Playoff round type (0 · 1 two-week final · 2 two-week rounds)">
-              <NumberField
-                value={draft.settings.playoffRoundType}
-                integer
-                placeholder="0"
-                onChange={(v) => setSetting('playoffRoundType', v)}
-                className="w-full text-left"
-              />
-            </Field>
+<Field label="Playoff round type (0 · 1 two-week final · 2 two-week rounds)">
+  <NumberField
+    value={draft.settings.playoffRoundType}
+    integer
+    placeholder="0"
+    onChange={(v) => setSetting('playoffRoundType', v)}
+    className="w-full text-left"
+  />
+</Field>
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: PASS (the `tests/main/scoring/normalize.test.ts` and `rulesView` suites still pass — the new key is optional).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/shared/rules.ts src/shared/types.ts src/main/sync/mappers.ts src/main/scoring/normalize.ts src/main/value/series.ts src/main/value/build.ts src/main/lineup/build.ts src/renderer/src/screens/RulesScreen.tsx tests/shared/rules.test.ts tests/main/sync/mappers.test.ts tests/main/value/build.test.ts tests/main/lineup/build.test.ts tests/renderer/lib/playersTableView.test.ts
@@ -243,66 +247,68 @@ git commit -m "feat(lineup): sum team strength to the league's last week"
 ### Task 2: `rosterWeek` and `candidateFor` — hypothetical rosters in the lineup build
 
 **Files:**
+
 - Modify: `src/main/lineup/build.ts:180-227` (`teamWeek` → `solveWeek` + `teamWeek` + `rosterWeek`, new `candidateFor`, export `teamName`)
 - Test: `tests/main/lineup/build.test.ts`
 
 **Interfaces:**
+
 - Consumes: `teamWeek`, `weekPlayer`, `pool`, `UNSTARTABLE_SLOTS`, `isUnavailable` (all existing in the file).
 - Produces: `rosterWeek(build: LineupBuild, roster: PlayerSeries[], week: number): TeamWeek` (not memoised); `candidateFor(build: LineupBuild, series: PlayerSeries, week: number): Candidate | null` (null when the player can't start that week: IR / taxi from the current week on, or an unavailable flag); `teamName(t: Team): string` exported.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/main/lineup/build.test.ts` inside the main describe (imports: add `candidateFor`, `rosterWeek` to the `@main/lineup/build` import):
 
 ```ts
-  it('solves a hypothetical roster like the team it copies', () => {
-    const mine = build.rosters.get(1) ?? []
-    for (const week of [3, 4, 5]) {
-      const hypothetical = rosterWeek(build, mine, week)
-      const real = teamWeek(build, 1, week)
-      expect(hypothetical.optimalTotal).toBeCloseTo(real.optimalTotal, 2)
-      expect(hypothetical.optimal.map((p) => p.player?.id ?? null)).toEqual(
-        real.optimal.map((p) => p.player?.id ?? null)
-      )
-    }
-    expect(build.weeks.has('1|5')).toBe(true) // teamWeek memoises …
-    const memoised = build.weeks.size
-    rosterWeek(build, mine, 6)
-    expect(build.weeks.size).toBe(memoised) // … rosterWeek never does
-  })
-
-  it('keeps a traded taxi player reserved on the receiving roster (spec 6b §2.2)', () => {
-    const bijan = build.inputs.value.series.get('9509') // taxi on roster 2, projected 7 in week 4
-    if (!bijan) throw new Error('fixture: Bijan missing')
-    const mine = build.rosters.get(1) ?? []
-    const week = rosterWeek(build, [...mine, bijan], 4)
-    expect(week.optimal.some((p) => p.player?.id === '9509')).toBe(false)
-    expect(week.unavailable.map((x) => x.player.playerId)).toContain('9509')
-    expect(week.optimalTotal).toBeCloseTo(teamWeek(build, 1, 4).optimalTotal, 2)
-    expect(candidateFor(build, bijan, 4)).toBeNull()
-  })
-
-  it('gives the engine candidate of an active player, with the week value', () => {
-    const chase = build.inputs.value.series.get('7564')
-    if (!chase) throw new Error('fixture: Chase missing')
-    expect(candidateFor(build, chase, 3)).toEqual({
-      id: '7564',
-      name: "Ja'Marr Chase",
-      position: 'WR',
-      value: 9 // 4 rec + 50 yd under the fixture scoring
-    })
-    expect(candidateFor(build, chase, 5)).toEqual(
-      expect.objectContaining({ id: '7564', value: 0 }) // no projection stored
+it('solves a hypothetical roster like the team it copies', () => {
+  const mine = build.rosters.get(1) ?? []
+  for (const week of [3, 4, 5]) {
+    const hypothetical = rosterWeek(build, mine, week)
+    const real = teamWeek(build, 1, week)
+    expect(hypothetical.optimalTotal).toBeCloseTo(real.optimalTotal, 2)
+    expect(hypothetical.optimal.map((p) => p.player?.id ?? null)).toEqual(
+      real.optimal.map((p) => p.player?.id ?? null)
     )
+  }
+  expect(build.weeks.has('1|5')).toBe(true) // teamWeek memoises …
+  const memoised = build.weeks.size
+  rosterWeek(build, mine, 6)
+  expect(build.weeks.size).toBe(memoised) // … rosterWeek never does
+})
+
+it('keeps a traded taxi player reserved on the receiving roster (spec 6b §2.2)', () => {
+  const bijan = build.inputs.value.series.get('9509') // taxi on roster 2, projected 7 in week 4
+  if (!bijan) throw new Error('fixture: Bijan missing')
+  const mine = build.rosters.get(1) ?? []
+  const week = rosterWeek(build, [...mine, bijan], 4)
+  expect(week.optimal.some((p) => p.player?.id === '9509')).toBe(false)
+  expect(week.unavailable.map((x) => x.player.playerId)).toContain('9509')
+  expect(week.optimalTotal).toBeCloseTo(teamWeek(build, 1, 4).optimalTotal, 2)
+  expect(candidateFor(build, bijan, 4)).toBeNull()
+})
+
+it('gives the engine candidate of an active player, with the week value', () => {
+  const chase = build.inputs.value.series.get('7564')
+  if (!chase) throw new Error('fixture: Chase missing')
+  expect(candidateFor(build, chase, 3)).toEqual({
+    id: '7564',
+    name: "Ja'Marr Chase",
+    position: 'WR',
+    value: 9 // 4 rec + 50 yd under the fixture scoring
   })
+  expect(candidateFor(build, chase, 5)).toEqual(
+    expect.objectContaining({ id: '7564', value: 0 }) // no projection stored
+  )
+})
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/lineup/build.test.ts`
 Expected: FAIL — `rosterWeek is not a function`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/main/lineup/build.ts`, export `teamName` (change `function teamName` to `export function teamName`) and replace `teamWeek` (lines 180-227) with:
 
@@ -310,9 +316,7 @@ In `src/main/lineup/build.ts`, export `teamName` (change `function teamName` to 
 /** Spec 6a §2.3 / 6b §2.2: IR / taxi players sit out from the current week on; the slot follows the player through a trade. */
 function reservedNow(series: PlayerSeries, week: number, currentWeek: number): boolean {
   return (
-    week >= currentWeek &&
-    series.rosterSlot !== null &&
-    UNSTARTABLE_SLOTS.has(series.rosterSlot)
+    week >= currentWeek && series.rosterSlot !== null && UNSTARTABLE_SLOTS.has(series.rosterSlot)
   )
 }
 
@@ -389,12 +393,12 @@ export function candidateFor(
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npm run typecheck && npm run lint && npx vitest run tests/main/lineup`
 Expected: PASS, including every pre-existing lineup test (the refactor must not change `teamWeek`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/lineup/build.ts tests/main/lineup/build.test.ts
@@ -406,20 +410,28 @@ git commit -m "feat(lineup): solve hypothetical rosters for a week"
 ### Task 3: `canEnter` — the exact "can this player raise the lineup" test
 
 **Files:**
+
 - Create: `src/main/trade/enter.ts`
 - Test: `tests/main/trade/enter.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Candidate`, `LineupSlot`, `Placed`, `optimalLineup`, `lineupSlots` from `@main/lineup/optimal`.
 - Produces: `reachableSlots(position: string | null, slots: LineupSlot[], starters: Placed[]): number[]` (slot indexes, ascending); `canEnter(candidate: Candidate, slots: LineupSlot[], starters: Placed[]): boolean`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/main/trade/enter.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
-import { lineupSlots, optimalLineup, type Candidate, type LineupSlot, type Placed } from '@main/lineup/optimal'
+import {
+  lineupSlots,
+  optimalLineup,
+  type Candidate,
+  type LineupSlot,
+  type Placed
+} from '@main/lineup/optimal'
 import { canEnter, reachableSlots } from '@main/trade/enter'
 
 const c = (id: string, position: string | null, value: number): Candidate => ({
@@ -517,12 +529,12 @@ describe('canEnter (spec 6b §2.3)', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/trade/enter.test.ts`
 Expected: FAIL — cannot resolve `@main/trade/enter`.
 
-- [ ] **Step 3: Implement `src/main/trade/enter.ts`**
+- [x] **Step 3: Implement `src/main/trade/enter.ts`**
 
 ```ts
 import type { Candidate, LineupSlot, Placed } from '@main/lineup/optimal'
@@ -570,12 +582,12 @@ export function canEnter(candidate: Candidate, slots: LineupSlot[], starters: Pl
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npm run typecheck && npm run lint && npx vitest run tests/main/trade/enter.test.ts`
 Expected: PASS (300 random seeds included).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/trade/enter.ts tests/main/trade/enter.test.ts
@@ -587,6 +599,7 @@ git commit -m "feat(trade): exact lineup-entry test for a candidate"
 ### Task 4: `evaluateTrade` — types, `TradePlayer` rows, drops, market, week skip
 
 **Files:**
+
 - Modify: `src/shared/types.ts` (append the trade types after `TeamStrength`)
 - Modify: `src/main/lineup/build.ts:34-43` (`LineupInputs.tradeDeadlineWeek`)
 - Modify: `src/main/ipc/handlers.ts:112-131` (`cachedLineup` passes the deadline)
@@ -595,10 +608,11 @@ git commit -m "feat(trade): exact lineup-entry test for a candidate"
 - Test: `tests/main/trade/evaluate.test.ts`
 
 **Interfaces:**
+
 - Consumes: `rosterWeek`, `teamWeek`, `candidateFor`, `windowWeeks`, `teamName`, `TeamWeek`, `LineupBuild` (Task 2 / `@main/lineup/build`); `canEnter` (Task 3); `swapsBetween`, `Placed` (`@main/lineup/optimal`); `UNSTARTABLE_SLOTS` (`@main/value/roster`); `round2` (`@main/db/repos/points`).
 - Produces (shared types): `TradeProposal`, `TradePlayer`, `TradeSideResult`, `TradeEvaluation`, `TradePool` (exact shapes below). Engine: `class TradeError extends Error { code: TradeErrorCode }`; `MARKET_FAIR = 0.9`; `myTeam(build): Team`; `requireWindow(build): number[]`; `rosterSize(build): number | null`; `marketRatio(side: { marketGive: number; marketGet: number }): number`; `evaluateTrade(build, proposal, opts?: { skip?: boolean }): TradeEvaluation`. Player rows: `starterWeeks(build, rosterId, weeks): Map<string, number>`; `tradePlayer(build, series, starterWeeks): TradePlayer`.
 
-- [ ] **Step 1: Add the shared types**
+- [x] **Step 1: Add the shared types**
 
 Append to `src/shared/types.ts` after `TeamStrength`:
 
@@ -681,33 +695,33 @@ export interface TradePool {
 }
 ```
 
-- [ ] **Step 2: Thread the trade deadline into the build**
+- [x] **Step 2: Thread the trade deadline into the build**
 
 `src/main/lineup/build.ts` — `LineupInputs` gains, after `starterIndexes`:
 
 ```ts
-  /** `LeagueSettings.tradeDeadlineWeek` (the last week trades are allowed); null without one. */
-  tradeDeadlineWeek: number | null
+/** `LeagueSettings.tradeDeadlineWeek` (the last week trades are allowed); null without one. */
+tradeDeadlineWeek: number | null
 ```
 
 `src/main/ipc/handlers.ts` `cachedLineup` — read the rules once and pass the deadline:
 
 ```ts
-  const rules = getRules(ctx.db, leagueId)
-  const built = buildLineups({
-    value: cachedValue(ctx, leagueId, season),
-    teams: listTeams(ctx.db, leagueId),
-    rosterSlots: rules?.rosterSlots ?? [],
-    rosterPositions: leagueRosterPositions(ctx.db, leagueId),
-    matchups: listMatchups(ctx.db, leagueId, season),
-    starterIndexes: listStarterIndexes(ctx.db, leagueId),
-    tradeDeadlineWeek: rules?.settings.tradeDeadlineWeek ?? null
-  })
+const rules = getRules(ctx.db, leagueId)
+const built = buildLineups({
+  value: cachedValue(ctx, leagueId, season),
+  teams: listTeams(ctx.db, leagueId),
+  rosterSlots: rules?.rosterSlots ?? [],
+  rosterPositions: leagueRosterPositions(ctx.db, leagueId),
+  matchups: listMatchups(ctx.db, leagueId, season),
+  starterIndexes: listStarterIndexes(ctx.db, leagueId),
+  tradeDeadlineWeek: rules?.settings.tradeDeadlineWeek ?? null
+})
 ```
 
 `tests/main/lineup/build.test.ts` `inputs()` — add `tradeDeadlineWeek: getRules(db, 'L1')?.settings.tradeDeadlineWeek ?? null,` before `...over`.
 
-- [ ] **Step 3: Write the failing tests**
+- [x] **Step 3: Write the failing tests**
 
 Create `tests/main/trade/evaluate.test.ts`:
 
@@ -827,7 +841,9 @@ describe('evaluateTrade on the fixture league', () => {
       ])
       // and the after total is what rosterWeek says on the swapped roster
       const mine = (build.rosters.get(1) ?? []).filter((s) => !p.give.includes(s.base.playerId))
-      const got = p.get.map((id) => build.inputs.value.series.get(id)).flatMap((s) => (s ? [s] : []))
+      const got = p.get
+        .map((id) => build.inputs.value.series.get(id))
+        .flatMap((s) => (s ? [s] : []))
       let after = 0
       for (let w = 3; w <= 17; w++) after += rosterWeek(build, [...mine, ...got], w).optimalTotal
       expect(skipped.me.after).toBeCloseTo(after, 2)
@@ -878,7 +894,8 @@ describe('evaluateTrade on the fixture league', () => {
   })
 
   it('rejects malformed proposals with INVALID_TRADE', () => {
-    const invalid = (p: Parameters<typeof evaluateTrade>[1]): string => codeOf(() => evaluateTrade(build, p))
+    const invalid = (p: Parameters<typeof evaluateTrade>[1]): string =>
+      codeOf(() => evaluateTrade(build, p))
     expect(invalid({ rosterId: 9, give: ['6794'], get: ['7564'] })).toBe('INVALID_TRADE')
     expect(invalid({ rosterId: 1, give: ['6794'], get: ['7564'] })).toBe('INVALID_TRADE')
     expect(invalid({ rosterId: 2, give: [], get: ['7564'] })).toBe('INVALID_TRADE')
@@ -949,12 +966,12 @@ describe('trade player rows', () => {
 })
 ```
 
-- [ ] **Step 4: Run the tests to verify they fail**
+- [x] **Step 4: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/trade/evaluate.test.ts`
 Expected: FAIL — cannot resolve `@main/trade/evaluate` / `@main/trade/player`.
 
-- [ ] **Step 5: Implement `src/main/trade/player.ts`**
+- [x] **Step 5: Implement `src/main/trade/player.ts`**
 
 ```ts
 import { teamWeek, type LineupBuild } from '@main/lineup/build'
@@ -977,7 +994,11 @@ export function starterWeeks(
 }
 
 /** A player as the trade tables show him: identity, reserve slot, ROS / expert / market numbers. */
-export function tradePlayer(build: LineupBuild, s: PlayerSeries, starterWeeks: number): TradePlayer {
+export function tradePlayer(
+  build: LineupBuild,
+  s: PlayerSeries,
+  starterWeeks: number
+): TradePlayer {
   const row = build.rowById.get(s.base.playerId)
   return {
     playerId: s.base.playerId,
@@ -996,7 +1017,7 @@ export function tradePlayer(build: LineupBuild, s: PlayerSeries, starterWeeks: n
 }
 ```
 
-- [ ] **Step 6: Implement `src/main/trade/evaluate.ts`**
+- [x] **Step 6: Implement `src/main/trade/evaluate.ts`**
 
 ```ts
 import { round2 } from '@main/db/repos/points'
@@ -1083,7 +1104,8 @@ function resolve(roster: PlayerSeries[], ids: string[], owner: string): PlayerSe
     if (seen.has(id)) throw new TradeError('INVALID_TRADE', `Invalid trade: ${id} is listed twice`)
     seen.add(id)
     const s = roster.find((p) => p.base.playerId === id)
-    if (!s) throw new TradeError('INVALID_TRADE', `Invalid trade: ${id} is not on ${owner}'s roster`)
+    if (!s)
+      throw new TradeError('INVALID_TRADE', `Invalid trade: ${id} is not on ${owner}'s roster`)
     return s
   })
 }
@@ -1168,7 +1190,8 @@ function sideResult(
   const excess = size === null ? 0 : Math.max(0, active.length - size)
   if (excess > 0) {
     const starts = startCounts(weeks.map((w) => rosterWeek(build, after, w)))
-    const rosPoints = (s: PlayerSeries): number => build.rowById.get(s.base.playerId)?.rosPoints ?? 0
+    const rosPoints = (s: PlayerSeries): number =>
+      build.rowById.get(s.base.playerId)?.rosPoints ?? 0
     drops = [...active]
       .sort(
         (a, b) =>
@@ -1262,12 +1285,12 @@ export function evaluateTrade(
 }
 ```
 
-- [ ] **Step 7: Run the tests to verify they pass**
+- [x] **Step 7: Run the tests to verify they pass**
 
 Run: `npm run typecheck && npm run lint && npx vitest run tests/main/trade tests/main/lineup`
 Expected: PASS. If the Jefferson-for-Chase numbers differ, check the fixture scoring first (`rec: 1`, `rec_yd: 0.1`, `rush_yd: 0.1`): Jefferson 5 + 8 = 13 / 6 + 9 = 15, Chase 4 + 5 = 9.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/shared/types.ts src/main/lineup/build.ts src/main/ipc/handlers.ts src/main/trade/player.ts src/main/trade/evaluate.ts tests/main/lineup/build.test.ts tests/main/trade/evaluate.test.ts
@@ -1279,6 +1302,7 @@ git commit -m "feat(trade): evaluate a trade by both teams' strength"
 ### Task 5: `tradePool` and the IPC channels
 
 **Files:**
+
 - Create: `src/main/trade/pool.ts`
 - Modify: `src/shared/ipc.ts` (`IPC` map, `Api.trade`, type imports)
 - Modify: `src/preload/index.ts` (`api.trade`)
@@ -1286,10 +1310,11 @@ git commit -m "feat(trade): evaluate a trade by both teams' strength"
 - Test: `tests/main/trade/pool.test.ts`
 
 **Interfaces:**
+
 - Consumes: `myTeam`, `requireWindow` (Task 4 `@main/trade/evaluate`); `starterWeeks`, `tradePlayer` (Task 4 `@main/trade/player`); `teamName` (`@main/lineup/build`); `LINEUP_POSITIONS` (`@shared/rules`).
 - Produces: `tradePool(build: LineupBuild): TradePool`; IPC `trade:pool (season) → TradePool`, `trade:evaluate (season, TradeProposal) → TradeEvaluation`; `api.trade.pool(season)`, `api.trade.evaluate(season, proposal)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/main/trade/pool.test.ts`:
 
@@ -1375,12 +1400,12 @@ describe('tradePool', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/main/trade/pool.test.ts`
 Expected: FAIL — cannot resolve `@main/trade/pool`.
 
-- [ ] **Step 3: Implement `src/main/trade/pool.ts`**
+- [x] **Step 3: Implement `src/main/trade/pool.ts`**
 
 ```ts
 import { teamName, type LineupBuild } from '@main/lineup/build'
@@ -1431,7 +1456,7 @@ export function tradePool(build: LineupBuild): TradePool {
 }
 ```
 
-- [ ] **Step 4: Wire the IPC**
+- [x] **Step 4: Wire the IPC**
 
 `src/shared/ipc.ts` — add `TradeEvaluation`, `TradePool`, `TradeProposal` to the `./types` import; in the `IPC` map after `lineupStrength`:
 
@@ -1463,28 +1488,28 @@ and in `Api` after `lineup`:
 `src/main/ipc/handlers.ts` — import `evaluateTrade` from `@main/trade/evaluate`, `tradePool` from `@main/trade/pool`, and the `TradeEvaluation`, `TradePool`, `TradeProposal` types from `@shared/types`; after the `lineupStrength` handler:
 
 ```ts
-  ipcMain.handle(IPC.tradePool, (_event, season: number): TradePool => {
+ipcMain.handle(IPC.tradePool, (_event, season: number): TradePool => {
+  const id = activeLeagueId()
+  if (!id) throw new Error('No league imported')
+  return tradePool(cachedLineup(ctx, id, season))
+})
+
+ipcMain.handle(
+  IPC.tradeEvaluate,
+  (_event, season: number, proposal: TradeProposal): TradeEvaluation => {
     const id = activeLeagueId()
     if (!id) throw new Error('No league imported')
-    return tradePool(cachedLineup(ctx, id, season))
-  })
-
-  ipcMain.handle(
-    IPC.tradeEvaluate,
-    (_event, season: number, proposal: TradeProposal): TradeEvaluation => {
-      const id = activeLeagueId()
-      if (!id) throw new Error('No league imported')
-      return evaluateTrade(cachedLineup(ctx, id, season), proposal)
-    }
-  )
+    return evaluateTrade(cachedLineup(ctx, id, season), proposal)
+  }
+)
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/trade/pool.ts src/shared/ipc.ts src/preload/index.ts src/main/ipc/handlers.ts tests/main/trade/pool.test.ts
@@ -1496,15 +1521,17 @@ git commit -m "feat(trade): pool and evaluate IPC channels"
 ### Task 6: Renderer view helpers — `lib/tradeView.ts`
 
 **Files:**
+
 - Create: `src/renderer/src/lib/tradeView.ts`
 - Create: `tests/fixtures/trade.ts`
 - Test: `tests/renderer/lib/tradeView.test.ts`
 
 **Interfaces:**
+
 - Consumes: `fmtPoints`, `fmtSigned` (`@/lib/format`); `LINEUP_POSITIONS` (`@shared/rules`); the Task 4 types.
 - Produces: `windowLabel(p)`, `DEADLINE_NOTE`, `fmtMarket(v)`, `marketLine(side)`, `deltaLine(side)`, `deltaTone(delta)`, `rangeLine(side)`, `dropLine(side)`, `startsLabel(p, weeks)`, `playerStats(p, weeks)`, `playerOption(p)`, `groupByPosition(players)`, `verdictBadges(ev)`, `NO_VERDICT_HINT`.
 
-- [ ] **Step 1: Add the fixture**
+- [x] **Step 1: Add the fixture**
 
 Create `tests/fixtures/trade.ts`:
 
@@ -1646,7 +1673,7 @@ export function tradePool(over: Partial<TradePool> = {}): TradePool {
 }
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Create `tests/renderer/lib/tradeView.test.ts`:
 
@@ -1667,7 +1694,15 @@ import {
   verdictBadges,
   windowLabel
 } from '@/lib/tradeView'
-import { barkley, chase, cook, jefferson, lar, tradeEvaluation, tradeSide } from '../../fixtures/trade'
+import {
+  barkley,
+  chase,
+  cook,
+  jefferson,
+  lar,
+  tradeEvaluation,
+  tradeSide
+} from '../../fixtures/trade'
 
 describe('tradeView', () => {
   it('labels the window', () => {
@@ -1686,9 +1721,9 @@ describe('tradeView', () => {
     expect(marketLine(tradeSide({ marketGive: 0, marketGet: 8000 }))).toBe(
       'gives 0 → gets 8 000 (∞)'
     )
-    expect(marketLine(tradeSide({ marketGive: 0, marketGet: 0, unvaluedGive: 1, unvaluedGet: 1 }))).toBe(
-      'gives 0 → gets 0 (—) · 2 unvalued'
-    )
+    expect(
+      marketLine(tradeSide({ marketGive: 0, marketGet: 0, unvaluedGive: 1, unvaluedGet: 1 }))
+    ).toBe('gives 0 → gets 0 (—) · 2 unvalued')
   })
 
   it('formats the strength lines', () => {
@@ -1738,12 +1773,12 @@ describe('tradeView', () => {
 const tradePlayerX = { ...barkley, playerId: 'x', position: null }
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/lib/tradeView.test.ts`
 Expected: FAIL — cannot resolve `@/lib/tradeView`.
 
-- [ ] **Step 4: Implement `src/renderer/src/lib/tradeView.ts`**
+- [x] **Step 4: Implement `src/renderer/src/lib/tradeView.ts`**
 
 ```ts
 import { fmtPoints, fmtSigned } from '@/lib/format'
@@ -1843,12 +1878,12 @@ export function verdictBadges(ev: TradeEvaluation): { label: string; on: boolean
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npm run typecheck && npm run lint && npx vitest run tests/renderer/lib/tradeView.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/renderer/src/lib/tradeView.ts tests/fixtures/trade.ts tests/renderer/lib/tradeView.test.ts
@@ -1860,16 +1895,18 @@ git commit -m "feat(ui): trade view helpers"
 ### Task 7: Trade screen — builder and verdict card
 
 **Files:**
+
 - Create: `src/renderer/src/screens/TradeScreen.tsx`
 - Modify: `src/renderer/src/components/Sidebar.tsx:1-28` (`Screen` union, nav item)
 - Modify: `src/renderer/src/App.tsx` (import + render)
 - Test: `tests/renderer/components/TradeScreen.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `api.players.options`, `api.trade.pool`, `api.trade.evaluate` (Task 5); every Task 6 helper; `swapLine` (`@/lib/lineupView`); `PlayerDetailPanel`, `PositionBadge`, `Card*`, `Button`.
 - Produces: `TradeScreen({ dataVersion }: { dataVersion: number })`; `Screen` gains `'trade'`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/renderer/components/TradeScreen.test.tsx`:
 
@@ -1989,12 +2026,12 @@ describe('TradeScreen', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/components/TradeScreen.test.tsx`
 Expected: FAIL — cannot resolve `@/screens/TradeScreen`.
 
-- [ ] **Step 3: Implement `src/renderer/src/screens/TradeScreen.tsx`**
+- [x] **Step 3: Implement `src/renderer/src/screens/TradeScreen.tsx`**
 
 ```tsx
 import { useEffect, useState } from 'react'
@@ -2225,7 +2262,9 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
         if (cancelled) return
         setLoaded({ key, pool })
         // Keep a partner / players that still exist after a sync; default the partner to the first team.
-        setPartner((p) => (pool.teams.some((t) => t.rosterId === p) ? p : (pool.teams[0]?.rosterId ?? null)))
+        setPartner((p) =>
+          pool.teams.some((t) => t.rosterId === p) ? p : (pool.teams[0]?.rosterId ?? null)
+        )
         setGive((ids) => ids.filter((id) => pool.me.players.some((p) => p.playerId === id)))
         setGet((ids) =>
           ids.filter((id) => pool.teams.some((t) => t.players.some((p) => p.playerId === id)))
@@ -2355,7 +2394,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
 }
 ```
 
-- [ ] **Step 4: Register the screen**
+- [x] **Step 4: Register the screen**
 
 `src/renderer/src/components/Sidebar.tsx` — import `ArrowLeftRight` from `lucide-react`, extend the union and the items:
 
@@ -2372,19 +2411,21 @@ export type Screen = 'setup' | 'league' | 'rules' | 'players' | 'lineup' | 'trad
 `src/renderer/src/App.tsx` — import `TradeScreen` from `@/screens/TradeScreen` and render it next to the Lineup line (line 84):
 
 ```tsx
-          {screen === 'trade' && <TradeScreen dataVersion={dataVersion} />}
+{
+  screen === 'trade' && <TradeScreen dataVersion={dataVersion} />
+}
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: PASS. If `react-hooks/set-state-in-effect` complains about the pool effect, every `set*` there is inside the `.then` callback — check nothing leaked into the effect body.
 
-- [ ] **Step 6: Run the app and check by eye**
+- [x] **Step 6: Run the app and check by eye**
 
 Run: `npm run dev` (WSLg; if no window shows, see the memory note on the WSLg fix), open **Trade**: the window label reads like `weeks N–17 · M weeks`, the partner defaults to the first team alphabetically, the pickers are grouped by position, a 1-for-1 shows a verdict with both deltas, the badges and this week's swaps; a 2-for-1 against a full roster shows `drop: …`. Stop the dev app by PID afterwards.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/renderer/src/screens/TradeScreen.tsx src/renderer/src/components/Sidebar.tsx src/renderer/src/App.tsx tests/renderer/components/TradeScreen.test.tsx
@@ -2396,10 +2437,11 @@ git commit -m "feat(ui): Trade screen with builder and verdict"
 ### Task 8: Data reference, release `v0.13.0`
 
 **Files:**
+
 - Modify: `docs/reference/value-and-signals.md` (`ValueContext` table, `TeamStrength`, new Trade section, constants, module map)
 - Modify: `package.json`, `package-lock.json` (via `npm version`)
 
-- [ ] **Step 1: Document**
+- [x] **Step 1: Document**
 
 In `docs/reference/value-and-signals.md`:
 
@@ -2419,24 +2461,24 @@ Slice 6b spec §2–§4; pure modules `src/main/trade/{enter,player,evaluate,poo
 
 ### `TradeEvaluation`
 
-| Field | Meaning |
-| --- | --- |
-| `season`, `currentWeek`, `lastWeek`, `weeks` | The window. |
-| `tradeDeadlinePassed` | `currentWeek > tradeDeadlineWeek` (Sleeper's `trade_deadline`, the last week trades are allowed). |
-| `me`, `them` | `TradeSideResult` for each team. |
-| `winWin` | Both `delta > 0`. |
-| `marketFair` | Each side's `marketGet / marketGive ≥ 0.90` (`+∞` when it gives no valued player). |
+| Field                                        | Meaning                                                                                           |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `season`, `currentWeek`, `lastWeek`, `weeks` | The window.                                                                                       |
+| `tradeDeadlinePassed`                        | `currentWeek > tradeDeadlineWeek` (Sleeper's `trade_deadline`, the last week trades are allowed). |
+| `me`, `them`                                 | `TradeSideResult` for each team.                                                                  |
+| `winWin`                                     | Both `delta > 0`.                                                                                 |
+| `marketFair`                                 | Each side's `marketGet / marketGive ≥ 0.90` (`+∞` when it gives no valued player).                |
 
 ### `TradeSideResult`
 
-| Field | Meaning |
-| --- | --- |
-| `give`, `get` | `TradePlayer` rows; `starterWeeks` = window weeks the player starts for his current owner. |
-| `drops` | Auto-picked when the after-roster exceeds the roster size (Sleeper `roster_positions` minus IR / TAXI): active players starting in the fewest weeks on the oversized roster, ties by lowest `rosPoints`, then name. |
-| `before`, `after`, `delta`, `deltaPerWeek` | Σ optimal totals over the window on the current roster / on `roster − give + get − drops`; `delta / weeks`. |
-| `thisWeekDelta`, `thisWeekSwaps` | The current week alone; swaps as on the Lineup screen. |
-| `marketGive`, `marketGet`, `unvaluedGive`, `unvaluedGet` | Σ FantasyCalc `market.value` per list; a player outside FantasyCalc's list counts 0 and is counted as unvalued. |
-| `weeksChanged` | Window weeks whose optimal total moves by ≥ 0.01. |
+| Field                                                    | Meaning                                                                                                                                                                                                             |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `give`, `get`                                            | `TradePlayer` rows; `starterWeeks` = window weeks the player starts for his current owner.                                                                                                                          |
+| `drops`                                                  | Auto-picked when the after-roster exceeds the roster size (Sleeper `roster_positions` minus IR / TAXI): active players starting in the fewest weeks on the oversized roster, ties by lowest `rosPoints`, then name. |
+| `before`, `after`, `delta`, `deltaPerWeek`               | Σ optimal totals over the window on the current roster / on `roster − give + get − drops`; `delta / weeks`.                                                                                                         |
+| `thisWeekDelta`, `thisWeekSwaps`                         | The current week alone; swaps as on the Lineup screen.                                                                                                                                                              |
+| `marketGive`, `marketGet`, `unvaluedGive`, `unvaluedGet` | Σ FantasyCalc `market.value` per list; a player outside FantasyCalc's list counts 0 and is counted as unvalued.                                                                                                     |
+| `weeksChanged`                                           | Window weeks whose optimal total moves by ≥ 0.01.                                                                                                                                                                   |
 
 Week skip (spec §2.3, exact): a week is not re-solved when no removed player (given or dropped) starts that week and no received player passes `canEnter` — a slot reachable from his position through the flex chain is empty or holds a starter worth less.
 
@@ -2447,7 +2489,7 @@ Week skip (spec §2.3, exact): a week is not re-solved when no removed player (g
 ### Where it is shown (v0.13.0) — Trade screen
 
 1. **Header** — `weeks {currentWeek}–{lastWeek} · {weeks} weeks`; amber banner when `tradeDeadlinePassed` (nothing disabled).
-2. **Builder** — Partner select (defaults to the first team); *I give* / *I get* cards with the chosen rows (`ROS {rosPoints} · ECR {ecrPosRank} · MKT {market.value} · starts {starterWeeks}/{weeks}`, `IR` / `TAXI` tag, name opens `PlayerDetailPanel`) and a picker grouped by position (`{name} · {team} · [IR|TAXI ·] ROS {rosPoints}`). Changing the partner clears *I get* and the verdict; changing a side clears the verdict.
+2. **Builder** — Partner select (defaults to the first team); _I give_ / _I get_ cards with the chosen rows (`ROS {rosPoints} · ECR {ecrPosRank} · MKT {market.value} · starts {starterWeeks}/{weeks}`, `IR` / `TAXI` tag, name opens `PlayerDetailPanel`) and a picker grouped by position (`{name} · {team} · [IR|TAXI ·] ROS {rosPoints}`). Changing the partner clears _I get_ and the verdict; changing a side clears the verdict.
 3. **Verdict** — per side `{fmtSigned(delta)} ({fmtSigned(deltaPerWeek)}/wk)` (green / red / muted), `{before} → {after} · this week {thisWeekDelta} · {weeksChanged} weeks change`, `drop: …` (amber) when present, `gives {marketGive} → gets {marketGet} ({ratio %|∞|—})[ · n unvalued]`; badges **Win-win** / **Market-fair** (muted when false); **This week** = my `thisWeekSwaps` as `Start A over B (SLOT, ±Δ)` or "Your lineup this week does not change."
 4. Pool errors (`NO_PROJECTIONS`, `NO_ME`) replace the screen with their message; evaluate errors (`INVALID_TRADE`) show under the Evaluate button and keep the sides.
 ```
@@ -2455,7 +2497,7 @@ Week skip (spec §2.3, exact): a week is not re-solved when no removed player (g
 4. `## Constants (single sources)` — add `src/main/trade/evaluate.ts` | `MARKET_FAIR = 0.90`, `CHANGED_PTS = 0.01` and `src/shared/rules.ts` | `LAST_NFL_WEEK = 18` (`lastFantasyWeek`).
 5. `## Module map` — add `src/main/trade/enter.ts` (reachable-slot closure, `canEnter`), `src/main/trade/player.ts` (`TradePlayer` rows, `starterWeeks`), `src/main/trade/evaluate.ts` (`evaluateTrade`, `TradeError`, drops, market sums, week skip), `src/main/trade/pool.ts` (`tradePool`), `src/renderer/src/lib/tradeView.ts` (verdict / picker strings), `src/renderer/src/screens/TradeScreen.tsx`.
 
-- [ ] **Step 2: Verify and commit the docs**
+- [x] **Step 2: Verify and commit the docs**
 
 Run: `npx prettier --check docs/reference/value-and-signals.md` (run `npm run format` if it complains).
 
@@ -2464,11 +2506,11 @@ git add docs/reference/value-and-signals.md
 git commit -m "docs: document the trade evaluator payload and screen"
 ```
 
-- [ ] **Step 3: Final verification, real-data check**
+- [x] **Step 3: Final verification, real-data check**
 
 Run: `npm run typecheck && npm run lint && npm test` — all green. Then on the dev DB (`~/.config/FantasyCompanion/companion.db`, copy it first) a throwaway `tests/zz-trade.test.ts` that opens the copy, builds the lineup inputs for the real league (as `cachedLineup` does), calls `tradePool` and `evaluateTrade` for a real 1-for-1 and a 2-for-1, and prints `me.delta`, `them.delta`, `drops`, `weeksChanged`; sanity-check the magnitudes against the League screen's ROS totals, then delete the file (never commit it).
 
-- [ ] **Step 4: Merge and release**
+- [x] **Step 4: Merge and release**
 
 ```bash
 git checkout main && git merge --no-ff feat/trade-evaluator -m "merge: feat/trade-evaluator (plan L)"
