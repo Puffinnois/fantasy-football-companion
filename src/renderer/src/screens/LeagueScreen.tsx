@@ -12,8 +12,16 @@ import {
 import { PositionBadge } from '@/components/PositionBadge'
 import { api } from '@/lib/api'
 import { errorMessage, fmtPoints } from '@/lib/format'
+import {
+  rosLine,
+  sortTeams,
+  STRENGTH_NOTE,
+  teamLabel,
+  TEAM_SORTS,
+  type TeamSort
+} from '@/lib/leagueView'
 import { cn } from '@/lib/utils'
-import type { League, PointsContext, RosterPlayer, Team } from '@shared/types'
+import type { League, PointsContext, RosterPlayer, Team, TeamStrength } from '@shared/types'
 
 const SLOT_ORDER = ['starter', 'bench', 'ir', 'taxi'] as const
 const SLOT_LABEL: Record<RosterPlayer['slot'], string> = {
@@ -23,13 +31,11 @@ const SLOT_LABEL: Record<RosterPlayer['slot'], string> = {
   taxi: 'Taxi'
 }
 
-function teamLabel(t: Team): string {
-  return t.teamName ?? t.displayName
-}
-
 export function LeagueScreen(): React.JSX.Element {
   const [league, setLeague] = useState<League | null>(null)
   const [teams, setTeams] = useState<Team[]>([])
+  const [strengths, setStrengths] = useState<TeamStrength[]>([])
+  const [sort, setSort] = useState<TeamSort>('record')
   const [selected, setSelected] = useState<number | null>(null)
   const [roster, setRoster] = useState<RosterPlayer[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -57,6 +63,24 @@ export function LeagueScreen(): React.JSX.Element {
       .catch((err) => setError(errorMessage(err)))
   }, [])
 
+  // Strength is keyed on the season the value build runs on (a number; `League.season` is a string).
+  const season = ctx?.season ?? null
+  useEffect(() => {
+    if (season === null) return
+    let cancelled = false
+    void api.lineup
+      .strength(season)
+      .then((list) => {
+        if (!cancelled) setStrengths(list)
+      })
+      .catch((err) => {
+        if (!cancelled) setError(errorMessage(err))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [season])
+
   useEffect(() => {
     if (selected === null) return
     void api.league
@@ -73,20 +97,45 @@ export function LeagueScreen(): React.JSX.Element {
     slot,
     players: roster.filter((p) => p.slot === slot)
   })).filter((g) => g.players.length > 0)
+  const strengthById = new Map(strengths.map((s) => [s.rosterId, s]))
+  const ordered = sortTeams(teams, strengths, sort)
 
   return (
     <div className="space-y-6">
       {error && <p className="text-destructive text-sm">{error}</p>}
-      <div>
-        <h1 className="text-2xl font-semibold">{league?.name ?? 'League'}</h1>
-        <p className="text-sm text-muted-foreground">
-          {league ? `${league.season} · ${league.totalRosters} teams` : ''}
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">{league?.name ?? 'League'}</h1>
+          <p className="text-sm text-muted-foreground">
+            {league ? `${league.season} · ${league.totalRosters} teams` : ''}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex rounded-md border p-0.5">
+            {TEAM_SORTS.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                aria-pressed={sort === s.key}
+                onClick={() => setSort(s.key)}
+                className={cn(
+                  'h-7 rounded px-3 text-sm',
+                  sort === s.key
+                    ? 'bg-primary/20 text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          {sort === 'strength' && <p className="text-xs text-muted-foreground">{STRENGTH_NOTE}</p>}
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <div className="grid content-start gap-3 sm:grid-cols-2">
-          {teams.map((t) => (
+          {ordered.map((t) => (
             <button
               key={t.rosterId}
               type="button"
@@ -109,6 +158,12 @@ export function LeagueScreen(): React.JSX.Element {
                 <span className="text-xs text-muted-foreground tabular-nums">
                   PF {fmtPoints(t.fpts)} · PA {fmtPoints(t.fptsAgainst)}
                 </span>
+              </div>
+              <div
+                className="mt-1 text-xs text-muted-foreground tabular-nums"
+                title={STRENGTH_NOTE}
+              >
+                {rosLine(strengthById.get(t.rosterId))}
               </div>
             </button>
           ))}
