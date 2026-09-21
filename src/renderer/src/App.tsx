@@ -7,6 +7,7 @@ import { LeagueScreen } from '@/screens/LeagueScreen'
 import { RulesScreen } from '@/screens/RulesScreen'
 import { PlayersScreen } from '@/screens/PlayersScreen'
 import { LineupScreen } from '@/screens/LineupScreen'
+import { TradeScreen } from '@/screens/TradeScreen'
 import { api } from '@/lib/api'
 import { useUpdateState } from '@/lib/useUpdateState'
 
@@ -82,6 +83,7 @@ export default function App(): React.JSX.Element {
           {screen === 'rules' && <RulesScreen onSaved={bumpData} />}
           {screen === 'players' && <PlayersScreen dataVersion={dataVersion} />}
           {screen === 'lineup' && <LineupScreen dataVersion={dataVersion} />}
+          {screen === 'trade' && <TradeScreen dataVersion={dataVersion} />}
         </main>
       </div>
       <UpdateDialog
