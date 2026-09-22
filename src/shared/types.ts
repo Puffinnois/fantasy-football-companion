@@ -414,6 +414,17 @@ export interface TradeSuggestion {
   acceptance: 'lineup' | 'market' | 'both'
 }
 
+/** Rest-of-season realism spec §3.3: what the correction did to one player. */
+export interface RosAdjustment {
+  /** IR / PUP / Injured Reserve: every week after the current one is 0. */
+  shelved: boolean
+  /** The scale applied to each remaining week; null when there was no scale to apply. */
+  factor: number | null
+  /** Rank within position by raw projection, and by consensus. */
+  projPosRank: number | null
+  expertPosRank: number | null
+}
+
 export interface PlayerValueRow extends PlayerBaseRow {
   gamesPlayed: number
   ppg: number | null
