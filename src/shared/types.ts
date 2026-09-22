@@ -432,6 +432,8 @@ export interface PlayerValueRow extends PlayerBaseRow {
   stdRank: number | null
   rosPoints: number | null
   rosValue: number | null
+  /** What the rest-of-season correction did to this player; null outside the corrected pool. */
+  rosAdjust: RosAdjustment | null
   rosRank: number | null
   overallRank: number | null
   /** null for players unmatched to nflverse. */
@@ -454,6 +456,8 @@ export interface ValueContext {
   /** Last fantasy week of the league (slice 6b spec §2.1); team strength and trade deltas sum currentWeek..lastWeek. */
   lastWeek: number
   projectionsStored: boolean
+  /** Rest-of-season realism spec §4: false when no expert ranks were available to match against. */
+  rosAdjusted: boolean
   teamCount: number
   /** A `teams` row is flagged `is_me`; when false `vsMine`, `droppable` and every `mine` entry are null. */
   hasMyTeam: boolean
