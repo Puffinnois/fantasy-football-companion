@@ -316,6 +316,8 @@ Players without a ROS rank keep their raw projections; the feed covers 99 % of r
 
 `PlayerValueRow.rosAdjust` carries `{ shelved, factor, capped, projPosRank, expertPosRank }`. The Players table marks a row when `|factor − 1| > ARROW_PCT` (↑ / ↓) or the player is shelved (IR), and the detail panel explains it: `projection RB8 → consensus RB24 · scaled ×0.62` (with `(capped)` when the clamp applied), or `IR (Knee - ACL, Surgery) — remaining weeks zeroed`. The body part and notes come from Sleeper's `injury_body_part` (~90 % populated) and `injury_notes` (~11 %); Sleeper supplies no injury start date or practice data, so duration is never inferred.
 
+**Weekly snapshot (for a later backtest).** The last step of every sync (`src/main/sync/snapshotSync.ts` → `src/main/value/snapshot.ts`) stores, per player, the raw and corrected points for the weeks after the current one plus the consensus rank and its spread, in `ros_snapshots` (one set per week; the last sync while a week is current wins). Nothing else keeps this history. Open questions, known weaknesses and the backtest recipe: `docs/research/2026-09-22-ros-realism-open-questions.md`.
+
 ## Constants (single sources)
 
 | Where                                                           | Constants                                                                                                                                                                                                                    |
