@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { teamWeek, windowWeeks } from '@main/lineup/build'
 import { evaluateTrade, rosterSize, TradeError } from '@main/trade/evaluate'
 import {
+  ACCEPT_LOSS_PER_WEEK,
   acceptanceOf,
   DOMINANCE_PTS,
   passesStance,
@@ -40,11 +41,21 @@ describe('stance filters (spec 6b §3.3)', () => {
   })
 
   it('labels why they would accept', () => {
-    expect(acceptanceOf(0.01, 0.5)).toBe('lineup')
-    expect(acceptanceOf(0, 0.9)).toBe('market')
-    expect(acceptanceOf(-3, Number.POSITIVE_INFINITY)).toBe('market')
-    expect(acceptanceOf(0.01, 0.9)).toBe('both')
-    expect(acceptanceOf(0, 0.899)).toBeNull()
+    expect(acceptanceOf(0.01, 0.5, 0.01)).toBe('lineup')
+    expect(acceptanceOf(0, 0.9, 0)).toBe('market')
+    expect(acceptanceOf(-3, Number.POSITIVE_INFINITY, -0.2)).toBe('market')
+    expect(acceptanceOf(0.01, 0.9, 0.01)).toBe('both')
+    expect(acceptanceOf(0, 0.899, 0)).toBeNull()
+  })
+
+  it('will not sell them a fair-value trade that guts their lineup', () => {
+    // A market-fair consolidation they lose a point a week on is still plausible; beyond that it
+    // is the 12 pt/week nonsense the real-league check turned up.
+    expect(acceptanceOf(-15, 1, -1)).toBe('market')
+    expect(acceptanceOf(-15.1, 1, -1.01)).toBeNull()
+    // their own lineup improving carries it at any market ratio
+    expect(acceptanceOf(20, 0.1, 1.3)).toBe('lineup')
+    expect(ACCEPT_LOSS_PER_WEEK).toBe(1)
   })
 
   it('pins the constants', () => {

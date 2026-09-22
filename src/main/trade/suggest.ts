@@ -26,6 +26,12 @@ export const STANCES: Record<
   fair: { deltaPerWeek: 0, strict: true, ratio: 0.85 },
   overpay: { deltaPerWeek: -1, strict: false, ratio: 0.7 }
 }
+/**
+ * How much weekly lineup value the other manager will swallow for a fair-value trade. Without it,
+ * every market-fair consolidation qualifies however much it guts their starting lineup — on a real
+ * 16-team league that was the whole top 30. Mirrors the overpay stance's bound on my own side.
+ */
+export const ACCEPT_LOSS_PER_WEEK = 1
 /** Spec §3.4: a 2-for-1 / 1-for-2 that beats its 1-for-1 by no more than this was padding. */
 export const DOMINANCE_PTS = 0.5
 export const SUGGEST_MAX = 30
@@ -43,10 +49,11 @@ export function passesStance(stance: TradeStance, deltaPerWeek: number, ratio: n
 /** Spec §3.3: why the other manager would take it; null when they would not. */
 export function acceptanceOf(
   theirDelta: number,
-  theirRatio: number
+  theirRatio: number,
+  theirDeltaPerWeek: number
 ): TradeSuggestion['acceptance'] | null {
   const lineup = theirDelta > 0
-  const market = theirRatio >= MARKET_FAIR
+  const market = theirRatio >= MARKET_FAIR && theirDeltaPerWeek >= -ACCEPT_LOSS_PER_WEEK
   if (lineup && market) return 'both'
   if (lineup) return 'lineup'
   return market ? 'market' : null
@@ -132,7 +139,11 @@ function consider(
   if (!passesStance(stance, evaluation.me.deltaPerWeek, marketRatio(evaluation.me))) {
     return { evaluation, theirMarket }
   }
-  const acceptance = acceptanceOf(evaluation.them.delta, marketRatio(evaluation.them))
+  const acceptance = acceptanceOf(
+    evaluation.them.delta,
+    marketRatio(evaluation.them),
+    evaluation.them.deltaPerWeek
+  )
   return {
     evaluation,
     theirMarket,
