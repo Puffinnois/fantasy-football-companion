@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { teamWeek, windowWeeks } from '@main/lineup/build'
-import { rosterSize } from '@main/trade/evaluate'
+import { evaluateTrade, rosterSize, TradeError } from '@main/trade/evaluate'
 import {
   acceptanceOf,
   DOMINANCE_PTS,
   passesStance,
   STANCES,
-  SUGGEST_MAX
+  SUGGEST_MAX,
+  suggestTrades
 } from '@main/trade/suggest'
+import type { TradeSuggestQuery, TradeSuggestion } from '@shared/types'
+import { SEASON } from '../../fixtures/season'
 import { generateLeague, SMALL_LEAGUE, syntheticBuild } from '../../fixtures/synthetic'
 
 describe('stance filters (spec 6b §3.3)', () => {
@@ -83,5 +86,136 @@ describe('synthetic league fixture', () => {
     expect(windowWeeks(build)).toHaveLength(15)
     expect(rosterSize(build)).toBe(16)
     expect(teamWeek(build, 1, 3).optimalTotal).toBeGreaterThan(0)
+  })
+})
+
+const query = (over: Partial<TradeSuggestQuery> = {}): TradeSuggestQuery => ({
+  season: SEASON,
+  focus: null,
+  stance: 'fair',
+  partnerRosterId: null,
+  ...over
+})
+/** "A+B→I@3": my give ids, their get ids (each sorted), partner roster. */
+const shape = (s: TradeSuggestion): string => {
+  const ids = (list: { playerId: string }[]): string =>
+    list
+      .map((p) => p.playerId)
+      .sort()
+      .join('+')
+  return `${ids(s.evaluation.me.give)}→${ids(s.evaluation.me.get)}@${s.evaluation.them.rosterId}`
+}
+const shapes = (list: TradeSuggestion[]): string[] => list.map(shape)
+
+/** The TradeError code a call throws, or a marker when it does not throw / throws something else. */
+function codeOf(fn: () => unknown): string {
+  try {
+    fn()
+  } catch (err) {
+    if (err instanceof TradeError) return err.code
+    throw err
+  }
+  return 'no error'
+}
+
+describe('suggestTrades on the small league (spec 6b §3)', () => {
+  const { build } = syntheticBuild(SMALL_LEAGUE)
+
+  it('finds the offers that help me and that they would take, ranked', () => {
+    const out = suggestTrades(build, query())
+    expect(shapes(out)).toEqual(['A+B→I@3', 'C→F@2'])
+    const [abi, cf] = out
+    expect(abi.acceptance).toBe('market')
+    expect(abi.evaluation.me).toMatchObject({ delta: 4, deltaPerWeek: 2, drops: [] })
+    expect(abi.evaluation.them.delta).toBe(-2)
+    expect(abi.evaluation.them.drops.map((p) => p.playerId)).toEqual(['J'])
+    expect(cf.acceptance).toBe('market')
+    expect(cf.evaluation.me).toMatchObject({ delta: 2, deltaPerWeek: 1 })
+    expect(cf.evaluation.them.delta).toBe(-2)
+    // a suggestion carries exactly what the builder would compute for it
+    for (const s of out) {
+      const { me, them } = s.evaluation
+      expect(
+        evaluateTrade(build, {
+          rosterId: them.rosterId,
+          give: me.give.map((p) => p.playerId),
+          get: me.get.map((p) => p.playerId)
+        })
+      ).toEqual(s.evaluation)
+    }
+  })
+
+  it('applies the stance on my side only', () => {
+    // C→F sits exactly on premium's +1.0 / week bound and clears 100 % of market
+    expect(shapes(suggestTrades(build, query({ stance: 'premium' })))).toEqual(['A+B→I@3', 'C→F@2'])
+    const overpay = suggestTrades(build, query({ stance: 'overpay' }))
+    expect(shapes(overpay)).toEqual(['A+B→I@3', 'C→F@2', 'C→E@2', 'A→F@2'])
+    // the two I overpay in are win-win for them: ordered by my market ratio (0.95 before 0.88)
+    expect(overpay.slice(2).map((s) => s.acceptance)).toEqual(['both', 'both'])
+    expect(overpay.slice(2).map((s) => s.evaluation.me.delta)).toEqual([-2, -2])
+  })
+
+  it('drops a padded 2-for-1 but keeps one whose 1-for-1 they would refuse', () => {
+    // C+D→F passes on its own (me +2, them market 0.98) but adds nothing over C→F: dropped.
+    // A+B→I is kept: A→I and B→I both fail on their side, so the pair is what makes it work.
+    const out = shapes(suggestTrades(build, query()))
+    expect(out).not.toContain('C+D→F@2')
+    expect(out).toContain('A+B→I@3')
+    // at overpay, A+D→F and C+D→E are padding over A→F and C→E
+    const wide = shapes(suggestTrades(build, query({ stance: 'overpay' })))
+    expect(wide).not.toContain('A+D→F@2')
+    expect(wide).not.toContain('C+D→E@2')
+  })
+
+  it('restricts the scan to one partner', () => {
+    expect(shapes(suggestTrades(build, query({ partnerRosterId: 2 })))).toEqual(['C→F@2'])
+    expect(shapes(suggestTrades(build, query({ partnerRosterId: 3 })))).toEqual(['A+B→I@3'])
+    expect(suggestTrades(build, query({ partnerRosterId: 9 }))).toEqual([])
+  })
+
+  it('honours the focus: a player I give, a position I want', () => {
+    expect(shapes(suggestTrades(build, query({ focus: { give: 'C' } })))).toEqual(['C→F@2'])
+    expect(shapes(suggestTrades(build, query({ focus: { give: 'A' } })))).toEqual(['A+B→I@3'])
+    // C→F is outside the focus, so C+D→F is not dominated by it
+    expect(shapes(suggestTrades(build, query({ focus: { give: 'D' } })))).toEqual(['C+D→F@2'])
+    expect(suggestTrades(build, query({ focus: { give: 'nobody' } }))).toEqual([])
+    expect(suggestTrades(build, query({ focus: { want: 'RB' } }))).toEqual([])
+    expect(shapes(suggestTrades(build, query({ focus: { want: 'WR' } })))).toEqual([
+      'A+B→I@3',
+      'C→F@2'
+    ])
+  })
+
+  it('caps the list', () => {
+    expect(shapes(suggestTrades(build, query({ stance: 'overpay' }), { max: 3 }))).toEqual([
+      'A+B→I@3',
+      'C→F@2',
+      'C→E@2'
+    ])
+  })
+
+  it('fails the ratio when what I get is unvalued', () => {
+    const unvalued = syntheticBuild({
+      ...SMALL_LEAGUE,
+      teams: SMALL_LEAGUE.teams.map((t) => ({
+        ...t,
+        players: t.players.map((p) => (p.id === 'I' ? { ...p, market: null } : p))
+      }))
+    })
+    expect(shapes(suggestTrades(unvalued.build, query({ stance: 'overpay' })))).toEqual([
+      'C→F@2',
+      'C→E@2',
+      'A→F@2'
+    ])
+  })
+
+  it('throws NO_ME and NO_PROJECTIONS like the evaluator', () => {
+    const nobody = syntheticBuild({
+      ...SMALL_LEAGUE,
+      teams: SMALL_LEAGUE.teams.map((t) => ({ ...t, isMe: false }))
+    })
+    expect(codeOf(() => suggestTrades(nobody.build, query()))).toBe('NO_ME')
+    const blind = syntheticBuild({ ...SMALL_LEAGUE, weeks: [] })
+    expect(codeOf(() => suggestTrades(blind.build, query()))).toBe('NO_PROJECTIONS')
   })
 })

@@ -106,7 +106,11 @@ function sum(values: number[]): number {
   return values.reduce((acc, v) => acc + v, 0)
 }
 
-function marketSum(build: LineupBuild, list: PlayerSeries[]): { total: number; unvalued: number } {
+/** Σ FantasyCalc value of a list; players outside FantasyCalc's list count 0 and are counted. */
+export function marketSum(
+  build: LineupBuild,
+  list: PlayerSeries[]
+): { total: number; unvalued: number } {
   let total = 0
   let unvalued = 0
   for (const s of list) {
