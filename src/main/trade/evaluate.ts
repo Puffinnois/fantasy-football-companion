@@ -168,10 +168,20 @@ function sideResult(
 
   // Spec §2.3: an oversized after-roster drops the players who start least on it, then is solved again.
   let drops: PlayerSeries[] = []
+  /** The oversized roster's weeks, kept so a week whose drops never started can reuse the solve. */
+  let oversized: TeamWeek[] = []
   const active = after.filter((s) => !onReserve(s))
   const excess = size === null ? 0 : Math.max(0, active.length - size)
   if (excess > 0) {
-    const starts = startCounts(weeks.map((w) => rosterWeek(build, after, w)))
+    // The same week skip as below: where the lineup provably does not move, the before-optimal is
+    // an optimum of the oversized roster too, so its starters are the ones to count.
+    const givenIds = give.map((s) => s.base.playerId)
+    oversized = weeks.map((w, i) =>
+      opts.skip !== false && !mayChange(build, before[i], givenIds, get, w)
+        ? before[i]
+        : rosterWeek(build, after, w)
+    )
+    const starts = startCounts(oversized)
     const rosPoints = (s: PlayerSeries): number =>
       build.rowById.get(s.base.playerId)?.rosPoints ?? 0
     drops = [...active]
@@ -187,11 +197,14 @@ function sideResult(
   }
 
   const removed = [...give, ...drops].map((s) => s.base.playerId)
-  const afterWeeks = weeks.map((w, i) =>
-    opts.skip !== false && !mayChange(build, before[i], removed, get, w)
-      ? before[i]
-      : rosterWeek(build, after, w)
-  )
+  const dropIds = drops.map((s) => s.base.playerId)
+  const afterWeeks = weeks.map((w, i) => {
+    if (opts.skip !== false && !mayChange(build, before[i], removed, get, w)) return before[i]
+    // Dropping a player the oversized lineup never started cannot change that week's optimum.
+    const solved = oversized[i]
+    if (solved && !dropIds.some((id) => isStarter(solved, id))) return solved
+    return rosterWeek(build, after, w)
+  })
   const beforeTotal = sum(before.map((x) => x.optimalTotal))
   const afterTotal = sum(afterWeeks.map((x) => x.optimalTotal))
   const delta = round2(afterTotal - beforeTotal) ?? 0

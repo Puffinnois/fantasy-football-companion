@@ -11,7 +11,13 @@ import {
 } from '@main/trade/suggest'
 import type { TradeSuggestQuery, TradeSuggestion } from '@shared/types'
 import { SEASON } from '../../fixtures/season'
-import { generateLeague, SMALL_LEAGUE, syntheticBuild } from '../../fixtures/synthetic'
+import { rules } from '../../fixtures/rules'
+import {
+  generateLeague,
+  SMALL_LEAGUE,
+  syntheticBuild,
+  type SyntheticLeague
+} from '../../fixtures/synthetic'
 
 describe('stance filters (spec 6b §3.3)', () => {
   it.each([
@@ -217,5 +223,66 @@ describe('suggestTrades on the small league (spec 6b §3)', () => {
     expect(codeOf(() => suggestTrades(nobody.build, query()))).toBe('NO_ME')
     const blind = syntheticBuild({ ...SMALL_LEAGUE, weeks: [] })
     expect(codeOf(() => suggestTrades(blind.build, query()))).toBe('NO_PROJECTIONS')
+  })
+})
+
+/**
+ * Spec §3.2 / §2.3: the search prunes candidates their side provably cannot accept, and the drop
+ * picker skips weeks whose lineup provably does not move. Both are exact — on small random leagues
+ * the pruned search must return exactly what the unoptimised one returns.
+ */
+describe('prunes are exact', () => {
+  /** 3 teams × 8 players, window weeks 3–5, roster size 8 so every 2-for-1 forces a drop. */
+  const league = (seed: number): SyntheticLeague => {
+    const g = generateLeague(seed, 3)
+    return {
+      ...g,
+      weeks: g.weeks.slice(0, 3),
+      rosterPositions: ['QB', 'RB', 'WR', 'TE', 'FLEX', 'BN', 'BN', 'BN'],
+      rules: rules({
+        rosterSlots: [
+          { slot: 'QB', count: 1 },
+          { slot: 'RB', count: 1 },
+          { slot: 'WR', count: 1 },
+          { slot: 'TE', count: 1 },
+          { slot: 'FLEX', count: 1 },
+          { slot: 'BN', count: 3 }
+        ],
+        settings: { numTeams: 3, waiverType: 'faab', playoffStartWeek: 4, playoffTeams: 4 }
+      }),
+      teams: g.teams.map((t) => ({
+        ...t,
+        players: t.players.slice(0, 8).map((p) => ({
+          ...p,
+          weekly: Array.isArray(p.weekly) ? p.weekly.slice(0, 3) : p.weekly
+        }))
+      }))
+    }
+  }
+
+  it('returns the same offers with every optimisation disabled', () => {
+    for (let seed = 1; seed <= 8; seed++) {
+      const { build } = syntheticBuild(league(seed))
+      expect(windowWeeks(build)).toEqual([3, 4, 5])
+      for (const stance of ['premium', 'fair', 'overpay'] as const) {
+        const fast = suggestTrades(build, query({ stance }))
+        const slow = suggestTrades(build, query({ stance }), { prune: false, skip: false })
+        expect({ seed, stance, out: fast }).toEqual({ seed, stance, out: slow })
+      }
+    }
+  })
+
+  it('picks the same drops on an overflowing roster with the skip disabled', () => {
+    const { build } = syntheticBuild(league(3))
+    const me = build.rosters.get(1) ?? []
+    const them = build.rosters.get(2) ?? []
+    const proposal = {
+      rosterId: 2,
+      give: [me[0].base.playerId],
+      get: [them[0].base.playerId, them[1].base.playerId]
+    }
+    const fast = evaluateTrade(build, proposal)
+    expect(fast.me.drops).toHaveLength(1)
+    expect(fast).toEqual(evaluateTrade(build, proposal, { skip: false }))
   })
 })
