@@ -1127,3 +1127,9 @@ Expected: `package.json` at `0.15.0`, tag `v0.15.0`. Pushing (`git push --follow
 - §7 testing → Tasks 2–4 plus the real-data check in Task 5.
 - §8 structure → every path appears in a task's **Files**.
 - §9 phasing → Task 5 releases `v0.15.0`.
+
+## Execution notes (2026-09-22)
+
+- Task 3's swap test used Jefferson/Chase, but the fixture projects Chase for the current week only, which the correction never touches; the test swaps the RBs Barkley/Bijan instead.
+- The "not adjusted" notice sits on the Players screen beside the "No projections stored" notice, shown only when projections exist.
+- **Factor cap added after the real-data check.** Uncapped rank matching gave Kirk Cousins (a backup, QB34 → consensus QB30) ×5.9, zeroed Shedeur Sanders, and the `base = 0` spread fallback handed Marcus Mariota (projected for the current week only, as a fill-in) 86 points he will not score. Changes: `ROS_FACTOR_CAP = 2` clamps the factor to [×0.5, ×2] and `RosAdjustment.capped` reports it; the spread fallback is removed, and ranked players with nothing projected after the current week are kept off the ladder. Within the cap, conservation and consensus order still hold; clamped players give up both, and idempotence no longer holds in general (the correction only runs once, on raw projections).
