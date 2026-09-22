@@ -151,6 +151,8 @@ function playerRecord(p: SyntheticPlayer): PlayerRecord {
     team: null,
     status: 'Active',
     injuryStatus: null,
+    injuryBodyPart: null,
+    injuryNotes: null,
     age: null,
     yearsExp: null,
     depthChartOrder: null,

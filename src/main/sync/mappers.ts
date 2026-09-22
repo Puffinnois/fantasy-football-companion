@@ -107,6 +107,8 @@ export function mapPlayers(players: Record<string, SleeperPlayer>): PlayerRecord
       team: p.team ?? null,
       status: p.status ?? null,
       injuryStatus: p.injury_status ?? null,
+      injuryBodyPart: p.injury_body_part ?? null,
+      injuryNotes: p.injury_notes ?? null,
       age: p.age ?? null,
       yearsExp: p.years_exp ?? null,
       depthChartOrder: p.depth_chart_order ?? null,

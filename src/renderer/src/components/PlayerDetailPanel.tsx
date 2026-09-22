@@ -16,7 +16,7 @@ import { Sparkline } from '@/components/Sparkline'
 import { api } from '@/lib/api'
 import { barItems, signalLines, usageRows } from '@/lib/detailView'
 import { errorMessage, fmtPct, fmtPoints, fmtSigned } from '@/lib/format'
-import { cellText, columnGroups, sosTone, TREND_ARROW } from '@/lib/playersTableView'
+import { cellText, columnGroups, rosAdjustLine, sosTone, TREND_ARROW } from '@/lib/playersTableView'
 import { cn } from '@/lib/utils'
 import type {
   DetailTarget,
@@ -196,6 +196,9 @@ export function PlayerDetailPanel({
     >
       {error && <p className="text-destructive text-sm">{error}</p>}
       {detail && <HeaderStrip row={detail.row} schedule={detail.schedule} />}
+      {detail && rosAdjustLine(detail.row) && (
+        <p className="mt-2 text-xs text-muted-foreground">{rosAdjustLine(detail.row)}</p>
+      )}
       {player && !player.statsAvailable && (
         <p className="mt-4 text-sm text-muted-foreground">
           Stats unavailable — this player could not be matched to nflverse data.

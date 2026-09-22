@@ -632,3 +632,31 @@ export function expertTone(row: TableRow, col: Column): 'pos' | 'neg' | 'warn' |
     return v >= 0 ? 'pos' : 'neg'
   return null
 }
+
+/** Spec §6: the table marks a correction only when it moved the value by more than this. */
+export const ARROW_PCT = 0.1
+
+/** '↑' / '↓' past the threshold, 'IR' for a shelved player, null when nothing worth showing. */
+export function rosAdjustMark(row: PlayerValueRow): '↑' | '↓' | 'IR' | null {
+  const adj = row.rosAdjust
+  if (!adj) return null
+  if (adj.shelved) return 'IR'
+  if (adj.factor === null || Math.abs(adj.factor - 1) <= ARROW_PCT) return null
+  return adj.factor > 1 ? '↑' : '↓'
+}
+
+/** The detail panel's one-line explanation; null when the player was untouched. */
+export function rosAdjustLine(row: PlayerValueRow): string | null {
+  const adj = row.rosAdjust
+  if (!adj) return null
+  if (adj.shelved) {
+    const detail = [row.injuryBodyPart, row.injuryNotes].filter((v) => v !== null).join(', ')
+    const status = row.injuryStatus ?? 'Shelved'
+    return `${status}${detail ? ` (${detail})` : ''} — remaining weeks zeroed`
+  }
+  if (adj.projPosRank === null || adj.expertPosRank === null) return null
+  const pos = row.position ?? ''
+  const ranks = `projection ${pos}${adj.projPosRank} → consensus ${pos}${adj.expertPosRank}`
+  if (adj.factor === null) return ranks
+  return `${ranks} · scaled ×${adj.factor.toFixed(2)}${adj.capped ? ' (capped)' : ''}`
+}

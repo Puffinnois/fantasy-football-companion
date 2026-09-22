@@ -24,6 +24,8 @@ import {
   expertTone,
   filterRows,
   mineCellTitle,
+  rosAdjustLine,
+  rosAdjustMark,
   signalText,
   signalTone,
   sortRows,
@@ -337,6 +339,13 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
           No projections stored for {season} — rest-of-season columns are empty.
         </p>
       )}
+      {effectiveMode === 'value' &&
+        valueContext?.projectionsStored &&
+        !valueContext.rosAdjusted && (
+          <p className="text-xs text-muted-foreground">
+            Rest-of-season values not adjusted — no expert ranks synced yet.
+          </p>
+        )}
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -453,6 +462,14 @@ export function PlayersScreen({ dataVersion }: PlayersScreenProps): React.JSX.El
                       : col.kind === 'expert'
                         ? expertText(p, col)
                         : cellText(value, col, effectiveMode)}
+                    {col.field === 'rosPoints' && 'rosAdjust' in p && rosAdjustMark(p) && (
+                      <span
+                        className="ml-1 text-xs text-muted-foreground"
+                        title={rosAdjustLine(p) ?? undefined}
+                      >
+                        {rosAdjustMark(p)}
+                      </span>
+                    )}
                   </TableCell>
                 )
               })}

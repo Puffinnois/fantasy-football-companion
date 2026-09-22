@@ -16,6 +16,7 @@ import { rosterRelative } from './roster'
 import { defenseRanks, lastScheduledWeek, playerSchedule, type DefenseRanks } from './schedule'
 import { loadSeries, type PlayerSeries, type SeriesBundle } from './series'
 import { positionTotals, statSignals } from './signals'
+import { applyRosRealism } from './realism'
 
 export interface ValueBuild {
   context: ValueContext
@@ -100,7 +101,11 @@ export function assembleValue(
   bundle: SeriesBundle,
   experts: ExpertBundle = NO_EXPERTS
 ): ValueBuild {
-  const aggregates = bundle.players.map((p) => aggregate(bundle, p))
+  const ex = indexExperts(experts)
+  // Spec §4: correct the series before anything reads them, so every consumer inherits it.
+  const realism = applyRosRealism(bundle.players, bundle.currentWeek, ex.ranks)
+  const players = realism.players
+  const aggregates = players.map((p) => aggregate(bundle, p))
   const slots = bundle.rules?.rosterSlots ?? []
   const stdLevels = replacementLevels(
     slots,
@@ -142,8 +147,8 @@ export function assembleValue(
     valued.map((v) => ranked(v, v.rosValue, v.a.rosPoints)).filter(present)
   )
 
-  const totals = positionTotals(bundle.players)
-  const defense = defenseRanks(bundle.players)
+  const totals = positionTotals(players)
+  const defense = defenseRanks(players)
   const lastWeek = lastScheduledWeek(bundle.schedule)
   const schedules = new Map<string, ScheduleEntry[]>()
   const roster = rosterRelative(
@@ -154,7 +159,6 @@ export function assembleValue(
     })),
     bundle.hasMyTeam
   )
-  const ex = indexExperts(experts)
 
   const rows: PlayerValueRow[] = valued.map((v) => {
     const series = v.a.series
@@ -178,6 +182,7 @@ export function assembleValue(
       stdRank: stdRanks.get(series.base.playerId) ?? null,
       rosPoints: v.a.rosPoints,
       rosValue: v.rosValue,
+      rosAdjust: realism.adjustments.get(series.base.playerId) ?? null,
       rosRank,
       overallRank: overallRanks.get(series.base.playerId) ?? null,
       signals,
@@ -201,6 +206,7 @@ export function assembleValue(
       currentWeek: bundle.currentWeek,
       lastWeek: bundle.lastWeek,
       projectionsStored: bundle.projectionsStored,
+      rosAdjusted: realism.adjusted,
       teamCount: bundle.teamCount,
       hasMyTeam: bundle.hasMyTeam,
       mine,
@@ -212,7 +218,7 @@ export function assembleValue(
       }
     },
     rows,
-    series: new Map(bundle.players.map((p) => [p.base.playerId, p])),
+    series: new Map(players.map((p) => [p.base.playerId, p])),
     schedules,
     defense
   }

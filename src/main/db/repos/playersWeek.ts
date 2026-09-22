@@ -41,6 +41,10 @@ export interface CandidateRow {
   pos: string | null
   team: string | null
   injury_status: string | null
+  /** Sleeper roster status: 'Active', 'Injured Reserve', 'Physically Unable to Perform', … */
+  status: string | null
+  injury_body_part: string | null
+  injury_notes: string | null
   years_exp: number | null
   owner_roster_id: number | null
   owner_name: string | null
@@ -76,7 +80,7 @@ export function listCandidates(db: Db, leagueId: string): CandidateRow[] {
     .prepare(
       `SELECT * FROM (
          SELECT p.player_id, p.full_name, CASE WHEN p.position = 'FB' THEN 'RB' ELSE p.position END AS pos,
-           p.team, p.status, p.injury_status, p.years_exp,
+           p.team, p.status, p.injury_status, p.injury_body_part, p.injury_notes, p.years_exp,
            rp.roster_id AS owner_roster_id, rp.slot AS owner_slot, t.is_me AS owner_is_me,
            COALESCE(t.team_name, t.display_name) AS owner_name,
            w.player_id AS watched, i.gsis_id, i.pfr_id, i.nflverse_team
@@ -102,6 +106,9 @@ export function baseRow(r: CandidateRow, byes: Map<string, number>): PlayerBaseR
     team: r.team,
     byeWeek: nflverseTeam ? (byes.get(nflverseTeam) ?? null) : null,
     injuryStatus: r.injury_status,
+    status: r.status,
+    injuryBodyPart: r.injury_body_part,
+    injuryNotes: r.injury_notes,
     rookie: r.years_exp === 0,
     watched: r.watched !== null,
     ownerRosterId: r.owner_roster_id,

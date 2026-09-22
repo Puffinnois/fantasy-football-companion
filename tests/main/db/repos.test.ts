@@ -40,6 +40,8 @@ function player(playerId: string, extra: Partial<PlayerRecord> = {}): PlayerReco
     team: 'BUF',
     status: 'Active',
     injuryStatus: null,
+    injuryBodyPart: null,
+    injuryNotes: null,
     age: null,
     yearsExp: null,
     depthChartOrder: null,

@@ -222,6 +222,8 @@ describe('buildValueSeason — roster-relative view', () => {
           team: 'DEN',
           status: 'Active',
           injuryStatus: null,
+          injuryBodyPart: null,
+          injuryNotes: null,
           age: 24,
           yearsExp: 2,
           depthChartOrder: 1,
