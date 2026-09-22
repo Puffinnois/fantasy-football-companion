@@ -162,11 +162,20 @@ function playerRecord(p: SyntheticPlayer): PlayerRecord {
 }
 
 /** Seeds an in-memory DB with the league as of `currentWeek` and builds the lineups on it, as `cachedLineup` does. */
-export function syntheticBuild(league: SyntheticLeague): { db: Db; build: LineupBuild } {
-  const db = openDatabase(':memory:')
+export function syntheticBuild(
+  league: SyntheticLeague,
+  path = ':memory:'
+): { db: Db; build: LineupBuild } {
+  const db = openDatabase(path)
   migrate(db)
   const leagueRules = league.rules ?? rules()
-  upsertLeague(db, mapLeague(fx.league, SEED_TS), SEED_TS)
+  // The roster positions must reach the DB too: anything that rebuilds from it (the search worker)
+  // reads them back out of `sleeper_raw`.
+  upsertLeague(
+    db,
+    mapLeague({ ...fx.league, roster_positions: league.rosterPositions }, SEED_TS),
+    SEED_TS
+  )
   saveRules(db, 'L1', leagueRules)
   setSetting(db, SETTING_ACTIVE_LEAGUE, 'L1')
   setSetting(db, SETTING_MY_USER, 'u1')

@@ -18,6 +18,8 @@ import type {
   TradeEvaluation,
   TradePool,
   TradeProposal,
+  TradeSuggestion,
+  TradeSuggestQuery,
   UpdateState
 } from './types'
 import type { Rules } from './rules'
@@ -61,6 +63,8 @@ export interface Api {
     pool(season: number): Promise<TradePool>
     /** Both teams' window strength before / after the proposal, drops, market balance. */
     evaluate(season: number, proposal: TradeProposal): Promise<TradeEvaluation>
+    /** Offers that pass my stance and their acceptance, ranked (slice 6b spec §3); `[]` is a normal answer. */
+    suggest(query: TradeSuggestQuery): Promise<TradeSuggestion[]>
   }
   watchlist: {
     /** Returns the new state. */
@@ -106,6 +110,7 @@ export const IPC = {
   lineupStrength: 'lineup:strength',
   tradePool: 'trade:pool',
   tradeEvaluate: 'trade:evaluate',
+  tradeSuggest: 'trade:suggest',
   watchlistToggle: 'watchlist:toggle',
   rulesGet: 'rules:get',
   rulesUpdate: 'rules:update',

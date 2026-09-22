@@ -15,6 +15,7 @@ import { buildLineups, lineupWeek, teamStrengths, type LineupBuild } from '@main
 import type { NewsCache } from '@main/news/newsCache'
 import { evaluateTrade } from '@main/trade/evaluate'
 import { tradePool } from '@main/trade/pool'
+import { runSuggest } from '@main/trade/runSuggest'
 import { normalizeRules } from '@main/scoring/normalize'
 import { recomputePoints } from '@main/scoring/recompute'
 import type { FantasyCalcClient } from '@main/sources/fantasycalc'
@@ -47,12 +48,16 @@ import type {
   TradeEvaluation,
   TradePool,
   TradeProposal,
+  TradeSuggestion,
+  TradeSuggestQuery,
   UpdateState,
   WeekQuery
 } from '@shared/types'
 
 export interface AppContext {
   db: Db
+  /** The database file, so the trade search can open its own connection in a worker thread. */
+  dbPath: string
   sleeper: SleeperClient
   nflverse: NflverseClient
   fantasypros: FantasyProsClient
@@ -300,6 +305,16 @@ export function registerIpcHandlers(ctx: AppContext): void {
       const id = activeLeagueId()
       if (!id) throw new Error('No league imported')
       return evaluateTrade(cachedLineup(ctx, id, season), proposal)
+    }
+  )
+
+  ipcMain.handle(
+    IPC.tradeSuggest,
+    (_event, query: TradeSuggestQuery): Promise<TradeSuggestion[]> => {
+      const id = activeLeagueId()
+      if (!id) throw new Error('No league imported')
+      // Spec §6: a league-wide scan takes seconds, so it runs off the main thread.
+      return runSuggest({ dbPath: ctx.dbPath, leagueId: id, query })
     }
   )
 
