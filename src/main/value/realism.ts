@@ -43,7 +43,8 @@ function isFuture(w: SeriesWeek, currentWeek: number): boolean {
   return !w.played && w.week > currentWeek
 }
 
-function futureTotal(s: PlayerSeries, currentWeek: number): number {
+/** Σ projected over the weeks the correction may touch. */
+export function futureTotal(s: PlayerSeries, currentWeek: number): number {
   return s.weeks.reduce((t, w) => (isFuture(w, currentWeek) ? t + (w.projected ?? 0) : t), 0)
 }
 

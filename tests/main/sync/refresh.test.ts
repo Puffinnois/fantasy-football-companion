@@ -42,14 +42,15 @@ describe('refreshAll / importAll', () => {
     migrate(db)
   })
 
-  it('runs the expert steps after Sleeper and nflverse, on import and on refresh', async () => {
+  it('runs the expert steps after Sleeper and nflverse, then the ROS snapshot, on import and on refresh', async () => {
     const imported = await importAll(deps(), 'L1', 'u1')
     const sources = imported.steps.map((s) => s.source)
-    expect(sources.slice(-4)).toEqual([
+    expect(sources.slice(-5)).toEqual([
       'fantasypros:weekly:2026:1',
       'fantasypros:weekly:2026:2',
       'fantasypros:ros:2026',
-      'fantasycalc:2026'
+      'fantasycalc:2026',
+      'snapshot:ros:2026'
     ])
     expect(sources.indexOf('nflverse:crosswalk')).toBeLessThan(
       sources.indexOf('fantasypros:ros:2026')
@@ -57,6 +58,6 @@ describe('refreshAll / importAll', () => {
     expect(imported.steps.filter((s) => s.status === 'error')).toEqual([])
 
     const refreshed = await refreshAll(deps())
-    expect(refreshed.steps.map((s) => s.source).slice(-4)).toEqual(sources.slice(-4))
+    expect(refreshed.steps.map((s) => s.source).slice(-5)).toEqual(sources.slice(-5))
   })
 })

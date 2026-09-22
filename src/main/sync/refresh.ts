@@ -2,6 +2,7 @@ import { pruneSyncLog } from '@main/db/repos/syncLog'
 import type { SyncResult } from '@shared/types'
 import { refreshExperts, type ExpertSyncDeps } from './expertSync'
 import { refreshNflverse, type NflverseSyncDeps } from './nflverseSync'
+import { snapshotRos } from './snapshotSync'
 import { importLeague, refreshSleeper, SOURCE_PLAYERS } from './sleeperSync'
 import { nowOf, type RefreshOptions } from './step'
 
@@ -20,7 +21,8 @@ export async function refreshAll(
   const playersChanged = sleeper.steps.some((s) => s.source === SOURCE_PLAYERS && s.status === 'ok')
   const nflverse = await refreshNflverse(deps, { ...options, playersChanged })
   const experts = await refreshExperts(deps, options)
-  return { steps: [...sleeper.steps, ...nflverse.steps, ...experts.steps] }
+  const snapshot = await snapshotRos(deps)
+  return { steps: [...sleeper.steps, ...nflverse.steps, ...experts.steps, ...snapshot.steps] }
 }
 
 /** Setup → Import: the Sleeper first import followed by the full nflverse pipeline and the expert layer. */
@@ -32,5 +34,6 @@ export async function importAll(
   const sleeper = await importLeague(deps, leagueId, myUserId)
   const nflverse = await refreshNflverse(deps, { playersChanged: true })
   const experts = await refreshExperts(deps)
-  return { steps: [...sleeper.steps, ...nflverse.steps, ...experts.steps] }
+  const snapshot = await snapshotRos(deps)
+  return { steps: [...sleeper.steps, ...nflverse.steps, ...experts.steps, ...snapshot.steps] }
 }
