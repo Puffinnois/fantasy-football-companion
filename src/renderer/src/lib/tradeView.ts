@@ -1,6 +1,12 @@
 import { fmtPoints, fmtSigned } from '@/lib/format'
 import { LINEUP_POSITIONS } from '@shared/rules'
-import type { TradeEvaluation, TradePlayer, TradeSideResult } from '@shared/types'
+import type {
+  TradeEvaluation,
+  TradePlayer,
+  TradeSideResult,
+  TradeStance,
+  TradeSuggestion
+} from '@shared/types'
 
 export const DEADLINE_NOTE =
   'The trade deadline has passed — Sleeper no longer accepts trades; evaluation still works.'
@@ -92,4 +98,64 @@ export function verdictBadges(ev: TradeEvaluation): { label: string; on: boolean
     { label: 'Win-win', on: ev.winWin },
     { label: 'Market-fair', on: ev.marketFair }
   ]
+}
+
+export const STANCE_OPTIONS: { value: TradeStance; label: string }[] = [
+  { value: 'premium', label: 'Premium' },
+  { value: 'fair', label: 'Fair' },
+  { value: 'overpay', label: 'Overpay' }
+]
+
+/** Display of spec §3.3's stance table — the numbers live in `src/main/trade/suggest.ts`. */
+const STANCE_HINTS: Record<TradeStance, string> = {
+  premium: 'I gain ≥ 1 pt/week and get ≥ 100 % of the market value I give',
+  fair: 'I gain and get ≥ 85 % of the market value I give',
+  overpay: 'I lose ≤ 1 pt/week and get ≥ 70 % of the market value I give'
+}
+
+export function stanceHint(stance: TradeStance): string {
+  return STANCE_HINTS[stance]
+}
+
+const NO_OFFERS: Record<TradeStance, string> = {
+  premium: 'No offers at this stance — try fair or overpay',
+  fair: 'No offers at this stance — try overpay',
+  overpay: 'No offers — widen the focus or pick another team'
+}
+
+export function noOffersHint(stance: TradeStance): string {
+  return NO_OFFERS[stance]
+}
+
+/** "Me +4.00 (+0.27/wk)" */
+export function meLine(s: TradeSuggestion): string {
+  return `Me ${deltaLine(s.evaluation.me)}`
+}
+
+/** "Them -4.00" */
+export function themLine(s: TradeSuggestion): string {
+  return `Them ${fmtSigned(s.evaluation.them.delta)}`
+}
+
+export function acceptanceTags(s: TradeSuggestion): string[] {
+  return s.acceptance === 'both' ? ['lineup', 'market'] : [s.acceptance]
+}
+
+/** "RB Saquon Barkley, WR Justin Jefferson" */
+export function sideNames(players: TradePlayer[]): string {
+  return players.map((p) => `${p.position ?? '—'} ${p.fullName}`).join(', ')
+}
+
+/** "give RB Saquon Barkley · get WR Ja'Marr Chase[ · drop: …]" */
+export function offerLine(s: TradeSuggestion): string {
+  const me = s.evaluation.me
+  const drop = dropLine(me)
+  return `give ${sideNames(me.give)} · get ${sideNames(me.get)}${drop ? ` · ${drop}` : ''}`
+}
+
+/** Sell-high check beside the focus: "MKT 9 340 · 30d -310", or "MKT —" outside FantasyCalc's list. */
+export function focusMarketLine(p: TradePlayer): string {
+  return p.market
+    ? `MKT ${fmtMarket(p.market.value)} · 30d ${fmtSigned(p.market.trend30d, 0)}`
+    : 'MKT —'
 }

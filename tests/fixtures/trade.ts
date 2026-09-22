@@ -1,4 +1,10 @@
-import type { TradeEvaluation, TradePlayer, TradePool, TradeSideResult } from '@shared/types'
+import type {
+  TradeEvaluation,
+  TradePlayer,
+  TradePool,
+  TradeSideResult,
+  TradeSuggestion
+} from '@shared/types'
 
 export function tradePlayer(over: Partial<TradePlayer> & { playerId: string }): TradePlayer {
   return {
@@ -130,6 +136,45 @@ export function tradePool(over: Partial<TradePool> = {}): TradePool {
     tradeDeadlinePassed: false,
     me: { rosterId: 1, name: 'Cook Book', players: [barkley, cook, jefferson, lar] },
     teams: [{ rosterId: 2, name: 'Rival', players: [bijan, chase] }],
+    ...over
+  }
+}
+
+/** Barkley for Chase: +4 over the window for me, −4 for Rival, who takes it on the market (1.17). */
+export function tradeSuggestion(over: Partial<TradeSuggestion> = {}): TradeSuggestion {
+  return {
+    evaluation: tradeEvaluation({
+      me: tradeSide({
+        give: [barkley],
+        get: [chase],
+        before: 66,
+        after: 70,
+        delta: 4,
+        deltaPerWeek: 0.27,
+        thisWeekDelta: 1,
+        marketGive: 9340,
+        marketGet: 8000,
+        weeksChanged: 3
+      }),
+      them: tradeSide({
+        rosterId: 2,
+        name: 'Rival',
+        isMe: false,
+        give: [chase],
+        get: [barkley],
+        before: 30,
+        after: 26,
+        delta: -4,
+        deltaPerWeek: -0.27,
+        thisWeekDelta: -1,
+        marketGive: 8000,
+        marketGet: 9340,
+        weeksChanged: 3
+      }),
+      winWin: false,
+      marketFair: false // 8 000 / 9 340 = 0.86 on my side
+    }),
+    acceptance: 'market',
     ...over
   }
 }
