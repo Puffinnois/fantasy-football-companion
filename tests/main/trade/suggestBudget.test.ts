@@ -12,10 +12,11 @@ const FOCUSED_MS = 3000
 const ALL_TEAMS_MS = 20000
 
 /**
- * Timing-sensitive, so skipped in CI; run locally before every build
- * (`npx vitest run suggestBudget`).
+ * Timing-sensitive: `npm test` runs its files in parallel workers, which is enough contention to
+ * make a wall-clock assertion flap, so this runs only under `npm run test:budget`. Run it locally
+ * before every build — it is the check that the screen's default searches stay interactive.
  */
-describe.skipIf(!!process.env.CI)('suggestTrades budget', () => {
+describe.skipIf(!process.env.FFC_BUDGET)('suggestTrades budget', () => {
   const { build } = syntheticBuild(generateLeague(7))
   const query = (over: object): Parameters<typeof suggestTrades>[1] => ({
     season: SEASON,
@@ -38,7 +39,7 @@ describe.skipIf(!!process.env.CI)('suggestTrades budget', () => {
     console.info(`one partner ${partner.toFixed(0)} ms · focus give ${focus.toFixed(0)} ms`)
     expect(partner).toBeLessThan(FOCUSED_MS)
     expect(focus).toBeLessThan(FOCUSED_MS)
-  })
+  }, 60_000)
 
   it('keeps the league-wide scan within its regression ceiling at every stance', () => {
     for (const stance of ['premium', 'fair', 'overpay'] as const) {
@@ -46,5 +47,5 @@ describe.skipIf(!!process.env.CI)('suggestTrades budget', () => {
       console.info(`all teams, ${stance}: ${ms.toFixed(0)} ms`)
       expect(ms).toBeLessThan(ALL_TEAMS_MS)
     }
-  })
+  }, 180_000)
 })
