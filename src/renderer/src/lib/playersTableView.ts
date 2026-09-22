@@ -657,5 +657,6 @@ export function rosAdjustLine(row: PlayerValueRow): string | null {
   if (adj.projPosRank === null || adj.expertPosRank === null) return null
   const pos = row.position ?? ''
   const ranks = `projection ${pos}${adj.projPosRank} → consensus ${pos}${adj.expertPosRank}`
-  return adj.factor === null ? ranks : `${ranks} · scaled ×${adj.factor.toFixed(2)}`
+  if (adj.factor === null) return ranks
+  return `${ranks} · scaled ×${adj.factor.toFixed(2)}${adj.capped ? ' (capped)' : ''}`
 }

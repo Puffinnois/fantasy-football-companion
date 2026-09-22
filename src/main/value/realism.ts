@@ -11,6 +11,14 @@ export const SHELF_STATUS: ReadonlySet<string> = new Set([
   'Physically Unable to Perform'
 ])
 
+/**
+ * The most a correction may scale a player's remaining weeks, either way (×2 up, ×½ down).
+ * Deep in a position the ladder is steep and expert ranks disagree widely, so an uncapped
+ * swap can hand a one-week fill-in a starter's season. On real data the legitimate moves (a
+ * handcuff whose starter went on IR, a TE promoted to the top job) land near ×2.
+ */
+export const ROS_FACTOR_CAP = 2
+
 export function shelved(base: { injuryStatus: string | null; status: string | null }): boolean {
   return SHELF_INJURY.has(base.injuryStatus ?? '') || SHELF_STATUS.has(base.status ?? '')
 }
@@ -25,6 +33,7 @@ export interface RealismResult {
 const NONE: RosAdjustment = {
   shelved: false,
   factor: null,
+  capped: false,
   projPosRank: null,
   expertPosRank: null
 }
@@ -53,7 +62,8 @@ function rewrite(
 /**
  * Rest-of-season realism spec §3: shelved players stop carrying future projections, and each
  * position's points ladder is reassigned to the consensus order, so the rungs freed by shelved
- * players pass down to the players below them.
+ * players pass down to the players below them. The scale is clamped to `ROS_FACTOR_CAP` either
+ * way, which gives up exact conservation and exact consensus order for the players it clamps.
  */
 export function applyRosRealism(
   players: PlayerSeries[],
@@ -70,18 +80,26 @@ export function applyRosRealism(
   })
   if (ranks.size === 0) return { players: shelfed, adjustments, adjusted: false }
 
-  // §3.2 rank matching, per lineup position, over ranked and unshelved players.
+  // §3.2 rank matching, per lineup position, over ranked and unshelved players with something
+  // projected after this week. A player with nothing ahead (a one-week fill-in) has nothing to
+  // scale, and letting him hold a rung would push every player below him down one.
   const corrected = new Map<string, PlayerSeries>()
   for (const position of LINEUP_POSITIONS) {
-    const pool = shelfed.filter(
+    const inPosition = shelfed.filter(
       (s) =>
         s.base.position === position &&
         !adjustments.get(s.base.playerId)?.shelved &&
         ranks.has(s.base.playerId)
     )
-    if (pool.length === 0) continue
-    const base = new Map(pool.map((s) => [s.base.playerId, futureTotal(s, currentWeek)]))
+    const base = new Map(inPosition.map((s) => [s.base.playerId, futureTotal(s, currentWeek)]))
     const value = (s: PlayerSeries): number => base.get(s.base.playerId) ?? 0
+    for (const s of inPosition) {
+      if (value(s) > 0) continue
+      const id = s.base.playerId
+      adjustments.set(id, { ...NONE, expertPosRank: ranks.get(id)?.posRank ?? null })
+    }
+    const pool = inPosition.filter((s) => value(s) > 0)
+    if (pool.length === 0) continue
     const ladder = [...pool].sort((a, b) => value(b) - value(a))
     const order = [...pool].sort(
       (a, b) =>
@@ -91,31 +109,18 @@ export function applyRosRealism(
 
     order.forEach((s, i) => {
       const id = s.base.playerId
-      const target = value(ladder[i])
-      const from = value(s)
-      const common = {
+      const raw = value(ladder[i]) / value(s)
+      const factor = Math.min(ROS_FACTOR_CAP, Math.max(1 / ROS_FACTOR_CAP, raw))
+      adjustments.set(id, {
         shelved: false,
+        factor,
+        capped: factor !== raw,
         projPosRank: projRank.get(id) ?? null,
         expertPosRank: ranks.get(id)?.posRank ?? null
-      }
-      if (from > 0) {
-        const factor = target / from
-        adjustments.set(id, { ...common, factor })
-        corrected.set(
-          id,
-          rewrite(s, currentWeek, (w) => (w.projected === null ? null : w.projected * factor))
-        )
-        return
-      }
-      // §5: nothing to scale, so spread the corrected total over the weeks that have a game.
-      adjustments.set(id, { ...common, factor: null })
-      const playable = s.weeks.filter((w) => isFuture(w, currentWeek) && w.opponent !== null)
-      if (playable.length === 0 || target === 0) return
-      const each = target / playable.length
-      const ids = new Set(playable.map((w) => w.week))
+      })
       corrected.set(
         id,
-        rewrite(s, currentWeek, (w) => (ids.has(w.week) ? each : w.projected))
+        rewrite(s, currentWeek, (w) => (w.projected === null ? null : w.projected * factor))
       )
     })
   }

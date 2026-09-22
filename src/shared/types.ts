@@ -420,6 +420,8 @@ export interface RosAdjustment {
   shelved: boolean
   /** The scale applied to each remaining week; null when there was no scale to apply. */
   factor: number | null
+  /** The consensus wanted a bigger move than `ROS_FACTOR_CAP` allows; `factor` sits at the cap. */
+  capped: boolean
   /** Rank within position by raw projection, and by consensus. */
   projPosRank: number | null
   expertPosRank: number | null

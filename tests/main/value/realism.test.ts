@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ExpertRankRow } from '@main/db/repos/expertRanks'
 import type { PlayerSeries, SeriesWeek } from '@main/value/series'
-import { applyRosRealism, shelved } from '@main/value/realism'
+import { applyRosRealism, ROS_FACTOR_CAP, shelved } from '@main/value/realism'
 
 const CURRENT = 3
 
@@ -118,6 +118,7 @@ describe('applyRosRealism (spec §3.2)', () => {
     expect(adjustments.get('shelf')).toEqual({
       shelved: true,
       factor: null,
+      capped: false,
       projPosRank: null,
       expertPosRank: null
     })
@@ -131,24 +132,42 @@ describe('applyRosRealism (spec §3.2)', () => {
   })
 
   it('reassigns the position ladder to the consensus order', () => {
-    // projections say A(60) > B(40) > C(20); the consensus says C, A, B.
+    // projections say A(60) > B(45) > C(40); the consensus says C, A, B.
     const a = player('a', 'RB', 20)
-    const b = player('b', 'RB', 13.3333)
-    const c = player('c', 'RB', 6.6667)
+    const b = player('b', 'RB', 15)
+    const c = player('c', 'RB', 13.3333)
     const ranks = new Map([rank('c', 1), rank('a', 2), rank('b', 3)])
     const { players, adjustments, adjusted } = applyRosRealism([a, b, c], CURRENT, ranks)
     expect(adjusted).toBe(true)
     const out = byId(players)
     const got = (id: string): number => Math.round(future(out.get(id) as PlayerSeries))
-    expect([got('c'), got('a'), got('b')]).toEqual([60, 40, 20])
-    expect(adjustments.get('c')).toMatchObject({ shelved: false, projPosRank: 3, expertPosRank: 1 })
+    expect([got('c'), got('a'), got('b')]).toEqual([60, 45, 40])
+    expect(adjustments.get('c')).toMatchObject({
+      shelved: false,
+      capped: false,
+      projPosRank: 3,
+      expertPosRank: 1
+    })
     expect(adjustments.get('a')).toMatchObject({ projPosRank: 1, expertPosRank: 2 })
-    // c was worth 20 and is now worth 60
-    expect(adjustments.get('c')?.factor).toBeCloseTo(3, 4)
+    // c was worth 40 and is now worth 60
+    expect(adjustments.get('c')?.factor).toBeCloseTo(1.5, 4)
   })
 
-  it('conserves the position total and is idempotent', () => {
-    const list = [player('a', 'WR', 20), player('b', 'WR', 12), player('c', 'WR', 5)]
+  it('caps the scale in both directions (a backup never inherits a starter’s season)', () => {
+    // A one-week fill-in ranked above the starter he replaces: raw factors would be ×6 and ×1/6.
+    const starter = player('s', 'QB', 20)
+    const fillIn = player('f', 'QB', 3.3333)
+    const ranks = new Map([rank('f', 1), rank('s', 2)])
+    const { players, adjustments } = applyRosRealism([starter, fillIn], CURRENT, ranks)
+    const out = byId(players)
+    expect(future(out.get('f') as PlayerSeries)).toBeCloseTo(20, 3)
+    expect(future(out.get('s') as PlayerSeries)).toBeCloseTo(30, 3)
+    expect(adjustments.get('f')).toMatchObject({ factor: ROS_FACTOR_CAP, capped: true })
+    expect(adjustments.get('s')).toMatchObject({ factor: 1 / ROS_FACTOR_CAP, capped: true })
+  })
+
+  it('conserves the position total within the cap and is idempotent', () => {
+    const list = [player('a', 'WR', 20), player('b', 'WR', 18), player('c', 'WR', 15)]
     const ranks = new Map([rank('b', 1), rank('c', 2), rank('a', 3)])
     const before = list.reduce((t, s) => t + future(s), 0)
     const once = applyRosRealism(list, CURRENT, ranks)
@@ -186,20 +205,24 @@ describe('applyRosRealism (spec §3.2)', () => {
     expect(future(out.get('n') as PlayerSeries)).toBeCloseTo(75, 4)
   })
 
-  it('spreads the corrected total when a ranked player has nothing projected', () => {
-    // b has no projections at all but the consensus ranks him first, so he takes a's ladder rung.
+  it('adds nothing to a ranked player with no projection after this week, and keeps him off the ladder', () => {
+    // b is projected for the current week only (a one-week fill-in); the consensus ranks him first.
     const a = player('a', 'QB', 10)
     const b = player('b', 'QB', null, {
-      weeks: [week(4, null), week(5, null), week(6, null, { opponent: null })]
+      weeks: [week(3, 18), week(4, null), week(5, null), week(6, null)]
     })
     const ranks = new Map([rank('b', 1), rank('a', 2)])
     const { players, adjustments } = applyRosRealism([a, b], CURRENT, ranks)
     const out = byId(players)
-    expect(future(out.get('b') as PlayerSeries)).toBeCloseTo(30, 4)
-    // spread over the two weeks with a game, not the bye
-    expect((out.get('b') as PlayerSeries).weeks.map((w) => w.projected)).toEqual([15, 15, null])
-    expect(future(out.get('a') as PlayerSeries)).toBeCloseTo(0, 4)
-    expect(adjustments.get('b')?.factor).toBeNull()
+    expect((out.get('b') as PlayerSeries).weeks.map((w) => w.projected)).toEqual([
+      18,
+      null,
+      null,
+      null
+    ])
+    // a is the only player on the ladder, so he keeps his own rung
+    expect(future(out.get('a') as PlayerSeries)).toBeCloseTo(30, 4)
+    expect(adjustments.get('b')).toMatchObject({ factor: null, capped: false, expertPosRank: 1 })
   })
 
   it('does nothing without expert ranks, and reports it', () => {
@@ -210,6 +233,7 @@ describe('applyRosRealism (spec §3.2)', () => {
     expect(adjustments.get('a')).toEqual({
       shelved: false,
       factor: null,
+      capped: false,
       projPosRank: null,
       expertPosRank: null
     })

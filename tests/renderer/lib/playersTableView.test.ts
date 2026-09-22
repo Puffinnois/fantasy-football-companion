@@ -786,7 +786,7 @@ describe('rest-of-season adjustment (realism spec §6)', () => {
 
   it('marks a shelved player and explains why', () => {
     const shelved = row(
-      { shelved: true, factor: null, projPosRank: null, expertPosRank: null },
+      { shelved: true, factor: null, capped: false, projPosRank: null, expertPosRank: null },
       { injuryStatus: 'IR', injuryBodyPart: 'Knee - ACL', injuryNotes: 'Surgery' }
     )
     expect(rosAdjustMark(shelved)).toBe('IR')
@@ -795,16 +795,34 @@ describe('rest-of-season adjustment (realism spec §6)', () => {
 
   it('falls back to the status alone when Sleeper gives no detail', () => {
     const bare = row(
-      { shelved: true, factor: null, projPosRank: null, expertPosRank: null },
+      { shelved: true, factor: null, capped: false, projPosRank: null, expertPosRank: null },
       { injuryStatus: 'PUP', injuryBodyPart: null, injuryNotes: null }
     )
     expect(rosAdjustLine(bare)).toBe('PUP — remaining weeks zeroed')
   })
 
   it('draws an arrow only past the threshold', () => {
-    const down = row({ shelved: false, factor: 0.62, projPosRank: 8, expertPosRank: 24 })
-    const up = row({ shelved: false, factor: 1.4, projPosRank: 30, expertPosRank: 12 })
-    const flat = row({ shelved: false, factor: 1.05, projPosRank: 5, expertPosRank: 5 })
+    const down = row({
+      shelved: false,
+      factor: 0.62,
+      capped: false,
+      projPosRank: 8,
+      expertPosRank: 24
+    })
+    const up = row({
+      shelved: false,
+      factor: 1.4,
+      capped: false,
+      projPosRank: 30,
+      expertPosRank: 12
+    })
+    const flat = row({
+      shelved: false,
+      factor: 1.05,
+      capped: false,
+      projPosRank: 5,
+      expertPosRank: 5
+    })
     expect(rosAdjustMark(down)).toBe('↓')
     expect(rosAdjustMark(up)).toBe('↑')
     expect(rosAdjustMark(flat)).toBeNull()
@@ -813,20 +831,28 @@ describe('rest-of-season adjustment (realism spec §6)', () => {
 
   it('explains a scaled player with both ranks', () => {
     const down = row(
-      { shelved: false, factor: 0.62, projPosRank: 8, expertPosRank: 24 },
+      { shelved: false, factor: 0.62, capped: false, projPosRank: 8, expertPosRank: 24 },
       { position: 'RB' }
     )
     expect(rosAdjustLine(down)).toBe('projection RB8 → consensus RB24 · scaled ×0.62')
   })
 
+  it('says when the scale hit the cap', () => {
+    const capped = row(
+      { shelved: false, factor: 2, capped: true, projPosRank: 34, expertPosRank: 30 },
+      { position: 'QB' }
+    )
+    expect(rosAdjustLine(capped)).toBe('projection QB34 → consensus QB30 · scaled ×2.00 (capped)')
+  })
+
   it('says nothing for an untouched player', () => {
     expect(rosAdjustMark(row(null))).toBeNull()
     expect(rosAdjustLine(row(null))).toBeNull()
-    const spread = row(
-      { shelved: false, factor: null, projPosRank: 4, expertPosRank: 2 },
+    const nothingAhead = row(
+      { shelved: false, factor: null, capped: false, projPosRank: null, expertPosRank: 2 },
       { position: 'QB' }
     )
-    expect(rosAdjustMark(spread)).toBeNull()
-    expect(rosAdjustLine(spread)).toBe('projection QB4 → consensus QB2')
+    expect(rosAdjustMark(nothingAhead)).toBeNull()
+    expect(rosAdjustLine(nothingAhead)).toBeNull()
   })
 })
