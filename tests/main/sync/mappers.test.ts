@@ -208,3 +208,41 @@ describe('mapProjections', () => {
     })
   })
 })
+
+describe('mapPlayers injury detail (ROS realism spec §2)', () => {
+  it('carries status, body part and notes', () => {
+    const [row] = mapPlayers({
+      '1': {
+        player_id: '1',
+        full_name: 'Jordan Mason',
+        position: 'RB',
+        fantasy_positions: ['RB'],
+        team: 'MIN',
+        status: 'Injured Reserve',
+        injury_status: 'IR',
+        injury_body_part: 'Thumb',
+        injury_notes: 'Surgery'
+      }
+    })
+    expect(row).toMatchObject({
+      playerId: '1',
+      status: 'Injured Reserve',
+      injuryStatus: 'IR',
+      injuryBodyPart: 'Thumb',
+      injuryNotes: 'Surgery'
+    })
+  })
+
+  it('defaults the new fields to null', () => {
+    const [row] = mapPlayers({
+      '2': {
+        player_id: '2',
+        full_name: 'Healthy Guy',
+        position: 'WR',
+        fantasy_positions: ['WR'],
+        team: 'SF'
+      }
+    })
+    expect(row).toMatchObject({ injuryBodyPart: null, injuryNotes: null })
+  })
+})

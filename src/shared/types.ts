@@ -85,6 +85,11 @@ export interface PlayerBaseRow {
   team: string | null
   byeWeek: number | null
   injuryStatus: string | null
+  /** Sleeper roster status: 'Active', 'Injured Reserve', 'Physically Unable to Perform', … */
+  status: string | null
+  /** Sleeper injury detail: body part is ~90 % populated, notes ~11 %. Display only. */
+  injuryBodyPart: string | null
+  injuryNotes: string | null
   rookie: boolean
   watched: boolean
   ownerRosterId: number | null

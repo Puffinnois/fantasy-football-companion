@@ -69,6 +69,10 @@ export interface SleeperPlayer {
   team: string | null
   status?: string | null
   injury_status?: string | null
+  /** ~90 % populated, but "Undisclosed" and "Coach's Decision" are common non-answers. */
+  injury_body_part?: string | null
+  /** ~11 % populated; "Surgery" / "Strain" / "Soreness" when present. */
+  injury_notes?: string | null
   age?: number | null
   years_exp?: number | null
   depth_chart_order?: number | null
