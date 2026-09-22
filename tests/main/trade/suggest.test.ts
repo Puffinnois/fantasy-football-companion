@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { teamWeek, windowWeeks } from '@main/lineup/build'
+import { rosterSize } from '@main/trade/evaluate'
 import {
   acceptanceOf,
   DOMINANCE_PTS,
@@ -6,6 +8,7 @@ import {
   STANCES,
   SUGGEST_MAX
 } from '@main/trade/suggest'
+import { generateLeague, SMALL_LEAGUE, syntheticBuild } from '../../fixtures/synthetic'
 
 describe('stance filters (spec 6b §3.3)', () => {
   it.each([
@@ -43,5 +46,42 @@ describe('stance filters (spec 6b §3.3)', () => {
     })
     expect(DOMINANCE_PTS).toBe(0.5)
     expect(SUGGEST_MAX).toBe(30)
+  })
+})
+
+describe('synthetic league fixture', () => {
+  it('builds the small league as its table says', () => {
+    const { build } = syntheticBuild(SMALL_LEAGUE)
+    expect(windowWeeks(build)).toEqual([16, 17])
+    expect(rosterSize(build)).toBe(4)
+    expect(build.inputs.teams.map((t) => [t.rosterId, t.isMe])).toEqual([
+      [1, true],
+      [2, false],
+      [3, false]
+    ])
+    // Me: RB A20 · WR B8 · FLEX C18; Rival: RB G7 · WR F19 · FLEX E17; Other: RB J4 · WR I25 · FLEX L9
+    expect(teamWeek(build, 1, 16).optimalTotal).toBe(46)
+    expect(teamWeek(build, 2, 16).optimalTotal).toBe(43)
+    expect(teamWeek(build, 3, 17).optimalTotal).toBe(38)
+    expect(build.rowById.get('I')?.market?.value).toBe(7000)
+    expect(build.rowById.get('D')?.rosPoints).toBe(10) // 5 + 5 over the two window weeks
+    expect(
+      build.rosters
+        .get(3)
+        ?.map((s) => s.base.playerId)
+        .sort()
+    ).toEqual(['I', 'J', 'K', 'L'])
+  })
+
+  it('generates a full league deterministically', () => {
+    const league = generateLeague(7)
+    expect(league.teams).toHaveLength(16)
+    expect(league.teams.every((t) => t.players.length === 16)).toBe(true)
+    expect(league.weeks).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17])
+    expect(generateLeague(7)).toEqual(league)
+    const { build } = syntheticBuild(league)
+    expect(windowWeeks(build)).toHaveLength(15)
+    expect(rosterSize(build)).toBe(16)
+    expect(teamWeek(build, 1, 3).optimalTotal).toBeGreaterThan(0)
   })
 })
