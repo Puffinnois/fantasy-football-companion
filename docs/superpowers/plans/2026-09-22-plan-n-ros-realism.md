@@ -33,7 +33,7 @@
 
 **Files:** none.
 
-- [ ] **Step 1:** `git checkout -b feat/ros-realism` from `main` (clean, at `904746e` or later).
+- [x] **Step 1:** `git checkout -b feat/ros-realism` from `main` (clean, at `904746e` or later).
 
 ---
 
@@ -56,7 +56,7 @@ The shelf rule needs `status`, which the candidate query selects but never surfa
 
 - Produces: `PlayerBaseRow.status: string | null`, `.injuryBodyPart: string | null`, `.injuryNotes: string | null`; `PlayerRecord.status` already exists, plus `.injuryBodyPart` / `.injuryNotes`; migration version 7 named `injury`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/main/sync/mappers.test.ts` (inside the existing `mapPlayers` describe, or add one):
 
@@ -148,12 +148,12 @@ describe('players repo injury detail', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/db/players.test.ts tests/main/sync/mappers.test.ts`
 Expected: FAIL — `injuryBodyPart` is not a known property of `PlayerRecord`, and the candidate row has no `injury_body_part`.
 
-- [ ] **Step 3: Add the migration**
+- [x] **Step 3: Add the migration**
 
 Create `src/main/db/migrations/007_injury.sql`:
 
@@ -172,7 +172,7 @@ import injurySql from './007_injury.sql?raw'
   { version: 7, name: 'injury', sql: injurySql }
 ```
 
-- [ ] **Step 4: Widen the source type and the record**
+- [x] **Step 4: Widen the source type and the record**
 
 In `src/main/sources/sleeper-types.ts`, inside `SleeperPlayer`, after `injury_status`:
 
@@ -219,7 +219,7 @@ In `src/main/sync/mappers.ts`, in `mapPlayers`, beside `injuryStatus: p.injury_s
       injuryNotes: p.injury_notes ?? null,
 ```
 
-- [ ] **Step 5: Surface them on the candidate row**
+- [x] **Step 5: Surface them on the candidate row**
 
 In `src/main/db/repos/playersWeek.ts`, add to `CandidateRow` after `injury_status`:
 
@@ -254,7 +254,7 @@ injuryBodyPart: string | null
 injuryNotes: string | null
 ```
 
-- [ ] **Step 6: Run the tests and fix the fallout**
+- [x] **Step 6: Run the tests and fix the fallout**
 
 Run: `npm run typecheck`
 Expected: errors at every place that builds a `PlayerRecord` or a `PlayerBaseRow` literal. Add `status: 'Active', injuryBodyPart: null, injuryNotes: null` (or the values the case needs) at each one — the fixtures under `tests/fixtures/` and any test that `toEqual`s a whole row.
@@ -262,7 +262,7 @@ Expected: errors at every place that builds a `PlayerRecord` or a `PlayerBaseRow
 Run: `npm test`
 Expected: PASS. Where a test compares a full row with `toEqual`, add the three new keys to the expectation.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/main/db/migrations/007_injury.sql src/main/db/migrations/index.ts src/main/sources/sleeper-types.ts src/main/db/repos/players.ts src/main/db/repos/playersWeek.ts src/main/sync/mappers.ts src/shared/types.ts tests/
@@ -284,7 +284,7 @@ git commit -m "feat(sync): store Sleeper status and injury detail"
 - Consumes: `PlayerSeries`, `SeriesWeek` (`@main/value/series`); `ExpertRankRow` (`@main/db/repos/expertRanks`); `LINEUP_POSITIONS` (`@shared/rules`); `PlayerBaseRow.status` (Task 1).
 - Produces: `RosAdjustment` (shared type); `SHELF_INJURY`, `SHELF_STATUS`, `shelved(base): boolean`; `applyRosRealism(players: PlayerSeries[], currentWeek: number, ranks: Map<string, ExpertRankRow>): RealismResult` where `RealismResult = { players: PlayerSeries[]; adjustments: Map<string, RosAdjustment>; adjusted: boolean }`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/main/value/realism.test.ts`:
 
@@ -516,12 +516,12 @@ describe('applyRosRealism (spec §3.2)', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/value/realism.test.ts`
 Expected: FAIL — `Failed to resolve import "@main/value/realism"`.
 
-- [ ] **Step 3: Add the shared type**
+- [x] **Step 3: Add the shared type**
 
 In `src/shared/types.ts`, before `PlayerValueRow`:
 
@@ -538,7 +538,7 @@ export interface RosAdjustment {
 }
 ```
 
-- [ ] **Step 4: Implement `src/main/value/realism.ts`**
+- [x] **Step 4: Implement `src/main/value/realism.ts`**
 
 ```ts
 import type { ExpertRankRow } from '@main/db/repos/expertRanks'
@@ -670,12 +670,12 @@ export function applyRosRealism(
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/value/realism.test.ts`
 Expected: PASS (all cases). If the ladder test fails by a rounding hair, check that the test's `future()` helper and the module both sum only unplayed weeks after `currentWeek`. Then `npm run typecheck && npm run lint`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/value/realism.ts src/shared/types.ts tests/main/value/realism.test.ts
@@ -697,7 +697,7 @@ git commit -m "feat(value): shelf injured players, match ROS ranks"
 - Consumes: `applyRosRealism`, `RealismResult` (Task 2); `indexExperts` (`@main/value/expert`, already imported in `build.ts`).
 - Produces: `ValueContext.rosAdjusted: boolean`; `PlayerValueRow.rosAdjust: RosAdjustment | null`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/main/value/realismBuild.test.ts`:
 
@@ -802,12 +802,12 @@ describe('rest-of-season realism in the value build', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/main/value/realismBuild.test.ts`
 Expected: FAIL — `rosAdjusted` and `rosAdjust` do not exist.
 
-- [ ] **Step 3: Add the shared fields**
+- [x] **Step 3: Add the shared fields**
 
 In `src/shared/types.ts`, inside `ValueContext`, after `projectionsStored`:
 
@@ -823,7 +823,7 @@ Inside `PlayerValueRow`, after `rosValue`:
 rosAdjust: RosAdjustment | null
 ```
 
-- [ ] **Step 4: Call it from `assembleValue`**
+- [x] **Step 4: Call it from `assembleValue`**
 
 In `src/main/value/build.ts`, add the import beside the other `./` imports:
 
@@ -870,7 +870,7 @@ In the returned `context`, after `projectionsStored: bundle.projectionsStored,`:
       rosAdjusted: realism.adjusted,
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/value/realismBuild.test.ts`
 Expected: PASS.
@@ -878,7 +878,7 @@ Expected: PASS.
 Run: `npm run typecheck && npm test`
 Expected: the compiler flags every `ValueContext` literal in the tests (`tests/renderer/lib/playersTableView.test.ts` has several) — add `rosAdjusted: false`. Where a test asserts a whole `PlayerValueRow` with `toEqual`, add `rosAdjust: null` or the value the case produces. Any test that seeds FantasyPros ROS ranks **and** asserts `rosPoints` now sees corrected numbers: recompute the expectation by hand from the ladder rather than pasting whatever the run prints.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/value/build.ts src/shared/types.ts tests/
@@ -900,7 +900,7 @@ git commit -m "feat(value): apply ROS realism in the value build"
 - Consumes: `PlayerValueRow.rosAdjust`, `PlayerBaseRow.injuryBodyPart` / `.injuryNotes` (Tasks 1 and 3).
 - Produces: `ARROW_PCT = 0.1`; `rosAdjustMark(row): '↑' | '↓' | 'IR' | null`; `rosAdjustLine(row): string | null`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/renderer/lib/playersTableView.test.ts` (add `ARROW_PCT`, `rosAdjustMark` and `rosAdjustLine` to the `@/lib/playersTableView` import, and build rows with the file's existing `valueRow(over)` helper at line 56):
 
@@ -959,12 +959,12 @@ describe('rest-of-season adjustment (realism spec §6)', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/renderer/lib/playersTableView.test.ts`
 Expected: FAIL — `rosAdjustMark is not a function`.
 
-- [ ] **Step 3: Implement the helpers**
+- [x] **Step 3: Implement the helpers**
 
 Append to `src/renderer/src/lib/playersTableView.ts`:
 
@@ -997,12 +997,12 @@ export function rosAdjustLine(row: PlayerValueRow): string | null {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run tests/renderer/lib/playersTableView.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Show it in the detail panel and the table**
+- [x] **Step 5: Show it in the detail panel and the table**
 
 In `src/renderer/src/components/PlayerDetailPanel.tsx`, import `rosAdjustLine` from `@/lib/playersTableView` and render it under the player's headline numbers, using the file's existing muted-text pattern:
 
@@ -1028,7 +1028,7 @@ In the Players table's ROS cell, append the mark after the number, following the
 
 Read the surrounding renderer first and match its structure; if the ROS column renders a bare string rather than JSX, add the mark to the string instead and drop the `title`.
 
-- [ ] **Step 6: Say when the correction did not run**
+- [x] **Step 6: Say when the correction did not run**
 
 `ValueContext.rosAdjusted` is false when no FantasyPros ROS ranks are stored, which is a real state the user should be able to tell from "adjusted by ×1.00" — otherwise missing expert data looks like the feature silently not working. In the Players screen, beside the existing expert freshness text (`context.expert.ecrUpdatedAt`), render:
 
@@ -1044,7 +1044,7 @@ Read the surrounding renderer first and match its structure; if the ROS column r
 
 Match the surrounding element's structure; if that header renders plain strings, append the sentence to the existing one instead.
 
-- [ ] **Step 7: Verify and commit**
+- [x] **Step 7: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test` — all green.
 
@@ -1062,7 +1062,7 @@ git commit -m "feat(ui): mark and explain adjusted ROS values"
 - Modify: `docs/reference/value-and-signals.md`
 - Modify: `package.json`, `package-lock.json` (via `npm version`)
 
-- [ ] **Step 1: Document**
+- [x] **Step 1: Document**
 
 In `docs/reference/value-and-signals.md`:
 
@@ -1087,7 +1087,7 @@ Players without a ROS rank keep their raw projections; the feed covers 99 % of r
 3. `## Constants (single sources)` — add `src/main/value/realism.ts` | `SHELF_INJURY = {IR, PUP}`, `SHELF_STATUS = {Injured Reserve, Physically Unable to Perform}` and extend the `playersTableView.ts` row with `ARROW_PCT = 0.1`.
 4. `## Module map` — add `src/main/value/realism.ts` | Shelf horizon and consensus rank matching over the rest-of-season weeks.
 
-- [ ] **Step 2: Verify and commit the docs**
+- [x] **Step 2: Verify and commit the docs**
 
 Run: `npx prettier --check docs/reference/value-and-signals.md` (run `npx prettier --write` on that file if it complains).
 
@@ -1096,7 +1096,7 @@ git add docs/reference/value-and-signals.md
 git commit -m "docs: document rest-of-season realism"
 ```
 
-- [ ] **Step 3: Final verification and the real-data check**
+- [x] **Step 3: Final verification and the real-data check**
 
 Run: `npm run typecheck && npm run lint && npm test && npm run test:budget` — all green.
 
@@ -1104,7 +1104,7 @@ Then on a copy of the dev DB (`cp ~/.config/FantasyCompanion/companion.db /tmp/.
 
 Also run the app once (`npm run dev`) and check the Players table shows the marks and the detail panel the explanation.
 
-- [ ] **Step 4: Merge and release**
+- [x] **Step 4: Merge and release**
 
 ```bash
 git checkout main && git merge --no-ff feat/ros-realism -m "merge: feat/ros-realism (plan N)"
@@ -1133,3 +1133,5 @@ Expected: `package.json` at `0.15.0`, tag `v0.15.0`. Pushing (`git push --follow
 - Task 3's swap test used Jefferson/Chase, but the fixture projects Chase for the current week only, which the correction never touches; the test swaps the RBs Barkley/Bijan instead.
 - The "not adjusted" notice sits on the Players screen beside the "No projections stored" notice, shown only when projections exist.
 - **Factor cap added after the real-data check.** Uncapped rank matching gave Kirk Cousins (a backup, QB34 → consensus QB30) ×5.9, zeroed Shedeur Sanders, and the `base = 0` spread fallback handed Marcus Mariota (projected for the current week only, as a fill-in) 86 points he will not score. Changes: `ROS_FACTOR_CAP = 2` clamps the factor to [×0.5, ×2] and `RosAdjustment.capped` reports it; the spread fallback is removed, and ranked players with nothing projected after the current week are kept off the ladder. Within the cap, conservation and consensus order still hold; clamped players give up both, and idempotence no longer holds in general (the correction only runs once, on raw projections).
+- **Weekly ROS snapshots added before release** (`ros_snapshots`, migration 8, last step of every sync) so the correction can be backtested; open questions and the backtest recipe are in `docs/research/2026-09-22-ros-realism-open-questions.md`.
+- Released as `v0.15.0` on 2026-09-22. The in-app check of the table marks and detail-panel text (`npm run dev`) was not done.
