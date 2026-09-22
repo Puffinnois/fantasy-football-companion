@@ -1,5 +1,11 @@
 # Plan M — Trade suggestions (slice 6b, phase 2)
 
+**Status:** complete — executed inline on 2026-09-22. Three decisions were taken during execution, each after a measurement the plan had asked for, and each recorded in `docs/reference/value-and-signals.md`:
+
+1. **Task 4 blew the budget** (46.5 s against 3 s: with full rosters every 2-for-1 overflows their side and every 1-for-2 mine, and the drop picker solved all 15 window weeks before the week skip applied). Fixed with four exact prunes — see **Task 3b** below — for 46.5 s → 8.4 s; one partner 4.6 s → 0.7 s, one focus player 2.7 s → 1.0 s. The unfocused league-wide scan stays at 8–12 s (16–23 s on a real league), so:
+2. **`trade:suggest` runs in a worker thread** (`src/main/trade/{fromDb,worker,runSuggest}.ts`, bundled to `out/main/tradeWorker.js`) instead of synchronously in the handler as spec §4.2 says, and the screen's `with` control **defaults to the builder's partner**, with _every team (slower)_ an explicit choice. The budget test moved to `npm run test:budget` (wall-clock assertions flap under `npm test`'s parallel workers) and asserts the focused defaults under 3 s with a 20 s regression ceiling on the league-wide scan.
+3. **Acceptance gained a lineup floor** (`ACCEPT_LOSS_PER_WEEK = 1`), amending spec §3.3. The real-league check found the rule as approved filled the entire top 30 with fair-value consolidations costing the partner ~12 pts/week at a 0.999 market ratio — correct by the spec, useless as advice.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Scan the league for 1-for-1, 2-for-1 and 1-for-2 offers that help me and that the other manager would plausibly accept — steered by a focus (a player I'd give or a position I want) and a stance (premium / fair / overpay) — list them under the builder, and open any of them in the builder with identical numbers; ship `v0.14.0`.
@@ -36,7 +42,7 @@
 
 **Files:** none.
 
-- [ ] **Step 1:** `git checkout -b feat/trade-suggestions` from `main` (clean, at `5184d1c` or later).
+- [x] **Step 1:** `git checkout -b feat/trade-suggestions` from `main` (clean, at `5184d1c` or later).
 
 ---
 
@@ -53,7 +59,7 @@
 - Consumes: `MARKET_FAIR` (`@main/trade/evaluate`); `TradeEvaluation` (`@shared/types`).
 - Produces: types `TradeStance`, `TradeFocus`, `TradeSuggestQuery`, `TradeSuggestion`; `STANCES: Record<TradeStance, { deltaPerWeek: number; strict: boolean; ratio: number }>`; `DOMINANCE_PTS = 0.5`; `SUGGEST_MAX = 30`; `passesStance(stance: TradeStance, deltaPerWeek: number, ratio: number): boolean`; `acceptanceOf(theirDelta: number, theirRatio: number): TradeSuggestion['acceptance'] | null`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/main/trade/suggest.test.ts`:
 
@@ -107,12 +113,12 @@ describe('stance filters (spec 6b §3.3)', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/main/trade/suggest.test.ts`
 Expected: FAIL — `Failed to resolve import "@main/trade/suggest"`.
 
-- [ ] **Step 3: Add the types**
+- [x] **Step 3: Add the types**
 
 In `src/shared/types.ts`, directly after the `TradePool` interface (the one ending with `teams: TradePoolTeam[]`), add:
 
@@ -139,7 +145,7 @@ export interface TradeSuggestion {
 }
 ```
 
-- [ ] **Step 4: Create `src/main/trade/suggest.ts` with the filters**
+- [x] **Step 4: Create `src/main/trade/suggest.ts` with the filters**
 
 ```ts
 import type { TradeStance, TradeSuggestion } from '@shared/types'
@@ -177,12 +183,12 @@ export function acceptanceOf(
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/trade/suggest.test.ts`
 Expected: PASS (12 tests). Then `npm run typecheck && npm run lint`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/shared/types.ts src/main/trade/suggest.ts tests/main/trade/suggest.test.ts
@@ -205,7 +211,7 @@ The Sleeper fixture league has two teams and six players — too small for shape
 - Consumes: DB repos (`upsertLeague`, `replaceTeams`, `replaceRosterPlayers`, `upsertPlayers`, `replaceProjections`, `replaceMarketValues`, `saveRules`, `setNflState`, `setSetting`), `buildValueSeason`, `buildLineups`, `mapLeague`, the `rules()` and Sleeper fixtures.
 - Produces: `SyntheticPlayer`, `SyntheticTeam`, `SyntheticLeague`; `SMALL_LEAGUE: SyntheticLeague`; `syntheticBuild(league: SyntheticLeague): { db: Db; build: LineupBuild }`; `rng(seed: number): () => number`; `generateLeague(seed: number, teamCount = 16): SyntheticLeague` (used by Task 4).
 
-- [ ] **Step 1: Write the failing sanity test**
+- [x] **Step 1: Write the failing sanity test**
 
 Append to `tests/main/trade/suggest.test.ts` (add the imports at the top of the file):
 
@@ -254,12 +260,12 @@ describe('synthetic league fixture', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run tests/main/trade/suggest.test.ts`
 Expected: FAIL — `Failed to resolve import "../../fixtures/synthetic"`.
 
-- [ ] **Step 3: Create `tests/fixtures/synthetic.ts`**
+- [x] **Step 3: Create `tests/fixtures/synthetic.ts`**
 
 ```ts
 import { openDatabase, type Db } from '@main/db/connection'
@@ -588,12 +594,12 @@ export function generateLeague(seed: number, teamCount = 16): SyntheticLeague {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/trade/suggest.test.ts`
 Expected: PASS. If `optimalTotal` for team 1 is not 46, print `teamWeek(build, 1, 16).optimal` — the usual cause is a projection week not in the window (`setNflState` week vs `weeks`) or a `rec` key missing from the rules fixture's scoring. Then `npm run typecheck && npm run lint` (`npm run format` if Prettier reflows the `SHAPE` / `rosterPositions` arrays).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/fixtures/synthetic.ts tests/main/trade/suggest.test.ts
@@ -615,7 +621,7 @@ git commit -m "test: synthetic league fixture for trade searches"
 - Consumes: `evaluateTrade`, `marketRatio`, `marketSum`, `myTeam`, `requireWindow` (`@main/trade/evaluate`); `canEnter` (`@main/trade/enter`); `candidateFor`, `teamWeek` (`@main/lineup/build`); Task 1's filters and constants.
 - Produces: `suggestTrades(build: LineupBuild, query: TradeSuggestQuery, opts?: SuggestOptions): TradeSuggestion[]`; `SuggestOptions = { max?: number }`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `tests/main/trade/suggest.test.ts` (extend the existing imports: add `suggestTrades` to the `@main/trade/suggest` import, `evaluateTrade` and `TradeError` to the `@main/trade/evaluate` import, and add the two new imports below):
 
@@ -757,12 +763,12 @@ describe('suggestTrades on the small league (spec 6b §3)', () => {
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/trade/suggest.test.ts`
 Expected: FAIL — `suggestTrades` is not exported (`TypeError: suggestTrades is not a function`).
 
-- [ ] **Step 3: Export `marketSum` from `src/main/trade/evaluate.ts`**
+- [x] **Step 3: Export `marketSum` from `src/main/trade/evaluate.ts`**
 
 Change the declaration (line ~99) from `function marketSum(` to:
 
@@ -771,7 +777,7 @@ Change the declaration (line ~99) from `function marketSum(` to:
 export function marketSum(
 ```
 
-- [ ] **Step 4: Add `suggestTrades` to `src/main/trade/suggest.ts`**
+- [x] **Step 4: Add `suggestTrades` to `src/main/trade/suggest.ts`**
 
 Replace the imports at the top of the file with:
 
@@ -915,17 +921,36 @@ export function suggestTrades(
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/trade/suggest.test.ts`
 Expected: PASS (all describes). If an expected shape list differs, print `out.map((s) => [shape(s), s.evaluation.me.delta, s.evaluation.them.delta, marketRatio(s.evaluation.them)])` and compare with the hand table in the fixture's doc comment before touching the engine — the fixture, not the search, is the likelier culprit. Then `npm run typecheck && npm run lint && npm test`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/trade/evaluate.ts src/main/trade/suggest.ts tests/main/trade/suggest.test.ts
 git commit -m "feat(trade): search 1-for-1, 2-for-1 and 1-for-2 offers"
 ```
+
+---
+
+### Task 3b: Make the search fast enough to ship (added during execution)
+
+**Files:**
+
+- Modify: `src/main/trade/evaluate.ts` (skip-aware drop counting, reuse of the oversized solve)
+- Modify: `src/main/trade/suggest.ts` (acceptance prune, monotonicity bounds, `SuggestOptions.prune` / `.skip`)
+- Test: `tests/main/trade/suggest.test.ts` (`describe('prunes are exact')`)
+
+Four exact changes, in the order they were measured:
+
+1. **Drop counting takes the week skip.** `sideResult` solved all 15 window weeks on the oversized roster before picking drops. Where the skip proves a week's lineup does not move, the before-optimal is an optimum of the oversized roster too, so its starters are the ones to count.
+2. **The post-drop solve reuses the oversized one** when no dropped player started that week — removing a non-starter cannot change that week's optimum.
+3. **Reject before any solve when their side cannot accept:** their market ratio is my sums swapped (free), and their delta cannot be positive when nothing they receive can enter their lineup in any window week, since they only lose players and gain ones that never start.
+4. **Bound the bigger shapes on the 1-for-1s they contain.** Optimal totals are monotone in the roster, so giving a second player can only lower my after-total and receiving a second can only lower theirs. A 2-for-1 is skipped when a contained 1-for-1 already fails my `deltaPerWeek` bound; a 1-for-2 when a contained one leaves them worse off and the market cannot carry it. Both bounds need that side to have taken no drops (a drop removes a player the bigger shape may keep, which breaks the subset), so the recorded singles carry their drop counts. 1-for-1s are therefore always evaluated — they are the cheapest shape and the source of every bound.
+
+The exactness is not argued, it is tested: `suggestTrades(build, q)` must equal `suggestTrades(build, q, { prune: false, skip: false })` on eight random 3-team leagues × three stances, and `evaluateTrade` must pick the same drops with the skip disabled.
 
 ---
 
@@ -939,7 +964,7 @@ git commit -m "feat(trade): search 1-for-1, 2-for-1 and 1-for-2 offers"
 
 - Consumes: `generateLeague`, `syntheticBuild` (Task 2); `suggestTrades` (Task 3).
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 ```ts
 import { describe, expect, it } from 'vitest'
@@ -973,14 +998,14 @@ describe.skipIf(!!process.env.CI)('suggestTrades budget', () => {
 })
 ```
 
-- [ ] **Step 2: Run it and read the timings**
+- [x] **Step 2: Run it and read the timings**
 
 Run: `npx vitest run tests/main/trade/suggestBudget.test.ts`
 Expected: PASS with three `suggest <stance>: n offers in <ms> ms` lines. The first (`premium`) is the cold run — later stances reuse the memoised `teamWeek` on the same build, as the app does after the first Find.
 
 If a stance exceeds 3 000 ms: **do not optimise the engine in this plan.** Record the three timings and the candidate count in the commit body, keep the test (it will fail locally, which is the signal the spec asks for), and stop to report to the user — the spec records `worker_threads` as the fallback and that is their call. Do not raise `BUDGET_MS`.
 
-- [ ] **Step 3: Verify and commit**
+- [x] **Step 3: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test`.
 
@@ -1004,7 +1029,7 @@ git commit -m "test(trade): suggestion search budget on a 16x16 league"
 - Consumes: `suggestTrades` (Task 3); `cachedLineup`, `activeLeagueId` (existing in `handlers.ts`).
 - Produces: IPC `trade:suggest (TradeSuggestQuery) → TradeSuggestion[]`; `api.trade.suggest(query)`.
 
-- [ ] **Step 1: `src/shared/ipc.ts`**
+- [x] **Step 1: `src/shared/ipc.ts`**
 
 Add `TradeSuggestion` and `TradeSuggestQuery` to the `./types` import list (alphabetical, after `TradeProposal`). In `Api.trade`, after `evaluate`:
 
@@ -1019,7 +1044,7 @@ In the `IPC` map, after `tradeEvaluate`:
   tradeSuggest: 'trade:suggest',
 ```
 
-- [ ] **Step 2: `src/preload/index.ts`**
+- [x] **Step 2: `src/preload/index.ts`**
 
 In `trade`, after `evaluate`:
 
@@ -1027,7 +1052,7 @@ In `trade`, after `evaluate`:
 suggest: (query) => ipcRenderer.invoke(IPC.tradeSuggest, query)
 ```
 
-- [ ] **Step 3: `src/main/ipc/handlers.ts`**
+- [x] **Step 3: `src/main/ipc/handlers.ts`**
 
 Add `import { suggestTrades } from '@main/trade/suggest'` after the `tradePool` import, and `TradeSuggestion`, `TradeSuggestQuery` to the `@shared/types` import list. After the `IPC.tradeEvaluate` handler:
 
@@ -1039,7 +1064,7 @@ ipcMain.handle(IPC.tradeSuggest, (_event, query: TradeSuggestQuery): TradeSugges
 })
 ```
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run: `npm run typecheck && npm run lint && npm test` — all green (there are no handler tests; the type contract is the check).
 
@@ -1063,7 +1088,7 @@ git commit -m "feat(trade): suggest IPC channel"
 - Consumes: `deltaLine`, `dropLine`, `fmtMarket` (existing in `tradeView.ts`); `fmtSigned` (`@/lib/format`); `TradeStance`, `TradeSuggestion` (Task 1 types).
 - Produces: `STANCE_OPTIONS: { value: TradeStance; label: string }[]`; `stanceHint(stance): string`; `noOffersHint(stance): string`; `meLine(s: TradeSuggestion): string`; `themLine(s): string`; `acceptanceTags(s): string[]`; `sideNames(players: TradePlayer[]): string`; `offerLine(s): string`; `focusMarketLine(p: TradePlayer): string`; fixture `tradeSuggestion(over?: Partial<TradeSuggestion>): TradeSuggestion`.
 
-- [ ] **Step 1: Add the fixture**
+- [x] **Step 1: Add the fixture**
 
 In `tests/fixtures/trade.ts`, add `TradeSuggestion` to the `@shared/types` import and append:
 
@@ -1108,7 +1133,7 @@ export function tradeSuggestion(over: Partial<TradeSuggestion> = {}): TradeSugge
 }
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 In `tests/renderer/lib/tradeView.test.ts`, add `STANCE_OPTIONS`, `acceptanceTags`, `focusMarketLine`, `meLine`, `noOffersHint`, `offerLine`, `sideNames`, `stanceHint`, `themLine` to the `@/lib/tradeView` import and `tradeSuggestion` to the fixture import. Append inside `describe('tradeView', …)`:
 
@@ -1151,12 +1176,12 @@ it('shows the sell-high check for the focus player', () => {
 })
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/lib/tradeView.test.ts`
 Expected: FAIL — `meLine` (and the others) are not exported.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 In `src/renderer/src/lib/tradeView.ts`, extend the `@shared/types` import to `TradeEvaluation, TradePlayer, TradeSideResult, TradeStance, TradeSuggestion` and append:
 
@@ -1222,12 +1247,12 @@ export function focusMarketLine(p: TradePlayer): string {
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/lib/tradeView.test.ts`
 Expected: PASS. Then `npm run typecheck && npm run lint`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/renderer/src/lib/tradeView.ts tests/fixtures/trade.ts tests/renderer/lib/tradeView.test.ts
@@ -1248,7 +1273,7 @@ git commit -m "feat(ui): trade suggestion view helpers"
 - Consumes: `api.trade.suggest` (Task 5); Task 6 helpers; `LINEUP_POSITIONS` (`@shared/rules`); `TradeFocus`, `TradeStance`, `TradeSuggestion` (Task 1).
 - Produces: the finished Trade screen. Accessible names used by the tests: selects `Focus`, `Focus player`, `Focus position`, `Stance`, `Suggest with`; buttons `Find`, `Suggest with this team`, `Open in builder`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/renderer/components/TradeScreen.test.tsx`:
 
@@ -1331,12 +1356,12 @@ it('suggests with the builder partner, carries the focus and stance, hints on an
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/renderer/components/TradeScreen.test.tsx`
 Expected: the two new tests FAIL (`Unable to find an element with the text: Find`); the three existing ones still pass.
 
-- [ ] **Step 3: Replace `src/renderer/src/screens/TradeScreen.tsx`**
+- [x] **Step 3: Replace `src/renderer/src/screens/TradeScreen.tsx`**
 
 ```tsx
 import { useEffect, useRef, useState } from 'react'
@@ -1918,16 +1943,16 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/components/TradeScreen.test.tsx tests/renderer/lib/tradeView.test.ts`
 Expected: PASS (5 screen tests). If `getByText('market')` finds two elements, the acceptance tag is colliding with another lowercase "market" text — keep the tag text as is and query with `getAllByText` only if a second, legitimate match exists (there is none in this layout). Then `npm run typecheck && npm run lint && npm test` (`npm run format` for JSX reflow).
 
-- [ ] **Step 5: See it once**
+- [x] **Step 5: See it once**
 
 Run: `npm run dev` on the dev DB: Trade screen → **Find** at `fair` lists offers with tags; **Open in builder** fills both sides, shows the verdict without a request and scrolls up; **Suggest with this team** restricts the list and sets the "with" select. Kill the dev server.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/renderer/src/screens/TradeScreen.tsx tests/renderer/components/TradeScreen.test.tsx
@@ -1943,7 +1968,7 @@ git commit -m "feat(ui): trade suggestions with open-in-builder"
 - Modify: `docs/reference/value-and-signals.md` (Trade section intro, new `### Suggestions`, "Where it is shown" item 5, constants row, module map)
 - Modify: `package.json`, `package-lock.json` (via `npm version`)
 
-- [ ] **Step 1: Document**
+- [x] **Step 1: Document**
 
 In `docs/reference/value-and-signals.md`:
 
@@ -1972,7 +1997,7 @@ In `docs/reference/value-and-signals.md`:
 4. `## Constants (single sources)` — add a row: `` `src/main/trade/suggest.ts` `` | `` `STANCES` (premium ≥ 1.0 / 1.00, fair > 0 / 0.85, overpay ≥ −1.0 / 0.70), `DOMINANCE_PTS = 0.5`, `SUGGEST_MAX = 30` ``.
 5. `## Module map` — add `` `src/main/trade/suggest.ts` `` | Suggestion search: their pool via `canEnter`, the three shapes, stance and acceptance filters, dominance, ranking and cap. Change the `tradeView.ts` / `TradeScreen.tsx` row to "… and the Trade screen (builder + verdict card + suggestions)".
 
-- [ ] **Step 2: Verify and commit the docs**
+- [x] **Step 2: Verify and commit the docs**
 
 Run: `npx prettier --check docs/reference/value-and-signals.md` (run `npm run format` if it complains).
 
@@ -1981,11 +2006,11 @@ git add docs/reference/value-and-signals.md
 git commit -m "docs: document the trade suggestion search"
 ```
 
-- [ ] **Step 3: Final verification, real-data check**
+- [x] **Step 3: Final verification, real-data check**
 
 Run: `npm run typecheck && npm run lint && npm test` — all green, and `npx vitest run tests/main/trade/suggestBudget.test.ts` once more for the timings. Then on the dev DB (`~/.config/FantasyCompanion/companion.db`, copy it first) a throwaway `tests/zz-suggest.test.ts` that opens the copy, builds the lineup inputs for the real league (as `cachedLineup` does), calls `suggestTrades` at the three stances with `focus: null, partnerRosterId: null`, and prints per stance the count, the elapsed ms and the top five as `give → get @ partner · me Δ · them Δ · acceptance`; sanity-check that the top offers make football sense (positional surpluses moving, no 0-point players as the centrepiece) and that a top suggestion opened in the builder in `npm run dev` shows the same numbers. Delete the file (never commit it).
 
-- [ ] **Step 4: Merge and release**
+- [x] **Step 4: Merge and release**
 
 ```bash
 git checkout main && git merge --no-ff feat/trade-suggestions -m "merge: feat/trade-suggestions (plan M)"
