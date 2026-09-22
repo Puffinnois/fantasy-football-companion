@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEADLINE_NOTE,
+  STANCE_OPTIONS,
+  acceptanceTags,
   deltaLine,
+  focusMarketLine,
+  meLine,
+  noOffersHint,
+  offerLine,
+  sideNames,
+  stanceHint,
+  themLine,
   deltaTone,
   dropLine,
   fmtMarket,
@@ -21,7 +30,8 @@ import {
   jefferson,
   lar,
   tradeEvaluation,
-  tradeSide
+  tradeSide,
+  tradeSuggestion
 } from '../../fixtures/trade'
 
 const tradePlayerX = { ...barkley, playerId: 'x', position: null }
@@ -89,5 +99,44 @@ describe('tradeView', () => {
       { label: 'Win-win', on: true },
       { label: 'Market-fair', on: true }
     ])
+  })
+
+  it('describes a suggestion row', () => {
+    const s = tradeSuggestion()
+    expect(meLine(s)).toBe('Me +4.00 (+0.27/wk)')
+    expect(themLine(s)).toBe('Them -4.00')
+    expect(acceptanceTags(s)).toEqual(['market'])
+    expect(acceptanceTags(tradeSuggestion({ acceptance: 'both' }))).toEqual(['lineup', 'market'])
+    expect(offerLine(s)).toBe("give RB Saquon Barkley · get WR Ja'Marr Chase")
+    const withDrop = tradeSuggestion({
+      evaluation: tradeEvaluation({
+        me: tradeSide({ give: [barkley, jefferson], get: [chase], drops: [lar] })
+      })
+    })
+    expect(offerLine(withDrop)).toBe(
+      "give RB Saquon Barkley, WR Justin Jefferson · get WR Ja'Marr Chase · drop: Los Angeles Rams"
+    )
+    expect(sideNames([tradePlayerX])).toBe('— Saquon Barkley')
+  })
+
+  it('labels the stance controls and the empty result', () => {
+    expect(STANCE_OPTIONS.map((o) => o.value)).toEqual(['premium', 'fair', 'overpay'])
+    expect(STANCE_OPTIONS.map((o) => o.label)).toEqual(['Premium', 'Fair', 'Overpay'])
+    expect(stanceHint('premium')).toBe(
+      'I gain ≥ 1 pt/week and get ≥ 100 % of the market value I give'
+    )
+    expect(stanceHint('fair')).toBe('I gain and get ≥ 85 % of the market value I give')
+    expect(stanceHint('overpay')).toBe(
+      'I lose ≤ 1 pt/week and get ≥ 70 % of the market value I give'
+    )
+    expect(noOffersHint('premium')).toBe('No offers at this stance — try fair or overpay')
+    expect(noOffersHint('fair')).toBe('No offers at this stance — try overpay')
+    expect(noOffersHint('overpay')).toBe('No offers — widen the focus or pick another team')
+  })
+
+  it('shows the sell-high check for the focus player', () => {
+    expect(focusMarketLine(barkley)).toBe('MKT 9 340 · 30d -310')
+    expect(focusMarketLine(jefferson)).toBe('MKT 10 512 · 30d +120')
+    expect(focusMarketLine(lar)).toBe('MKT —')
   })
 })

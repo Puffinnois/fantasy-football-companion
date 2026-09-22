@@ -5,17 +5,18 @@ import { TradeScreen } from '@/screens/TradeScreen'
 import { api } from '@/lib/api'
 import type { PlayersOptions } from '@shared/types'
 import { lineupPlayer } from '../../fixtures/lineup'
-import { lar, tradeEvaluation, tradePool, tradeSide } from '../../fixtures/trade'
+import { lar, tradeEvaluation, tradePool, tradeSide, tradeSuggestion } from '../../fixtures/trade'
 
 vi.mock('@/lib/api', () => ({
   api: {
     players: { options: vi.fn(), detail: vi.fn() },
-    trade: { pool: vi.fn(), evaluate: vi.fn() }
+    trade: { pool: vi.fn(), evaluate: vi.fn(), suggest: vi.fn() }
   }
 }))
 const optionsMock = vi.mocked(api.players.options)
 const poolMock = vi.mocked(api.trade.pool)
 const evaluateMock = vi.mocked(api.trade.evaluate)
+const suggestMock = vi.mocked(api.trade.suggest)
 
 const options: PlayersOptions = {
   seasons: [2026],
@@ -29,6 +30,8 @@ beforeEach(() => {
   optionsMock.mockReset()
   poolMock.mockReset()
   evaluateMock.mockReset()
+  suggestMock.mockReset()
+  suggestMock.mockResolvedValue([])
   optionsMock.mockResolvedValue(options)
   poolMock.mockResolvedValue(tradePool())
 })
@@ -109,5 +112,79 @@ describe('TradeScreen', () => {
     expect(await screen.findByText(/trade deadline has passed/)).toBeTruthy()
     expect(screen.getByLabelText('Partner')).toBeTruthy()
     await waitFor(() => expect(screen.getByLabelText('Add to I give')).toBeTruthy())
+  })
+
+  it('finds offers and opens one in the builder with the carried numbers', async () => {
+    suggestMock.mockResolvedValue([tradeSuggestion()])
+    const scrollIntoView = vi.fn()
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoView
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Partner')
+    expect(screen.getByText('I gain and get ≥ 85 % of the market value I give')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Find'))
+    expect(await screen.findByText('with Rival')).toBeTruthy()
+    // the default scan is the builder's partner — the league-wide one is an explicit choice
+    expect(suggestMock).toHaveBeenCalledWith({
+      season: 2026,
+      focus: null,
+      stance: 'fair',
+      partnerRosterId: 2
+    })
+    expect(screen.getByText('Me +4.00 (+0.27/wk)')).toBeTruthy()
+    expect(screen.getByText('Them -4.00')).toBeTruthy()
+    expect(screen.getByText('market')).toBeTruthy()
+    expect(screen.getByText("give RB Saquon Barkley · get WR Ja'Marr Chase")).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Open in builder'))
+    expect((screen.getByLabelText('Partner') as HTMLSelectElement).value).toBe('2')
+    expect(screen.getByText('Saquon Barkley')).toBeTruthy()
+    expect(screen.getByText("Ja'Marr Chase")).toBeTruthy()
+    // the verdict is the suggestion's evaluation — no second trade:evaluate call
+    expect(screen.getByText('+4.00 (+0.27/wk)')).toBeTruthy()
+    expect(screen.getByText('gives 9 340 → gets 8 000 (86 %)')).toBeTruthy()
+    expect(evaluateMock).not.toHaveBeenCalled()
+    expect(scrollIntoView).toHaveBeenCalled()
+    // the rows are editable as usual: removing one clears the verdict
+    fireEvent.click(screen.getByLabelText('Remove Saquon Barkley'))
+    expect(screen.queryByText('+4.00 (+0.27/wk)')).toBeNull()
+  })
+
+  it('carries the focus and stance, scans every team on request, hints on an empty result', async () => {
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Partner')
+    fireEvent.change(screen.getByLabelText('Focus'), { target: { value: 'give' } })
+    fireEvent.change(screen.getByLabelText('Focus player'), { target: { value: '4866' } })
+    expect(screen.getByText('MKT 9 340 · 30d -310')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Stance'), { target: { value: 'overpay' } })
+
+    fireEvent.click(screen.getByText('Suggest with this team'))
+    expect(await screen.findByText('No offers — widen the focus or pick another team')).toBeTruthy()
+    expect(suggestMock).toHaveBeenCalledWith({
+      season: 2026,
+      focus: { give: '4866' },
+      stance: 'overpay',
+      partnerRosterId: 2
+    })
+    expect((screen.getByLabelText('Suggest with') as HTMLSelectElement).value).toBe('2')
+
+    // a position focus, scanning every team
+    fireEvent.change(screen.getByLabelText('Focus'), { target: { value: 'want' } })
+    fireEvent.change(screen.getByLabelText('Focus position'), { target: { value: 'WR' } })
+    fireEvent.change(screen.getByLabelText('Suggest with'), { target: { value: '' } })
+    fireEvent.click(screen.getByText('Find'))
+    await waitFor(() =>
+      expect(suggestMock).toHaveBeenLastCalledWith({
+        season: 2026,
+        focus: { want: 'WR' },
+        stance: 'overpay',
+        partnerRosterId: null
+      })
+    )
+
+    // a failed search shows under the controls
+    suggestMock.mockRejectedValue(new Error('No projections stored for this season'))
+    fireEvent.click(screen.getByText('Find'))
+    expect(await screen.findByText('No projections stored for this season')).toBeTruthy()
   })
 })

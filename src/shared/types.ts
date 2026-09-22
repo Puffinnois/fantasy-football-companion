@@ -388,6 +388,27 @@ export interface TradePool {
   teams: TradePoolTeam[]
 }
 
+/** Slice 6b spec §3.1: how eager I am — moves the thresholds on my side only. */
+export type TradeStance = 'premium' | 'fair' | 'overpay'
+
+/** A player I'd give (`give`: player id), a position I want (`want`), or no focus. */
+export type TradeFocus = { give: string } | { want: string } | null
+
+export interface TradeSuggestQuery {
+  season: number
+  focus: TradeFocus
+  stance: TradeStance
+  /** Restrict the scan to one team; null = every other team. */
+  partnerRosterId: number | null
+}
+
+export interface TradeSuggestion {
+  /** Exactly what `trade:evaluate` returns for this proposal — the card and the builder agree. */
+  evaluation: TradeEvaluation
+  /** Why they'd take it: their lineup improves, the market is fair for them, or both. */
+  acceptance: 'lineup' | 'market' | 'both'
+}
+
 export interface PlayerValueRow extends PlayerBaseRow {
   gamesPlayed: number
   ppg: number | null

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,24 +10,36 @@ import { swapLine } from '@/lib/lineupView'
 import {
   DEADLINE_NOTE,
   NO_VERDICT_HINT,
+  STANCE_OPTIONS,
+  acceptanceTags,
   deltaLine,
   deltaTone,
   dropLine,
+  focusMarketLine,
   groupByPosition,
   marketLine,
+  meLine,
+  noOffersHint,
+  offerLine,
   playerOption,
   playerStats,
   rangeLine,
+  stanceHint,
+  themLine,
   verdictBadges,
   windowLabel
 } from '@/lib/tradeView'
 import { cn } from '@/lib/utils'
+import { LINEUP_POSITIONS } from '@shared/rules'
 import type {
   DetailTarget,
   TradeEvaluation,
+  TradeFocus,
   TradePlayer,
   TradePool,
-  TradeSideResult
+  TradeSideResult,
+  TradeStance,
+  TradeSuggestion
 } from '@shared/types'
 
 const selectClass =
@@ -38,6 +50,8 @@ const TONE: Record<ReturnType<typeof deltaTone>, string> = {
   red: 'text-red-400',
   muted: 'text-muted-foreground'
 }
+
+type FocusKind = 'none' | 'give' | 'want'
 
 function PlayerRow({
   player,
@@ -193,6 +207,43 @@ function VerdictCard({ ev }: { ev: TradeEvaluation }): React.JSX.Element {
   )
 }
 
+/** Spec §5.2: one offer — who with, both deltas, why they'd take it, the players, the way into the builder. */
+function SuggestionRow({
+  suggestion,
+  onOpen
+}: {
+  suggestion: TradeSuggestion
+  onOpen: () => void
+}): React.JSX.Element {
+  const { me, them } = suggestion.evaluation
+  return (
+    <li className="rounded-md border px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="font-medium">with {them.name}</span>
+        <span className={cn('font-semibold', TONE[deltaTone(me.delta)])}>{meLine(suggestion)}</span>
+        <span className={TONE[deltaTone(them.delta)]}>{themLine(suggestion)}</span>
+        {acceptanceTags(suggestion).map((tag) => (
+          <span
+            key={tag}
+            className="rounded bg-muted px-1.5 text-xs font-semibold text-muted-foreground"
+          >
+            {tag}
+          </span>
+        ))}
+        <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={onOpen}>
+          Open in builder
+        </Button>
+      </div>
+      <div className="mt-1 text-muted-foreground">{offerLine(suggestion)}</div>
+    </li>
+  )
+}
+
+function suggestionKey(s: TradeSuggestion): string {
+  const ids = (list: TradePlayer[]): string => list.map((p) => p.playerId).join('+')
+  return `${s.evaluation.them.rosterId}:${ids(s.evaluation.me.give)}:${ids(s.evaluation.me.get)}`
+}
+
 interface TradeScreenProps {
   dataVersion: number
 }
@@ -208,6 +259,16 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
   const [evaluating, setEvaluating] = useState(false)
   const [evalError, setEvalError] = useState<string | null>(null)
   const [selected, setSelected] = useState<DetailTarget | null>(null)
+  // Spec §5.2: the suggestions section
+  const [focusKind, setFocusKind] = useState<FocusKind>('none')
+  const [focusGive, setFocusGive] = useState('')
+  const [focusWant, setFocusWant] = useState('RB')
+  const [stance, setStance] = useState<TradeStance>('fair')
+  const [suggestWith, setSuggestWith] = useState<number | null>(null)
+  const [suggestions, setSuggestions] = useState<TradeSuggestion[] | null>(null)
+  const [finding, setFinding] = useState(false)
+  const [findError, setFindError] = useState<string | null>(null)
+  const builderRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     void api.players
@@ -234,6 +295,12 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
           ids.filter((id) => pool.teams.some((t) => t.players.some((p) => p.playerId === id)))
         )
         setVerdict(null)
+        setFocusGive((id) => (pool.me.players.some((p) => p.playerId === id) ? id : ''))
+        // Default to one partner: a league-wide scan costs seconds (spec §6).
+        setSuggestWith((t) =>
+          pool.teams.some((x) => x.rosterId === t) ? t : (pool.teams[0]?.rosterId ?? null)
+        )
+        setSuggestions(null)
       })
       .catch((err) => {
         if (!cancelled) setFailed({ key, message: errorMessage(err) })
@@ -246,6 +313,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
   const pool = loaded?.key === key ? loaded.pool : null
   const notice = failed && (failed.key === key || failed.key === 'options') ? failed.message : null
   const partnerTeam = pool?.teams.find((t) => t.rosterId === partner) ?? null
+  const focusPlayer = pool?.me.players.find((p) => p.playerId === focusGive) ?? null
 
   const choosePartner = (rosterId: number): void => {
     setPartner(rosterId)
@@ -277,6 +345,36 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
     }
   }
 
+  const focus: TradeFocus =
+    focusKind === 'give' && focusGive !== ''
+      ? { give: focusGive }
+      : focusKind === 'want'
+        ? { want: focusWant }
+        : null
+
+  async function find(partnerRosterId: number | null): Promise<void> {
+    if (season === null) return
+    setFinding(true)
+    setFindError(null)
+    try {
+      setSuggestions(await api.trade.suggest({ season, focus, stance, partnerRosterId }))
+    } catch (err) {
+      setFindError(errorMessage(err))
+    } finally {
+      setFinding(false)
+    }
+  }
+
+  /** Spec §5.2: the builder shows the suggestion's own evaluation — no second trade:evaluate call. */
+  const openInBuilder = (s: TradeSuggestion): void => {
+    setPartner(s.evaluation.them.rosterId)
+    setGive(s.evaluation.me.give.map((p) => p.playerId))
+    setGet(s.evaluation.me.get.map((p) => p.playerId))
+    setVerdict(s.evaluation)
+    setEvalError(null)
+    builderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   const canEvaluate = partner !== null && give.length > 0 && get.length > 0 && !evaluating
 
   return (
@@ -302,53 +400,177 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
               {DEADLINE_NOTE}
             </p>
           )}
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Partner</span>
-            <select
-              aria-label="Partner"
-              className={selectClass}
-              value={partner ?? ''}
-              onChange={(e) => choosePartner(Number(e.target.value))}
-            >
-              {pool.teams.map((t) => (
-                <option key={t.rosterId} value={t.rosterId}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+          <div ref={builderRef} className="space-y-6">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Partner</span>
+              <select
+                aria-label="Partner"
+                className={selectClass}
+                value={partner ?? ''}
+                onChange={(e) => choosePartner(Number(e.target.value))}
+              >
+                {pool.teams.map((t) => (
+                  <option key={t.rosterId} value={t.rosterId}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="ml-auto"
+                disabled={partner === null || finding}
+                onClick={() => {
+                  setSuggestWith(partner)
+                  void find(partner)
+                }}
+              >
+                Suggest with this team
+              </Button>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <SideEditor
+                title="I give"
+                roster={pool.me.players}
+                chosen={give}
+                weeks={pool.weeks}
+                onChange={changeGive}
+                onOpen={setSelected}
+              />
+              <SideEditor
+                title="I get"
+                roster={partnerTeam?.players ?? []}
+                chosen={get}
+                weeks={pool.weeks}
+                onChange={changeGet}
+                onOpen={setSelected}
+              />
+            </div>
+
+            <div className="flex items-center gap-4">
+              <Button type="button" disabled={!canEvaluate} onClick={() => void evaluate()}>
+                Evaluate
+              </Button>
+              {evaluating && <span className="text-sm text-muted-foreground">Evaluating…</span>}
+              {evalError && <span className="text-destructive text-sm">{evalError}</span>}
+              {!verdict && !evaluating && !evalError && (
+                <span className="text-sm text-muted-foreground">{NO_VERDICT_HINT}</span>
+              )}
+            </div>
+
+            {verdict && <VerdictCard ev={verdict} />}
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <SideEditor
-              title="I give"
-              roster={pool.me.players}
-              chosen={give}
-              weeks={pool.weeks}
-              onChange={changeGive}
-              onOpen={setSelected}
-            />
-            <SideEditor
-              title="I get"
-              roster={partnerTeam?.players ?? []}
-              chosen={get}
-              weeks={pool.weeks}
-              onChange={changeGet}
-              onOpen={setSelected}
-            />
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Button type="button" disabled={!canEvaluate} onClick={() => void evaluate()}>
-              Evaluate
-            </Button>
-            {evaluating && <span className="text-sm text-muted-foreground">Evaluating…</span>}
-            {evalError && <span className="text-destructive text-sm">{evalError}</span>}
-            {!verdict && !evaluating && !evalError && (
-              <span className="text-sm text-muted-foreground">{NO_VERDICT_HINT}</span>
-            )}
-          </div>
-
-          {verdict && <VerdictCard ev={verdict} />}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Suggestions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Focus</span>
+                <select
+                  aria-label="Focus"
+                  className={selectClass}
+                  value={focusKind}
+                  onChange={(e) => setFocusKind(e.target.value as FocusKind)}
+                >
+                  <option value="none">none</option>
+                  <option value="give">I give</option>
+                  <option value="want">I want</option>
+                </select>
+                {focusKind === 'give' && (
+                  <select
+                    aria-label="Focus player"
+                    className={selectClass}
+                    value={focusGive}
+                    onChange={(e) => setFocusGive(e.target.value)}
+                  >
+                    <option value="">pick a player</option>
+                    {groupByPosition(pool.me.players).map(([pos, players]) => (
+                      <optgroup key={pos} label={pos}>
+                        {players.map((p) => (
+                          <option key={p.playerId} value={p.playerId}>
+                            {playerOption(p)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                )}
+                {focusKind === 'give' && focusPlayer && (
+                  <span className="text-xs text-muted-foreground">
+                    {focusMarketLine(focusPlayer)}
+                  </span>
+                )}
+                {focusKind === 'want' && (
+                  <select
+                    aria-label="Focus position"
+                    className={selectClass}
+                    value={focusWant}
+                    onChange={(e) => setFocusWant(e.target.value)}
+                  >
+                    {LINEUP_POSITIONS.map((pos) => (
+                      <option key={pos} value={pos}>
+                        {pos}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <span className="ml-2 text-muted-foreground">Stance</span>
+                <select
+                  aria-label="Stance"
+                  className={selectClass}
+                  value={stance}
+                  onChange={(e) => setStance(e.target.value as TradeStance)}
+                >
+                  {STANCE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="ml-2 text-muted-foreground">with</span>
+                <select
+                  aria-label="Suggest with"
+                  className={selectClass}
+                  value={suggestWith ?? ''}
+                  onChange={(e) =>
+                    setSuggestWith(e.target.value === '' ? null : Number(e.target.value))
+                  }
+                >
+                  {pool.teams.map((t) => (
+                    <option key={t.rosterId} value={t.rosterId}>
+                      {t.name}
+                    </option>
+                  ))}
+                  <option value="">every team (slower)</option>
+                </select>
+                <Button type="button" disabled={finding} onClick={() => void find(suggestWith)}>
+                  Find
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">{stanceHint(stance)}</p>
+              {finding && <p className="text-sm text-muted-foreground">Searching offers…</p>}
+              {findError && <p className="text-destructive text-sm">{findError}</p>}
+              {suggestions &&
+                !finding &&
+                (suggestions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{noOffersHint(stance)}</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {suggestions.map((s) => (
+                      <SuggestionRow
+                        key={suggestionKey(s)}
+                        suggestion={s}
+                        onOpen={() => openInBuilder(s)}
+                      />
+                    ))}
+                  </ul>
+                ))}
+            </CardContent>
+          </Card>
         </>
       )}
 

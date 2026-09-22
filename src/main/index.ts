@@ -52,8 +52,12 @@ function createWindow(): void {
   }
 }
 
+function appDatabasePath(): string {
+  return join(app.getPath('userData'), 'companion.db')
+}
+
 function openAppDatabase(): Db {
-  const dbPath = join(app.getPath('userData'), 'companion.db')
+  const dbPath = appDatabasePath()
   try {
     const db = openDatabase(dbPath)
     migrate(db)
@@ -72,6 +76,7 @@ app.whenReady().then(() => {
 
   const ctx: AppContext = {
     db: openAppDatabase(),
+    dbPath: appDatabasePath(),
     sleeper: createSleeperClient(),
     nflverse: createNflverseClient(),
     fantasypros: createFantasyProsClient(),
