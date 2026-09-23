@@ -8,6 +8,7 @@ import { RulesScreen } from '@/screens/RulesScreen'
 import { PlayersScreen } from '@/screens/PlayersScreen'
 import { LineupScreen } from '@/screens/LineupScreen'
 import { TradeScreen } from '@/screens/TradeScreen'
+import { WaiverScreen } from '@/screens/WaiverScreen'
 import { api } from '@/lib/api'
 import { useUpdateState } from '@/lib/useUpdateState'
 
@@ -84,6 +85,7 @@ export default function App(): React.JSX.Element {
           {screen === 'players' && <PlayersScreen dataVersion={dataVersion} />}
           {screen === 'lineup' && <LineupScreen dataVersion={dataVersion} />}
           {screen === 'trade' && <TradeScreen dataVersion={dataVersion} />}
+          {screen === 'waivers' && <WaiverScreen dataVersion={dataVersion} />}
         </main>
       </div>
       <UpdateDialog

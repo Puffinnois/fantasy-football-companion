@@ -1,9 +1,17 @@
-import { ArrowLeftRight, BookOpen, ClipboardList, Settings, Trophy, Users } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  BookOpen,
+  ClipboardList,
+  Settings,
+  Trophy,
+  UserPlus,
+  Users
+} from 'lucide-react'
 import { UpdatePill } from '@/components/UpdatePill'
 import { cn } from '@/lib/utils'
 import type { UpdateState } from '@shared/types'
 
-export type Screen = 'setup' | 'league' | 'rules' | 'players' | 'lineup' | 'trade'
+export type Screen = 'setup' | 'league' | 'rules' | 'players' | 'lineup' | 'trade' | 'waivers'
 
 interface SidebarProps {
   current: Screen
@@ -25,6 +33,7 @@ const items: {
   { id: 'players', label: 'Players', icon: Users, enabled: (hasLeague) => hasLeague },
   { id: 'lineup', label: 'Lineup', icon: ClipboardList, enabled: (hasLeague) => hasLeague },
   { id: 'trade', label: 'Trade', icon: ArrowLeftRight, enabled: (hasLeague) => hasLeague },
+  { id: 'waivers', label: 'Waivers', icon: UserPlus, enabled: (hasLeague) => hasLeague },
   { id: 'setup', label: 'Setup', icon: Settings, enabled: () => true }
 ]
 
