@@ -1,4 +1,11 @@
-import { KNOWN_SLOTS, type Position, type RosterSlotCount, type StatKey } from '@shared/rules'
+import {
+  canonicalIrStatuses,
+  KNOWN_SLOTS,
+  type LeagueSettings,
+  type Position,
+  type RosterSlotCount,
+  type StatKey
+} from '@shared/rules'
 import {
   STAT_CATEGORIES,
   STAT_KEY_INFO,
@@ -69,4 +76,19 @@ export function addableKeys(scoring: Record<StatKey, number>): StatKeyInfo[] {
 export function addableSlots(slots: RosterSlotCount[]): string[] {
   const present = new Set(slots.map((s) => s.slot))
   return KNOWN_SLOTS.filter((s) => !present.has(s))
+}
+
+/** Slice 6c spec §5.4: the statuses allowed on IR, `IR` always included. */
+export function irStatusesOf(settings: LeagueSettings): string[] {
+  return canonicalIrStatuses(settings.irStatuses)
+}
+
+/** Adds or removes one status, in canonical order; `IR` can't be removed. */
+export function toggleIrStatus(current: string[] | undefined, status: string): string[] {
+  const set = new Set(canonicalIrStatuses(current))
+  if (status !== 'IR') {
+    if (set.has(status)) set.delete(status)
+    else set.add(status)
+  }
+  return canonicalIrStatuses([...set])
 }

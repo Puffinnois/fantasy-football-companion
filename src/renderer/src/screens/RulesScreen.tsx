@@ -17,13 +17,22 @@ import { errorMessage, relativeTime } from '@/lib/format'
 import {
   addableKeys,
   addableSlots,
+  irStatusesOf,
   isOverridable,
   OVERRIDE_POSITIONS,
   scoringGroups,
+  toggleIrStatus,
   unsupportedKeys
 } from '@/lib/rulesView'
 import { cn } from '@/lib/utils'
-import type { LeagueSettings, Position, Rules, StatKey, WaiverType } from '@shared/rules'
+import {
+  IR_STATUSES,
+  type LeagueSettings,
+  type Position,
+  type Rules,
+  type StatKey,
+  type WaiverType
+} from '@shared/rules'
 
 const selectClass =
   'h-9 rounded-md border border-input bg-transparent px-2 text-sm text-foreground dark:bg-input/30'
@@ -443,6 +452,33 @@ export function RulesScreen({ onSaved }: RulesScreenProps = {}): React.JSX.Eleme
                 className="w-full text-left"
               />
             </Field>
+            <Field label="IR slots">
+              <NumberField
+                value={draft.settings.irSlots}
+                integer
+                placeholder="0"
+                onChange={(v) => setSetting('irSlots', v)}
+                className="w-full text-left"
+              />
+            </Field>
+            <div className="flex flex-col gap-1 text-xs text-muted-foreground sm:col-span-3">
+              <span>Allowed on IR</span>
+              <div className="flex flex-wrap gap-4">
+                {IR_STATUSES.map((status) => (
+                  <label key={status} className="flex items-center gap-1.5 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={irStatusesOf(draft.settings).includes(status)}
+                      disabled={status === 'IR'}
+                      onChange={() =>
+                        setSetting('irStatuses', toggleIrStatus(draft.settings.irStatuses, status))
+                      }
+                    />
+                    {status}
+                  </label>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
