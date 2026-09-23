@@ -136,7 +136,8 @@ function team(t: SyntheticTeam): Team {
     ties: 0,
     fpts: 0,
     fptsAgainst: 0,
-    isMe: t.isMe ?? false
+    isMe: t.isMe ?? false,
+    waiverPosition: null
   }
 }
 

@@ -23,6 +23,8 @@ export interface Team {
   fpts: number
   fptsAgainst: number
   isMe: boolean
+  /** Sleeper roster `settings.waiver_position`; null when Sleeper sends none (slice 6c spec §5.3). */
+  waiverPosition: number | null
 }
 
 export type RosterSlot = 'starter' | 'bench' | 'ir' | 'taxi'

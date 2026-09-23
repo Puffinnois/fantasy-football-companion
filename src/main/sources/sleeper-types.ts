@@ -33,6 +33,7 @@ export interface SleeperRosterSettings {
   fpts_decimal?: number
   fpts_against?: number
   fpts_against_decimal?: number
+  waiver_position?: number
 }
 
 export interface SleeperRoster {

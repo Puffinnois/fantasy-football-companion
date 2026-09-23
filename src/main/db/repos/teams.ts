@@ -24,6 +24,7 @@ interface TeamRow {
   fpts: number
   fpts_against: number
   is_me: number
+  waiver_position: number | null
 }
 
 interface RosterRow {
@@ -44,8 +45,8 @@ export function replaceTeams(db: Db, leagueId: string, teams: Team[], updatedAt:
   db.prepare('DELETE FROM teams WHERE league_id = ?').run(leagueId)
   const insert = db.prepare(
     `INSERT INTO teams (league_id, roster_id, owner_id, display_name, team_name, avatar, wins, losses, ties, fpts,
-       fpts_against, is_me, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       fpts_against, is_me, waiver_position, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
   for (const t of teams) {
     insert.run(
@@ -61,6 +62,7 @@ export function replaceTeams(db: Db, leagueId: string, teams: Team[], updatedAt:
       t.fpts,
       t.fptsAgainst,
       t.isMe ? 1 : 0,
+      t.waiverPosition,
       updatedAt
     )
   }
@@ -82,7 +84,8 @@ export function listTeams(db: Db, leagueId: string): Team[] {
     ties: r.ties,
     fpts: r.fpts,
     fptsAgainst: r.fpts_against,
-    isMe: r.is_me === 1
+    isMe: r.is_me === 1,
+    waiverPosition: r.waiver_position
   }))
 }
 

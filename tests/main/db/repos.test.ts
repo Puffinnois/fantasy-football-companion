@@ -24,6 +24,7 @@ function team(rosterId: number, extra: Partial<Team> = {}): Team {
     ties: 0,
     fpts: 0,
     fptsAgainst: 0,
+    waiverPosition: null,
     isMe: false,
     ...extra
   }
@@ -133,6 +134,13 @@ describe('repos', () => {
     const teams = listTeams(db, 'L1')
     expect(teams.map((t) => t.rosterId)).toEqual([2, 1])
     expect(teams[0].isMe).toBe(true)
+  })
+
+  it('round-trips the waiver position', () => {
+    replaceTeams(db, 'L1', [team(1, { waiverPosition: 5 }), team(2)], T)
+    const byRoster = new Map(listTeams(db, 'L1').map((t) => [t.rosterId, t.waiverPosition]))
+    expect(byRoster.get(1)).toBe(5)
+    expect(byRoster.get(2)).toBeNull()
   })
 
   it('roster lists players joined with names, ordered by slot then starter index', () => {

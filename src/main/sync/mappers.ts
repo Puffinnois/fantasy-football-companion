@@ -67,7 +67,8 @@ export function mapTeams(
       ties: s.ties ?? 0,
       fpts: (s.fpts ?? 0) + (s.fpts_decimal ?? 0) / 100,
       fptsAgainst: (s.fpts_against ?? 0) + (s.fpts_against_decimal ?? 0) / 100,
-      isMe: myUserId !== null && r.owner_id === myUserId
+      isMe: myUserId !== null && r.owner_id === myUserId,
+      waiverPosition: s.waiver_position ?? null
     }
   })
 }

@@ -54,6 +54,11 @@ describe('mappers', () => {
     })
   })
 
+  it('maps the waiver position, null when Sleeper sends none', () => {
+    const teams = mapTeams('L1', fx.rosters, fx.users, 'u1')
+    expect(teams.map((t) => t.waiverPosition)).toEqual([3, null])
+  })
+
   it('falls back when the owner is unknown and myUserId is null', () => {
     const teams = mapTeams(
       'L1',
