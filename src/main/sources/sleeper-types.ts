@@ -102,3 +102,9 @@ export interface SleeperProjection {
   opponent: string | null
   stats: Record<string, number> | null
 }
+
+/** `GET /players/nfl/trending/add`: most-added players across all Sleeper leagues over the lookback. */
+export interface SleeperTrendingPlayer {
+  player_id: string
+  count: number
+}

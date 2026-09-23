@@ -130,6 +130,16 @@ describe('createSleeperClient', () => {
     expect(await client.getMatchups('L1', 17)).toEqual([])
   })
 
+  it('getTrendingAdds asks for the last 24 h of adds, top 100', async () => {
+    const fetchImpl = fakeFetch([{ status: 200, body: [{ player_id: '4866', count: 1200 }] }])
+    const rows = await createSleeperClient({ fetchImpl }).getTrendingAdds()
+    expect(rows).toEqual([{ player_id: '4866', count: 1200 }])
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=24&limit=100',
+      expect.anything()
+    )
+  })
+
   it('getMatchups treats a 404 as an empty week and throws on other errors', async () => {
     expect(
       await createSleeperClient({ fetchImpl: fakeFetch([{ status: 404 }]) }).getMatchups('L1', 1)

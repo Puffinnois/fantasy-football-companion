@@ -6,6 +6,7 @@ import type {
   SleeperPlayer,
   SleeperProjection,
   SleeperRoster,
+  SleeperTrendingPlayer,
   SleeperUser
 } from './sleeper-types'
 
@@ -21,6 +22,8 @@ export interface SleeperClient {
   getProjections(season: string, week: number): Promise<SleeperProjection[] | null>
   /** Weekly matchups (documented endpoint); `[]` for a week Sleeper has none for yet (playoffs before the bracket). */
   getMatchups(leagueId: string, week: number): Promise<SleeperMatchup[]>
+  /** Most-added players across all Sleeper leagues over the last 24 h (slice 6c spec §5.1). */
+  getTrendingAdds(): Promise<SleeperTrendingPlayer[]>
 }
 
 export class SleeperHttpError extends Error {
@@ -46,6 +49,9 @@ export interface SleeperClientOptions {
 const PROJECTION_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']
   .map((p) => `&position[]=${p}`)
   .join('')
+
+const TRENDING_LOOKBACK_HOURS = 24
+const TRENDING_LIMIT = 100
 
 function isRetryable(status: number): boolean {
   return status === 429 || status >= 500
@@ -100,6 +106,10 @@ export function createSleeperClient(options: SleeperClientOptions = {}): Sleeper
     getMatchups: async (leagueId, week) =>
       (await getJson<SleeperMatchup[]>(
         `/league/${encodeURIComponent(leagueId)}/matchups/${week}`
-      )) ?? []
+      )) ?? [],
+    getTrendingAdds: () =>
+      getJsonRequired<SleeperTrendingPlayer[]>(
+        `/players/nfl/trending/add?lookback_hours=${TRENDING_LOOKBACK_HOURS}&limit=${TRENDING_LIMIT}`
+      )
   }
 }

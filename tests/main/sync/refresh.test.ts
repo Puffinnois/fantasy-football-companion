@@ -22,7 +22,8 @@ describe('refreshAll / importAll', () => {
     getAllPlayers: vi.fn(async () => fx.players),
     getNflState: vi.fn(async () => fx.nflState),
     getProjections: vi.fn(async () => []),
-    getMatchups: vi.fn(async () => [])
+    getMatchups: vi.fn(async () => []),
+    getTrendingAdds: vi.fn(async () => [{ player_id: '4866', count: 12 }])
   }
   const nflverse: NflverseClient = {
     getPlayerWeekStats: vi.fn(async () => null),
@@ -42,14 +43,15 @@ describe('refreshAll / importAll', () => {
     migrate(db)
   })
 
-  it('runs the expert steps after Sleeper and nflverse, then the ROS snapshot, on import and on refresh', async () => {
+  it('runs the expert steps after Sleeper and nflverse, then trending adds and the ROS snapshot, on import and on refresh', async () => {
     const imported = await importAll(deps(), 'L1', 'u1')
     const sources = imported.steps.map((s) => s.source)
-    expect(sources.slice(-5)).toEqual([
+    expect(sources.slice(-6)).toEqual([
       'fantasypros:weekly:2026:1',
       'fantasypros:weekly:2026:2',
       'fantasypros:ros:2026',
       'fantasycalc:2026',
+      'sleeper:trending:add',
       'snapshot:ros:2026'
     ])
     expect(sources.indexOf('nflverse:crosswalk')).toBeLessThan(
@@ -58,6 +60,6 @@ describe('refreshAll / importAll', () => {
     expect(imported.steps.filter((s) => s.status === 'error')).toEqual([])
 
     const refreshed = await refreshAll(deps())
-    expect(refreshed.steps.map((s) => s.source).slice(-5)).toEqual(sources.slice(-5))
+    expect(refreshed.steps.map((s) => s.source).slice(-6)).toEqual(sources.slice(-6))
   })
 })
