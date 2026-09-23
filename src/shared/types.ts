@@ -1,3 +1,5 @@
+import type { WaiverType } from './rules'
+
 export interface LeagueSummary {
   leagueId: string
   name: string
@@ -414,6 +416,54 @@ export interface TradeSuggestion {
   evaluation: TradeEvaluation
   /** Why they'd take it: their lineup improves, the market is fair for them, or both. */
   acceptance: 'lineup' | 'market' | 'both'
+}
+
+/** Slice 6c spec §2.2: how an add makes room on my roster. */
+export type WaiverRelease =
+  { kind: 'open' } | { kind: 'ir'; playerId: string } | { kind: 'drop'; playerId: string }
+
+/** Spec §2.4: one way to make room for an add, scored on my window strength. */
+export interface AddOption {
+  release: WaiverRelease
+  /** The player moved to IR or dropped; null for an open spot. */
+  releasePlayer: TradePlayer | null
+  /** Window total after the move − before. */
+  delta: number
+  deltaPerWeek: number
+  thisWeekDelta: number
+  /** Window weeks the added player starts after this move. */
+  startWeeks: number[]
+}
+
+/** Spec §2.4: a free agent who improves my lineup; options best first, never empty. */
+export interface AddRow {
+  player: TradePlayer
+  options: AddOption[]
+}
+
+/** Spec §3: upside the lineup can't see yet; the best option's `delta` is the cost of making room. */
+export interface StashRow {
+  player: TradePlayer
+  /** Sleeper adds in the last 24 h; null when he isn't in the trending list. */
+  trending: number | null
+  options: AddOption[]
+}
+
+/** Spec §6: the Waivers screen's rest-of-season payload. */
+export interface WaiverAdds {
+  season: number
+  currentWeek: number
+  lastWeek: number
+  /** Window length, currentWeek..lastWeek. */
+  weeks: number
+  lineup: AddRow[]
+  stash: StashRow[]
+  waiverType: WaiverType
+  /** My place in the waiver order; null when Sleeper sends none. */
+  myWaiverPosition: number | null
+  teamCount: number
+  /** When trending adds were last fetched; null = never. */
+  trendingFetchedAt: string | null
 }
 
 /** Rest-of-season realism spec §3.3: what the correction did to one player. */
