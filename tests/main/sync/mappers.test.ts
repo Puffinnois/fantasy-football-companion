@@ -142,6 +142,30 @@ describe('mappers', () => {
       expect(rules.settings.playoffRoundType).toBe(1)
     })
 
+    it('maps IR slots and the statuses the league allows on IR', () => {
+      const rules = mapRules(
+        {
+          ...fx.league,
+          settings: {
+            ...fx.league.settings,
+            reserve_slots: 2,
+            reserve_allow_out: 1,
+            reserve_allow_doubtful: 0,
+            reserve_allow_cov: 1
+          }
+        },
+        'T'
+      )
+      expect(rules.settings.irSlots).toBe(2)
+      expect(rules.settings.irStatuses).toEqual(['IR', 'Out', 'COV'])
+    })
+
+    it('leaves IR unset when Sleeper sends no reserve slots', () => {
+      const rules = mapRules(fx.league, 'T')
+      expect(rules.settings.irSlots).toBeUndefined()
+      expect(rules.settings.irStatuses).toBeUndefined()
+    })
+
     it('rounds float noise and keeps unknown keys', () => {
       const rules = mapRules(
         { ...fx.league, scoring_settings: { pass_yd: 0.03999999910593033, def_3_and_out: 1 } },

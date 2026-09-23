@@ -71,4 +71,22 @@ describe('normalizeRules', () => {
       normalizeRules(rules({ settings: { numTeams: 12, waiverType: 'faab', playoffTeams: -6 } }), T)
     ).toThrow('playoffTeams must be a whole number >= 0')
   })
+
+  it('keeps IR slots and stores IR statuses in canonical order, IR first', () => {
+    const out = normalizeRules(
+      rules({ settings: { ...rules().settings, irSlots: 2, irStatuses: ['COV', 'Out'] } }),
+      T
+    )
+    expect(out.settings.irSlots).toBe(2)
+    expect(out.settings.irStatuses).toEqual(['IR', 'Out', 'COV'])
+  })
+
+  it('rejects unknown IR statuses and too many IR slots', () => {
+    expect(() =>
+      normalizeRules(rules({ settings: { ...rules().settings, irStatuses: ['Questionable'] } }), T)
+    ).toThrow('IR statuses must be among')
+    expect(() =>
+      normalizeRules(rules({ settings: { ...rules().settings, irSlots: 11 } }), T)
+    ).toThrow('IR slots must be at most 10')
+  })
 })

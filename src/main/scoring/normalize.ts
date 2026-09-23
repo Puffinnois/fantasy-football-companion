@@ -1,4 +1,7 @@
 import {
+  canonicalIrStatuses,
+  IR_STATUSES,
+  MAX_IR_SLOTS,
   POSITIONS,
   roundPoints,
   type LeagueSettings,
@@ -12,7 +15,8 @@ const OPTIONAL_SETTINGS = [
   'tradeDeadlineWeek',
   'playoffStartWeek',
   'playoffTeams',
-  'playoffRoundType'
+  'playoffRoundType',
+  'irSlots'
 ] as const
 
 function cleanPoints(obj: unknown, where: string): Record<StatKey, number> {
@@ -69,6 +73,16 @@ export function normalizeRules(input: Rules, updatedAt: string): Rules {
     const value = s[key]
     if (value === undefined) continue
     settings[key] = wholeNumber(value, key, 0)
+  }
+  if (settings.irSlots !== undefined && settings.irSlots > MAX_IR_SLOTS) {
+    throw new Error(`IR slots must be at most ${MAX_IR_SLOTS}`)
+  }
+  if (s.irStatuses !== undefined) {
+    const known: readonly string[] = IR_STATUSES
+    if (!Array.isArray(s.irStatuses) || s.irStatuses.some((x) => !known.includes(x))) {
+      throw new Error(`IR statuses must be among ${IR_STATUSES.join(', ')}`)
+    }
+    settings.irStatuses = canonicalIrStatuses(s.irStatuses)
   }
 
   return { source: 'custom', updatedAt, scoring, positionOverrides, rosterSlots, settings }

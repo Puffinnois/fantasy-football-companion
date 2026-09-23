@@ -10,7 +10,13 @@ import type {
   SleeperProjection,
   SleeperRoster
 } from '@main/sources/sleeper-types'
-import { roundPoints, type LeagueSettings, type Rules, type StatKey } from '@shared/rules'
+import {
+  canonicalIrStatuses,
+  roundPoints,
+  type LeagueSettings,
+  type Rules,
+  type StatKey
+} from '@shared/rules'
 import type { LeagueSummary, NflState, Team } from '@shared/types'
 
 const EMPTY_STARTER_SLOT = '0'
@@ -124,6 +130,16 @@ export function mapPlayers(players: Record<string, SleeperPlayer>): PlayerRecord
 const SLEEPER_WAIVER_FAAB = 2
 const SLEEPER_NO_TRADE_DEADLINE = 99
 
+/** Sleeper `reserve_allow_*` flag → the injury status it lets onto IR (slice 6c spec §5.4). */
+const RESERVE_FLAGS: [string, string][] = [
+  ['reserve_allow_out', 'Out'],
+  ['reserve_allow_doubtful', 'Doubtful'],
+  ['reserve_allow_sus', 'Sus'],
+  ['reserve_allow_na', 'NA'],
+  ['reserve_allow_dnr', 'DNR'],
+  ['reserve_allow_cov', 'COV']
+]
+
 export function mapRules(l: SleeperLeague, updatedAt: string): Rules {
   const scoring: Record<StatKey, number> = {}
   for (const [key, value] of Object.entries(l.scoring_settings)) {
@@ -146,6 +162,12 @@ export function mapRules(l: SleeperLeague, updatedAt: string): Rules {
   if (s.playoff_week_start !== undefined) settings.playoffStartWeek = s.playoff_week_start
   if (s.playoff_teams !== undefined) settings.playoffTeams = s.playoff_teams
   if (s.playoff_round_type !== undefined) settings.playoffRoundType = s.playoff_round_type
+  if (s.reserve_slots !== undefined) {
+    settings.irSlots = s.reserve_slots
+    settings.irStatuses = canonicalIrStatuses(
+      RESERVE_FLAGS.filter(([flag]) => s[flag] === 1).map(([, status]) => status)
+    )
+  }
 
   return { source: 'sleeper', updatedAt, scoring, positionOverrides: {}, rosterSlots, settings }
 }

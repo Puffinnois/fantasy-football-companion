@@ -63,6 +63,19 @@ export interface LeagueSettings {
   playoffTeams?: number
   /** Sleeper `playoff_round_type`: 0 one week per round, 1 two-week final, 2 two weeks per round. */
   playoffRoundType?: number
+  /** Sleeper `reserve_slots`: IR spots outside the roster size (slice 6c spec §5.4). */
+  irSlots?: number
+  /** Injury statuses allowed on IR, in `IR_STATUSES` order, `IR` first. */
+  irStatuses?: string[]
+}
+
+/** Slice 6c spec §5.4: injury statuses a league can allow in an IR slot; `IR` is always allowed. */
+export const IR_STATUSES = ['IR', 'PUP', 'Out', 'Doubtful', 'Sus', 'NA', 'DNR', 'COV'] as const
+export const MAX_IR_SLOTS = 10
+
+/** Canonical order, `IR` always in, unknown statuses dropped. */
+export function canonicalIrStatuses(statuses: readonly string[] | undefined): string[] {
+  return IR_STATUSES.filter((s) => s === 'IR' || (statuses ?? []).includes(s))
 }
 
 /** Last week the app models (NFL regular season + fantasy playoffs). */
