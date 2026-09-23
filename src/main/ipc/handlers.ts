@@ -1,5 +1,6 @@
 import { app, ipcMain, type BrowserWindow } from 'electron'
 import { withTransaction, type Db } from '@main/db/connection'
+import { runEngine } from '@main/engine/runEngine'
 import { listExpertRanks } from '@main/db/repos/expertRanks'
 import { getLeague, leagueRosterPositions } from '@main/db/repos/leagues'
 import { listMatchups } from '@main/db/repos/matchups'
@@ -15,7 +16,6 @@ import { buildLineups, lineupWeek, teamStrengths, type LineupBuild } from '@main
 import type { NewsCache } from '@main/news/newsCache'
 import { evaluateTrade } from '@main/trade/evaluate'
 import { tradePool } from '@main/trade/pool'
-import { runSuggest } from '@main/trade/runSuggest'
 import { normalizeRules } from '@main/scoring/normalize'
 import { recomputePoints } from '@main/scoring/recompute'
 import type { FantasyCalcClient } from '@main/sources/fantasycalc'
@@ -51,12 +51,13 @@ import type {
   TradeSuggestion,
   TradeSuggestQuery,
   UpdateState,
+  WaiverAdds,
   WeekQuery
 } from '@shared/types'
 
 export interface AppContext {
   db: Db
-  /** The database file, so the trade search can open its own connection in a worker thread. */
+  /** The database file, so the trade and waiver searches can open their own connection in a worker thread. */
   dbPath: string
   sleeper: SleeperClient
   nflverse: NflverseClient
@@ -314,9 +315,16 @@ export function registerIpcHandlers(ctx: AppContext): void {
       const id = activeLeagueId()
       if (!id) throw new Error('No league imported')
       // Spec §6: a league-wide scan takes seconds, so it runs off the main thread.
-      return runSuggest({ dbPath: ctx.dbPath, leagueId: id, query })
+      return runEngine(ctx.dbPath, id, { kind: 'tradeSuggest', query })
     }
   )
+
+  ipcMain.handle(IPC.waiverAdds, (_event, season: number): Promise<WaiverAdds> => {
+    const id = activeLeagueId()
+    if (!id) throw new Error('No league imported')
+    // Slice 6c spec §6: the search runs in the engine worker, rebuilt from the DB.
+    return runEngine(ctx.dbPath, id, { kind: 'waiverAdds', season })
+  })
 
   ipcMain.handle(IPC.watchlistToggle, (_event, playerId: string): boolean => {
     const watched = toggleWatch(ctx.db, playerId, new Date().toISOString())

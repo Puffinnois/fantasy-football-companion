@@ -11,10 +11,10 @@ export default defineConfig({
     build: {
       rollupOptions: {
         external: ['node:sqlite'],
-        // The trade search runs in a worker thread (slice 6b spec §6), bundled beside the main entry.
+        // The trade and waiver searches run in a worker thread (6b / 6c spec §6), bundled beside the main entry.
         input: {
           index: resolve('src/main/index.ts'),
-          tradeWorker: resolve('src/main/trade/worker.ts')
+          engineWorker: resolve('src/main/engine/worker.ts')
         }
       }
     }

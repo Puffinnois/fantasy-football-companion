@@ -20,7 +20,8 @@ import type {
   TradeProposal,
   TradeSuggestion,
   TradeSuggestQuery,
-  UpdateState
+  UpdateState,
+  WaiverAdds
 } from './types'
 import type { Rules } from './rules'
 
@@ -65,6 +66,10 @@ export interface Api {
     evaluate(season: number, proposal: TradeProposal): Promise<TradeEvaluation>
     /** Offers that pass my stance and their acceptance, ranked (slice 6b spec §3); `[]` is a normal answer. */
     suggest(query: TradeSuggestQuery): Promise<TradeSuggestion[]>
+  }
+  waiver: {
+    /** Rest-of-season adds and stashes with their releases (slice 6c spec §2–3); runs in the engine worker. */
+    adds(season: number): Promise<WaiverAdds>
   }
   watchlist: {
     /** Returns the new state. */
@@ -111,6 +116,7 @@ export const IPC = {
   tradePool: 'trade:pool',
   tradeEvaluate: 'trade:evaluate',
   tradeSuggest: 'trade:suggest',
+  waiverAdds: 'waiver:adds',
   watchlistToggle: 'watchlist:toggle',
   rulesGet: 'rules:get',
   rulesUpdate: 'rules:update',
