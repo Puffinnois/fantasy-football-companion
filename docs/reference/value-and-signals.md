@@ -318,6 +318,35 @@ Players without a ROS rank keep their raw projections; the feed covers 99 % of r
 
 **Weekly snapshot (for a later backtest).** The last step of every sync (`src/main/sync/snapshotSync.ts` → `src/main/value/snapshot.ts`) stores, per player, the raw and corrected points for the weeks after the current one plus the consensus rank and its spread, in `ros_snapshots` (one set per week; the last sync while a week is current wins). Nothing else keeps this history. Open questions, known weaknesses and the backtest recipe: `docs/research/2026-09-22-ros-realism-open-questions.md`.
 
+## Waivers (added in v0.16.0)
+
+Spec `docs/superpowers/specs/2026-09-23-slice6c-waivers-design.md`; pure modules in `src/main/waiver/`, run in the engine worker behind `waiver:adds`. Everything is scored on my rest-of-season team strength over the same window as trades (`currentWeek..lastWeek`, 6a's optimal lineup per week).
+
+**Releases** — how an add makes room (`WaiverRelease`):
+
+| Kind   | Offered when                                                                                                                                                                      |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `open` | Active players (slot not IR / taxi) < the roster size (Sleeper `roster_positions` minus IR / taxi), or the size is unknown. Then it is the only option.                           |
+| `ir`   | An IR slot is free (`irSlots` > players in the IR slot) and the player's injury status is in `irStatuses` (`IR` always). Lineup-wise identical to a drop; he stays on the roster. |
+| `drop` | Every active player.                                                                                                                                                              |
+
+**The search** (per free agent, exact): skip him when he can't enter my lineup in any window week (then no release gives Δ > 0); solve the roster with him added; a release whose player doesn't start in that solve costs nothing; a starter's release re-solves a week only when the add can still enter my lineup without him. The three shortcuts are checked against brute force by a property test. Real league (v0.16.0 check): 223 ms for all ~550 free agents.
+
+**Tie order** among equal Δ: `open` → `ir` → the drop with the least upside — lowest FantasyCalc value (none = 0), then worst FantasyPros overall ROS rank (unranked worst), then fewest `rosPoints`, then name.
+
+**Lists** (`WaiverAdds`):
+
+| List               | Rule                                                                                                                                                                                                                                                                                                 |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Improves my lineup | Best option's Δ ≥ `LINEUP_MIN_DELTA` over the window; sorted by Δ, this week's Δ, name; `WAIVER_MAX` rows. Each row: Δ, Δ/week, this week's Δ, start weeks, every release option.                                                                                                                    |
+| Stash              | Free agents on an NFL team, not Inactive, best Δ below `LINEUP_MIN_DELTA`, with a market value, a trending count or a ROS rank. Shortlist = top `WAIVER_MAX` by each signal (so any sort shows a full list); default order market, trending, name. Cost = the best option's Δ, tagged _free_ at ≥ 0. |
+
+**Payload** — `WaiverAdds`: `season`, `currentWeek`, `lastWeek`, `weeks`; `lineup: AddRow[]` (`player`, `options` best first); `stash: StashRow[]` (plus `trending`); `waiverType`; `myWaiverPosition` (null when Sleeper sends none); `teamCount`; `trendingFetchedAt`. `AddOption`: `release`, `releasePlayer` (null for `open`), `delta`, `deltaPerWeek`, `thisWeekDelta`, `startWeeks`.
+
+**Data** — `trending_adds` holds the latest Sleeper trending fetch (`sleeper:trending:add`, every sync, non-fatal: a failure keeps the previous list); `ros_snapshots.market_value` / `trending_adds` keep the weekly history for a later backtest (a trending player is snapshotted even with nothing projected ahead); `teams.waiver_position`; `LeagueSettings.irSlots` / `irStatuses` from Sleeper `reserve_slots` / `reserve_allow_*`, editable on the Rules screen.
+
+**Where it is shown** — Waivers screen: header `Waiver priority {n} of {teams}` (priority leagues) and the window; _Improves my lineup_ table (Δ/week headline, window, this week, starts `wk 7, 9` or `12 of 15 wks`, release dropdown `Drop X · ±Δ` that re-reads the row from the chosen option); _Stash_ table (market, trending 24 h, ROS rank `RB34`, cost or _free_, release dropdown), sortable by the three signals, with the trending fetch time. Helpers: `lib/waiverView.ts`.
+
 ## Constants (single sources)
 
 | Where                                                           | Constants                                                                                                                                                                                                                    |
@@ -333,6 +362,8 @@ Players without a ROS rank keep their raw projections; the feed covers 99 % of r
 | `src/main/lineup/optimal.ts`, `src/main/sync/matchupsSync.ts`   | `CLOSE_CALL_PTS = 2`, `UNAVAILABLE_STATUSES` (`Out Doubtful IR PUP Sus COV NA DNR`), `QUESTIONABLE_STATUS`, `RESERVE_SLOTS = BN IR TAXI`; `MATCHUPS_PAST_FRESHNESS_MS = 30 d`                                                |
 | `src/main/trade/evaluate.ts`, `src/shared/rules.ts`             | `MARKET_FAIR = 0.90`, `CHANGED_PTS = 0.01`; `LAST_NFL_WEEK = 18` and `lastFantasyWeek(settings)` (the league window's end)                                                                                                   |
 | `src/main/trade/suggest.ts`                                     | `STANCES` (premium ≥ 1.0 / 1.00, fair > 0 / 0.85, overpay ≥ −1.0 / 0.70), `ACCEPT_LOSS_PER_WEEK = 1`, `DOMINANCE_PTS = 0.5`, `SUGGEST_MAX = 30`                                                                              |
+| `src/main/waiver/search.ts`, `src/shared/rules.ts`              | `LINEUP_MIN_DELTA = 0.5`, `WAIVER_MAX = 30`; `IR_STATUSES` (`IR PUP Out Doubtful Sus NA DNR COV`), `MAX_IR_SLOTS = 10`                                                                                                       |
+| `src/renderer/src/lib/waiverView.ts` (display only)             | `STASH_SHOWN = 30`, `STASH_SORTS` (market, trending 24 h, ROS rank)                                                                                                                                                          |
 
 ## Where each number is shown today (v0.12.0)
 
@@ -404,5 +435,9 @@ Not shown in the panel: `stdev`, `airYardsShare`, `overallRank`.
 | `src/renderer/src/lib/lineupView.ts`, `src/renderer/src/screens/LineupScreen.tsx`                                                 | Lineup view helpers (header, flags, swaps, close-call tooltip) and the screen.                                                                                     |
 | `src/main/trade/enter.ts`                                                                                                         | Reachable-slot closure over the flex chain and `canEnter` — the exact test behind the trade week skip.                                                             |
 | `src/main/trade/player.ts`, `src/main/trade/evaluate.ts`, `src/main/trade/pool.ts`                                                | `TradePlayer` rows and `starterWeeks`; `evaluateTrade` (`TradeError`, drops, market sums, week skip, verdict flags); `tradePool` for the pickers.                  |
-| `src/main/trade/suggest.ts`, `src/main/trade/fromDb.ts`, `src/main/trade/worker.ts`, `src/main/trade/runSuggest.ts`               | Suggestion search (their pool, the three shapes, stance / acceptance filters, prunes, dominance, ranking, cap) and the worker thread it runs in.                   |
+| `src/main/trade/suggest.ts`, `src/main/trade/fromDb.ts`                                                                           | Suggestion search (their pool, the three shapes, stance / acceptance filters, prunes, dominance, ranking, cap) and its DB entry for the engine worker.             |
+| `src/main/engine/{jobs,worker,runEngine,lineupFromDb}.ts`                                                                         | The engine worker (v0.16.0): one worker thread per trade-suggestion or waiver job, rebuilt from the DB (`out/main/engineWorker.js`).                               |
+| `src/main/waiver/{release,search,stash,adds,fromDb}.ts`                                                                           | Waivers: release candidates and tie order, the exact add search, the stash shortlist, the `WaiverAdds` payload.                                                    |
+| `src/main/sync/trendingSync.ts`, `src/main/db/repos/trending.ts`                                                                  | Sleeper trending adds: the sync step and latest-fetch storage.                                                                                                     |
 | `src/renderer/src/lib/tradeView.ts`, `src/renderer/src/screens/TradeScreen.tsx`                                                   | Trade view helpers (window label, delta / range / market lines, picker text, badges, suggestion rows) and the Trade screen (builder + verdict card + suggestions). |
+| `src/renderer/src/lib/waiverView.ts`, `src/renderer/src/screens/WaiverScreen.tsx`                                                 | Waiver view helpers (release labels, start weeks, priority line, stash signals and sort) and the Waivers screen.                                                   |
