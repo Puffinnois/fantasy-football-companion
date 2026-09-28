@@ -1,5 +1,6 @@
 import { openDatabase, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
+import { replaceExpertRanks, ROS_WEEK } from '@main/db/repos/expertRanks'
 import { upsertLeague } from '@main/db/repos/leagues'
 import { replaceMarketValues } from '@main/db/repos/marketValues'
 import { listMatchups } from '@main/db/repos/matchups'
@@ -32,12 +33,19 @@ export interface SyntheticPlayer {
   slot?: RosterSlot
   /** FantasyCalc value; omitted / null = outside its list. */
   market?: number | null
+  /** Sleeper injury status (e.g. 'Out'); omitted = healthy. */
+  injuryStatus?: string
+  /** NFL team; free agents need one to be in the candidate pool, so they default to 'KC'. */
+  team?: string
+  /** FantasyPros ROS consensus (seeded as overall and positional rank); omitted = unranked. */
+  rank?: number
 }
 
 export interface SyntheticTeam {
   rosterId: number
   name: string
   isMe?: boolean
+  waiverPosition?: number
   players: SyntheticPlayer[]
 }
 
@@ -49,6 +57,8 @@ export interface SyntheticLeague {
   rosterPositions: string[]
   rules?: Rules
   teams: SyntheticTeam[]
+  /** Slice 6c: players on no roster — the value pool's free agents. */
+  freeAgents?: SyntheticPlayer[]
 }
 
 /**
@@ -123,6 +133,80 @@ export const SMALL_LEAGUE: SyntheticLeague = {
   ]
 }
 
+/**
+ * Slice 6c engine fixture: slots RB · WR · FLEX (+1 bench), roster size 4, window weeks 16–17.
+ * My optimal lineup is 42 a week (RB A20 · WR B10 · FLEX C12); D never starts.
+ *
+ * | Me (1)        | Rival (2)  | Free agents (team KC)            |
+ * | ------------- | ---------- | -------------------------------- |
+ * | A RB 20 5000  | R1 WR 30   | X WR 11 (800)                    |
+ * | C RB 12 2000  | R2 RB 30   | Y RB 3 in wk 16, 25 in wk 17     |
+ * | B WR 10 1500  |            | Z WR 4 (700)                     |
+ * | D WR 5 300    |            | K TE 9 (900)                     |
+ * |               |            | W RB 2, ROS rank 5               |
+ * |               |            | Q QB 30 (no QB slot, no signal)  |
+ *
+ * By hand (Δ over the two weeks, options best first):
+ *   X → drop D +2 · drop B +2 · drop C −2 · drop A −18   (starts 16, 17; this week +1)
+ *   Y → drop D +13 · drop C +6 · drop B +3 · drop A −10  (starts 17; this week 0 / −7 / −5 / −15)
+ *   Z, K, W, Q can't start for me in either week → skipped by the lineup search.
+ *   Stash in market order: K [D 0 · C −6 · B −10 · A −22], Z [D 0 · B −10 · C −14 · A −30],
+ *   W [D 0 · B −10 · C −14 · A −30].
+ */
+export const WAIVER_LEAGUE: SyntheticLeague = {
+  currentWeek: 16,
+  weeks: [16, 17],
+  rosterPositions: ['RB', 'WR', 'FLEX', 'BN'],
+  rules: rules({
+    rosterSlots: [
+      { slot: 'RB', count: 1 },
+      { slot: 'WR', count: 1 },
+      { slot: 'FLEX', count: 1 },
+      { slot: 'BN', count: 1 }
+    ],
+    settings: { numTeams: 2, waiverType: 'priority', playoffStartWeek: 15, playoffTeams: 6 }
+  }),
+  teams: [
+    {
+      rosterId: 1,
+      name: 'Me',
+      isMe: true,
+      waiverPosition: 2,
+      players: [
+        { id: 'A', position: 'RB', weekly: 20, market: 5000 },
+        { id: 'C', position: 'RB', weekly: 12, market: 2000 },
+        { id: 'B', position: 'WR', weekly: 10, market: 1500 },
+        { id: 'D', position: 'WR', weekly: 5, market: 300 }
+      ]
+    },
+    {
+      rosterId: 2,
+      name: 'Rival',
+      waiverPosition: 1,
+      players: [
+        { id: 'R1', position: 'WR', weekly: 30 },
+        { id: 'R2', position: 'RB', weekly: 30 }
+      ]
+    }
+  ],
+  freeAgents: [
+    { id: 'X', position: 'WR', weekly: 11, market: 800 },
+    { id: 'Y', position: 'RB', weekly: [3, 25] },
+    { id: 'Z', position: 'WR', weekly: 4, market: 700 },
+    { id: 'K', position: 'TE', weekly: 9, market: 900 },
+    { id: 'W', position: 'RB', weekly: 2, rank: 5 },
+    { id: 'Q', position: 'QB', weekly: 30 }
+  ]
+}
+
+/** `WAIVER_LEAGUE` with my roster replaced — the release variants of the engine tests. */
+export function waiverLeagueWith(mine: SyntheticPlayer[]): SyntheticLeague {
+  return {
+    ...WAIVER_LEAGUE,
+    teams: WAIVER_LEAGUE.teams.map((t) => (t.isMe ? { ...t, players: mine } : t))
+  }
+}
+
 function team(t: SyntheticTeam): Team {
   return {
     leagueId: 'L1',
@@ -136,7 +220,8 @@ function team(t: SyntheticTeam): Team {
     ties: 0,
     fpts: 0,
     fptsAgainst: 0,
-    isMe: t.isMe ?? false
+    isMe: t.isMe ?? false,
+    waiverPosition: t.waiverPosition ?? null
   }
 }
 
@@ -148,9 +233,9 @@ function playerRecord(p: SyntheticPlayer): PlayerRecord {
     lastName: null,
     position: p.position,
     fantasyPositions: [p.position],
-    team: null,
+    team: p.team ?? null,
     status: 'Active',
-    injuryStatus: null,
+    injuryStatus: p.injuryStatus ?? null,
     injuryBodyPart: null,
     injuryNotes: null,
     age: null,
@@ -202,7 +287,8 @@ export function syntheticBuild(
     ),
     SEED_TS
   )
-  const players = league.teams.flatMap((t) => t.players)
+  const freeAgents = (league.freeAgents ?? []).map((p) => ({ ...p, team: p.team ?? 'KC' }))
+  const players = [...league.teams.flatMap((t) => t.players), ...freeAgents]
   upsertPlayers(db, players.map(playerRecord), SEED_TS)
   league.weeks.forEach((week, i) => {
     replaceProjections(
@@ -232,6 +318,26 @@ export function syntheticBuild(
       posRank: i + 1,
       tier: null,
       trend30d: 0
+    })),
+    SEED_TS
+  )
+  const ranked = players.filter((p) => typeof p.rank === 'number')
+  replaceExpertRanks(
+    db,
+    SEASON,
+    ROS_WEEK,
+    'PPR',
+    ranked.map((p) => ({
+      playerId: p.id,
+      rankEcr: p.rank as number,
+      posRank: p.rank as number,
+      rankAve: null,
+      rankStd: null,
+      rankMin: null,
+      rankMax: null,
+      experts: 10,
+      grade: null,
+      projPts: null
     })),
     SEED_TS
   )
@@ -286,9 +392,10 @@ const RANGES: Record<string, [number, number]> = {
 /**
  * Spec 6b §6 budget league: `teamCount` teams × 16 players (2 QB, 5 RB, 5 WR, 2 TE, K, DEF), the
  * default 12-team PPR slots, a 16-spot roster, window weeks 3–17 with ±30 % weekly jitter, and a
- * FantasyCalc value for players in the upper half of their position's range.
+ * FantasyCalc value for players in the upper half of their position's range; plus `freeAgents`
+ * unrostered players from the lower 60 % of each range.
  */
-export function generateLeague(seed: number, teamCount = 16): SyntheticLeague {
+export function generateLeague(seed: number, teamCount = 16, freeAgents = 0): SyntheticLeague {
   const r = rng(seed)
   const currentWeek = 3
   const weeks = Array.from({ length: 15 }, (_, i) => currentWeek + i)
@@ -309,6 +416,19 @@ export function generateLeague(seed: number, teamCount = 16): SyntheticLeague {
       }
     })
   }))
+  // Slice 6c: the leftovers — drawn from the lower 60 % of each position's range.
+  const pool = Array.from({ length: freeAgents }, (_, i): SyntheticPlayer => {
+    const position = SHAPE[i % SHAPE.length]
+    const [lo, hi] = RANGES[position]
+    const mean = lo + (hi - lo) * 0.6 * r()
+    return {
+      id: `fa${i + 1}`,
+      position,
+      team: 'KC',
+      weekly: weeks.map(() => Math.round(mean * (0.7 + 0.6 * r()) * 10) / 10),
+      market: null
+    }
+  })
   return {
     currentWeek,
     weeks,
@@ -330,6 +450,7 @@ export function generateLeague(seed: number, teamCount = 16): SyntheticLeague {
       'BN',
       'BN'
     ],
-    teams
+    teams,
+    freeAgents: pool
   }
 }

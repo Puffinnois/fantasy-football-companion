@@ -14,6 +14,7 @@ export function team(over: Partial<Team> = {}): Team {
     ties: 0,
     fpts: 0,
     fptsAgainst: 0,
+    waiverPosition: null,
     isMe: false,
     ...over
   }

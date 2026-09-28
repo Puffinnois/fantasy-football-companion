@@ -86,7 +86,8 @@ export const rosters: SleeperRoster[] = [
       fpts: 131,
       fpts_decimal: 42,
       fpts_against: 98,
-      fpts_against_decimal: 6
+      fpts_against_decimal: 6,
+      waiver_position: 3
     }
   },
   {

@@ -56,7 +56,7 @@ export function requireWindow(build: LineupBuild): number[] {
   if (weeks.length === 0) {
     throw new TradeError(
       'NO_PROJECTIONS',
-      'No projections stored for this season — trades are valued on the remaining weeks'
+      'No projections stored for this season — trades and waivers are valued on the remaining weeks'
     )
   }
   return weeks
@@ -88,7 +88,7 @@ function resolve(roster: PlayerSeries[], ids: string[], owner: string): PlayerSe
   })
 }
 
-function isStarter(week: TeamWeek, id: string): boolean {
+export function isStarter(week: TeamWeek, id: string): boolean {
   return week.optimal.some((p) => p.player?.id === id)
 }
 

@@ -33,6 +33,7 @@ export interface SleeperRosterSettings {
   fpts_decimal?: number
   fpts_against?: number
   fpts_against_decimal?: number
+  waiver_position?: number
 }
 
 export interface SleeperRoster {
@@ -100,4 +101,10 @@ export interface SleeperProjection {
   team: string | null
   opponent: string | null
   stats: Record<string, number> | null
+}
+
+/** `GET /players/nfl/trending/add`: most-added players across all Sleeper leagues over the lookback. */
+export interface SleeperTrendingPlayer {
+  player_id: string
+  count: number
 }

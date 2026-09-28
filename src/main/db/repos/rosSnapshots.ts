@@ -17,6 +17,10 @@ export interface RosSnapshotRecord {
   rankMin: number | null
   rankMax: number | null
   experts: number | null
+  /** FantasyCalc value at snapshot time (slice 6c spec §5.2); null outside its list. */
+  marketValue: number | null
+  /** Sleeper adds over the 24 h before the snapshot; null when not trending. */
+  trendingAdds: number | null
 }
 
 export interface RosSnapshotRow extends RosSnapshotRecord {
@@ -38,6 +42,8 @@ interface Row {
   rank_min: number | null
   rank_max: number | null
   experts: number | null
+  market_value: number | null
+  trending_adds: number | null
   taken_at: string
 }
 
@@ -52,8 +58,9 @@ export function replaceRosSnapshot(
   db.prepare('DELETE FROM ros_snapshots WHERE season = ? AND week = ?').run(season, week)
   const insert = db.prepare(
     `INSERT INTO ros_snapshots (season, week, player_id, position, scoring, raw_ros, corrected_ros, factor,
-       capped, shelved, pos_rank, rank_ecr, rank_std, rank_min, rank_max, experts, taken_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       capped, shelved, pos_rank, rank_ecr, rank_std, rank_min, rank_max, experts, market_value,
+       trending_adds, taken_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
   for (const r of records) {
     insert.run(
@@ -73,6 +80,8 @@ export function replaceRosSnapshot(
       r.rankMin,
       r.rankMax,
       r.experts,
+      r.marketValue,
+      r.trendingAdds,
       takenAt
     )
   }
@@ -98,6 +107,8 @@ export function listRosSnapshot(db: Db, season: number, week: number): RosSnapsh
     rankMin: r.rank_min,
     rankMax: r.rank_max,
     experts: r.experts,
+    marketValue: r.market_value,
+    trendingAdds: r.trending_adds,
     takenAt: r.taken_at
   }))
 }

@@ -36,6 +36,7 @@ function fakeClient(overrides: Partial<SleeperClient> = {}): SleeperClient {
       week === 1 ? fx.projections : []
     ),
     getMatchups: vi.fn(async (_leagueId: string, week: number) => fx.matchups(week)),
+    getTrendingAdds: vi.fn(async () => []),
     ...overrides
   }
 }

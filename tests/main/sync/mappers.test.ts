@@ -54,6 +54,11 @@ describe('mappers', () => {
     })
   })
 
+  it('maps the waiver position, null when Sleeper sends none', () => {
+    const teams = mapTeams('L1', fx.rosters, fx.users, 'u1')
+    expect(teams.map((t) => t.waiverPosition)).toEqual([3, null])
+  })
+
   it('falls back when the owner is unknown and myUserId is null', () => {
     const teams = mapTeams(
       'L1',
@@ -140,6 +145,30 @@ describe('mappers', () => {
         'T'
       )
       expect(rules.settings.playoffRoundType).toBe(1)
+    })
+
+    it('maps IR slots and the statuses the league allows on IR', () => {
+      const rules = mapRules(
+        {
+          ...fx.league,
+          settings: {
+            ...fx.league.settings,
+            reserve_slots: 2,
+            reserve_allow_out: 1,
+            reserve_allow_doubtful: 0,
+            reserve_allow_cov: 1
+          }
+        },
+        'T'
+      )
+      expect(rules.settings.irSlots).toBe(2)
+      expect(rules.settings.irStatuses).toEqual(['IR', 'Out', 'COV'])
+    })
+
+    it('leaves IR unset when Sleeper sends no reserve slots', () => {
+      const rules = mapRules(fx.league, 'T')
+      expect(rules.settings.irSlots).toBeUndefined()
+      expect(rules.settings.irStatuses).toBeUndefined()
     })
 
     it('rounds float noise and keeps unknown keys', () => {

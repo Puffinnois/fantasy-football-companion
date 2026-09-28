@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   addableKeys,
   addableSlots,
+  irStatusesOf,
   isOverridable,
   scoringGroups,
+  toggleIrStatus,
   unsupportedKeys
 } from '@/lib/rulesView'
 
@@ -46,5 +48,22 @@ describe('rulesView', () => {
     expect(isOverridable('bonus')).toBe(true)
     expect(isOverridable('kicking')).toBe(false)
     expect(isOverridable('defense')).toBe(false)
+  })
+})
+
+describe('IR statuses (slice 6c spec §5.4)', () => {
+  it('always includes IR', () => {
+    expect(irStatusesOf({ numTeams: 12, waiverType: 'priority' })).toEqual(['IR'])
+    expect(
+      irStatusesOf({ numTeams: 12, waiverType: 'priority', irStatuses: ['Out', 'IR'] })
+    ).toEqual(['IR', 'Out'])
+  })
+
+  it('toggles a status in canonical order and never removes IR', () => {
+    expect(toggleIrStatus(['IR'], 'COV')).toEqual(['IR', 'COV'])
+    expect(toggleIrStatus(['IR', 'COV'], 'Out')).toEqual(['IR', 'Out', 'COV'])
+    expect(toggleIrStatus(['IR', 'Out'], 'Out')).toEqual(['IR'])
+    expect(toggleIrStatus(['IR'], 'IR')).toEqual(['IR'])
+    expect(toggleIrStatus(undefined, 'PUP')).toEqual(['IR', 'PUP'])
   })
 })
