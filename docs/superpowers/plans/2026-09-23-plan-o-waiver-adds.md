@@ -1,5 +1,7 @@
 # Plan O — Waiver adds and stash (slice 6c, phase 1)
 
+**Status:** complete — executed inline on 2026-09-23, merged and released as `v0.16.0`. No deviations from the plan's code. Measured: the pruned search equals brute force on three generated leagues (IR moves included); budget 859 ms for 16 teams + 550 free agents (limit 3 s); real league 223 ms for waiver adds (+234 ms to build the lineup data), 30 lineup adds / 40 stash candidates, every best release the bench WR who barely starts, no IR move (the only injured starter is `NA`, which the league does not allow on IR); the bundled `engineWorker.js` ran against a migrated copy of the real DB in plain Node (507 ms). **Not verified:** the Waivers screen and the Rules IR fields were not clicked through in a running app (WSLg), and the renamed worker inside a packaged asar is untested — if it fails there, add `out/main/engineWorker.js` to `asarUnpack` in `electron-builder.yml`. Waiver priority and IR settings appear after the next sync (the dev DB copy predates them).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A **Waivers** screen whose rest-of-season mode lists the free agents that raise my team strength (*Improves my lineup*) and the ones with upside the lineup can't see yet (*Stash*), each with the exact best way to make room (open spot, IR move or drop) and an override dropdown; plus the data it needs (IR settings, waiver priority, Sleeper trending adds, signal snapshots); ship `v0.16.0`.
@@ -36,7 +38,7 @@
 
 **Files:** none.
 
-- [ ] **Step 1:** `git checkout -b feat/waiver-adds` from `main` (clean, at `0a67ee9` or later).
+- [x] **Step 1:** `git checkout -b feat/waiver-adds` from `main` (clean, at `0a67ee9` or later).
 
 ---
 
@@ -53,7 +55,7 @@
 
 - Produces: `IR_STATUSES` (`readonly ['IR', 'PUP', 'Out', 'Doubtful', 'Sus', 'NA', 'DNR', 'COV']`), `MAX_IR_SLOTS = 10`, `canonicalIrStatuses(statuses: readonly string[] | undefined): string[]`, `LeagueSettings.irSlots?: number`, `LeagueSettings.irStatuses?: string[]`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/main/sync/mappers.test.ts`, inside `describe('mapRules', …)`:
 
@@ -105,12 +107,12 @@ In `tests/main/scoring/normalize.test.ts`:
   })
 ```
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
 Run: `npx vitest run tests/main/sync/mappers.test.ts tests/main/scoring/normalize.test.ts`
 Expected: FAIL — `irSlots` undefined / no throw.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/shared/rules.ts` — add to `LeagueSettings` (after `playoffRoundType`):
 
@@ -174,12 +176,12 @@ and in `mapRules`, after the `playoff_round_type` line:
   }
 ```
 
-- [ ] **Step 4: Run the tests, then the full check**
+- [x] **Step 4: Run the tests, then the full check**
 
 Run: `npx vitest run tests/main/sync/mappers.test.ts tests/main/scoring/normalize.test.ts` → PASS.
 Run: `npm run typecheck && npm run lint && npm test` → green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/shared/rules.ts src/main/sync/mappers.ts src/main/scoring/normalize.ts tests/main/sync/mappers.test.ts tests/main/scoring/normalize.test.ts
@@ -205,7 +207,7 @@ git commit -m "feat(rules): map IR slots and IR-eligible statuses"
 
 - Produces: `Team.waiverPosition: number | null`; tables `trending_adds(player_id, count, fetched_at)`, columns `ros_snapshots.market_value`, `ros_snapshots.trending_adds`, `teams.waiver_position`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/main/db/migrate.test.ts`: change the three `8`s (`expect(version).toBe(8)`, `expect(row.n).toBe(8)`, `expect(migrate(db)).toBe(8)`) to `9` and add `'trending_adds'` to the `expect.arrayContaining([...])` table list.
 
@@ -233,12 +235,12 @@ git commit -m "feat(rules): map IR slots and IR-eligible statuses"
 
 `tests/fixtures/league.ts` `team()` and `tests/fixtures/synthetic.ts` `team()`: add `waiverPosition: null` (the synthetic one becomes `waiverPosition: t.waiverPosition ?? null` in Task 5).
 
-- [ ] **Step 2: Run to see the failures**
+- [x] **Step 2: Run to see the failures**
 
 Run: `npx vitest run tests/main/db tests/main/sync/mappers.test.ts`
 Expected: FAIL — version 8, `waiverPosition` undefined, typecheck-level errors on the new field.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/main/db/migrations/009_waivers.sql`:
 
@@ -281,12 +283,12 @@ ALTER TABLE teams ADD COLUMN waiver_position INTEGER;
 
 with `t.waiverPosition,` passed after `t.isMe ? 1 : 0,`; `listTeams` maps `waiverPosition: r.waiver_position`.
 
-- [ ] **Step 4: Run the tests, then the full check**
+- [x] **Step 4: Run the tests, then the full check**
 
 Run: `npx vitest run tests/main/db tests/main/sync` → PASS.
 Run: `npm run typecheck && npm run lint && npm test` → green (every other `Team` literal is built through the three fixtures above; fix any the typecheck names the same way).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/db/migrations src/shared/types.ts src/main/sources/sleeper-types.ts src/main/sync/mappers.ts src/main/db/repos/teams.ts tests/
@@ -311,7 +313,7 @@ git commit -m "feat(db): add migration 009 and waiver position"
 - Consumes: `runStep`, `nowOf`, `SyncDeps` (`@main/sync/step`); `withTransaction` (`@main/db/connection`); table `trending_adds` (Task 2).
 - Produces: `SleeperTrendingPlayer { player_id: string; count: number }`; `SleeperClient.getTrendingAdds(): Promise<SleeperTrendingPlayer[]>`; `TrendingRecord { playerId: string; count: number }`; `replaceTrendingAdds(db, records, fetchedAt): number`; `listTrendingAdds(db): Map<string, number>`; `trendingFetchedAt(db): string | null`; `SOURCE_TRENDING = 'sleeper:trending:add'`; `mapTrending(items): TrendingRecord[]`; `refreshTrending(deps: SyncDeps): Promise<SyncResult>`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/main/sources/sleeper.test.ts`, inside `describe('createSleeperClient', …)`:
 
@@ -418,12 +420,12 @@ describe('refreshTrending (slice 6c spec §5.1)', () => {
 
 `tests/main/sync/sleeperSync.test.ts` `fakeClient`: add `getTrendingAdds: vi.fn(async () => []),`.
 
-- [ ] **Step 2: Run to see the failures**
+- [x] **Step 2: Run to see the failures**
 
 Run: `npx vitest run tests/main/sources/sleeper.test.ts tests/main/sync`
 Expected: FAIL — `getTrendingAdds` / `trendingSync` do not exist.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/main/sources/sleeper-types.ts`:
 
@@ -538,12 +540,12 @@ export async function refreshTrending(deps: SyncDeps): Promise<SyncResult> {
 
 and return `steps: [...sleeper.steps, ...nflverse.steps, ...experts.steps, ...trending.steps, ...snapshot.steps]`. Update the `refreshAll` doc comment: "…then the expert layer (it needs the crosswalk), then trending adds and the weekly snapshot that records them."
 
-- [ ] **Step 4: Run the tests, then the full check**
+- [x] **Step 4: Run the tests, then the full check**
 
 Run: `npx vitest run tests/main/sources/sleeper.test.ts tests/main/sync` → PASS.
 Run: `npm run typecheck && npm run lint && npm test` → green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/sources src/main/db/repos/trending.ts src/main/sync/trendingSync.ts src/main/sync/refresh.ts tests/main/sources tests/main/sync
@@ -565,7 +567,7 @@ git commit -m "feat(sync): fetch Sleeper trending adds"
 - Consumes: `listTrendingAdds` (Task 3), `listMarketValues` (`@main/db/repos/marketValues`).
 - Produces: `RosSnapshotRecord.marketValue: number | null`, `RosSnapshotRecord.trendingAdds: number | null`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/main/value/snapshot.test.ts` (import `replaceMarketValues` from `@main/db/repos/marketValues` and `replaceTrendingAdds` from `@main/db/repos/trending`):
 
@@ -602,12 +604,12 @@ In `tests/main/value/snapshot.test.ts` (import `replaceMarketValues` from `@main
   })
 ```
 
-- [ ] **Step 2: Run to see the failures**
+- [x] **Step 2: Run to see the failures**
 
 Run: `npx vitest run tests/main/value/snapshot.test.ts`
 Expected: FAIL — `marketValue` / `trendingAdds` missing.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/main/db/repos/rosSnapshots.ts`: `RosSnapshotRecord` gains
 
@@ -655,12 +657,12 @@ export function buildRosSnapshot(db: Db, leagueId: string, season: number): RosS
 
 Update the function's doc comment: "…the consensus rank with its spread, and (slice 6c) the market value and trending adds. Players with nothing projected ahead, no rank and no trending adds are left out."
 
-- [ ] **Step 4: Run the tests, then the full check**
+- [x] **Step 4: Run the tests, then the full check**
 
 Run: `npx vitest run tests/main/value/snapshot.test.ts tests/main/sync/snapshotSync.test.ts` → PASS (the round-trip test now carries the two fields through the repo).
 Run: `npm run typecheck && npm run lint && npm test` → green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/db/repos/rosSnapshots.ts src/main/value/snapshot.ts tests/main/value/snapshot.test.ts
@@ -686,7 +688,7 @@ git commit -m "feat(snapshot): record market value and trending adds"
 - Produces (`@main/waiver/release`): `ReleaseCandidate { release: WaiverRelease; series: PlayerSeries | null }`; `IrSettings = Pick<LeagueSettings, 'irSlots' | 'irStatuses'>`; `releaseCandidates(build: LineupBuild, roster: PlayerSeries[], ir: IrSettings): ReleaseCandidate[]`; `applyRelease(roster: PlayerSeries[], r: ReleaseCandidate): PlayerSeries[]`; `compareReleases(build: LineupBuild, a: ReleaseCandidate, b: ReleaseCandidate): number`.
 - Produces (fixtures): `SyntheticPlayer.injuryStatus? / team? / rank?`, `SyntheticTeam.waiverPosition?`, `SyntheticLeague.freeAgents?`, `WAIVER_LEAGUE`, `generateLeague(seed, teamCount = 16, freeAgents = 0)`.
 
-- [ ] **Step 1: Shared types**
+- [x] **Step 1: Shared types**
 
 `src/shared/types.ts` — at the top: `import type { WaiverType } from './rules'` (a type-only cycle with `rules.ts`, which is fine). After `TradeSuggestion`:
 
@@ -744,7 +746,7 @@ export interface WaiverAdds {
 
 `src/main/trade/evaluate.ts`: `export function isStarter(week: TeamWeek, id: string): boolean` (was private), and `requireWindow`'s message becomes `'No projections stored for this season — trades and waivers are valued on the remaining weeks'`.
 
-- [ ] **Step 2: Synthetic fixture — free agents and `WAIVER_LEAGUE`**
+- [x] **Step 2: Synthetic fixture — free agents and `WAIVER_LEAGUE`**
 
 `tests/fixtures/synthetic.ts`:
 
@@ -912,7 +914,7 @@ export function waiverLeagueWith(mine: SyntheticPlayer[]): SyntheticLeague {
 
 and return `freeAgents: pool` in the league object. Update its doc comment: "…and `freeAgents` unrostered players from the lower 60 % of each range."
 
-- [ ] **Step 3: Write the failing release tests**
+- [x] **Step 3: Write the failing release tests**
 
 `tests/main/waiver/release.test.ts`:
 
@@ -1050,12 +1052,12 @@ describe('release tie order (spec §2.3 step 4)', () => {
 })
 ```
 
-- [ ] **Step 4: Run to see them fail**
+- [x] **Step 4: Run to see them fail**
 
 Run: `npx vitest run tests/main/waiver/release.test.ts`
 Expected: FAIL — `@main/waiver/release` does not exist.
 
-- [ ] **Step 5: Implement `src/main/waiver/release.ts`**
+- [x] **Step 5: Implement `src/main/waiver/release.ts`**
 
 ```ts
 import type { LineupBuild } from '@main/lineup/build'
@@ -1139,12 +1141,12 @@ export function compareReleases(
 }
 ```
 
-- [ ] **Step 6: Run the tests, then the full check**
+- [x] **Step 6: Run the tests, then the full check**
 
 Run: `npx vitest run tests/main/waiver/release.test.ts` → PASS.
 Run: `npm run typecheck && npm run lint && npm test` → green (Plan M's trade tests still pass: `generateLeague`'s teams are unchanged).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/shared/types.ts src/main/trade/evaluate.ts src/main/waiver/release.ts tests/fixtures/synthetic.ts tests/main/waiver/release.test.ts
@@ -1165,7 +1167,7 @@ git commit -m "feat(waiver): add release candidates and tie order"
 - Consumes: `candidateFor`, `rosterWeek`, `teamWeek`, `LineupBuild`, `TeamWeek` (`@main/lineup/build`); `canEnter` (`@main/trade/enter`); `isStarter`, `myTeam`, `requireWindow` (`@main/trade/evaluate`); `starterWeeks`, `tradePlayer` (`@main/trade/player`); Task 5's release module.
 - Produces: `LINEUP_MIN_DELTA = 0.5`, `WAIVER_MAX = 30`; `SearchOptions { skip?: boolean }`; `WaiverContext`; `ScoredAdd { series: PlayerSeries; options: AddOption[] }`; `waiverContext(build: LineupBuild, ir: IrSettings): WaiverContext`; `freeAgents(build: LineupBuild): PlayerSeries[]`; `canHelp(ctx, add): boolean`; `scoreAdd(ctx, add, opts?): AddOption[]`; `scoreFreeAgents(ctx, opts?): ScoredAdd[]`; `lineupRows(ctx, scored, max = WAIVER_MAX): AddRow[]`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/main/waiver/search.test.ts`:
 
@@ -1302,12 +1304,12 @@ describe('waiver add search (slice 6c spec §2.3–2.4)', () => {
 })
 ```
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `npx vitest run tests/main/waiver/search.test.ts`
 Expected: FAIL — `@main/waiver/search` does not exist.
 
-- [ ] **Step 3: Implement `src/main/waiver/search.ts`**
+- [x] **Step 3: Implement `src/main/waiver/search.ts`**
 
 ```ts
 import { round2 } from '@main/db/repos/points'
@@ -1494,12 +1496,12 @@ export function lineupRows(ctx: WaiverContext, scored: ScoredAdd[], max = WAIVER
 }
 ```
 
-- [ ] **Step 4: Run the tests, then the full check**
+- [x] **Step 4: Run the tests, then the full check**
 
 Run: `npx vitest run tests/main/waiver` → PASS. If a hand-computed number differs, recompute it from the fixture table before touching the code — the table is the spec for this fixture.
 Run: `npm run typecheck && npm run lint && npm test` → green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/waiver/search.ts tests/main/waiver/search.test.ts
@@ -1520,7 +1522,7 @@ git commit -m "feat(waiver): add the exact add search"
 - Consumes: Task 6 (`freeAgents`, `scoreAdd`, `scoreFreeAgents`, `lineupRows`, `waiverContext`, `LINEUP_MIN_DELTA`, `WAIVER_MAX`, `ScoredAdd`, `WaiverContext`).
 - Produces: `stashRows(ctx: WaiverContext, scored: ScoredAdd[], trending: Map<string, number>, max = WAIVER_MAX): StashRow[]`; `WaiverExtras { settings: Pick<LeagueSettings, 'waiverType' | 'irSlots' | 'irStatuses'>; trending: Map<string, number>; trendingFetchedAt: string | null }`; `waiverAdds(build: LineupBuild, extras: WaiverExtras): WaiverAdds`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/main/waiver/stash.test.ts`:
 
@@ -1605,12 +1607,12 @@ describe('waiverAdds (spec §6)', () => {
 })
 ```
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `npx vitest run tests/main/waiver/stash.test.ts`
 Expected: FAIL — modules missing.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/main/waiver/stash.ts`:
 
@@ -1747,12 +1749,12 @@ export function waiverAdds(build: LineupBuild, extras: WaiverExtras): WaiverAdds
 }
 ```
 
-- [ ] **Step 4: Run the tests, then the full check**
+- [x] **Step 4: Run the tests, then the full check**
 
 Run: `npx vitest run tests/main/waiver` → PASS.
 Run: `npm run typecheck && npm run lint && npm test` → green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/waiver/stash.ts src/main/waiver/adds.ts tests/main/waiver/stash.test.ts
@@ -1772,7 +1774,7 @@ git commit -m "feat(waiver): add the stash list and adds payload"
 
 - Consumes: `generateLeague(seed, teamCount, freeAgents)` (Task 5), `scoreFreeAgents`, `lineupRows`, `waiverContext` (Task 6), `waiverAdds` (Task 7).
 
-- [ ] **Step 1: Write the property test**
+- [x] **Step 1: Write the property test**
 
 `tests/main/waiver/searchProperty.test.ts`:
 
@@ -1811,12 +1813,12 @@ describe('waiver search shortcuts are exact (slice 6c spec §10)', () => {
 })
 ```
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 Run: `npx vitest run tests/main/waiver/searchProperty.test.ts`
 Expected: PASS (a few seconds). If it fails, the failing seed and player id reproduce the case: fix the shortcut, never loosen the test.
 
-- [ ] **Step 3: Write the budget test**
+- [x] **Step 3: Write the budget test**
 
 `tests/main/waiver/waiverBudget.test.ts`:
 
@@ -1849,12 +1851,12 @@ describe.skipIf(!process.env.FFC_BUDGET)('waiver adds budget', () => {
 
 `package.json`: `"test:budget": "FFC_BUDGET=1 vitest run Budget"` (matches `suggestBudget` and `waiverBudget`).
 
-- [ ] **Step 4: Run the budget**
+- [x] **Step 4: Run the budget**
 
 Run: `npm run test:budget`
 Expected: both budget files PASS; note the printed times in the commit body. If the waiver time is over 3 s, **stop and report** the number with a profile of where it goes (oversized solves vs release re-solves) — do not raise the budget; the next exact prune is decided with the user, as in Plan M.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/main/waiver/searchProperty.test.ts tests/main/waiver/waiverBudget.test.ts package.json
@@ -1878,7 +1880,7 @@ git commit -m "test(waiver): add exactness property and budget"
 - Consumes: `suggestFromDb` (`@main/trade/fromDb`), `waiverAdds` (Task 7), `listTrendingAdds`, `trendingFetchedAt` (Task 3), `getRules`.
 - Produces: `lineupBuildFromDb(db: Db, leagueId: string, season: number): LineupBuild`; `waiverAddsFromDb(dbPath: string, leagueId: string, season: number): WaiverAdds`; `EngineJob = { kind: 'tradeSuggest'; query: TradeSuggestQuery } | { kind: 'waiverAdds'; season: number }`; `EngineResults { tradeSuggest: TradeSuggestion[]; waiverAdds: WaiverAdds }`; `EngineInput { dbPath; leagueId; job }`; `EngineOutput { result?: unknown; error?: string }`; `runJob(input: EngineInput): EngineResults[EngineJob['kind']]`; `runEngine<J extends EngineJob>(dbPath, leagueId, job: J): Promise<EngineResults[J['kind']]>`; `IPC.waiverAdds = 'waiver:adds'`; `Api.waiver.adds(season: number): Promise<WaiverAdds>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/main/engine/jobs.test.ts`:
 
@@ -1936,12 +1938,12 @@ describe('runJob (the engine worker body)', () => {
 })
 ```
 
-- [ ] **Step 2: Run to see it fail**
+- [x] **Step 2: Run to see it fail**
 
 Run: `npx vitest run tests/main/engine/jobs.test.ts`
 Expected: FAIL — `@main/engine/jobs` missing.
 
-- [ ] **Step 3: Implement the engine modules**
+- [x] **Step 3: Implement the engine modules**
 
 `src/main/engine/lineupFromDb.ts`:
 
@@ -2136,7 +2138,7 @@ export function runEngine<J extends EngineJob>(
         }
 ```
 
-- [ ] **Step 4: Wire the channel**
+- [x] **Step 4: Wire the channel**
 
 `src/shared/ipc.ts` — import `WaiverAdds`; in `Api` after `trade`:
 
@@ -2168,13 +2170,13 @@ and `waiverAdds: 'waiver:adds',` in `IPC` after `tradeSuggest`.
   })
 ```
 
-- [ ] **Step 5: Run the tests, the build, then the full check**
+- [x] **Step 5: Run the tests, the build, then the full check**
 
 Run: `npx vitest run tests/main/engine tests/main/trade` → PASS.
 Run: `npm run build && ls out/main` → shows `engineWorker.js` and no `tradeWorker.js`.
 Run: `npm run typecheck && npm run lint && npm test` → green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A src/main/engine src/main/trade src/main/waiver/fromDb.ts src/main/ipc/handlers.ts src/shared/ipc.ts src/preload/index.ts electron.vite.config.ts tests/main/engine
@@ -2196,7 +2198,7 @@ git commit -m "feat(ipc): run waiver adds in a shared engine worker"
 - Consumes: `fmtSigned`, `relativeTime` (`@/lib/format`); `fmtMarket` (`@/lib/tradeView`).
 - Produces: `NO_LINEUP_ADDS`, `NO_STASH`, `STASH_SHOWN = 30`, `StashSort = 'market' | 'trending' | 'rank'`, `STASH_SORTS: { key: StashSort; label: string }[]`, `releaseLabel(o)`, `optionLabel(o)`, `startsText(weeks, windowWeeks)`, `priorityLine(adds)`, `rosRankLabel(p)`, `trendingText(count)`, `isFree(o)`, `trendingNote(fetchedAt, now?)`, `sortStash(rows, by)`. Fixtures: `allgeier`, `miller`, `wright`, `harris`, `addOption(over)`, `addRow(over)`, `stashRow(over)`, `waiverAdds(over)`.
 
-- [ ] **Step 1: Fixtures**
+- [x] **Step 1: Fixtures**
 
 `tests/fixtures/waiver.ts`:
 
@@ -2274,7 +2276,7 @@ export function waiverAdds(over: Partial<WaiverAdds> = {}): WaiverAdds {
 }
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `tests/renderer/lib/waiverView.test.ts`:
 
@@ -2351,12 +2353,12 @@ describe('waiverView', () => {
 })
 ```
 
-- [ ] **Step 3: Run to see them fail**
+- [x] **Step 3: Run to see them fail**
 
 Run: `npx vitest run tests/renderer/lib/waiverView.test.ts`
 Expected: FAIL — module missing.
 
-- [ ] **Step 4: Implement `src/renderer/src/lib/waiverView.ts`**
+- [x] **Step 4: Implement `src/renderer/src/lib/waiverView.ts`**
 
 ```ts
 import { fmtSigned, relativeTime } from '@/lib/format'
@@ -2455,12 +2457,12 @@ export function sortStash(rows: StashRow[], by: StashSort): StashRow[] {
 }
 ```
 
-- [ ] **Step 5: Run the tests, then the full check**
+- [x] **Step 5: Run the tests, then the full check**
 
 Run: `npx vitest run tests/renderer/lib/waiverView.test.ts` → PASS.
 Run: `npm run typecheck && npm run lint && npm test` → green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/renderer/src/lib/waiverView.ts tests/fixtures/waiver.ts tests/renderer/lib/waiverView.test.ts
@@ -2482,7 +2484,7 @@ git commit -m "feat(ui): add waiver view helpers"
 - Consumes: `api.players.options`, `api.waiver.adds` (Task 9); Task 10's helpers; `windowLabel`, `deltaTone`, `fmtMarket` (`@/lib/tradeView`); `PlayerDetailPanel`, `PositionBadge`, `Card*`, `Table*`.
 - Produces: `WaiverScreen({ dataVersion }: { dataVersion: number })`; `Screen` gains `'waivers'`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/renderer/components/WaiverScreen.test.tsx`:
 
@@ -2591,12 +2593,12 @@ describe('WaiverScreen', () => {
 })
 ```
 
-- [ ] **Step 2: Run to see it fail**
+- [x] **Step 2: Run to see it fail**
 
 Run: `npx vitest run tests/renderer/components/WaiverScreen.test.tsx`
 Expected: FAIL — screen missing.
 
-- [ ] **Step 3: Implement `src/renderer/src/screens/WaiverScreen.tsx`**
+- [x] **Step 3: Implement `src/renderer/src/screens/WaiverScreen.tsx`**
 
 ```tsx
 import { useEffect, useState } from 'react'
@@ -2959,12 +2961,12 @@ export function WaiverScreen({ dataVersion }: WaiverScreenProps): React.JSX.Elem
           {screen === 'waivers' && <WaiverScreen dataVersion={dataVersion} />}
 ```
 
-- [ ] **Step 4: Run the tests, then the full check**
+- [x] **Step 4: Run the tests, then the full check**
 
 Run: `npx vitest run tests/renderer` → PASS (if the stash name query picks another button first, scope it: the player's name button is the first button in the row).
 Run: `npm run typecheck && npm run lint && npm test` → green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/renderer/src/screens/WaiverScreen.tsx src/renderer/src/components/Sidebar.tsx src/renderer/src/App.tsx tests/renderer/components/WaiverScreen.test.tsx
@@ -2985,7 +2987,7 @@ git commit -m "feat(ui): add the Waivers screen"
 - Consumes: `IR_STATUSES`, `canonicalIrStatuses`, `LeagueSettings` (`@shared/rules`, Task 1).
 - Produces: `irStatusesOf(settings: LeagueSettings): string[]`; `toggleIrStatus(current: string[] | undefined, status: string): string[]`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/renderer/lib/rulesView.test.ts` (import the two helpers):
 
@@ -3008,12 +3010,12 @@ describe('IR statuses (slice 6c spec §5.4)', () => {
 })
 ```
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `npx vitest run tests/renderer/lib/rulesView.test.ts`
 Expected: FAIL — helpers missing.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/renderer/src/lib/rulesView.ts` (import `canonicalIrStatuses` and `LeagueSettings` from `@shared/rules`):
 
@@ -3066,12 +3068,12 @@ export function toggleIrStatus(current: string[] | undefined, status: string): s
             </div>
 ```
 
-- [ ] **Step 4: Run the tests, then the full check**
+- [x] **Step 4: Run the tests, then the full check**
 
 Run: `npx vitest run tests/renderer/lib/rulesView.test.ts` → PASS.
 Run: `npm run typecheck && npm run lint && npm test` → green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/renderer/src/lib/rulesView.ts src/renderer/src/screens/RulesScreen.tsx tests/renderer/lib/rulesView.test.ts
@@ -3087,7 +3089,7 @@ git commit -m "feat(rules): edit IR slots and IR statuses"
 - Modify: `docs/reference/value-and-signals.md`
 - Modify: this plan (status block)
 
-- [ ] **Step 1: Data reference**
+- [x] **Step 1: Data reference**
 
 In `docs/reference/value-and-signals.md`, before `## Constants (single sources)`, add a `## Waivers (added in v0.16.0)` section covering, in the doc's existing table style:
 
@@ -3100,14 +3102,14 @@ In `docs/reference/value-and-signals.md`, before `## Constants (single sources)`
 
 Add `LINEUP_MIN_DELTA`, `WAIVER_MAX`, `STASH_SHOWN`, `IR_STATUSES`, `MAX_IR_SLOTS` to *Constants (single sources)* with their files, and `src/main/waiver/*`, `src/main/engine/*`, `src/renderer/src/lib/waiverView.ts`, `WaiverScreen.tsx` to *Module map*.
 
-- [ ] **Step 2: Commit the docs**
+- [x] **Step 2: Commit the docs**
 
 ```bash
 git add docs/reference/value-and-signals.md
 git commit -m "docs: document waiver recommendations"
 ```
 
-- [ ] **Step 3: Final verification and the real-data check**
+- [x] **Step 3: Final verification and the real-data check**
 
 Run: `npm run typecheck && npm run lint && npm test && npm run test:budget` — all green.
 
@@ -3115,7 +3117,7 @@ Then on a copy of the dev DB (`cp ~/.config/FantasyCompanion/companion.db <scrat
 
 Also run the app once (`npm run dev`, via the Bash tool's `run_in_background`) and open Waivers: both cards render, the release dropdown changes a row's numbers, a column header re-sorts the stash, the Rules screen shows *IR slots* and the status checkboxes. If WSLg can't show the window, say so in the status block rather than claiming it was checked.
 
-- [ ] **Step 4: Merge and release**
+- [x] **Step 4: Merge and release**
 
 ```bash
 git checkout main && git merge --no-ff feat/waiver-adds -m "merge: feat/waiver-adds (plan O)"
