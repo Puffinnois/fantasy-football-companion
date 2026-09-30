@@ -1,6 +1,6 @@
 # Plan Q — N-team deals and the builder (multi-team trades, phase 1)
 
-**Status:** not started.
+**Status:** complete — executed subagent-driven on 2026-09-30 (one implementer and one reviewer per task, a final whole-branch review on Opus), merged and released as `v0.18.0`. Deviations: open spots are matched to sides by `rosterId` (`spotFor`, added to Task 5 after the Task 2 review found that `proposalOf` can reorder a 3+-team deal's sides); the final review's fix wave added a read-only note on `SideMemo`, a memo-hit identity assertion and a 3-team drop / open-spot test. Every hand-computed number matched on the first run. The 2-team search returns byte-identical results to v0.17.0 on the synthetic 16-team league (151 suggestions over six queries); budgets unchanged (suggest one partner 807 ms, all teams 8.4–11.8 s, open spot 143 ms). Real league (copy of the dev DB, 16 teams, weeks 4–17): the cycle Ertz → CJRecord, Mims → Dak & The Gassy Gang, Tucker → me evaluates in 1.3 ms — me +0.43/wk, CJRecord 0, Dak −0.64/wk; every side's before equals its power-ranking total; my side equals the 2-team Ertz-for-Tucker side field by field; a variant where I also take Gainwell drops AJ Dillon on my side only and gives Dak the only open spot (Greg Dulcich +1.64/wk); one-partner suggestions 0.8–1.1 s (Plan M: 1.6 s). The dev app started on a scratch config (main, preload, renderer connected). **Not verified:** the N-team builder was not clicked through in a running window (WSLg), and the worker inside a packaged asar remains untested. Carried to Plan R: verdict column order vs the builder's card order, a per-run ownership map in `resolveDeal`, a guard against an in-flight evaluate landing on an edited deal, a screen test with a reordered open-spot answer, shared `selectClass` / `TONE`.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -37,7 +37,7 @@
 
 **Files:** none.
 
-- [ ] **Step 1: Create the branch from an up-to-date main**
+- [x] **Step 1: Create the branch from an up-to-date main**
 
 ```bash
 git checkout main && git status --short && git checkout -b feat/multi-team-deals
@@ -58,7 +58,7 @@ Expected: clean tree, on `feat/multi-team-deals`.
 
 - Produces: `DealMove { playerId: string; from: number; to: number }`; `dealTeams(moves: DealMove[]): number[]`; `dealProblem(teams: number[], moves: DealMove[], me: number, teamName: (rosterId: number) => string, playerName: (playerId: string) => string): string | null` — Task 2 (main) and Task 4 (builder) both call it.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/shared/deal.test.ts`:
 
@@ -113,12 +113,12 @@ describe('deal rules (multi-team spec §2.1)', () => {
 })
 ```
 
-- [ ] **Step 2: Run it to see it fail**
+- [x] **Step 2: Run it to see it fail**
 
 Run: `npx vitest run tests/shared/deal.test.ts`
 Expected: FAIL — `Failed to resolve import "@shared/deal"`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/shared/deal.ts`:
 
@@ -167,12 +167,12 @@ export function dealProblem(
 }
 ```
 
-- [ ] **Step 4: Run it to see it pass**
+- [x] **Step 4: Run it to see it pass**
 
 Run: `npx vitest run tests/shared/deal.test.ts`
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -203,7 +203,7 @@ The type switch: `TradeProposal` becomes moves, `TradeEvaluation` gets `sides`, 
 - Produces (main): `side.ts` — `SideOptions { skip?: boolean }`, `DealSide { team: Team; give: PlayerSeries[]; get: PlayerSeries[] }`, `SideCore = Omit<TradeSideResult, 'give'> & { give: TradePlayer[] }`, `StartsOf = (rosterId: number) => Map<string, number>`, `sideFor(build, side, weeks, size, startsOf, opts): SideCore`, `isStarter`, `marketSum`; `evaluate.ts` — `EvaluateOptions = SideOptions`, `ResolvedDeal { sides: DealSide[]; to: Map<string, number> }`, `resolveDeal(build, proposal): ResolvedDeal`; `player.ts` — `startsByRoster(build, weeks): StartsOf`.
 - Produces (tests): `tests/fixtures/trade.ts` — `outgoing(p, to)`, `incoming(p, from)`, `rivalSide(over)`; `tests/fixtures/synthetic.ts` — `CYCLE_LEAGUE`.
 
-- [ ] **Step 1: Write the failing tests — `twoTeam` / `proposalOf`**
+- [x] **Step 1: Write the failing tests — `twoTeam` / `proposalOf`**
 
 Append to `tests/shared/deal.test.ts` (and extend its imports to `import { dealProblem, dealTeams, proposalOf, twoTeam, type DealMove } from '@shared/deal'` plus `import { tradeEvaluation } from '../fixtures/trade'`):
 
@@ -228,7 +228,7 @@ describe('proposal helpers', () => {
 })
 ```
 
-- [ ] **Step 2: Write the failing tests — three-team evaluation**
+- [x] **Step 2: Write the failing tests — three-team evaluation**
 
 Add `CYCLE_LEAGUE` to `tests/fixtures/synthetic.ts`, after `SMALL_LEAGUE`:
 
@@ -392,12 +392,12 @@ describe('evaluateTrade across three teams (multi-team spec §2.2)', () => {
 })
 ```
 
-- [ ] **Step 3: Run them to see them fail**
+- [x] **Step 3: Run them to see them fail**
 
 Run: `npx vitest run tests/shared/deal.test.ts tests/main/trade/evaluate.test.ts`
 Expected: FAIL — `twoTeam` / `proposalOf` are not exported, and `evaluateTrade` rejects `{ moves }` (no `sides` on the result).
 
-- [ ] **Step 4: The shared types**
+- [x] **Step 4: The shared types**
 
 In `src/shared/types.ts`, replace the `TradeProposal` interface:
 
@@ -464,7 +464,7 @@ export interface TradeOpenSpots {
 }
 ```
 
-- [ ] **Step 5: `twoTeam` and `proposalOf`**
+- [x] **Step 5: `twoTeam` and `proposalOf`**
 
 Append to `src/shared/deal.ts` (and add `import type { TradeEvaluation, TradeProposal } from './types'` at the top):
 
@@ -487,7 +487,7 @@ export function proposalOf(ev: TradeEvaluation): TradeProposal {
 }
 ```
 
-- [ ] **Step 6: `startsByRoster`**
+- [x] **Step 6: `startsByRoster`**
 
 Append to `src/main/trade/player.ts`:
 
@@ -509,7 +509,7 @@ export function startsByRoster(
 }
 ```
 
-- [ ] **Step 7: `side.ts` — 6b's side computation, for any side of any deal**
+- [x] **Step 7: `side.ts` — 6b's side computation, for any side of any deal**
 
 Create `src/main/trade/side.ts`. Everything below except `DealSide`, `SideCore`, `StartsOf`, `ownerOf` and the `own` / `incoming` lines of `sideFor` is moved verbatim from `evaluate.ts`:
 
@@ -714,7 +714,7 @@ export function sideFor(
 
 (`own` equals 6b's `startCounts(before)`: both count the starters of `teamWeek(build, rosterId, w)` over the window.)
 
-- [ ] **Step 8: `evaluate.ts` — resolve the deal, score every side**
+- [x] **Step 8: `evaluate.ts` — resolve the deal, score every side**
 
 Replace `src/main/trade/evaluate.ts` with:
 
@@ -865,7 +865,7 @@ export function evaluateTrade(
 
 (`starterWeeks` / `tradePlayer` are no longer imported here; `pool.ts`, `waiver/*` and `suggest.ts` keep importing `myTeam`, `requireWindow`, `rosterSize`, `isStarter`, `marketSum`, `MARKET_FAIR`, `marketRatio`, `TradeError` from `./evaluate` unchanged.)
 
-- [ ] **Step 9: Open spots per side**
+- [x] **Step 9: Open spots per side**
 
 In `src/main/trade/openSpot.ts`, replace the body of `tradeOpenSpots` and its comment:
 
@@ -884,7 +884,7 @@ export function tradeOpenSpots(build: LineupBuild, proposal: TradeProposal): Tra
 
 (the local `spot` helper goes; the `TradeSideResult` import stays for `afterRoster`).
 
-- [ ] **Step 10: The 2-team search on the new types**
+- [x] **Step 10: The 2-team search on the new types**
 
 In `src/main/trade/suggest.ts`:
 
@@ -939,7 +939,7 @@ found.sort(
 )
 ```
 
-- [ ] **Step 11: The renderer, still 2-team**
+- [x] **Step 11: The renderer, still 2-team**
 
 `src/renderer/src/lib/tradeView.ts`:
 
@@ -1013,7 +1013,7 @@ const openInBuilder = (s: TradeSuggestion): void => {
 }
 ```
 
-- [ ] **Step 12: Fixtures**
+- [x] **Step 12: Fixtures**
 
 `tests/fixtures/trade.ts`: the type import gains `TradeIncoming, TradeOutgoing`. After the player constants (`bijan`), add:
 
@@ -1087,7 +1087,7 @@ export function tradeSuggestion(over: Partial<TradeSuggestion> = {}): TradeSugge
 }
 ```
 
-- [ ] **Step 13: Move the existing tests to the new shapes**
+- [x] **Step 13: Move the existing tests to the new shapes**
 
 `tests/main/trade/evaluate.test.ts` (first `describe`, on the seeded fixture league; add `import type { TradeMove } from '@shared/types'` if Step 2 did not):
 
@@ -1292,12 +1292,12 @@ const withDrop = tradeSuggestion({
 
 Then run `npm run typecheck` — it must name nothing: any `.me` / `.them` / `winWin` / `{ rosterId, give, get }` proposal the lists above missed shows up here.
 
-- [ ] **Step 14: Run everything**
+- [x] **Step 14: Run everything**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: PASS — the new three-team tests and every migrated test with unchanged numbers.
 
-- [ ] **Step 15: Commit**
+- [x] **Step 15: Commit**
 
 ```bash
 git add src/shared src/main/trade src/renderer/src/lib/tradeView.ts src/renderer/src/screens/TradeScreen.tsx tests
@@ -1318,7 +1318,7 @@ git commit -m "feat(trade): evaluate deals between N teams"
 - Consumes: Task 2's `sideFor`, `DealSide`, `SideCore`.
 - Produces: `SideMemo = Map<string, SideCore>`; `sideKey(rosterId: number, give: PlayerSeries[], get: PlayerSeries[]): string` (`"1|B|I"`: ids sorted, `+`-joined); `sideFor(build, side, weeks, size, startsOf, opts, memo: SideMemo | null = null)`; `EvaluateOptions { skip?: boolean; memo?: SideMemo }` — Plan R's search passes one memo per run.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to the three-team describe in `tests/main/trade/evaluate.test.ts` (import `type SideMemo` from `@main/trade/side`):
 
@@ -1339,12 +1339,12 @@ it('shares side verdicts through a memo, destinations aside (spec §2.3)', () =>
 })
 ```
 
-- [ ] **Step 2: Run it to see it fail**
+- [x] **Step 2: Run it to see it fail**
 
 Run: `npx vitest run tests/main/trade/evaluate.test.ts -t memo`
 Expected: FAIL — `expected [] to deeply equal [ '1|B|I', '2|G|B', '3|I|G' ]` (Vitest strips the type import and `evaluateTrade` ignores the option; `npm run typecheck` also flags the missing `SideMemo` export).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/main/trade/side.ts`: rename `export function sideFor(` to `function computeSide(` (body unchanged) and add after it:
 
@@ -1393,12 +1393,12 @@ export interface EvaluateOptions extends SideOptions {
 
 and call `sideFor(build, side, weeks, size, startsOf, opts, opts.memo ?? null)`.
 
-- [ ] **Step 4: Run it to see it pass**
+- [x] **Step 4: Run it to see it pass**
 
 Run: `npx vitest run tests/main/trade/evaluate.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1424,7 +1424,7 @@ git commit -m "feat(trade): memoize side verdicts"
 - Produces (`@/lib/tradeView`): `verdictGetsLine(side: TradeSideResult, ev: TradeEvaluation): string`; `NO_VERDICT_HINT = 'Add players to every team in the deal and evaluate.'`.
 - Produces (fixtures): `higgins` (`5859`, Tee Higgins, WR, CIN); `threeTeamPool()` (me 1 _Cook Book_: Barkley, Cook, Jefferson, LAR · 2 _Rival_: Bijan, Chase · 3 _Tank Mode_: Higgins); `threeTeamEvaluation()` (Jefferson → Rival, Chase → Tank Mode, Higgins → me; Δ +6.00 / +3.00 / −1.50, Δ/week +0.40 / +0.20 / −0.10).
 
-- [ ] **Step 1: Fixtures**
+- [x] **Step 1: Fixtures**
 
 Append to `tests/fixtures/trade.ts`:
 
@@ -1478,7 +1478,7 @@ export function threeTeamEvaluation(): TradeEvaluation {
 }
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `tests/renderer/lib/tradeBuilder.test.ts`:
 
@@ -1636,12 +1636,12 @@ it('names where each received player comes from', () => {
 })
 ```
 
-- [ ] **Step 3: Run them to see them fail**
+- [x] **Step 3: Run them to see them fail**
 
 Run: `npx vitest run tests/renderer/lib/tradeBuilder.test.ts tests/renderer/lib/tradeView.test.ts`
 Expected: FAIL — `@/lib/tradeBuilder` does not resolve; `verdictGetsLine` is not exported.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 `src/renderer/src/lib/tradeBuilder.ts`:
 
@@ -1786,12 +1786,12 @@ export function verdictGetsLine(side: TradeSideResult, ev: TradeEvaluation): str
 }
 ```
 
-- [ ] **Step 5: Run them to see them pass**
+- [x] **Step 5: Run them to see them pass**
 
 Run: `npx vitest run tests/renderer/lib/tradeBuilder.test.ts tests/renderer/lib/tradeView.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 The new hint text breaks one assertion in the current `TradeScreen.test.tsx` (first test): change its `'Pick a partner, add players to both sides and evaluate.'` to `'Add players to every team in the deal and evaluate.'` (Task 5 rewrites the file anyway).
 
@@ -1816,7 +1816,7 @@ git commit -m "feat(ui): add the multi-team builder model"
 - Consumes: Task 4's builder model and `verdictGetsLine`; Task 2's `proposalOf`.
 - Produces: `TradeBuilder(props: TradeBuilderProps)` with `TradeBuilderProps { pool; deal; onDealChange; verdict; spots; evaluating; evalError; onEvaluate; onOpenPlayer; finding; onSuggestWith }`. Aria labels the tests rely on: `Add team`, `Remove team <name>`, `Add to I send`, `Add to <team> sends`, `Destination of <player>`, `Remove <player>`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Replace `tests/renderer/components/TradeScreen.test.tsx` with:
 
@@ -2117,12 +2117,12 @@ describe('TradeScreen', () => {
 })
 ```
 
-- [ ] **Step 2: Run them to see them fail**
+- [x] **Step 2: Run them to see them fail**
 
 Run: `npx vitest run tests/renderer/components/TradeScreen.test.tsx`
 Expected: FAIL — no `Remove team Rival` / `Add to I send` labels yet.
 
-- [ ] **Step 2b: `spotFor` — open spots by roster (test first)**
+- [x] **Step 2b: `spotFor` — open spots by roster (test first)**
 
 Add to `tests/renderer/lib/tradeView.test.ts` (import `spotFor`; `bijan` is already imported):
 
@@ -2153,7 +2153,7 @@ export function spotFor(spots: TradeOpenSpots | null, rosterId: number): OpenSpo
 
 Run it again — PASS.
 
-- [ ] **Step 3: The `TradeBuilder` component**
+- [x] **Step 3: The `TradeBuilder` component**
 
 `src/renderer/src/components/TradeBuilder.tsx`:
 
@@ -2529,7 +2529,7 @@ export function TradeBuilder({
 }
 ```
 
-- [ ] **Step 4: `TradeScreen` on the builder model**
+- [x] **Step 4: `TradeScreen` on the builder model**
 
 Replace `src/renderer/src/screens/TradeScreen.tsx` with (the suggestions card is Task 2's, unchanged):
 
@@ -2921,12 +2921,12 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
 }
 ```
 
-- [ ] **Step 5: Run the tests to see them pass**
+- [x] **Step 5: Run the tests to see them pass**
 
 Run: `npx vitest run tests/renderer/components/TradeScreen.test.tsx`
 Expected: PASS (7 tests).
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -2943,7 +2943,7 @@ git commit -m "feat(ui): build trades between N teams"
 - Modify: `docs/reference/value-and-signals.md`
 - Modify: this plan (status block)
 
-- [ ] **Step 1: Data reference**
+- [x] **Step 1: Data reference**
 
 In `docs/reference/value-and-signals.md`, section `## Trade (added in v0.13.0)`:
 
@@ -2956,14 +2956,14 @@ In `docs/reference/value-and-signals.md`, section `## Trade (added in v0.13.0)`:
 - **Suggestions**: `TradeSuggestion.acceptance` is aligned with `evaluation.sides` (null for me); the search is still 2-team until v0.19.0.
 - **Where it is shown**: the builder's teams row (_Me_, one chip per team, _+ add team_), one card per team (_I send_ / _X sends_, `→` destination with 3+ teams, the `gets:` line), the inline rule under Evaluate, one verdict column per team with `gets X from Y` at 3+ teams, badges _Everyone gains_ / _Market-fair_.
 
-- [ ] **Step 2: Commit the docs**
+- [x] **Step 2: Commit the docs**
 
 ```bash
 git add docs/reference/value-and-signals.md
 git commit -m "docs: document N-team trade deals"
 ```
 
-- [ ] **Step 3: Final verification and the real-data check**
+- [x] **Step 3: Final verification and the real-data check**
 
 Run: `npm run typecheck && npm run lint && npm test && npm run test:budget` — all green; note the budget times (the suggestion and open-spot budgets must not move: the 2-team search is unchanged).
 
@@ -2977,7 +2977,7 @@ Check: every side's before equals its `teamStrengths` total; drops appear only o
 
 Also run the app once (`npm run dev` via the Bash tool's `run_in_background`) and open the Trade screen. If WSLg can't show the window, say so in the status block rather than claiming it was checked.
 
-- [ ] **Step 4: Merge and release**
+- [x] **Step 4: Merge and release**
 
 ```bash
 git checkout main && git merge --no-ff feat/multi-team-deals -m "merge: feat/multi-team-deals (plan Q)"
