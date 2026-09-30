@@ -3,6 +3,7 @@ import { LINEUP_POSITIONS } from '@shared/rules'
 import type {
   OpenSpot,
   TradeEvaluation,
+  TradeOpenSpots,
   TradePlayer,
   TradeSideResult,
   TradeStance,
@@ -11,7 +12,7 @@ import type {
 
 export const DEADLINE_NOTE =
   'The trade deadline has passed — Sleeper no longer accepts trades; evaluation still works.'
-export const NO_VERDICT_HINT = 'Pick a partner, add players to both sides and evaluate.'
+export const NO_VERDICT_HINT = 'Add players to every team in the deal and evaluate.'
 
 /** "weeks 3–17 · 15 weeks" */
 export function windowLabel(p: { currentWeek: number; lastWeek: number; weeks: number }): string {
@@ -59,6 +60,15 @@ export function dropLine(s: TradeSideResult): string | null {
   return s.drops.length === 0 ? null : `drop: ${s.drops.map((p) => p.fullName).join(', ')}`
 }
 
+/** Multi-team spec §5.1: "gets Tee Higgins from Tank Mode · …" under a side of a 3+-team verdict. */
+export function verdictGetsLine(side: TradeSideResult, ev: TradeEvaluation): string {
+  const source = (rosterId: number): string => {
+    const s = ev.sides.find((x) => x.rosterId === rosterId)
+    return !s ? `team ${rosterId}` : s.isMe ? 'me' : s.name
+  }
+  return `gets ${side.get.map((p) => `${p.fullName} from ${source(p.from)}`).join(' · ')}`
+}
+
 export function startsLabel(p: TradePlayer, weeks: number): string {
   return `starts ${p.starterWeeks}/${weeks}`
 }
@@ -96,7 +106,7 @@ export function groupByPosition(players: TradePlayer[]): [string, TradePlayer[]]
 
 export function verdictBadges(ev: TradeEvaluation): { label: string; on: boolean }[] {
   return [
-    { label: 'Win-win', on: ev.winWin },
+    { label: 'Everyone gains', on: ev.everyoneGains },
     { label: 'Market-fair', on: ev.marketFair }
   ]
 }
@@ -130,16 +140,17 @@ export function noOffersHint(stance: TradeStance): string {
 
 /** "Me +4.00 (+0.27/wk)" */
 export function meLine(s: TradeSuggestion): string {
-  return `Me ${deltaLine(s.evaluation.me)}`
+  return `Me ${deltaLine(s.evaluation.sides[0])}`
 }
 
 /** "Them -4.00" */
 export function themLine(s: TradeSuggestion): string {
-  return `Them ${fmtSigned(s.evaluation.them.delta)}`
+  return `Them ${fmtSigned(s.evaluation.sides[1].delta)}`
 }
 
 export function acceptanceTags(s: TradeSuggestion): string[] {
-  return s.acceptance === 'both' ? ['lineup', 'market'] : [s.acceptance]
+  const a = s.acceptance[1]
+  return a === null ? [] : a === 'both' ? ['lineup', 'market'] : [a]
 }
 
 /** "RB Saquon Barkley, WR Justin Jefferson" */
@@ -149,7 +160,7 @@ export function sideNames(players: TradePlayer[]): string {
 
 /** "give RB Saquon Barkley · get WR Ja'Marr Chase[ · drop: …]" */
 export function offerLine(s: TradeSuggestion): string {
-  const me = s.evaluation.me
+  const me = s.evaluation.sides[0]
   const drop = dropLine(me)
   return `give ${sideNames(me.give)} · get ${sideNames(me.get)}${drop ? ` · ${drop}` : ''}`
 }
@@ -166,4 +177,9 @@ export function openSpotLine(spot: OpenSpot): string {
   return spot.add
     ? `Open spot: best add ${spot.add.fullName}, ${fmtSigned(spot.deltaPerWeek)}/wk`
     : 'Open spot: no free agent improves this lineup'
+}
+
+/** A side's open spot, looked up by roster: a re-evaluated proposal may order 3+-team sides differently. */
+export function spotFor(spots: TradeOpenSpots | null, rosterId: number): OpenSpot | null {
+  return spots?.sides.find((s) => s?.rosterId === rosterId) ?? null
 }

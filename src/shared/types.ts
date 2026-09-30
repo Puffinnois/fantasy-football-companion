@@ -320,11 +320,15 @@ export interface TeamStrength {
   rank: number | null
 }
 
-/** Slice 6b spec §4.1: from my side — I give `give`, I get `get` from roster `rosterId`. */
+/** Multi-team spec §2.1: one player changing teams; his source is his current roster. */
+export interface TradeMove {
+  playerId: string
+  to: number
+}
+
+/** Spec §2.1: a deal between two or more teams, me included — a 2-team trade is the special case. */
 export interface TradeProposal {
-  rosterId: number
-  give: string[]
-  get: string[]
+  moves: TradeMove[]
 }
 
 /** A player as the trade table shows him; extends DetailTarget so the detail panel opens from any row. */
@@ -340,12 +344,22 @@ export interface TradePlayer extends DetailTarget {
   starterWeeks: number
 }
 
+/** A player a side sends, with the roster he goes to. */
+export interface TradeOutgoing extends TradePlayer {
+  to: number
+}
+
+/** A player a side receives, with the roster he leaves; `starterWeeks` are counted there. */
+export interface TradeIncoming extends TradePlayer {
+  from: number
+}
+
 export interface TradeSideResult {
   rosterId: number
   name: string
   isMe: boolean
-  give: TradePlayer[]
-  get: TradePlayer[]
+  give: TradeOutgoing[]
+  get: TradeIncoming[]
   /** Auto-picked to respect the roster size; empty when none needed. */
   drops: TradePlayer[]
   /** Σ optimal totals over the window, before and after the trade. */
@@ -371,11 +385,11 @@ export interface TradeEvaluation {
   /** Window length, currentWeek..lastWeek. */
   weeks: number
   tradeDeadlinePassed: boolean
-  me: TradeSideResult
-  them: TradeSideResult
-  /** Both deltas > 0. */
-  winWin: boolean
-  /** Each side receives ≥ 90 % of the market value it gives. */
+  /** Spec §2.2: me first, then the other teams in order of first appearance in the proposal's moves. */
+  sides: TradeSideResult[]
+  /** Every side's delta > 0. */
+  everyoneGains: boolean
+  /** Every side receives ≥ 90 % of the market value it gives. */
   marketFair: boolean
 }
 
@@ -411,11 +425,14 @@ export interface TradeSuggestQuery {
   partnerRosterId: number | null
 }
 
+/** Why another manager would take an offer: his lineup improves, the market is fair for him, or both. */
+export type TradeAcceptance = 'lineup' | 'market' | 'both'
+
 export interface TradeSuggestion {
   /** Exactly what `trade:evaluate` returns for this proposal — the card and the builder agree. */
   evaluation: TradeEvaluation
-  /** Why they'd take it: their lineup improves, the market is fair for them, or both. */
-  acceptance: 'lineup' | 'market' | 'both'
+  /** Aligned with `evaluation.sides`: null for me, why each other manager would take it. */
+  acceptance: (TradeAcceptance | null)[]
 }
 
 /** Slice 6c spec §2.2: how an add makes room on my roster. */
@@ -479,10 +496,9 @@ export interface OpenSpot {
   deltaPerWeek: number
 }
 
-/** Spec §7: per side of a proposal; null when that side's after-roster is full (or its size unknown). */
+/** Spec §2.4: per side of a deal, aligned with `evaluation.sides`; null when that side's after-roster is full (or its size unknown). */
 export interface TradeOpenSpots {
-  me: OpenSpot | null
-  them: OpenSpot | null
+  sides: (OpenSpot | null)[]
 }
 
 /** Spec §6: the Waivers screen's rest-of-season payload. */

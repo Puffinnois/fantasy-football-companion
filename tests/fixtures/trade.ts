@@ -1,5 +1,7 @@
 import type {
   TradeEvaluation,
+  TradeIncoming,
+  TradeOutgoing,
   TradePlayer,
   TradePool,
   TradeSideResult,
@@ -76,13 +78,16 @@ export const bijan = tradePlayer({
   starterWeeks: 0
 })
 
+export const outgoing = (p: TradePlayer, to: number): TradeOutgoing => ({ ...p, to })
+export const incoming = (p: TradePlayer, from: number): TradeIncoming => ({ ...p, from })
+
 export function tradeSide(over: Partial<TradeSideResult> = {}): TradeSideResult {
   return {
     rosterId: 1,
     name: 'Cook Book',
     isMe: true,
-    give: [jefferson],
-    get: [chase],
+    give: [outgoing(jefferson, 2)],
+    get: [incoming(chase, 2)],
     drops: [],
     before: 66,
     after: 47,
@@ -99,6 +104,25 @@ export function tradeSide(over: Partial<TradeSideResult> = {}): TradeSideResult 
   }
 }
 
+/** Rival's side of Jefferson for Chase. */
+export function rivalSide(over: Partial<TradeSideResult> = {}): TradeSideResult {
+  return tradeSide({
+    rosterId: 2,
+    name: 'Rival',
+    isMe: false,
+    give: [outgoing(chase, 1)],
+    get: [incoming(jefferson, 1)],
+    before: 9,
+    after: 28,
+    delta: 19,
+    deltaPerWeek: 1.27,
+    thisWeekDelta: 4,
+    marketGive: 8000,
+    marketGet: 10512,
+    ...over
+  })
+}
+
 export function tradeEvaluation(over: Partial<TradeEvaluation> = {}): TradeEvaluation {
   return {
     season: 2026,
@@ -106,22 +130,8 @@ export function tradeEvaluation(over: Partial<TradeEvaluation> = {}): TradeEvalu
     lastWeek: 17,
     weeks: 15,
     tradeDeadlinePassed: false,
-    me: tradeSide(),
-    them: tradeSide({
-      rosterId: 2,
-      name: 'Rival',
-      isMe: false,
-      give: [chase],
-      get: [jefferson],
-      before: 9,
-      after: 28,
-      delta: 19,
-      deltaPerWeek: 1.27,
-      thisWeekDelta: 4,
-      marketGive: 8000,
-      marketGet: 10512
-    }),
-    winWin: false,
+    sides: [tradeSide(), rivalSide()],
+    everyoneGains: false,
     marketFair: false,
     ...over
   }
@@ -144,37 +154,84 @@ export function tradePool(over: Partial<TradePool> = {}): TradePool {
 export function tradeSuggestion(over: Partial<TradeSuggestion> = {}): TradeSuggestion {
   return {
     evaluation: tradeEvaluation({
-      me: tradeSide({
-        give: [barkley],
-        get: [chase],
-        before: 66,
-        after: 70,
-        delta: 4,
-        deltaPerWeek: 0.27,
-        thisWeekDelta: 1,
-        marketGive: 9340,
-        marketGet: 8000,
-        weeksChanged: 3
-      }),
-      them: tradeSide({
-        rosterId: 2,
-        name: 'Rival',
-        isMe: false,
-        give: [chase],
-        get: [barkley],
-        before: 30,
-        after: 26,
-        delta: -4,
-        deltaPerWeek: -0.27,
-        thisWeekDelta: -1,
-        marketGive: 8000,
-        marketGet: 9340,
-        weeksChanged: 3
-      }),
-      winWin: false,
+      sides: [
+        tradeSide({
+          give: [outgoing(barkley, 2)],
+          get: [incoming(chase, 2)],
+          before: 66,
+          after: 70,
+          delta: 4,
+          deltaPerWeek: 0.27,
+          thisWeekDelta: 1,
+          marketGive: 9340,
+          marketGet: 8000,
+          weeksChanged: 3
+        }),
+        rivalSide({
+          give: [outgoing(chase, 1)],
+          get: [incoming(barkley, 1)],
+          before: 30,
+          after: 26,
+          delta: -4,
+          deltaPerWeek: -0.27,
+          thisWeekDelta: -1,
+          marketGive: 8000,
+          marketGet: 9340,
+          weeksChanged: 3
+        })
+      ],
+      everyoneGains: false,
       marketFair: false // 8 000 / 9 340 = 0.86 on my side
     }),
-    acceptance: 'market',
+    acceptance: [null, 'market'],
     ...over
   }
+}
+
+export const higgins = tradePlayer({
+  playerId: '5859',
+  fullName: 'Tee Higgins',
+  position: 'WR',
+  team: 'CIN',
+  rosPoints: 90,
+  starterWeeks: 12
+})
+
+/** The default pool plus a third team, Tank Mode, holding Higgins. */
+export function threeTeamPool(): TradePool {
+  return tradePool({
+    teams: [
+      { rosterId: 2, name: 'Rival', players: [bijan, chase] },
+      { rosterId: 3, name: 'Tank Mode', players: [higgins] }
+    ]
+  })
+}
+
+/** Me → Rival → Tank Mode → me: Jefferson to Rival, Chase to Tank Mode, Higgins to me. */
+export function threeTeamEvaluation(): TradeEvaluation {
+  return tradeEvaluation({
+    sides: [
+      tradeSide({
+        give: [outgoing(jefferson, 2)],
+        get: [incoming(higgins, 3)],
+        delta: 6,
+        deltaPerWeek: 0.4
+      }),
+      rivalSide({
+        give: [outgoing(chase, 3)],
+        get: [incoming(jefferson, 1)],
+        delta: 3,
+        deltaPerWeek: 0.2
+      }),
+      tradeSide({
+        rosterId: 3,
+        name: 'Tank Mode',
+        isMe: false,
+        give: [outgoing(higgins, 1)],
+        get: [incoming(chase, 2)],
+        delta: -1.5,
+        deltaPerWeek: -0.1
+      })
+    ]
+  })
 }

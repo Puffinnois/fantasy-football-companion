@@ -29,6 +29,7 @@
   - **Builder picks** store `to: null` for the default destination (mine → the first other team, everyone else's → me), so adding or removing a team re-targets them; removing the last other team keeps my picks waiting for a destination. A deal with no other team gets the pool's first team on load (6b's default partner). _Suggest with this team_ stays, shown for a 2-team deal only.
   - **Labels.** Team cards: `I send` / `<team> sends`; destination options `→ Me` / `→ <team>`; a `gets:` line under every card, with the source in brackets only with 3+ teams; verdict columns headed `Me · <name>` / `<name>`, with a `gets X from Y` line only with 3+ teams. `NO_VERDICT_HINT` becomes `Add players to every team in the deal and evaluate.` and shows while no player is picked; afterwards the hint is the broken rule.
   - **The memo is a seam:** `evaluateTrade` takes `opts.memo`; no production caller passes one in Plan Q (every evaluation is one call); Plan R's search does.
+  - **Open spots are matched by `rosterId`** (added during execution, from the Task 2 review): `proposalOf(ev)` lists moves side by side, so re-evaluating it can order a 3+-team deal's sides differently from the verdict (players picked in another order). The builder looks each side's spot up with `spotFor(spots, rosterId)` instead of by index; `TradeOpenSpots.sides` stays aligned with its own evaluation.
 
 ---
 
@@ -1807,8 +1808,8 @@ git commit -m "feat(ui): add the multi-team builder model"
 **Files:**
 
 - Create: `src/renderer/src/components/TradeBuilder.tsx`
-- Modify: `src/renderer/src/screens/TradeScreen.tsx` (rewrite)
-- Test: `tests/renderer/components/TradeScreen.test.tsx` (rewrite)
+- Modify: `src/renderer/src/screens/TradeScreen.tsx` (rewrite), `src/renderer/src/lib/tradeView.ts` (+ `spotFor`)
+- Test: `tests/renderer/components/TradeScreen.test.tsx` (rewrite), `tests/renderer/lib/tradeView.test.ts`
 
 **Interfaces:**
 
@@ -2121,6 +2122,37 @@ describe('TradeScreen', () => {
 Run: `npx vitest run tests/renderer/components/TradeScreen.test.tsx`
 Expected: FAIL — no `Remove team Rival` / `Add to I send` labels yet.
 
+- [ ] **Step 2b: `spotFor` — open spots by roster (test first)**
+
+Add to `tests/renderer/lib/tradeView.test.ts` (import `spotFor`; `bijan` is already imported):
+
+```ts
+it('finds a side’s open spot by roster, whatever the order', () => {
+  const spots = {
+    sides: [
+      null,
+      { rosterId: 3, add: bijan, deltaPerWeek: 0.5 },
+      { rosterId: 1, add: null, deltaPerWeek: 0 }
+    ]
+  }
+  expect(spotFor(spots, 1)).toEqual({ rosterId: 1, add: null, deltaPerWeek: 0 })
+  expect(spotFor(spots, 3)?.add).toBe(bijan)
+  expect(spotFor(spots, 2)).toBeNull()
+  expect(spotFor(null, 1)).toBeNull()
+})
+```
+
+Run `npx vitest run tests/renderer/lib/tradeView.test.ts` — FAIL (`spotFor` is not a function). Then add to `src/renderer/src/lib/tradeView.ts` (add `TradeOpenSpots` to its `@shared/types` import if missing), after `openSpotLine`:
+
+```ts
+/** A side's open spot, looked up by roster: a re-evaluated proposal may order 3+-team sides differently. */
+export function spotFor(spots: TradeOpenSpots | null, rosterId: number): OpenSpot | null {
+  return spots?.sides.find((s) => s?.rosterId === rosterId) ?? null
+}
+```
+
+Run it again — PASS.
+
 - [ ] **Step 3: The `TradeBuilder` component**
 
 `src/renderer/src/components/TradeBuilder.tsx`:
@@ -2155,6 +2187,7 @@ import {
   playerOption,
   playerStats,
   rangeLine,
+  spotFor,
   verdictBadges,
   verdictGetsLine
 } from '@/lib/tradeView'
@@ -2343,11 +2376,11 @@ function VerdictCard({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {ev.sides.map((side, i) => (
+          {ev.sides.map((side) => (
             <SideVerdict
               key={side.rosterId}
               side={side}
-              spot={spots?.sides[i] ?? null}
+              spot={spotFor(spots, side.rosterId)}
               gets={multi ? verdictGetsLine(side, ev) : null}
             />
           ))}
@@ -2897,7 +2930,7 @@ Expected: PASS (7 tests).
 
 ```bash
 npm run typecheck && npm run lint && npm test
-git add src/renderer/src/components/TradeBuilder.tsx src/renderer/src/screens/TradeScreen.tsx tests/renderer/components/TradeScreen.test.tsx
+git add src/renderer/src/components/TradeBuilder.tsx src/renderer/src/screens/TradeScreen.tsx src/renderer/src/lib/tradeView.ts tests/renderer/components/TradeScreen.test.tsx tests/renderer/lib/tradeView.test.ts
 git commit -m "feat(ui): build trades between N teams"
 ```
 

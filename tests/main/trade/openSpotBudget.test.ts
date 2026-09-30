@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { tradeOpenSpots } from '@main/trade/openSpot'
+import { twoTeam } from '@shared/deal'
 import { generateLeague, syntheticBuild } from '../../fixtures/synthetic'
 
 /** Slice 6c spec §10: both sides' open-spot adds for one proposal. */
@@ -12,18 +13,20 @@ describe.skipIf(!process.env.FFC_BUDGET)('open spot budget', () => {
     const { build } = syntheticBuild(league)
     const [mine, theirs] = league.teams
     // Two of my RBs for one of theirs: my side opens a spot, theirs drops one and stays full.
-    const proposal = {
-      rosterId: theirs.rosterId,
-      give: [mine.players[2].id, mine.players[3].id],
-      get: [theirs.players[2].id]
-    }
+    const proposal = twoTeam(
+      mine.rosterId,
+      theirs.rosterId,
+      [mine.players[2].id, mine.players[3].id],
+      [theirs.players[2].id]
+    )
     const t0 = performance.now()
     const spots = tradeOpenSpots(build, proposal)
     const ms = performance.now() - t0
+    const [me, them] = spots.sides
     console.info(
-      `open spot ${ms.toFixed(0)} ms · me ${spots.me?.add?.fullName ?? '—'} · them ${spots.them ? 'open' : 'full'}`
+      `open spot ${ms.toFixed(0)} ms · me ${me?.add?.fullName ?? '—'} · them ${them ? 'open' : 'full'}`
     )
-    expect(spots.me).not.toBeNull()
+    expect(me).not.toBeNull()
     expect(ms).toBeLessThan(OPEN_SPOT_MS)
   })
 })

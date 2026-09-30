@@ -10,6 +10,7 @@ import {
   offerLine,
   openSpotLine,
   sideNames,
+  spotFor,
   stanceHint,
   themLine,
   deltaTone,
@@ -22,6 +23,7 @@ import {
   rangeLine,
   startsLabel,
   verdictBadges,
+  verdictGetsLine,
   windowLabel
 } from '@/lib/tradeView'
 import {
@@ -29,8 +31,12 @@ import {
   bijan,
   chase,
   cook,
+  incoming,
   jefferson,
   lar,
+  outgoing,
+  rivalSide,
+  threeTeamEvaluation,
   tradeEvaluation,
   tradeSide,
   tradeSuggestion
@@ -46,6 +52,20 @@ describe('tradeView', () => {
     expect(openSpotLine({ rosterId: 2, add: null, deltaPerWeek: 0 })).toBe(
       'Open spot: no free agent improves this lineup'
     )
+  })
+
+  it('finds a side’s open spot by roster, whatever the order', () => {
+    const spots = {
+      sides: [
+        null,
+        { rosterId: 3, add: bijan, deltaPerWeek: 0.5 },
+        { rosterId: 1, add: null, deltaPerWeek: 0 }
+      ]
+    }
+    expect(spotFor(spots, 1)).toEqual({ rosterId: 1, add: null, deltaPerWeek: 0 })
+    expect(spotFor(spots, 3)?.add).toBe(bijan)
+    expect(spotFor(spots, 2)).toBeNull()
+    expect(spotFor(null, 1)).toBeNull()
   })
 
   it('labels the window', () => {
@@ -103,11 +123,11 @@ describe('tradeView', () => {
 
   it('lists the verdict badges', () => {
     expect(verdictBadges(tradeEvaluation())).toEqual([
-      { label: 'Win-win', on: false },
+      { label: 'Everyone gains', on: false },
       { label: 'Market-fair', on: false }
     ])
-    expect(verdictBadges(tradeEvaluation({ winWin: true, marketFair: true }))).toEqual([
-      { label: 'Win-win', on: true },
+    expect(verdictBadges(tradeEvaluation({ everyoneGains: true, marketFair: true }))).toEqual([
+      { label: 'Everyone gains', on: true },
       { label: 'Market-fair', on: true }
     ])
   })
@@ -117,11 +137,21 @@ describe('tradeView', () => {
     expect(meLine(s)).toBe('Me +4.00 (+0.27/wk)')
     expect(themLine(s)).toBe('Them -4.00')
     expect(acceptanceTags(s)).toEqual(['market'])
-    expect(acceptanceTags(tradeSuggestion({ acceptance: 'both' }))).toEqual(['lineup', 'market'])
+    expect(acceptanceTags(tradeSuggestion({ acceptance: [null, 'both'] }))).toEqual([
+      'lineup',
+      'market'
+    ])
     expect(offerLine(s)).toBe("give RB Saquon Barkley · get WR Ja'Marr Chase")
     const withDrop = tradeSuggestion({
       evaluation: tradeEvaluation({
-        me: tradeSide({ give: [barkley, jefferson], get: [chase], drops: [lar] })
+        sides: [
+          tradeSide({
+            give: [outgoing(barkley, 2), outgoing(jefferson, 2)],
+            get: [incoming(chase, 2)],
+            drops: [lar]
+          }),
+          rivalSide()
+        ]
       })
     })
     expect(offerLine(withDrop)).toBe(
@@ -149,5 +179,14 @@ describe('tradeView', () => {
     expect(focusMarketLine(barkley)).toBe('MKT 9 340 · 30d -310')
     expect(focusMarketLine(jefferson)).toBe('MKT 10 512 · 30d +120')
     expect(focusMarketLine(lar)).toBe('MKT —')
+  })
+
+  it('names where each received player comes from', () => {
+    const ev = threeTeamEvaluation()
+    expect(ev.sides.map((s) => verdictGetsLine(s, ev))).toEqual([
+      'gets Tee Higgins from Tank Mode',
+      'gets Justin Jefferson from me',
+      "gets Ja'Marr Chase from Rival"
+    ])
   })
 })
