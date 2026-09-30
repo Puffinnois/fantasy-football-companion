@@ -8,6 +8,7 @@ import { lineupPlayer } from '../../fixtures/lineup'
 import {
   bijan,
   lar,
+  rivalSide,
   tradeEvaluation,
   tradePool,
   tradeSide,
@@ -41,7 +42,7 @@ beforeEach(() => {
   suggestMock.mockReset()
   suggestMock.mockResolvedValue([])
   openSpotMock.mockReset()
-  openSpotMock.mockResolvedValue({ me: null, them: null })
+  openSpotMock.mockResolvedValue({ sides: [null, null] })
   optionsMock.mockResolvedValue(options)
   poolMock.mockResolvedValue(tradePool())
 })
@@ -51,17 +52,24 @@ describe('TradeScreen', () => {
   it('loads the pool, defaults the partner and builds a trade into a verdict', async () => {
     evaluateMock.mockResolvedValue(
       tradeEvaluation({
-        me: tradeSide({
-          drops: [lar],
-          thisWeekSwaps: [
-            {
-              slot: 'WR',
-              in: lineupPlayer({ playerId: '7564', fullName: "Ja'Marr Chase", position: 'WR' }),
-              out: lineupPlayer({ playerId: '6794', fullName: 'Justin Jefferson', position: 'WR' }),
-              delta: -4
-            }
-          ]
-        })
+        sides: [
+          tradeSide({
+            drops: [lar],
+            thisWeekSwaps: [
+              {
+                slot: 'WR',
+                in: lineupPlayer({ playerId: '7564', fullName: "Ja'Marr Chase", position: 'WR' }),
+                out: lineupPlayer({
+                  playerId: '6794',
+                  fullName: 'Justin Jefferson',
+                  position: 'WR'
+                }),
+                delta: -4
+              }
+            ]
+          }),
+          rivalSide()
+        ]
       })
     )
     render(<TradeScreen dataVersion={0} />)
@@ -83,11 +91,16 @@ describe('TradeScreen', () => {
 
     fireEvent.click(screen.getByText('Evaluate'))
     expect(await screen.findByText('-19.00 (-1.27/wk)')).toBeTruthy()
-    expect(evaluateMock).toHaveBeenCalledWith(2026, { rosterId: 2, give: ['6794'], get: ['7564'] })
+    expect(evaluateMock).toHaveBeenCalledWith(2026, {
+      moves: [
+        { playerId: '6794', to: 2 },
+        { playerId: '7564', to: 1 }
+      ]
+    })
     expect(screen.getByText('+19.00 (+1.27/wk)')).toBeTruthy()
     expect(screen.getByText('gives 10 512 → gets 8 000 (76 %)')).toBeTruthy()
     expect(screen.getByText('drop: Los Angeles Rams')).toBeTruthy()
-    expect(screen.getByText('Win-win')).toBeTruthy()
+    expect(screen.getByText('Everyone gains')).toBeTruthy()
     expect(screen.getByText('Market-fair')).toBeTruthy()
     expect(screen.getByText("Start Ja'Marr Chase over Justin Jefferson (WR, -4.00)")).toBeTruthy()
 
@@ -100,8 +113,10 @@ describe('TradeScreen', () => {
   it('adds the open-spot line under a side once the worker answers', async () => {
     evaluateMock.mockResolvedValue(tradeEvaluation())
     openSpotMock.mockResolvedValue({
-      me: { rosterId: 1, add: bijan, deltaPerWeek: 0.8 },
-      them: { rosterId: 2, add: null, deltaPerWeek: 0 }
+      sides: [
+        { rosterId: 1, add: bijan, deltaPerWeek: 0.8 },
+        { rosterId: 2, add: null, deltaPerWeek: 0 }
+      ]
     })
     render(<TradeScreen dataVersion={0} />)
     await screen.findByText('weeks 3–17 · 15 weeks')
@@ -110,7 +125,12 @@ describe('TradeScreen', () => {
     fireEvent.click(screen.getByText('Evaluate'))
 
     expect(await screen.findByText(`Open spot: best add ${bijan.fullName}, +0.80/wk`)).toBeTruthy()
-    expect(openSpotMock).toHaveBeenCalledWith(2026, { rosterId: 2, give: ['6794'], get: ['7564'] })
+    expect(openSpotMock).toHaveBeenCalledWith(2026, {
+      moves: [
+        { playerId: '6794', to: 2 },
+        { playerId: '7564', to: 1 }
+      ]
+    })
     expect(screen.getByText('Open spot: no free agent improves this lineup')).toBeTruthy()
 
     // A new trade drops the old line with the old verdict.

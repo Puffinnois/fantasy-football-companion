@@ -8,6 +8,7 @@ import { tradeOpenSpots } from '@main/trade/openSpot'
 import { suggestTrades } from '@main/trade/suggest'
 import { waiverAdds } from '@main/waiver/adds'
 import { waiverStream } from '@main/waiver/stream'
+import { twoTeam } from '@shared/deal'
 import { SEED_TS } from '../../fixtures/db'
 import { SEASON } from '../../fixtures/season'
 import { SMALL_LEAGUE, syntheticBuild, WAIVER_LEAGUE } from '../../fixtures/synthetic'
@@ -50,7 +51,7 @@ describe('runJob (the engine worker body)', () => {
         opponents: new Map()
       })
     )
-    const proposal = { rosterId: 2, give: ['C', 'D'], get: ['R2'] }
+    const proposal = twoTeam(1, 2, ['C', 'D'], ['R2'])
     expect(
       runJob({ dbPath: path, leagueId: 'L1', job: { kind: 'openSpot', season: SEASON, proposal } })
     ).toEqual(tradeOpenSpots(build, proposal))

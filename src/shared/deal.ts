@@ -1,3 +1,5 @@
+import type { TradeEvaluation, TradeProposal } from './types'
+
 /** A move with its source roster — what both the builder and the main process know about a player. */
 export interface DealMove {
   playerId: string
@@ -39,4 +41,21 @@ export function dealProblem(
     if (!moves.some((m) => m.to === t)) return `${teamName(t)} gets nobody`
   }
   return null
+}
+
+/** A 2-team proposal from my side: I give `give` to `partner` and get `get` from him. */
+export function twoTeam(me: number, partner: number, give: string[], get: string[]): TradeProposal {
+  return {
+    moves: [
+      ...give.map((playerId) => ({ playerId, to: partner })),
+      ...get.map((playerId) => ({ playerId, to: me }))
+    ]
+  }
+}
+
+/** The proposal an evaluation answered: every side's given players with their destinations. */
+export function proposalOf(ev: TradeEvaluation): TradeProposal {
+  return {
+    moves: ev.sides.flatMap((s) => s.give.map((p) => ({ playerId: p.playerId, to: p.to })))
+  }
 }

@@ -1,7 +1,9 @@
 import { candidateFor, teamWeek, type LineupBuild, type TeamWeek } from '@main/lineup/build'
 import type { PlayerSeries } from '@main/value/series'
+import { twoTeam } from '@shared/deal'
 import type {
   Team,
+  TradeAcceptance,
   TradeEvaluation,
   TradeStance,
   TradeSuggestQuery,
@@ -51,7 +53,7 @@ export function acceptanceOf(
   theirDelta: number,
   theirRatio: number,
   theirDeltaPerWeek: number
-): TradeSuggestion['acceptance'] | null {
+): TradeAcceptance | null {
   const lineup = theirDelta > 0
   const market = theirRatio >= MARKET_FAIR && theirDeltaPerWeek >= -ACCEPT_LOSS_PER_WEEK
   if (lineup && market) return 'both'
@@ -111,6 +113,7 @@ function entersLineup(
 /** Spec §3.2–3.3: evaluate one candidate; null unless my stance and their acceptance both pass. */
 function consider(
   build: LineupBuild,
+  me: Team,
   partner: Team,
   give: PlayerSeries[],
   get: PlayerSeries[],
@@ -133,21 +136,18 @@ function consider(
   }
   const evaluation = evaluateTrade(
     build,
-    { rosterId: partner.rosterId, give: ids(give), get: ids(get) },
+    twoTeam(me.rosterId, partner.rosterId, ids(give), ids(get)),
     { skip: opts.skip }
   )
-  if (!passesStance(stance, evaluation.me.deltaPerWeek, marketRatio(evaluation.me))) {
+  const [mine, theirs] = evaluation.sides
+  if (!passesStance(stance, mine.deltaPerWeek, marketRatio(mine))) {
     return { evaluation, theirMarket }
   }
-  const acceptance = acceptanceOf(
-    evaluation.them.delta,
-    marketRatio(evaluation.them),
-    evaluation.them.deltaPerWeek
-  )
+  const acceptance = acceptanceOf(theirs.delta, marketRatio(theirs), theirs.deltaPerWeek)
   return {
     evaluation,
     theirMarket,
-    suggestion: acceptance === null ? undefined : { evaluation, acceptance }
+    suggestion: acceptance === null ? undefined : { evaluation, acceptance: [null, acceptance] }
   }
 }
 
@@ -191,12 +191,13 @@ export function suggestTrades(
   }
   const singles = new Map<string, Single>()
   const record = (give: string, get: string, ev: TradeEvaluation, passed: boolean): void => {
+    const [mine, theirs] = ev.sides
     singles.set(key(give, get), {
-      mine: ev.me.delta,
-      minePerWeek: ev.me.deltaPerWeek,
-      theirs: ev.them.delta,
-      myDrops: ev.me.drops.length,
-      theirDrops: ev.them.drops.length,
+      mine: mine.delta,
+      minePerWeek: mine.deltaPerWeek,
+      theirs: theirs.delta,
+      myDrops: mine.drops.length,
+      theirDrops: theirs.drops.length,
       passed
     })
   }
@@ -229,7 +230,7 @@ export function suggestTrades(
     const getPairs = pairs(pool).filter(hasWant)
     for (const give of giveSingles) {
       for (const get of getSingles) {
-        const r = consider(build, partner, give, get, query.stance, entersTheirs, opts, true)
+        const r = consider(build, me, partner, give, get, query.stance, entersTheirs, opts, true)
         if (r.evaluation) {
           record(
             give[0].base.playerId,
@@ -251,8 +252,8 @@ export function suggestTrades(
         ) {
           continue
         }
-        const r = consider(build, partner, give, get, query.stance, entersTheirs, opts)
-        if (r.suggestion && !dominated(r.suggestion.evaluation.me.delta, keys))
+        const r = consider(build, me, partner, give, get, query.stance, entersTheirs, opts)
+        if (r.suggestion && !dominated(r.suggestion.evaluation.sides[0].delta, keys))
           found.push(r.suggestion)
       }
     }
@@ -269,17 +270,17 @@ export function suggestTrades(
             ? // Their after-roster is a subset of the contained 1-for-1's, so their delta cannot be
               // positive either, and the market cannot carry it: they would refuse.
               { theirMarket: 0 }
-            : consider(build, partner, give, get, query.stance, entersTheirs, opts)
-        if (r.suggestion && !dominated(r.suggestion.evaluation.me.delta, keys))
+            : consider(build, me, partner, give, get, query.stance, entersTheirs, opts)
+        if (r.suggestion && !dominated(r.suggestion.evaluation.sides[0].delta, keys))
           found.push(r.suggestion)
       }
     }
   }
   found.sort(
     (a, b) =>
-      desc(a.evaluation.me.delta, b.evaluation.me.delta) ||
-      desc(marketRatio(a.evaluation.me), marketRatio(b.evaluation.me)) ||
-      a.evaluation.them.name.localeCompare(b.evaluation.them.name)
+      desc(a.evaluation.sides[0].delta, b.evaluation.sides[0].delta) ||
+      desc(marketRatio(a.evaluation.sides[0]), marketRatio(b.evaluation.sides[0])) ||
+      a.evaluation.sides[1].name.localeCompare(b.evaluation.sides[1].name)
   )
   return found.slice(0, opts.max ?? SUGGEST_MAX)
 }

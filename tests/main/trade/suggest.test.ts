@@ -10,6 +10,7 @@ import {
   SUGGEST_MAX,
   suggestTrades
 } from '@main/trade/suggest'
+import { proposalOf, twoTeam } from '@shared/deal'
 import type { TradeSuggestQuery, TradeSuggestion } from '@shared/types'
 import { SEASON } from '../../fixtures/season'
 import { rules } from '../../fixtures/rules'
@@ -120,7 +121,8 @@ const shape = (s: TradeSuggestion): string => {
       .map((p) => p.playerId)
       .sort()
       .join('+')
-  return `${ids(s.evaluation.me.give)}→${ids(s.evaluation.me.get)}@${s.evaluation.them.rosterId}`
+  const [me, them] = s.evaluation.sides
+  return `${ids(me.give)}→${ids(me.get)}@${them.rosterId}`
 }
 const shapes = (list: TradeSuggestion[]): string[] => list.map(shape)
 
@@ -142,24 +144,16 @@ describe('suggestTrades on the small league (spec 6b §3)', () => {
     const out = suggestTrades(build, query())
     expect(shapes(out)).toEqual(['A+B→I@3', 'C→F@2'])
     const [abi, cf] = out
-    expect(abi.acceptance).toBe('market')
-    expect(abi.evaluation.me).toMatchObject({ delta: 4, deltaPerWeek: 2, drops: [] })
-    expect(abi.evaluation.them.delta).toBe(-2)
-    expect(abi.evaluation.them.drops.map((p) => p.playerId)).toEqual(['J'])
-    expect(cf.acceptance).toBe('market')
-    expect(cf.evaluation.me).toMatchObject({ delta: 2, deltaPerWeek: 1 })
-    expect(cf.evaluation.them.delta).toBe(-2)
+    expect(abi.acceptance).toEqual([null, 'market'])
+    expect(abi.evaluation.sides[0]).toMatchObject({ delta: 4, deltaPerWeek: 2, drops: [] })
+    expect(abi.evaluation.sides[1].delta).toBe(-2)
+    expect(abi.evaluation.sides[1].drops.map((p) => p.playerId)).toEqual(['J'])
+    expect(cf.acceptance).toEqual([null, 'market'])
+    expect(cf.evaluation.sides[0]).toMatchObject({ delta: 2, deltaPerWeek: 1 })
+    expect(cf.evaluation.sides[1].delta).toBe(-2)
     // a suggestion carries exactly what the builder would compute for it
-    for (const s of out) {
-      const { me, them } = s.evaluation
-      expect(
-        evaluateTrade(build, {
-          rosterId: them.rosterId,
-          give: me.give.map((p) => p.playerId),
-          get: me.get.map((p) => p.playerId)
-        })
-      ).toEqual(s.evaluation)
-    }
+    for (const s of out)
+      expect(evaluateTrade(build, proposalOf(s.evaluation))).toEqual(s.evaluation)
   })
 
   it('applies the stance on my side only', () => {
@@ -168,8 +162,11 @@ describe('suggestTrades on the small league (spec 6b §3)', () => {
     const overpay = suggestTrades(build, query({ stance: 'overpay' }))
     expect(shapes(overpay)).toEqual(['A+B→I@3', 'C→F@2', 'C→E@2', 'A→F@2'])
     // the two I overpay in are win-win for them: ordered by my market ratio (0.95 before 0.88)
-    expect(overpay.slice(2).map((s) => s.acceptance)).toEqual(['both', 'both'])
-    expect(overpay.slice(2).map((s) => s.evaluation.me.delta)).toEqual([-2, -2])
+    expect(overpay.slice(2).map((s) => s.acceptance)).toEqual([
+      [null, 'both'],
+      [null, 'both']
+    ])
+    expect(overpay.slice(2).map((s) => s.evaluation.sides[0].delta)).toEqual([-2, -2])
   })
 
   it('drops a padded 2-for-1 but keeps one whose 1-for-1 they would refuse', () => {
@@ -287,13 +284,14 @@ describe('prunes are exact', () => {
     const { build } = syntheticBuild(league(3))
     const me = build.rosters.get(1) ?? []
     const them = build.rosters.get(2) ?? []
-    const proposal = {
-      rosterId: 2,
-      give: [me[0].base.playerId],
-      get: [them[0].base.playerId, them[1].base.playerId]
-    }
+    const proposal = twoTeam(
+      1,
+      2,
+      [me[0].base.playerId],
+      [them[0].base.playerId, them[1].base.playerId]
+    )
     const fast = evaluateTrade(build, proposal)
-    expect(fast.me.drops).toHaveLength(1)
+    expect(fast.sides[0].drops).toHaveLength(1)
     expect(fast).toEqual(evaluateTrade(build, proposal, { skip: false }))
   })
 })

@@ -31,6 +31,7 @@ import {
   windowLabel
 } from '@/lib/tradeView'
 import { cn } from '@/lib/utils'
+import { proposalOf, twoTeam } from '@shared/deal'
 import { LINEUP_POSITIONS } from '@shared/rules'
 import type {
   DetailTarget,
@@ -190,8 +191,9 @@ function VerdictCard({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-6 md:grid-cols-2">
-          <SideVerdict side={ev.me} spot={spots?.me ?? null} />
-          <SideVerdict side={ev.them} spot={spots?.them ?? null} />
+          {ev.sides.map((side, i) => (
+            <SideVerdict key={side.rosterId} side={side} spot={spots?.sides[i] ?? null} />
+          ))}
         </div>
         <div className="flex gap-2">
           {verdictBadges(ev).map((b) => (
@@ -208,11 +210,11 @@ function VerdictCard({
         </div>
         <div>
           <div className="mb-1 text-sm font-medium">This week</div>
-          {ev.me.thisWeekSwaps.length === 0 ? (
+          {ev.sides[0].thisWeekSwaps.length === 0 ? (
             <p className="text-sm text-muted-foreground">Your lineup this week does not change.</p>
           ) : (
             <ul className="space-y-1 text-sm">
-              {ev.me.thisWeekSwaps.map((s) => (
+              {ev.sides[0].thisWeekSwaps.map((s) => (
                 <li key={`${s.slot}:${s.in.playerId}`}>{swapLine(s)}</li>
               ))}
             </ul>
@@ -231,7 +233,7 @@ function SuggestionRow({
   suggestion: TradeSuggestion
   onOpen: () => void
 }): React.JSX.Element {
-  const { me, them } = suggestion.evaluation
+  const [me, them] = suggestion.evaluation.sides
   return (
     <li className="rounded-md border px-3 py-2 text-sm">
       <div className="flex flex-wrap items-center gap-3">
@@ -257,7 +259,8 @@ function SuggestionRow({
 
 function suggestionKey(s: TradeSuggestion): string {
   const ids = (list: TradePlayer[]): string => list.map((p) => p.playerId).join('+')
-  return `${s.evaluation.them.rosterId}:${ids(s.evaluation.me.give)}:${ids(s.evaluation.me.get)}`
+  const [me, them] = s.evaluation.sides
+  return `${them.rosterId}:${ids(me.give)}:${ids(me.get)}`
 }
 
 interface TradeScreenProps {
@@ -335,11 +338,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
     if (!verdict) return
     let cancelled = false
     void api.trade
-      .openSpot(verdict.season, {
-        rosterId: verdict.them.rosterId,
-        give: verdict.me.give.map((p) => p.playerId),
-        get: verdict.me.get.map((p) => p.playerId)
-      })
+      .openSpot(verdict.season, proposalOf(verdict))
       .then((spots) => {
         if (!cancelled) setOpenSpots({ ev: verdict, spots })
       })
@@ -374,11 +373,11 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
   }
 
   async function evaluate(): Promise<void> {
-    if (season === null || partner === null) return
+    if (season === null || partner === null || !pool) return
     setEvaluating(true)
     setEvalError(null)
     try {
-      setVerdict(await api.trade.evaluate(season, { rosterId: partner, give, get }))
+      setVerdict(await api.trade.evaluate(season, twoTeam(pool.me.rosterId, partner, give, get)))
     } catch (err) {
       setEvalError(errorMessage(err))
     } finally {
@@ -408,9 +407,10 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
 
   /** Spec §5.2: the builder shows the suggestion's own evaluation — no second trade:evaluate call. */
   const openInBuilder = (s: TradeSuggestion): void => {
-    setPartner(s.evaluation.them.rosterId)
-    setGive(s.evaluation.me.give.map((p) => p.playerId))
-    setGet(s.evaluation.me.get.map((p) => p.playerId))
+    const [me, them] = s.evaluation.sides
+    setPartner(them.rosterId)
+    setGive(me.give.map((p) => p.playerId))
+    setGet(me.get.map((p) => p.playerId))
     setVerdict(s.evaluation)
     setEvalError(null)
     builderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })

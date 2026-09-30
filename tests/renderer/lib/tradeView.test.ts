@@ -29,8 +29,11 @@ import {
   bijan,
   chase,
   cook,
+  incoming,
   jefferson,
   lar,
+  outgoing,
+  rivalSide,
   tradeEvaluation,
   tradeSide,
   tradeSuggestion
@@ -103,11 +106,11 @@ describe('tradeView', () => {
 
   it('lists the verdict badges', () => {
     expect(verdictBadges(tradeEvaluation())).toEqual([
-      { label: 'Win-win', on: false },
+      { label: 'Everyone gains', on: false },
       { label: 'Market-fair', on: false }
     ])
-    expect(verdictBadges(tradeEvaluation({ winWin: true, marketFair: true }))).toEqual([
-      { label: 'Win-win', on: true },
+    expect(verdictBadges(tradeEvaluation({ everyoneGains: true, marketFair: true }))).toEqual([
+      { label: 'Everyone gains', on: true },
       { label: 'Market-fair', on: true }
     ])
   })
@@ -117,11 +120,21 @@ describe('tradeView', () => {
     expect(meLine(s)).toBe('Me +4.00 (+0.27/wk)')
     expect(themLine(s)).toBe('Them -4.00')
     expect(acceptanceTags(s)).toEqual(['market'])
-    expect(acceptanceTags(tradeSuggestion({ acceptance: 'both' }))).toEqual(['lineup', 'market'])
+    expect(acceptanceTags(tradeSuggestion({ acceptance: [null, 'both'] }))).toEqual([
+      'lineup',
+      'market'
+    ])
     expect(offerLine(s)).toBe("give RB Saquon Barkley · get WR Ja'Marr Chase")
     const withDrop = tradeSuggestion({
       evaluation: tradeEvaluation({
-        me: tradeSide({ give: [barkley, jefferson], get: [chase], drops: [lar] })
+        sides: [
+          tradeSide({
+            give: [outgoing(barkley, 2), outgoing(jefferson, 2)],
+            get: [incoming(chase, 2)],
+            drops: [lar]
+          }),
+          rivalSide()
+        ]
       })
     })
     expect(offerLine(withDrop)).toBe(

@@ -96,7 +96,7 @@ export function groupByPosition(players: TradePlayer[]): [string, TradePlayer[]]
 
 export function verdictBadges(ev: TradeEvaluation): { label: string; on: boolean }[] {
   return [
-    { label: 'Win-win', on: ev.winWin },
+    { label: 'Everyone gains', on: ev.everyoneGains },
     { label: 'Market-fair', on: ev.marketFair }
   ]
 }
@@ -130,16 +130,17 @@ export function noOffersHint(stance: TradeStance): string {
 
 /** "Me +4.00 (+0.27/wk)" */
 export function meLine(s: TradeSuggestion): string {
-  return `Me ${deltaLine(s.evaluation.me)}`
+  return `Me ${deltaLine(s.evaluation.sides[0])}`
 }
 
 /** "Them -4.00" */
 export function themLine(s: TradeSuggestion): string {
-  return `Them ${fmtSigned(s.evaluation.them.delta)}`
+  return `Them ${fmtSigned(s.evaluation.sides[1].delta)}`
 }
 
 export function acceptanceTags(s: TradeSuggestion): string[] {
-  return s.acceptance === 'both' ? ['lineup', 'market'] : [s.acceptance]
+  const a = s.acceptance[1]
+  return a === null ? [] : a === 'both' ? ['lineup', 'market'] : [a]
 }
 
 /** "RB Saquon Barkley, WR Justin Jefferson" */
@@ -149,7 +150,7 @@ export function sideNames(players: TradePlayer[]): string {
 
 /** "give RB Saquon Barkley · get WR Ja'Marr Chase[ · drop: …]" */
 export function offerLine(s: TradeSuggestion): string {
-  const me = s.evaluation.me
+  const me = s.evaluation.sides[0]
   const drop = dropLine(me)
   return `give ${sideNames(me.give)} · get ${sideNames(me.get)}${drop ? ` · ${drop}` : ''}`
 }

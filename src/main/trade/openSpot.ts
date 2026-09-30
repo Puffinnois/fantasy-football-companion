@@ -39,11 +39,13 @@ export function openSpotFor(
   }
 }
 
-/** Spec §7: each side's open-spot add; the verdict itself is unchanged. */
+/** Spec §2.4: each side's open-spot add, aligned with the evaluation's sides; the verdict itself is unchanged. */
 export function tradeOpenSpots(build: LineupBuild, proposal: TradeProposal): TradeOpenSpots {
   const ev = evaluateTrade(build, proposal)
   const weeks = requireWindow(build)
-  const spot = (side: TradeSideResult): OpenSpot | null =>
-    openSpotFor(build, weeks, side.rosterId, afterRoster(build, side))
-  return { me: spot(ev.me), them: spot(ev.them) }
+  return {
+    sides: ev.sides.map((side) =>
+      openSpotFor(build, weeks, side.rosterId, afterRoster(build, side))
+    )
+  }
 }

@@ -137,6 +137,74 @@ export const SMALL_LEAGUE: SyntheticLeague = {
 }
 
 /**
+ * Multi-team spec §2.2: a three-way cycle where everyone gains. Slots RB · WR · TE (+1 bench),
+ * roster size 4, window weeks 16–17; every player is worth 1000 on the market.
+ *
+ * | Me (1)     | Two (2)    | Three (3)  |
+ * | ---------- | ---------- | ---------- |
+ * | a1 RB 20   | b1 WR 20   | c1 TE 20   |
+ * | a2 RB 15   | b2 WR 15   | c2 TE 14   |
+ * | a3 WR 5    | b3 TE 4    | c3 RB 5    |
+ * | a4 TE 10   | b4 RB 10   | c4 WR 10   |
+ *
+ * Optimal per week: Me 35, Two 34, Three 35. a2 → Three, c2 → Two, b2 → Me gives Me 45 (a1 · b2 ·
+ * a4), Three 45 (a2 · c4 · c1), Two 44 (b4 · b1 · c2): +10 a week for everyone.
+ */
+export const CYCLE_LEAGUE: SyntheticLeague = {
+  currentWeek: 16,
+  weeks: [16, 17],
+  rosterPositions: ['RB', 'WR', 'TE', 'BN'],
+  rules: rules({
+    rosterSlots: [
+      { slot: 'RB', count: 1 },
+      { slot: 'WR', count: 1 },
+      { slot: 'TE', count: 1 },
+      { slot: 'BN', count: 1 }
+    ],
+    settings: {
+      numTeams: 3,
+      waiverType: 'faab',
+      tradeDeadlineWeek: 17,
+      playoffStartWeek: 15,
+      playoffTeams: 6
+    }
+  }),
+  teams: [
+    {
+      rosterId: 1,
+      name: 'Me',
+      isMe: true,
+      players: [
+        { id: 'a1', position: 'RB', weekly: 20, market: 1000 },
+        { id: 'a2', position: 'RB', weekly: 15, market: 1000 },
+        { id: 'a3', position: 'WR', weekly: 5, market: 1000 },
+        { id: 'a4', position: 'TE', weekly: 10, market: 1000 }
+      ]
+    },
+    {
+      rosterId: 2,
+      name: 'Two',
+      players: [
+        { id: 'b1', position: 'WR', weekly: 20, market: 1000 },
+        { id: 'b2', position: 'WR', weekly: 15, market: 1000 },
+        { id: 'b3', position: 'TE', weekly: 4, market: 1000 },
+        { id: 'b4', position: 'RB', weekly: 10, market: 1000 }
+      ]
+    },
+    {
+      rosterId: 3,
+      name: 'Three',
+      players: [
+        { id: 'c1', position: 'TE', weekly: 20, market: 1000 },
+        { id: 'c2', position: 'TE', weekly: 14, market: 1000 },
+        { id: 'c3', position: 'RB', weekly: 5, market: 1000 },
+        { id: 'c4', position: 'WR', weekly: 10, market: 1000 }
+      ]
+    }
+  ]
+}
+
+/**
  * Slice 6c engine fixture: slots RB · WR · FLEX (+1 bench), roster size 4, window weeks 16–17.
  * My optimal lineup is 42 a week (RB A20 · WR B10 · FLEX C12); D never starts.
  *

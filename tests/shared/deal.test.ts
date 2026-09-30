@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { dealProblem, dealTeams, type DealMove } from '@shared/deal'
+import { dealProblem, dealTeams, proposalOf, twoTeam, type DealMove } from '@shared/deal'
+import { tradeEvaluation } from '../fixtures/trade'
 
 const TEAMS: Record<number, string> = { 1: 'Cook Book', 2: 'Rival', 3: 'Tank Mode' }
 const PLAYERS: Record<string, string> = {
@@ -44,5 +45,24 @@ describe('deal rules (multi-team spec §2.1)', () => {
     expect(problem([1, 2, 3], [m('j', 1, 2), m('c', 2, 1), m('h', 3, 1)])).toBe(
       'Tank Mode gets nobody'
     )
+  })
+})
+
+describe('proposal helpers', () => {
+  it('builds a 2-team proposal from my side and reads one back from an evaluation', () => {
+    expect(twoTeam(1, 2, ['j'], ['c', 'b'])).toEqual({
+      moves: [
+        { playerId: 'j', to: 2 },
+        { playerId: 'c', to: 1 },
+        { playerId: 'b', to: 1 }
+      ]
+    })
+    // Jefferson (mine) to Rival, Chase to me — my gives first, then Rival's
+    expect(proposalOf(tradeEvaluation())).toEqual({
+      moves: [
+        { playerId: '6794', to: 2 },
+        { playerId: '7564', to: 1 }
+      ]
+    })
   })
 })

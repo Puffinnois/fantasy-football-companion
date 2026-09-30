@@ -39,3 +39,19 @@ export function tradePlayer(
     starterWeeks
   }
 }
+
+/** `starterWeeks` per roster, computed on first use — for every side of one evaluation. */
+export function startsByRoster(
+  build: LineupBuild,
+  weeks: number[]
+): (rosterId: number) => Map<string, number> {
+  const cache = new Map<number, Map<string, number>>()
+  return (rosterId) => {
+    let hit = cache.get(rosterId)
+    if (!hit) {
+      hit = starterWeeks(build, rosterId, weeks)
+      cache.set(rosterId, hit)
+    }
+    return hit
+  }
+}

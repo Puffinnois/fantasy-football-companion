@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { evaluateTrade } from '@main/trade/evaluate'
 import { afterRoster, openSpotFor, tradeOpenSpots } from '@main/trade/openSpot'
 import type { PlayerSeries } from '@main/value/series'
+import { twoTeam } from '@shared/deal'
 import { syntheticBuild, WAIVER_LEAGUE, waiverLeagueWith } from '../../fixtures/synthetic'
 
 const A = { id: 'A', position: 'RB', weekly: 20, market: 5000 }
@@ -12,27 +13,27 @@ const ids = (roster: PlayerSeries[]): string[] => roster.map((s) => s.base.playe
 describe('trade open spot (slice 6c spec §7)', () => {
   it('finds the best free agent for each side a trade leaves short', () => {
     const { build } = syntheticBuild(WAIVER_LEAGUE)
-    const spots = tradeOpenSpots(build, { rosterId: 2, give: ['C', 'D'], get: ['R2'] })
-    expect(spots.me).toMatchObject({ rosterId: 1, deltaPerWeek: 2.5 })
-    expect(spots.me?.add).toMatchObject({ playerId: 'Y', starterWeeks: 0 })
-    expect(spots.them).toMatchObject({ rosterId: 2, deltaPerWeek: 10 })
-    expect(spots.them?.add?.playerId).toBe('Y')
+    const [me, them] = tradeOpenSpots(build, twoTeam(1, 2, ['C', 'D'], ['R2'])).sides
+    expect(me).toMatchObject({ rosterId: 1, deltaPerWeek: 2.5 })
+    expect(me?.add).toMatchObject({ playerId: 'Y', starterWeeks: 0 })
+    expect(them).toMatchObject({ rosterId: 2, deltaPerWeek: 10 })
+    expect(them?.add?.playerId).toBe('Y')
   })
 
   it('reads the after-roster from the evaluation, auto-drops included', () => {
     const { build } = syntheticBuild(WAIVER_LEAGUE)
-    const proposal = { rosterId: 2, give: ['D'], get: ['R1', 'R2'] }
-    const ev = evaluateTrade(build, proposal)
-    expect(ev.me.drops).toHaveLength(1)
-    const dropped = ev.me.drops[0].playerId
-    expect(ids(afterRoster(build, ev.me))).toEqual(
+    const proposal = twoTeam(1, 2, ['D'], ['R1', 'R2'])
+    const [mine, theirs] = evaluateTrade(build, proposal).sides
+    expect(mine.drops).toHaveLength(1)
+    const dropped = mine.drops[0].playerId
+    expect(ids(afterRoster(build, mine))).toEqual(
       ['A', 'B', 'C', 'R1', 'R2'].filter((id) => id !== dropped)
     )
-    expect(ids(afterRoster(build, ev.them))).toEqual(['D'])
-    const spots = tradeOpenSpots(build, proposal)
-    expect(spots.me).toBeNull()
-    expect(spots.them).toMatchObject({ rosterId: 2, deltaPerWeek: 14 })
-    expect(spots.them?.add?.playerId).toBe('Y')
+    expect(ids(afterRoster(build, theirs))).toEqual(['D'])
+    const spots = tradeOpenSpots(build, proposal).sides
+    expect(spots[0]).toBeNull()
+    expect(spots[1]).toMatchObject({ rosterId: 2, deltaPerWeek: 14 })
+    expect(spots[1]?.add?.playerId).toBe('Y')
   })
 
   it('names no add when no free agent helps the open spot', () => {
