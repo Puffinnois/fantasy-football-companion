@@ -16,6 +16,7 @@ import {
 import { mapMatchups } from '@main/sync/matchupsSync'
 import { evaluateTrade, rosterSize, TradeError } from '@main/trade/evaluate'
 import { starterWeeks, tradePlayer } from '@main/trade/player'
+import type { SideMemo } from '@main/trade/side'
 import { buildValueSeason } from '@main/value/build'
 import { twoTeam } from '@shared/deal'
 import type { TradeMove, TradeProposal } from '@shared/types'
@@ -335,5 +336,20 @@ describe('evaluateTrade across three teams (multi-team spec §2.2)', () => {
     expect(evaluateTrade(build, twoTeam(1, 3, ['B'], ['I'])).sides.map((s) => s.rosterId)).toEqual([
       1, 3
     ])
+  })
+
+  it('shares side verdicts through a memo, destinations aside (spec §2.3)', () => {
+    const memo: SideMemo = new Map()
+    const first = evaluateTrade(build, cycle, { memo })
+    expect([...memo.keys()]).toEqual(['1|B|I', '2|G|B', '3|I|G'])
+    expect(evaluateTrade(build, cycle, { memo })).toEqual(first)
+    expect(evaluateTrade(build, cycle)).toEqual(first)
+    // B for I straight with Other: my side comes from the memo, Other's is new, B now goes to Other
+    const direct = evaluateTrade(build, twoTeam(1, 3, ['B'], ['I']), { memo })
+    expect(memo.size).toBe(4)
+    expect(direct.sides[0]).toEqual({
+      ...first.sides[0],
+      give: [{ ...first.sides[0].give[0], to: 3 }]
+    })
   })
 })

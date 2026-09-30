@@ -107,7 +107,7 @@ function ownerOf(s: PlayerSeries): number {
  * market sums, weeks changed, this week's swaps. Received players count their starts on the
  * roster they leave.
  */
-export function sideFor(
+function computeSide(
   build: LineupBuild,
   side: DealSide,
   weeks: number[],
@@ -193,4 +193,36 @@ export function sideFor(
     ).length,
     thisWeekSwaps: toSwaps(afterWeeks[0], before[0])
   }
+}
+
+/** Multi-team spec §2.3: side verdicts by `sideKey`, shared for one evaluation or one search run. */
+export type SideMemo = Map<string, SideCore>
+
+/** `rosterId|gives|gets`, ids sorted — a side's verdict depends on nothing else. */
+export function sideKey(rosterId: number, give: PlayerSeries[], get: PlayerSeries[]): string {
+  const ids = (list: PlayerSeries[]): string =>
+    list
+      .map((s) => s.base.playerId)
+      .sort()
+      .join('+')
+  return `${rosterId}|${ids(give)}|${ids(get)}`
+}
+
+/** `computeSide` through the memo when one is given. */
+export function sideFor(
+  build: LineupBuild,
+  side: DealSide,
+  weeks: number[],
+  size: number | null,
+  startsOf: StartsOf,
+  opts: SideOptions,
+  memo: SideMemo | null = null
+): SideCore {
+  if (memo === null) return computeSide(build, side, weeks, size, startsOf, opts)
+  const key = sideKey(side.team.rosterId, side.give, side.get)
+  const hit = memo.get(key)
+  if (hit) return hit
+  const core = computeSide(build, side, weeks, size, startsOf, opts)
+  memo.set(key, core)
+  return core
 }

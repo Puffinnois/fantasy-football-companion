@@ -3,7 +3,7 @@ import type { PlayerSeries } from '@main/value/series'
 import { dealProblem, dealTeams, type DealMove } from '@shared/deal'
 import type { Team, TradeEvaluation, TradeProposal, TradeSideResult } from '@shared/types'
 import { startsByRoster } from './player'
-import { sideFor, type DealSide, type SideOptions } from './side'
+import { sideFor, type DealSide, type SideOptions, type SideMemo } from './side'
 
 export { isStarter, marketSum } from './side'
 
@@ -23,7 +23,10 @@ export class TradeError extends Error {
   }
 }
 
-export type EvaluateOptions = SideOptions
+export interface EvaluateOptions extends SideOptions {
+  /** Multi-team spec §2.3: reuse side verdicts across calls (one search run); none by default. */
+  memo?: SideMemo
+}
 
 export function myTeam(build: LineupBuild): Team {
   const me = build.inputs.teams.find((t) => t.isMe)
@@ -124,7 +127,7 @@ export function evaluateTrade(
     return to
   }
   const sides = deal.sides.map((side): TradeSideResult => {
-    const core = sideFor(build, side, weeks, size, startsOf, opts)
+    const core = sideFor(build, side, weeks, size, startsOf, opts, opts.memo ?? null)
     return { ...core, give: core.give.map((p) => ({ ...p, to: destination(p.playerId) })) }
   })
   const { season, currentWeek, lastWeek } = build.inputs.value.context
