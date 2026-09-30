@@ -195,10 +195,18 @@ function computeSide(
   }
 }
 
-/** Multi-team spec §2.3: side verdicts by `sideKey`, shared for one evaluation or one search run. */
+/**
+ * Multi-team spec §2.3: side verdicts by `sideKey`. Valid within one build and one set of
+ * options (one evaluation or one search run). A hit returns the stored result itself, so its
+ * nested arrays and player objects (`get`, `drops`, `thisWeekSwaps`) are shared between
+ * evaluations and must be treated as read-only.
+ */
 export type SideMemo = Map<string, SideCore>
 
-/** `rosterId|gives|gets`, ids sorted — a side's verdict depends on nothing else. */
+/**
+ * `rosterId|gives|gets`, ids sorted — within one build and one set of options, a side's verdict
+ * depends on nothing else.
+ */
 export function sideKey(rosterId: number, give: PlayerSeries[], get: PlayerSeries[]): string {
   const ids = (list: PlayerSeries[]): string =>
     list
