@@ -10,12 +10,14 @@ import type {
   WeekQuery,
   PointsContext,
   RosterPlayer,
+  StreamRow,
   SyncLogEntry,
   SyncResult,
   SyncStatus,
   Team,
   TeamStrength,
   TradeEvaluation,
+  TradeOpenSpots,
   TradePool,
   TradeProposal,
   TradeSuggestion,
@@ -66,10 +68,14 @@ export interface Api {
     evaluate(season: number, proposal: TradeProposal): Promise<TradeEvaluation>
     /** Offers that pass my stance and their acceptance, ranked (slice 6b spec §3); `[]` is a normal answer. */
     suggest(query: TradeSuggestQuery): Promise<TradeSuggestion[]>
+    /** Slice 6c spec §7: the best add for a spot the trade leaves open, per side; runs in the engine worker. */
+    openSpot(season: number, proposal: TradeProposal): Promise<TradeOpenSpots>
   }
   waiver: {
     /** Rest-of-season adds and stashes with their releases (slice 6c spec §2–3); runs in the engine worker. */
     adds(season: number): Promise<WaiverAdds>
+    /** One-week streamers for `week` with their releases (slice 6c spec §4); runs in the engine worker. */
+    stream(season: number, week: number): Promise<StreamRow[]>
   }
   watchlist: {
     /** Returns the new state. */
@@ -116,7 +122,9 @@ export const IPC = {
   tradePool: 'trade:pool',
   tradeEvaluate: 'trade:evaluate',
   tradeSuggest: 'trade:suggest',
+  tradeOpenSpot: 'trade:openSpot',
   waiverAdds: 'waiver:adds',
+  waiverStream: 'waiver:stream',
   watchlistToggle: 'watchlist:toggle',
   rulesGet: 'rules:get',
   rulesUpdate: 'rules:update',
