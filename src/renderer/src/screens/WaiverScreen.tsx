@@ -15,21 +15,31 @@ import { errorMessage, fmtSigned } from '@/lib/format'
 import { deltaTone, fmtMarket, windowLabel } from '@/lib/tradeView'
 import { cn } from '@/lib/utils'
 import {
+  ALL_POSITIONS,
   NO_LINEUP_ADDS,
   NO_STASH,
   STASH_SORTS,
+  STREAM_CHIPS,
+  WAIVER_MODES,
+  filterStream,
   isFree,
+  noStreamers,
   optionLabel,
   priorityLine,
   releaseLabel,
   rosRankLabel,
   sortStash,
   startsText,
+  streamOptionLabel,
   trendingNote,
   trendingText,
-  type StashSort
+  weekOptionLabel,
+  type ReleaseChoice,
+  type StashSort,
+  type WaiverMode
 } from '@/lib/waiverView'
-import type { AddOption, DetailTarget, TradePlayer, WaiverAdds } from '@shared/types'
+import { streamWeeks } from '@shared/rules'
+import type { DetailTarget, StreamRow, TradePlayer, WaiverAdds } from '@shared/types'
 
 const selectClass =
   'h-8 max-w-64 rounded-md border border-input bg-transparent px-2 text-sm text-foreground dark:bg-input/30'
@@ -64,14 +74,16 @@ function PlayerCell({
 }
 
 /** Spec §8: the release, as a dropdown of every option when there is a choice. */
-function ReleaseCell({
+function ReleaseCell<T extends ReleaseChoice>({
   player,
   options,
+  label,
   index,
   onChange
 }: {
   player: TradePlayer
-  options: AddOption[]
+  options: T[]
+  label: (o: T) => string
   index: number
   onChange: (index: number) => void
 }): React.JSX.Element {
@@ -85,7 +97,7 @@ function ReleaseCell({
     >
       {options.map((o, i) => (
         <option key={i} value={i}>
-          {optionLabel(o)}
+          {label(o)}
         </option>
       ))}
     </select>
@@ -152,6 +164,7 @@ function LineupCard({
                       <ReleaseCell
                         player={row.player}
                         options={row.options}
+                        label={optionLabel}
                         index={index}
                         onChange={(i) => onChoose(key, i)}
                       />
@@ -246,6 +259,7 @@ function StashCard({
                       <ReleaseCell
                         player={row.player}
                         options={row.options}
+                        label={optionLabel}
                         index={index}
                         onChange={(i) => onChoose(key, i)}
                       />
@@ -261,11 +275,141 @@ function StashCard({
   )
 }
 
+function StreamCard({
+  weeks,
+  week,
+  currentWeek,
+  onWeek,
+  chip,
+  onChip,
+  result,
+  note,
+  error,
+  choice,
+  onChoose,
+  onOpen
+}: {
+  weeks: number[]
+  week: number
+  currentWeek: number
+  onWeek: (week: number) => void
+  chip: string
+  onChip: (chip: string) => void
+  /** The latest answer — an earlier week's while a new one computes. */
+  result: { week: number; rows: StreamRow[] } | null
+  /** "Calculating…" / "Refreshing…"; null when the result is current. */
+  note: string | null
+  error: string | null
+  choice: Record<string, number>
+  onChoose: Choose
+  onOpen: (p: DetailTarget) => void
+}): React.JSX.Element {
+  const rows = result ? filterStream(result.rows, chip) : []
+  return (
+    <Card>
+      <CardHeader className="space-y-3">
+        <CardTitle className="text-base">Streaming</CardTitle>
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            aria-label="Streaming week"
+            className={selectClass}
+            value={week}
+            onChange={(e) => onWeek(Number(e.target.value))}
+          >
+            {weeks.map((w) => (
+              <option key={w} value={w}>
+                {weekOptionLabel(w, currentWeek)}
+              </option>
+            ))}
+          </select>
+          <div className="flex flex-wrap gap-1 rounded-full border p-1">
+            {STREAM_CHIPS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-pressed={chip === c}
+                onClick={() => onChip(c)}
+                className={cn(
+                  'h-7 rounded-full px-3 text-sm font-medium transition-colors',
+                  chip === c
+                    ? 'bg-primary/20 text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {error && <p className="text-sm text-muted-foreground">{error}</p>}
+        {note && <p className="text-xs text-muted-foreground">{note}</p>}
+        {result &&
+          (rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{noStreamers(result.week, chip)}</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Player</TableHead>
+                  <TableHead>Opponent</TableHead>
+                  <TableHead className="text-right">Week gain</TableHead>
+                  <TableHead className="text-right">Rest cost</TableHead>
+                  <TableHead className="text-right">Net</TableHead>
+                  <TableHead>Make room</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => {
+                  const key = `stream|${row.player.playerId}`
+                  const index = choice[key] ?? 0
+                  const o = row.options[index] ?? row.options[0]
+                  return (
+                    <TableRow key={key} data-testid="stream-row">
+                      <TableCell>
+                        <PlayerCell player={row.player} onOpen={onOpen} />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{row.opponent ?? '—'}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtSigned(o.weekGain)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtSigned(-o.restCost)}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          'text-right font-semibold tabular-nums',
+                          TONE[deltaTone(o.net)]
+                        )}
+                      >
+                        {fmtSigned(o.net)}
+                      </TableCell>
+                      <TableCell>
+                        <ReleaseCell
+                          player={row.player}
+                          options={row.options}
+                          label={streamOptionLabel}
+                          index={index}
+                          onChange={(i) => onChoose(key, i)}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          ))}
+      </CardContent>
+    </Card>
+  )
+}
+
 interface WaiverScreenProps {
   dataVersion: number
 }
 
-/** Slice 6c spec §8: the Waivers screen, rest-of-season mode (streaming comes in Plan P). */
+/** Slice 6c spec §8: the Waivers screen — rest of season (lineup adds, stash) and streaming. */
 export function WaiverScreen({ dataVersion }: WaiverScreenProps): React.JSX.Element {
   const [season, setSeason] = useState<number | null>(null)
   const [loaded, setLoaded] = useState<{ key: string; adds: WaiverAdds } | null>(null)
@@ -273,6 +417,18 @@ export function WaiverScreen({ dataVersion }: WaiverScreenProps): React.JSX.Elem
   const [choice, setChoice] = useState<Record<string, number>>({})
   const [sort, setSort] = useState<StashSort>('market')
   const [selected, setSelected] = useState<DetailTarget | null>(null)
+  const [mode, setMode] = useState<WaiverMode>('ros')
+  // Spec §8: streaming loads on the first switch, then on each week change (and after a sync).
+  const [streamOn, setStreamOn] = useState(false)
+  const [pickedWeek, setPickedWeek] = useState<number | null>(null)
+  const [chip, setChip] = useState(ALL_POSITIONS)
+  const [streamed, setStreamed] = useState<{
+    key: string
+    week: number
+    rows: StreamRow[]
+  } | null>(null)
+  const [streamFailed, setStreamFailed] = useState<{ key: string; message: string } | null>(null)
+  const [streamChoice, setStreamChoice] = useState<Record<string, number>>({})
 
   useEffect(() => {
     void api.players
@@ -307,29 +463,84 @@ export function WaiverScreen({ dataVersion }: WaiverScreenProps): React.JSX.Elem
   const priority = adds ? priorityLine(adds) : null
   const choose: Choose = (k, i) => setChoice((c) => ({ ...c, [k]: i }))
 
+  // Spec §4: the picker's weeks; a week a sync moved past falls back to the current one.
+  const weeks = adds ? streamWeeks(adds.currentWeek, adds.lastWeek) : []
+  const week = pickedWeek !== null && weeks.includes(pickedWeek) ? pickedWeek : (weeks[0] ?? null)
+  const streamKey =
+    streamOn && season !== null && week !== null ? `${season}|${dataVersion}|${week}` : null
+  useEffect(() => {
+    if (season === null || week === null || streamKey === null) return
+    let cancelled = false
+    void api.waiver
+      .stream(season, week)
+      .then((rows) => {
+        if (cancelled) return
+        setStreamed({ key: streamKey, week, rows })
+        setStreamChoice({})
+      })
+      .catch((err) => {
+        if (!cancelled) setStreamFailed({ key: streamKey, message: errorMessage(err) })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [season, week, streamKey])
+
+  const streamError =
+    streamFailed !== null && streamFailed.key === streamKey ? streamFailed.message : null
+  const streamNote =
+    streamError !== null
+      ? null
+      : streamed === null
+        ? 'Calculating…'
+        : streamed.key !== streamKey
+          ? 'Refreshing…'
+          : null
+  const chooseStream: Choose = (k, i) => setStreamChoice((c) => ({ ...c, [k]: i }))
+  const switchMode = (m: WaiverMode): void => {
+    setMode(m)
+    if (m === 'stream') setStreamOn(true)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Waivers</h1>
           <p className="text-sm text-muted-foreground">
-            Free agents worth a roster spot over the rest of the season, and what to release for
-            them.
+            Free agents worth a roster spot — for the rest of the season or for one week — and what
+            to release for them.
           </p>
         </div>
-        {adds && (
-          <div className="flex flex-col items-end text-sm text-muted-foreground">
-            {priority && <span>{priority}</span>}
-            <span>{windowLabel(adds)}</span>
+        <div className="flex flex-col items-end gap-1 text-sm text-muted-foreground">
+          <div className="flex rounded-md border p-0.5">
+            {WAIVER_MODES.map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                aria-pressed={mode === m.key}
+                onClick={() => switchMode(m.key)}
+                className={cn(
+                  'h-7 rounded px-3 text-sm',
+                  mode === m.key
+                    ? 'bg-primary/20 text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {m.label}
+              </button>
+            ))}
           </div>
-        )}
+          {priority && <span>{priority}</span>}
+          {adds && <span>{windowLabel(adds)}</span>}
+        </div>
       </div>
 
       {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
       {!adds && !notice && <p className="text-sm text-muted-foreground">Calculating…</p>}
-      {refreshing && <p className="text-xs text-muted-foreground">Refreshing…</p>}
 
-      {adds && (
+      {mode === 'ros' && refreshing && <p className="text-xs text-muted-foreground">Refreshing…</p>}
+      {mode === 'ros' && adds && (
         <>
           <LineupCard adds={adds} choice={choice} onChoose={choose} onOpen={setSelected} />
           <StashCard
@@ -341,6 +552,23 @@ export function WaiverScreen({ dataVersion }: WaiverScreenProps): React.JSX.Elem
             onOpen={setSelected}
           />
         </>
+      )}
+
+      {mode === 'stream' && adds && week !== null && (
+        <StreamCard
+          weeks={weeks}
+          week={week}
+          currentWeek={adds.currentWeek}
+          onWeek={setPickedWeek}
+          chip={chip}
+          onChip={setChip}
+          result={streamed}
+          note={streamNote}
+          error={streamError}
+          choice={streamChoice}
+          onChoose={chooseStream}
+          onOpen={setSelected}
+        />
       )}
 
       <PlayerDetailPanel season={season ?? 0} player={selected} onClose={() => setSelected(null)} />
