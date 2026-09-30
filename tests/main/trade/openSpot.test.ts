@@ -3,7 +3,13 @@ import { evaluateTrade } from '@main/trade/evaluate'
 import { afterRoster, openSpotFor, tradeOpenSpots } from '@main/trade/openSpot'
 import type { PlayerSeries } from '@main/value/series'
 import { twoTeam } from '@shared/deal'
-import { syntheticBuild, WAIVER_LEAGUE, waiverLeagueWith } from '../../fixtures/synthetic'
+import type { TradeProposal } from '@shared/types'
+import {
+  SMALL_LEAGUE,
+  syntheticBuild,
+  WAIVER_LEAGUE,
+  waiverLeagueWith
+} from '../../fixtures/synthetic'
 
 const A = { id: 'A', position: 'RB', weekly: 20, market: 5000 }
 const C = { id: 'C', position: 'RB', weekly: 12, market: 2000 }
@@ -47,6 +53,34 @@ describe('trade open spot (slice 6c spec §7)', () => {
       add: null,
       deltaPerWeek: 0
     })
+  })
+
+  it('handles a 3-team deal where one side drops and another is left short', () => {
+    const { build } = syntheticBuild(SMALL_LEAGUE)
+    const proposal: TradeProposal = {
+      moves: [
+        { playerId: 'B', to: 2 },
+        { playerId: 'D', to: 2 },
+        { playerId: 'G', to: 3 },
+        { playerId: 'I', to: 1 }
+      ]
+    }
+    const [me, rival, other] = evaluateTrade(build, proposal).sides
+    // Me ends with A, C, I: RB A20 · WR I25 · FLEX C18 = 63 a week (was 46)
+    expect(me.delta).toBe(34)
+    expect(me.drops).toEqual([])
+    // Rival holds F, E, H, B, D (5 > 4): B and D never start, the tie breaks on lower ROS points
+    expect(rival.drops.map((s) => s.playerId)).toEqual(['D'])
+    // F, E, H, B = 39 a week (was 43)
+    expect(rival.delta).toBe(-8)
+    // Other ends with J, K, L, G: RB G7 · WR K6 · FLEX L9 = 22 a week (was 38)
+    expect(other.delta).toBe(-32)
+    // Me is one short but no free agent exists; Rival is full after its drop; Other is full
+    expect(tradeOpenSpots(build, proposal).sides).toEqual([
+      { rosterId: 1, add: null, deltaPerWeek: 0 },
+      null,
+      null
+    ])
   })
 
   it('is null for a full roster or an unknown roster size', () => {

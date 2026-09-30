@@ -161,7 +161,7 @@ describe('suggestTrades on the small league (spec 6b §3)', () => {
     expect(shapes(suggestTrades(build, query({ stance: 'premium' })))).toEqual(['A+B→I@3', 'C→F@2'])
     const overpay = suggestTrades(build, query({ stance: 'overpay' }))
     expect(shapes(overpay)).toEqual(['A+B→I@3', 'C→F@2', 'C→E@2', 'A→F@2'])
-    // the two I overpay in are win-win for them: ordered by my market ratio (0.95 before 0.88)
+    // the two I overpay in help their lineup too: ordered by my market ratio (0.95 before 0.88)
     expect(overpay.slice(2).map((s) => s.acceptance)).toEqual([
       [null, 'both'],
       [null, 'both']

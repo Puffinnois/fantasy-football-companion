@@ -346,6 +346,8 @@ describe('evaluateTrade across three teams (multi-team spec §2.2)', () => {
     expect(evaluateTrade(build, cycle)).toEqual(first)
     // B for I straight with Other: my side comes from the memo, Other's is new, B now goes to Other
     const direct = evaluateTrade(build, twoTeam(1, 3, ['B'], ['I']), { memo })
+    // a memo hit returns the stored side itself, so this proves the memo is read, not just written
+    expect(direct.sides[0].get).toBe(first.sides[0].get)
     expect(memo.size).toBe(4)
     expect(direct.sides[0]).toEqual({
       ...first.sides[0],
