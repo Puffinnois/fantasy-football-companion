@@ -41,11 +41,13 @@ import type {
   PlayersWeek,
   PointsContext,
   RosterPlayer,
+  StreamRow,
   SyncResult,
   SyncStatus,
   Team,
   TeamStrength,
   TradeEvaluation,
+  TradeOpenSpots,
   TradePool,
   TradeProposal,
   TradeSuggestion,
@@ -319,11 +321,28 @@ export function registerIpcHandlers(ctx: AppContext): void {
     }
   )
 
+  ipcMain.handle(
+    IPC.tradeOpenSpot,
+    (_event, season: number, proposal: TradeProposal): Promise<TradeOpenSpots> => {
+      const id = activeLeagueId()
+      if (!id) throw new Error('No league imported')
+      // Slice 6c spec §7: an info line under the verdict, computed off the main thread after it.
+      return runEngine(ctx.dbPath, id, { kind: 'openSpot', season, proposal })
+    }
+  )
+
   ipcMain.handle(IPC.waiverAdds, (_event, season: number): Promise<WaiverAdds> => {
     const id = activeLeagueId()
     if (!id) throw new Error('No league imported')
     // Slice 6c spec §6: the search runs in the engine worker, rebuilt from the DB.
     return runEngine(ctx.dbPath, id, { kind: 'waiverAdds', season })
+  })
+
+  ipcMain.handle(IPC.waiverStream, (_event, season: number, week: number): Promise<StreamRow[]> => {
+    const id = activeLeagueId()
+    if (!id) throw new Error('No league imported')
+    // Slice 6c spec §6: changing the week re-runs only this, in the engine worker.
+    return runEngine(ctx.dbPath, id, { kind: 'waiverStream', season, week })
   })
 
   ipcMain.handle(IPC.watchlistToggle, (_event, playerId: string): boolean => {

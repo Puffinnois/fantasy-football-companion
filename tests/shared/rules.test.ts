@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lastFantasyWeek, scoringFormat, type Rules } from '@shared/rules'
+import { lastFantasyWeek, scoringFormat, streamWeeks, type Rules } from '@shared/rules'
 import { rules } from '../fixtures/rules'
 
 describe('scoringFormat', () => {
@@ -39,5 +39,13 @@ describe('lastFantasyWeek (slice 6b spec §2.1)', () => {
   it('is 18 without settings at all', () => {
     expect(lastFantasyWeek(null)).toBe(18)
     expect(lastFantasyWeek(undefined)).toBe(18)
+  })
+})
+
+describe('streamWeeks (slice 6c spec §4)', () => {
+  it('reaches three weeks past the current one, never past the window', () => {
+    expect(streamWeeks(3, 17)).toEqual([3, 4, 5, 6])
+    expect(streamWeeks(16, 17)).toEqual([16, 17])
+    expect(streamWeeks(18, 17)).toEqual([])
   })
 })

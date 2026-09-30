@@ -1,19 +1,28 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { WaiverScreen } from '@/screens/WaiverScreen'
 import { api } from '@/lib/api'
 import type { PlayersOptions } from '@shared/types'
-import { addOption, addRow, waiverAdds } from '../../fixtures/waiver'
+import {
+  addOption,
+  addRow,
+  allgeier,
+  streamOption,
+  streamRow,
+  waiverAdds,
+  wright
+} from '../../fixtures/waiver'
 
 vi.mock('@/lib/api', () => ({
   api: {
     players: { options: vi.fn(), detail: vi.fn() },
-    waiver: { adds: vi.fn() }
+    waiver: { adds: vi.fn(), stream: vi.fn() }
   }
 }))
 const optionsMock = vi.mocked(api.players.options)
 const addsMock = vi.mocked(api.waiver.adds)
+const streamMock = vi.mocked(api.waiver.stream)
 
 const options: PlayersOptions = {
   seasons: [2026],
@@ -28,6 +37,24 @@ beforeEach(() => {
   addsMock.mockReset()
   optionsMock.mockResolvedValue(options)
   addsMock.mockResolvedValue(waiverAdds())
+  streamMock.mockReset()
+  streamMock.mockResolvedValue([
+    streamRow(),
+    streamRow({
+      player: wright,
+      opponent: 'vs NO',
+      options: [
+        streamOption({ weekGain: 5, restCost: 3, net: 2 }),
+        streamOption({
+          release: { kind: 'drop', playerId: allgeier.playerId },
+          releasePlayer: allgeier,
+          weekGain: 4,
+          restCost: 3.5,
+          net: 0.5
+        })
+      ]
+    })
+  ])
 })
 afterEach(cleanup)
 
@@ -98,5 +125,67 @@ describe('WaiverScreen', () => {
     addsMock.mockRejectedValue(new Error('No projections stored for this season'))
     render(<WaiverScreen dataVersion={0} />)
     expect(await screen.findByText('No projections stored for this season')).toBeTruthy()
+  })
+
+  it('streams the current week on the first switch and refetches only on a week change', async () => {
+    render(<WaiverScreen dataVersion={0} />)
+    await screen.findByText('Tyler Allgeier')
+    expect(streamMock).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Streaming' }))
+    expect(await screen.findByText('@ CAR')).toBeTruthy()
+    expect(streamMock).toHaveBeenCalledWith(2026, 3)
+    expect(screen.queryByText('Tyler Allgeier')).toBeNull()
+    const week = screen.getByLabelText('Streaming week') as HTMLSelectElement
+    expect([...week.options].map((o) => o.textContent)).toEqual([
+      'Week 3 (this week)',
+      'Week 4',
+      'Week 5',
+      'Week 6'
+    ])
+
+    fireEvent.change(week, { target: { value: '5' } })
+    await waitFor(() => expect(streamMock).toHaveBeenCalledWith(2026, 5))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rest of season' }))
+    expect(screen.getByText('Tyler Allgeier')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Streaming' }))
+    expect(streamMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('filters streamers by position and switches a release', async () => {
+    render(<WaiverScreen dataVersion={0} />)
+    await screen.findByText('Tyler Allgeier')
+    fireEvent.click(screen.getByRole('button', { name: 'Streaming' }))
+    await screen.findByText('@ CAR')
+    const names = (): string[] =>
+      screen
+        .getAllByTestId('stream-row')
+        .map((row) => within(row).getAllByRole('button')[0].textContent ?? '')
+    expect(names()).toEqual(['Tre Harris', 'Jaylen Wright'])
+
+    fireEvent.click(screen.getByRole('button', { name: 'RB' }))
+    expect(names()).toEqual(['Jaylen Wright'])
+    expect(screen.getByText('+2.00')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Release for Jaylen Wright'), {
+      target: { value: '1' }
+    })
+    expect(screen.getByText('-3.50')).toBeTruthy()
+    expect(screen.getByText('+0.50')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'TE' }))
+    expect(screen.getByText('No TE streamer beats your lineup in week 3.')).toBeTruthy()
+  })
+
+  it('explains an empty streaming week and shows a streaming error', async () => {
+    streamMock
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error('Streaming covers weeks 3–6'))
+    render(<WaiverScreen dataVersion={0} />)
+    await screen.findByText('Tyler Allgeier')
+    fireEvent.click(screen.getByRole('button', { name: 'Streaming' }))
+    expect(await screen.findByText('No streamer beats your lineup in week 3.')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Streaming week'), { target: { value: '4' } })
+    expect(await screen.findByText('Streaming covers weeks 3–6')).toBeTruthy()
   })
 })

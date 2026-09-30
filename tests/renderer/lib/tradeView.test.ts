@@ -8,6 +8,7 @@ import {
   meLine,
   noOffersHint,
   offerLine,
+  openSpotLine,
   sideNames,
   stanceHint,
   themLine,
@@ -25,6 +26,7 @@ import {
 } from '@/lib/tradeView'
 import {
   barkley,
+  bijan,
   chase,
   cook,
   jefferson,
@@ -37,6 +39,15 @@ import {
 const tradePlayerX = { ...barkley, playerId: 'x', position: null }
 
 describe('tradeView', () => {
+  it('describes an open spot', () => {
+    expect(openSpotLine({ rosterId: 1, add: bijan, deltaPerWeek: 0.8 })).toBe(
+      `Open spot: best add ${bijan.fullName}, +0.80/wk`
+    )
+    expect(openSpotLine({ rosterId: 2, add: null, deltaPerWeek: 0 })).toBe(
+      'Open spot: no free agent improves this lineup'
+    )
+  })
+
   it('labels the window', () => {
     expect(windowLabel({ currentWeek: 3, lastWeek: 17, weeks: 15 })).toBe('weeks 3–17 · 15 weeks')
     expect(windowLabel({ currentWeek: 17, lastWeek: 17, weeks: 1 })).toBe('week 17 · 1 week')

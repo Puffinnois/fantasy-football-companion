@@ -18,6 +18,14 @@ function onReserve(s: PlayerSeries): boolean {
   return s.rosterSlot !== null && UNSTARTABLE_SLOTS.has(s.rosterSlot)
 }
 
+/** Players who count against the roster size: everyone but IR / taxi. */
+export function activePlayers(roster: PlayerSeries[]): PlayerSeries[] {
+  return roster.filter((s) => !onReserve(s))
+}
+
+/** Spec §2.2 / §7: nothing leaves — a spot is already open. */
+export const OPEN_RELEASE: ReleaseCandidate = { release: { kind: 'open' }, series: null }
+
 /**
  * Spec §2.2: an open spot is the only option when there is room (a drop can never beat it);
  * otherwise a drop per active player, plus an IR move for each active player whose injury status
@@ -29,9 +37,9 @@ export function releaseCandidates(
   ir: IrSettings
 ): ReleaseCandidate[] {
   const size = rosterSize(build)
-  const active = roster.filter((s) => !onReserve(s))
+  const active = activePlayers(roster)
   if (size === null || active.length < size || active.length === 0) {
-    return [{ release: { kind: 'open' }, series: null }]
+    return [OPEN_RELEASE]
   }
   const irFree = (ir.irSlots ?? 0) > roster.filter((s) => s.rosterSlot === 'ir').length
   const eligible = new Set(ir.irStatuses ?? ['IR'])

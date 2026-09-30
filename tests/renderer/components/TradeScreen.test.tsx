@@ -5,18 +5,26 @@ import { TradeScreen } from '@/screens/TradeScreen'
 import { api } from '@/lib/api'
 import type { PlayersOptions } from '@shared/types'
 import { lineupPlayer } from '../../fixtures/lineup'
-import { lar, tradeEvaluation, tradePool, tradeSide, tradeSuggestion } from '../../fixtures/trade'
+import {
+  bijan,
+  lar,
+  tradeEvaluation,
+  tradePool,
+  tradeSide,
+  tradeSuggestion
+} from '../../fixtures/trade'
 
 vi.mock('@/lib/api', () => ({
   api: {
     players: { options: vi.fn(), detail: vi.fn() },
-    trade: { pool: vi.fn(), evaluate: vi.fn(), suggest: vi.fn() }
+    trade: { pool: vi.fn(), evaluate: vi.fn(), suggest: vi.fn(), openSpot: vi.fn() }
   }
 }))
 const optionsMock = vi.mocked(api.players.options)
 const poolMock = vi.mocked(api.trade.pool)
 const evaluateMock = vi.mocked(api.trade.evaluate)
 const suggestMock = vi.mocked(api.trade.suggest)
+const openSpotMock = vi.mocked(api.trade.openSpot)
 
 const options: PlayersOptions = {
   seasons: [2026],
@@ -32,6 +40,8 @@ beforeEach(() => {
   evaluateMock.mockReset()
   suggestMock.mockReset()
   suggestMock.mockResolvedValue([])
+  openSpotMock.mockReset()
+  openSpotMock.mockResolvedValue({ me: null, them: null })
   optionsMock.mockResolvedValue(options)
   poolMock.mockResolvedValue(tradePool())
 })
@@ -85,6 +95,27 @@ describe('TradeScreen', () => {
     fireEvent.click(screen.getByLabelText('Remove Justin Jefferson'))
     expect(screen.queryByText('-19.00 (-1.27/wk)')).toBeNull()
     expect((screen.getByText('Evaluate') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('adds the open-spot line under a side once the worker answers', async () => {
+    evaluateMock.mockResolvedValue(tradeEvaluation())
+    openSpotMock.mockResolvedValue({
+      me: { rosterId: 1, add: bijan, deltaPerWeek: 0.8 },
+      them: { rosterId: 2, add: null, deltaPerWeek: 0 }
+    })
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByText('weeks 3–17 · 15 weeks')
+    fireEvent.change(screen.getByLabelText('Add to I give'), { target: { value: '6794' } })
+    fireEvent.change(screen.getByLabelText('Add to I get'), { target: { value: '7564' } })
+    fireEvent.click(screen.getByText('Evaluate'))
+
+    expect(await screen.findByText(`Open spot: best add ${bijan.fullName}, +0.80/wk`)).toBeTruthy()
+    expect(openSpotMock).toHaveBeenCalledWith(2026, { rosterId: 2, give: ['6794'], get: ['7564'] })
+    expect(screen.getByText('Open spot: no free agent improves this lineup')).toBeTruthy()
+
+    // A new trade drops the old line with the old verdict.
+    fireEvent.click(screen.getByLabelText('Remove Justin Jefferson'))
+    expect(screen.queryByText(`Open spot: best add ${bijan.fullName}, +0.80/wk`)).toBeNull()
   })
 
   it('shows the pool failure as the notice and an evaluate failure under the builder', async () => {

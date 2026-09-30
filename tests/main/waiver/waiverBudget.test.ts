@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { waiverAdds } from '@main/waiver/adds'
+import { waiverStream } from '@main/waiver/stream'
 import { generateLeague, syntheticBuild } from '../../fixtures/synthetic'
 
 /** Slice 6c spec §10: the rest-of-season lists on a league the size of the user's. */
 const ADDS_MS = 3000
+/** Spec §10: one streaming week. */
+const STREAM_MS = 1000
 
 /** Wall-clock: runs only under `npm run test:budget` (parallel `npm test` workers make it flap). */
 describe.skipIf(!process.env.FFC_BUDGET)('waiver adds budget', () => {
@@ -20,5 +23,14 @@ describe.skipIf(!process.env.FFC_BUDGET)('waiver adds budget', () => {
       `waiver adds ${ms.toFixed(0)} ms · ${adds.lineup.length} lineup · ${adds.stash.length} stash`
     )
     expect(ms).toBeLessThan(ADDS_MS)
+  })
+
+  it('lists one streaming week inside 1 s', () => {
+    const { build } = syntheticBuild(generateLeague(7, 16, 550))
+    const t0 = performance.now()
+    const rows = waiverStream(build, 3, { settings: {}, opponents: new Map() })
+    const ms = performance.now() - t0
+    console.info(`waiver stream ${ms.toFixed(0)} ms · ${rows.length} rows`)
+    expect(ms).toBeLessThan(STREAM_MS)
   })
 })

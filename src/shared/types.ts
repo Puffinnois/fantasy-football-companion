@@ -449,6 +449,42 @@ export interface StashRow {
   options: AddOption[]
 }
 
+/** Spec §4: one way to make room for a one-week streamer. */
+export interface StreamOption {
+  release: WaiverRelease
+  /** The player moved to IR or dropped; null for an open spot. */
+  releasePlayer: TradePlayer | null
+  /** My week-t total with the streamer and without the release − my week-t total now. */
+  weekGain: number
+  /** What the release would have added in the window's other weeks; 0 for an open spot. */
+  restCost: number
+  /** weekGain − restCost: the headline. */
+  net: number
+}
+
+/** Spec §4: a streamer for the chosen week; options best first, never empty. */
+export interface StreamRow {
+  player: TradePlayer
+  /** "vs CAR" at home, "@ CAR" away; the bare code when the schedule lacks the game; null on a bye. */
+  opponent: string | null
+  options: StreamOption[]
+}
+
+/** Spec §7: the best free agent for a roster spot a trade leaves open. */
+export interface OpenSpot {
+  rosterId: number
+  /** null when no free agent adds `LINEUP_MIN_DELTA` over the window. */
+  add: TradePlayer | null
+  /** 0 when `add` is null. */
+  deltaPerWeek: number
+}
+
+/** Spec §7: per side of a proposal; null when that side's after-roster is full (or its size unknown). */
+export interface TradeOpenSpots {
+  me: OpenSpot | null
+  them: OpenSpot | null
+}
+
 /** Spec §6: the Waivers screen's rest-of-season payload. */
 export interface WaiverAdds {
   season: number

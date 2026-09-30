@@ -10,7 +10,7 @@ import { canEnter } from '@main/trade/enter'
 import { isStarter, myTeam, requireWindow } from '@main/trade/evaluate'
 import { starterWeeks, tradePlayer } from '@main/trade/player'
 import type { PlayerSeries } from '@main/value/series'
-import type { AddOption, AddRow } from '@shared/types'
+import type { AddOption, AddRow, TradePlayer } from '@shared/types'
 import {
   applyRelease,
   compareReleases,
@@ -54,12 +54,18 @@ function sum(values: number[]): number {
   return values.reduce((acc, v) => acc + v, 0)
 }
 
-export function waiverContext(build: LineupBuild, ir: IrSettings): WaiverContext {
-  const weeks = requireWindow(build)
-  const me = myTeam(build)
-  const roster = build.rosters.get(me.rosterId) ?? []
-  const base = weeks.map((w) => teamWeek(build, me.rosterId, w))
-  const releases = releaseCandidates(build, roster, ir)
+/**
+ * Spec §2.1: the search context for any roster — mine (§2–4) or a trade's after-roster (§7).
+ * `base` is the roster's optimal lineup per week of `weeks`; `starts` its players' window starts.
+ */
+export function searchContext(
+  build: LineupBuild,
+  weeks: number[],
+  roster: PlayerSeries[],
+  base: TeamWeek[],
+  releases: ReleaseCandidate[],
+  starts: Map<string, number>
+): WaiverContext {
   const without = new Map<string, TeamWeek[]>()
   for (const r of releases) {
     const leaving = r.series
@@ -80,8 +86,22 @@ export function waiverContext(build: LineupBuild, ir: IrSettings): WaiverContext
     before: sum(base.map((x) => x.optimalTotal)),
     releases,
     without,
-    starts: starterWeeks(build, me.rosterId, weeks)
+    starts
   }
+}
+
+export function waiverContext(build: LineupBuild, ir: IrSettings): WaiverContext {
+  const weeks = requireWindow(build)
+  const me = myTeam(build)
+  const roster = build.rosters.get(me.rosterId) ?? []
+  return searchContext(
+    build,
+    weeks,
+    roster,
+    weeks.map((w) => teamWeek(build, me.rosterId, w)),
+    releaseCandidates(build, roster, ir),
+    starterWeeks(build, me.rosterId, weeks)
+  )
 }
 
 /** 6b §2.3: can `add` raise `lineup`'s total in week `w`? Exact when false. */
@@ -95,15 +115,27 @@ export function canHelp(ctx: WaiverContext, add: PlayerSeries): boolean {
   return ctx.weeks.some((w, i) => enters(ctx, add, ctx.base[i], w))
 }
 
-/** Spec §2.3 steps 2–4: every release option for adding `add`, scored, best first. */
-export function scoreAdd(
+/** One release's lineup per context week after adding the free agent. */
+export interface ReleaseSolve {
+  r: ReleaseCandidate
+  after: TeamWeek[]
+}
+
+/** The row a release's player shows: his window starts on my roster before the move. */
+export function releasePlayer(ctx: WaiverContext, r: ReleaseCandidate): TradePlayer | null {
+  return r.series
+    ? tradePlayer(ctx.build, r.series, ctx.starts.get(r.series.base.playerId) ?? 0)
+    : null
+}
+
+/** Spec §2.3 steps 2–3: my lineup in each context week after adding `add` with each release, in `ctx.releases` order. */
+export function releaseSolves(
   ctx: WaiverContext,
   add: PlayerSeries,
   opts: SearchOptions = {}
-): AddOption[] {
+): ReleaseSolve[] {
   const { build, weeks, roster, base } = ctx
   const skip = opts.skip !== false
-  const id = add.base.playerId
   const withAdd = [...roster, add]
   // Step 2: the oversized roster; where he can't enter, my lineup is already its optimum.
   const oversized = weeks.map((w, i) =>
@@ -130,14 +162,22 @@ export function scoreAdd(
     solved.set(pid, result)
     return result
   }
-  const scored = ctx.releases.map((r) => {
-    const after = afterWeeks(r)
+  return ctx.releases.map((r) => ({ r, after: afterWeeks(r) }))
+}
+
+/** Spec §2.3 steps 2–4: every release option for adding `add`, scored, best first. */
+export function scoreAdd(
+  ctx: WaiverContext,
+  add: PlayerSeries,
+  opts: SearchOptions = {}
+): AddOption[] {
+  const { build, weeks, base } = ctx
+  const id = add.base.playerId
+  const scored = releaseSolves(ctx, add, opts).map(({ r, after }) => {
     const delta = round2(sum(after.map((x) => x.optimalTotal)) - ctx.before) ?? 0
     const option: AddOption = {
       release: r.release,
-      releasePlayer: r.series
-        ? tradePlayer(build, r.series, ctx.starts.get(r.series.base.playerId) ?? 0)
-        : null,
+      releasePlayer: releasePlayer(ctx, r),
       delta,
       deltaPerWeek: round2(delta / weeks.length) ?? 0,
       thisWeekDelta: round2(after[0].optimalTotal - base[0].optimalTotal) ?? 0,
