@@ -76,7 +76,7 @@ describe('TradeScreen', () => {
     expect(await screen.findByText('weeks 3–17 · 15 weeks')).toBeTruthy()
     expect(poolMock).toHaveBeenCalledWith(2026)
     expect((screen.getByLabelText('Partner') as HTMLSelectElement).value).toBe('2')
-    expect(screen.getByText('Pick a partner, add players to both sides and evaluate.')).toBeTruthy()
+    expect(screen.getByText('Add players to every team in the deal and evaluate.')).toBeTruthy()
     expect((screen.getByText('Evaluate') as HTMLButtonElement).disabled).toBe(true)
 
     fireEvent.change(screen.getByLabelText('Add to I give'), { target: { value: '6794' } })

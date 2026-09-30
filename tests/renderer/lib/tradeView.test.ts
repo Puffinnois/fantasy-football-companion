@@ -22,6 +22,7 @@ import {
   rangeLine,
   startsLabel,
   verdictBadges,
+  verdictGetsLine,
   windowLabel
 } from '@/lib/tradeView'
 import {
@@ -34,6 +35,7 @@ import {
   lar,
   outgoing,
   rivalSide,
+  threeTeamEvaluation,
   tradeEvaluation,
   tradeSide,
   tradeSuggestion
@@ -162,5 +164,14 @@ describe('tradeView', () => {
     expect(focusMarketLine(barkley)).toBe('MKT 9 340 · 30d -310')
     expect(focusMarketLine(jefferson)).toBe('MKT 10 512 · 30d +120')
     expect(focusMarketLine(lar)).toBe('MKT —')
+  })
+
+  it('names where each received player comes from', () => {
+    const ev = threeTeamEvaluation()
+    expect(ev.sides.map((s) => verdictGetsLine(s, ev))).toEqual([
+      'gets Tee Higgins from Tank Mode',
+      'gets Justin Jefferson from me',
+      "gets Ja'Marr Chase from Rival"
+    ])
   })
 })

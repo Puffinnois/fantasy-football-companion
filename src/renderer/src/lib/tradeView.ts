@@ -11,7 +11,7 @@ import type {
 
 export const DEADLINE_NOTE =
   'The trade deadline has passed — Sleeper no longer accepts trades; evaluation still works.'
-export const NO_VERDICT_HINT = 'Pick a partner, add players to both sides and evaluate.'
+export const NO_VERDICT_HINT = 'Add players to every team in the deal and evaluate.'
 
 /** "weeks 3–17 · 15 weeks" */
 export function windowLabel(p: { currentWeek: number; lastWeek: number; weeks: number }): string {
@@ -57,6 +57,15 @@ export function rangeLine(s: TradeSideResult): string {
 
 export function dropLine(s: TradeSideResult): string | null {
   return s.drops.length === 0 ? null : `drop: ${s.drops.map((p) => p.fullName).join(', ')}`
+}
+
+/** Multi-team spec §5.1: "gets Tee Higgins from Tank Mode · …" under a side of a 3+-team verdict. */
+export function verdictGetsLine(side: TradeSideResult, ev: TradeEvaluation): string {
+  const source = (rosterId: number): string => {
+    const s = ev.sides.find((x) => x.rosterId === rosterId)
+    return !s ? `team ${rosterId}` : s.isMe ? 'me' : s.name
+  }
+  return `gets ${side.get.map((p) => `${p.fullName} from ${source(p.from)}`).join(' · ')}`
 }
 
 export function startsLabel(p: TradePlayer, weeks: number): string {

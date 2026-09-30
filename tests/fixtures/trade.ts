@@ -187,3 +187,51 @@ export function tradeSuggestion(over: Partial<TradeSuggestion> = {}): TradeSugge
     ...over
   }
 }
+
+export const higgins = tradePlayer({
+  playerId: '5859',
+  fullName: 'Tee Higgins',
+  position: 'WR',
+  team: 'CIN',
+  rosPoints: 90,
+  starterWeeks: 12
+})
+
+/** The default pool plus a third team, Tank Mode, holding Higgins. */
+export function threeTeamPool(): TradePool {
+  return tradePool({
+    teams: [
+      { rosterId: 2, name: 'Rival', players: [bijan, chase] },
+      { rosterId: 3, name: 'Tank Mode', players: [higgins] }
+    ]
+  })
+}
+
+/** Me → Rival → Tank Mode → me: Jefferson to Rival, Chase to Tank Mode, Higgins to me. */
+export function threeTeamEvaluation(): TradeEvaluation {
+  return tradeEvaluation({
+    sides: [
+      tradeSide({
+        give: [outgoing(jefferson, 2)],
+        get: [incoming(higgins, 3)],
+        delta: 6,
+        deltaPerWeek: 0.4
+      }),
+      rivalSide({
+        give: [outgoing(chase, 3)],
+        get: [incoming(jefferson, 1)],
+        delta: 3,
+        deltaPerWeek: 0.2
+      }),
+      tradeSide({
+        rosterId: 3,
+        name: 'Tank Mode',
+        isMe: false,
+        give: [outgoing(higgins, 1)],
+        get: [incoming(chase, 2)],
+        delta: -1.5,
+        deltaPerWeek: -0.1
+      })
+    ]
+  })
+}
