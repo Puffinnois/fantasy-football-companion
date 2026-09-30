@@ -8,30 +8,30 @@
 The 6b trade tools stop at two teams (a 6b non-goal). This spec lifts that limit:
 
 1. The **builder** takes any number of teams: each player a team sends has a destination, and the verdict shows every team.
-2. The **suggestion search** finds deals of 2 up to *N* teams in one merged list that fills in **live** while the search runs, with a Stop button. Multi-team deals are cycles (me → B → C → me), 1–2 players per hop.
+2. The **suggestion search** finds deals of 2 up to _N_ teams in one merged list that fills in **live** while the search runs, with a Stop button. Multi-team deals are cycles (me → B → C → me), 1–2 players per hop.
 
-**Quality rule (user requirement).** Raising *N* may cost search time, never result quality. Every prune is exact: the optimized search must return exactly what a brute-force search returns (§7).
+**Quality rule (user requirement).** Raising _N_ may cost search time, never result quality. Every prune is exact: the optimized search must return exactly what a brute-force search returns (§7).
 
 Delivered as two plans (Q, R) under this spec (§9).
 
 ### Decisions taken in brainstorming
 
-| Question | Decision |
-| --- | --- |
-| Scope | Builder and suggestions. |
-| Team count | N everywhere: the builder has no cap; the search takes `maxTeams`. Exact prunes only. |
-| Search shapes | Cycles; each hop carries 1 or 2 players; at most one 2-player hop per deal (k = 2 is exactly 6b's three shapes). |
-| Results list | One merged list over 2..`maxTeams` teams, streamed live, with Stop. An "Up to N teams" control, default 3. |
-| Grouping | One card per *my side* (what I give, what I get): the simplest deal every manager accepts; other working deals at that size as "+n other ways". |
-| Acceptance | 6b's rule, applied to every other team in the deal. |
-| Engine approach | *My side first*: rank my sides lazily best-first, search bridges per my side (approach A). Results equal a size-by-size or whole-cycle enumeration, found faster, streamed in final order. |
-| Run ownership | The main process owns one active run; the Trade screen re-attaches after a tab switch. |
-| "Must include" default | Any team (was: the builder's partner, only because the blocking scan took 16–23 s). |
+| Question               | Decision                                                                                                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Scope                  | Builder and suggestions.                                                                                                                                                                   |
+| Team count             | N everywhere: the builder has no cap; the search takes `maxTeams`. Exact prunes only.                                                                                                      |
+| Search shapes          | Cycles; each hop carries 1 or 2 players; at most one 2-player hop per deal (k = 2 is exactly 6b's three shapes).                                                                           |
+| Results list           | One merged list over 2..`maxTeams` teams, streamed live, with Stop. An "Up to N teams" control, default 3.                                                                                 |
+| Grouping               | One card per _my side_ (what I give, what I get): the simplest deal every manager accepts; other working deals at that size as "+n other ways".                                            |
+| Acceptance             | 6b's rule, applied to every other team in the deal.                                                                                                                                        |
+| Engine approach        | _My side first_: rank my sides lazily best-first, search bridges per my side (approach A). Results equal a size-by-size or whole-cycle enumeration, found faster, streamed in final order. |
+| Run ownership          | The main process owns one active run; the Trade screen re-attaches after a tab switch.                                                                                                     |
+| "Must include" default | Any team (was: the builder's partner, only because the blocking scan took 16–23 s).                                                                                                        |
 
 ### Non-goals
 
 - Non-cycle shapes in the **search** (a team sending players to two teams; me receiving from two teams). The builder evaluates them.
-- More than one 2-player hop per suggested deal; any team giving 2 *and* getting 2 in a suggestion.
+- More than one 2-player hop per suggested deal; any team giving 2 _and_ getting 2 in a suggestion.
 - Draft picks, FAAB (unchanged from 6b).
 - Sending offers to Sleeper; reading pending offers.
 - Several concurrent searches; keeping a run across app restarts.
@@ -43,8 +43,13 @@ Delivered as two plans (Q, R) under this spec (§9).
 
 ```ts
 /** One player changing teams; the source is his current roster. */
-export interface TradeMove { playerId: string; to: number }
-export interface TradeProposal { moves: TradeMove[] }
+export interface TradeMove {
+  playerId: string
+  to: number
+}
+export interface TradeProposal {
+  moves: TradeMove[]
+}
 ```
 
 It replaces 6b's `{ rosterId, give, get }`; a 2-team deal is the special case, one code path serves both.
@@ -53,16 +58,20 @@ It replaces 6b's `{ rosterId, give, get }`; a 2-team deal is the special case, o
 
 ### 2.2 Evaluation — `evaluateTrade(build, proposal)`
 
-Per team *T*: gives = players moving out of *T*, gets = players moving into *T*; `sideResult` runs unchanged on (T, gives, gets) — before, after-roster (roster − gives + gets − auto-drops), after, Δ, Δ/week, this week's Δ, market sums, weeks changed, this week's swaps. A side's result depends only on its own gives and gets.
+Per team _T_: gives = players moving out of _T_, gets = players moving into _T_; `sideResult` runs unchanged on (T, gives, gets) — before, after-roster (roster − gives + gets − auto-drops), after, Δ, Δ/week, this week's Δ, market sums, weeks changed, this week's swaps. A side's result depends only on its own gives and gets.
 
 ```ts
 export interface TradeSideResult {
   // … every 6b field, with:
-  give: (TradePlayer & { to: number })[]   // destination roster
-  get: (TradePlayer & { from: number })[]  // source roster
+  give: (TradePlayer & { to: number })[] // destination roster
+  get: (TradePlayer & { from: number })[] // source roster
 }
 export interface TradeEvaluation {
-  season, currentWeek, lastWeek, weeks, tradeDeadlinePassed  // unchanged
+  season
+  currentWeek
+  lastWeek
+  weeks
+  tradeDeadlinePassed // unchanged
   /** Me first, then the other teams in order of first appearance in `moves`. */
   sides: TradeSideResult[]
   /** Every side's delta > 0 (was `winWin`). */
@@ -89,8 +98,8 @@ export interface TradeEvaluation {
 ```ts
 export interface TradeSuggestQuery {
   season: number
-  focus: TradeFocus            // unchanged
-  stance: TradeStance          // unchanged
+  focus: TradeFocus // unchanged
+  stance: TradeStance // unchanged
   /** 2..number of teams; clamped. */
   maxTeams: number
   /** The deal must involve this team; null = any. */
@@ -98,7 +107,7 @@ export interface TradeSuggestQuery {
 }
 ```
 
-A **k-team deal** is a cycle T₀ = me → T₁ → … → T_{k−1} → me of distinct teams. Hop *i* carries players from Tᵢ to T_{i+1} (T_k = me); each team gives its outgoing hop and gets its incoming hop. Each hop carries 1 or 2 players; at most one hop carries 2.
+A **k-team deal** is a cycle T₀ = me → T₁ → … → T_{k−1} → me of distinct teams. Hop _i_ carries players from Tᵢ to T_{i+1} (T_k = me); each team gives its outgoing hop and gets its incoming hop. Each hop carries 1 or 2 players; at most one hop carries 2.
 
 A **my side** is (x, z, C): x = hop 0 (what I give), z = hop k−1 (what I get), C = T_{k−1} (the team z comes from). The **bridge** is everything in between: T₁ … T_{k−2} and hops 1 … k−2. For k = 2 there is no bridge: C takes x and sends z.
 
@@ -107,6 +116,7 @@ Constants unchanged: `MARKET_FAIR = 0.90`, `ACCEPT_LOSS_PER_WEEK = 1`, `DOMINANC
 ### 3.2 My sides, in rank order
 
 **Candidates.**
+
 - x: 1 or 2 of my players (IR and taxi included); with `focus.give`, x contains that player.
 - z: 1 or 2 of C's players, each able to enter my lineup in at least one window week (6b `entersLineup`); with `focus.want`, at least one of z has that position.
 - x and z are not both pairs.
@@ -120,6 +130,7 @@ The candidates left after the precheck are the progress total (§4.1).
 **Rank key** (6b §3.4's sort, all on my side): my Δ desc, my market ratio desc, C's name asc, then x's and z's sorted ids asc.
 
 **Lazy best-first.** For each z, the bound U(z) = my window total on (my roster ∪ z) with no gives and no drop rule, minus my before-total. The lineup optimum is monotone in the roster and my after-roster is a subset of (my roster ∪ z), so myΔ(x, z) ≤ U(z) for every x.
+
 - When `stanceDelta(stance, U(z) / weeks)` fails, every my side with that z is discarded without a solve.
 - The others enter a priority queue at their bound. The top entry is popped: a bound entry is replaced by its exact result (or discarded if it fails the stance) and re-queued; an exact entry is the next my side in rank order.
 - At equal Δ, bound entries sort ahead of exact ones, so an exact entry is only taken when nothing unevaluated can tie or beat it; exact entries compare on the full rank key.
@@ -177,16 +188,21 @@ The engine worker keeps its one-shot jobs (evaluate, open spot, waivers). The su
 
 ```ts
 export interface SuggestProgress {
-  checked: number   // my sides resolved (discarded, failed, searched)
-  total: number     // my-side candidates after the market precheck
-  found: number     // cards so far
-  size: number      // k being tried for the current my side
+  checked: number // my sides resolved (discarded, failed, searched)
+  total: number // my-side candidates after the market precheck
+  found: number // cards so far
+  size: number // k being tried for the current my side
   elapsedMs: number
 }
 export type SuggestEvent =
   | { runId: number; type: 'cards'; cards: TradeSuggestion[] }
   | { runId: number; type: 'progress'; progress: SuggestProgress }
-  | { runId: number; type: 'done'; reason: 'complete' | 'full' | 'stopped' | 'stale'; progress: SuggestProgress }
+  | {
+      runId: number
+      type: 'done'
+      reason: 'complete' | 'full' | 'stopped' | 'stale'
+      progress: SuggestProgress
+    }
   | { runId: number; type: 'error'; message: string }
 ```
 
@@ -196,12 +212,12 @@ Cards arrive in final rank order: the list only appends. `stop()` terminates the
 
 One active run, owned by main (`src/main/trade/suggestRun.ts`): its id, query, cards so far, progress and status (`running` or the `done` reason, or `error`).
 
-| Channel | Direction | Does |
-| --- | --- | --- |
-| `trade:suggestStart(query) → runId` | invoke | Starts a run; stops the previous one (`stopped`). |
-| `trade:suggestStop()` | invoke | Stops the active run (`stopped`); cards stay. |
-| `trade:suggestSnapshot() → SuggestSnapshot \| null` | invoke | The active or last run: `runId`, `query`, `cards`, `progress`, `status`, `message?`. |
-| `trade:suggestEvent` | main → renderer | `SuggestEvent`s via `webContents.send`. |
+| Channel                                             | Direction       | Does                                                                                 |
+| --------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------ |
+| `trade:suggestStart(query) → runId`                 | invoke          | Starts a run; stops the previous one (`stopped`).                                    |
+| `trade:suggestStop()`                               | invoke          | Stops the active run (`stopped`); cards stay.                                        |
+| `trade:suggestSnapshot() → SuggestSnapshot \| null` | invoke          | The active or last run: `runId`, `query`, `cards`, `progress`, `status`, `message?`. |
+| `trade:suggestEvent`                                | main → renderer | `SuggestEvent`s via `webContents.send`.                                              |
 
 - Preload: `api.trade.suggestStart / suggestStop / suggestSnapshot / onSuggestEvent(cb) → unsubscribe`.
 - The one-shot `trade:suggest` is removed (in Plan R; §9).
@@ -235,17 +251,17 @@ One active run, owned by main (`src/main/trade/suggestRun.ts`): its id, query, c
 
 ## 6. Error handling
 
-| Case | Behaviour |
-| --- | --- |
-| Invalid proposal (§2.1) | `INVALID_TRADE`: "Tank Mode gets nobody", "J. Cook is no longer on Gridiron Gang", "A player can only move once", "Pick at least one other team". The builder prevents all but the post-sync case. |
-| No projections / no me / past season | Unchanged (6b §6). |
-| Nothing found | `complete` with 0 cards — a normal answer; 6b's hints. |
-| Focus player no longer on my roster | `complete` with 0 cards. |
-| `maxTeams` out of range | Clamped to 2..number of teams. |
-| `mustInclude` is me or unknown | `INVALID_TRADE` on start; the UI never offers it. |
-| Worker error or unexpected exit | `error` event; cards so far stay. |
-| Sync during a run | `stale` (§4.2). |
-| Packaged-asar worker | Unchanged from v0.16 (fallback: add `out/main/engineWorker.js` to `asarUnpack`). |
+| Case                                 | Behaviour                                                                                                                                                                                          |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Invalid proposal (§2.1)              | `INVALID_TRADE`: "Tank Mode gets nobody", "J. Cook is no longer on Gridiron Gang", "A player can only move once", "Pick at least one other team". The builder prevents all but the post-sync case. |
+| No projections / no me / past season | Unchanged (6b §6).                                                                                                                                                                                 |
+| Nothing found                        | `complete` with 0 cards — a normal answer; 6b's hints.                                                                                                                                             |
+| Focus player no longer on my roster  | `complete` with 0 cards.                                                                                                                                                                           |
+| `maxTeams` out of range              | Clamped to 2..number of teams.                                                                                                                                                                     |
+| `mustInclude` is me or unknown       | `INVALID_TRADE` on start; the UI never offers it.                                                                                                                                                  |
+| Worker error or unexpected exit      | `error` event; cards so far stay.                                                                                                                                                                  |
+| Sync during a run                    | `stale` (§4.2).                                                                                                                                                                                    |
+| Packaged-asar worker                 | Unchanged from v0.16 (fallback: add `out/main/engineWorker.js` to `asarUnpack`).                                                                                                                   |
 
 ## 7. Testing
 
