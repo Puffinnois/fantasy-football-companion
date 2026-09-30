@@ -3,6 +3,7 @@ import { LINEUP_POSITIONS } from '@shared/rules'
 import type {
   OpenSpot,
   TradeEvaluation,
+  TradeOpenSpots,
   TradePlayer,
   TradeSideResult,
   TradeStance,
@@ -176,4 +177,9 @@ export function openSpotLine(spot: OpenSpot): string {
   return spot.add
     ? `Open spot: best add ${spot.add.fullName}, ${fmtSigned(spot.deltaPerWeek)}/wk`
     : 'Open spot: no free agent improves this lineup'
+}
+
+/** A side's open spot, looked up by roster: a re-evaluated proposal may order 3+-team sides differently. */
+export function spotFor(spots: TradeOpenSpots | null, rosterId: number): OpenSpot | null {
+  return spots?.sides.find((s) => s?.rosterId === rosterId) ?? null
 }

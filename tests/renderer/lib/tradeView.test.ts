@@ -10,6 +10,7 @@ import {
   offerLine,
   openSpotLine,
   sideNames,
+  spotFor,
   stanceHint,
   themLine,
   deltaTone,
@@ -51,6 +52,20 @@ describe('tradeView', () => {
     expect(openSpotLine({ rosterId: 2, add: null, deltaPerWeek: 0 })).toBe(
       'Open spot: no free agent improves this lineup'
     )
+  })
+
+  it('finds a side’s open spot by roster, whatever the order', () => {
+    const spots = {
+      sides: [
+        null,
+        { rosterId: 3, add: bijan, deltaPerWeek: 0.5 },
+        { rosterId: 1, add: null, deltaPerWeek: 0 }
+      ]
+    }
+    expect(spotFor(spots, 1)).toEqual({ rosterId: 1, add: null, deltaPerWeek: 0 })
+    expect(spotFor(spots, 3)?.add).toBe(bijan)
+    expect(spotFor(spots, 2)).toBeNull()
+    expect(spotFor(null, 1)).toBeNull()
   })
 
   it('labels the window', () => {
