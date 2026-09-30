@@ -1,6 +1,7 @@
 import { fmtPoints, fmtSigned } from '@/lib/format'
 import { LINEUP_POSITIONS } from '@shared/rules'
 import type {
+  OpenSpot,
   TradeEvaluation,
   TradePlayer,
   TradeSideResult,
@@ -158,4 +159,11 @@ export function focusMarketLine(p: TradePlayer): string {
   return p.market
     ? `MKT ${fmtMarket(p.market.value)} · 30d ${fmtSigned(p.market.trend30d, 0)}`
     : 'MKT —'
+}
+
+/** Slice 6c spec §7: the info line under a side's verdict when the trade leaves it a free spot. */
+export function openSpotLine(spot: OpenSpot): string {
+  return spot.add
+    ? `Open spot: best add ${spot.add.fullName}, ${fmtSigned(spot.deltaPerWeek)}/wk`
+    : 'Open spot: no free agent improves this lineup'
 }

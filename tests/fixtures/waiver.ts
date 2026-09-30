@@ -1,4 +1,11 @@
-import type { AddOption, AddRow, StashRow, WaiverAdds } from '@shared/types'
+import type {
+  AddOption,
+  AddRow,
+  StashRow,
+  StreamOption,
+  StreamRow,
+  WaiverAdds
+} from '@shared/types'
 import { tradePlayer } from './trade'
 
 export const allgeier = tradePlayer({
@@ -68,4 +75,20 @@ export function waiverAdds(over: Partial<WaiverAdds> = {}): WaiverAdds {
     trendingFetchedAt: null,
     ...over
   }
+}
+
+export function streamOption(over: Partial<StreamOption> = {}): StreamOption {
+  return {
+    release: { kind: 'drop', playerId: miller.playerId },
+    releasePlayer: miller,
+    weekGain: 6.5,
+    restCost: 0,
+    net: 6.5,
+    ...over
+  }
+}
+
+/** Tre Harris (WR) at Carolina, dropping Kendre Miller for +6.50. */
+export function streamRow(over: Partial<StreamRow> = {}): StreamRow {
+  return { player: harris, opponent: '@ CAR', options: [streamOption()], ...over }
 }

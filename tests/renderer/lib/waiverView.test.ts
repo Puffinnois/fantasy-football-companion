@@ -1,19 +1,62 @@
 import { describe, expect, it } from 'vitest'
 import { fmtMarket } from '@/lib/tradeView'
 import {
+  ALL_POSITIONS,
+  STREAM_CHIPS,
+  STREAM_SHOWN,
+  filterStream,
   isFree,
+  noStreamers,
   optionLabel,
   priorityLine,
   releaseLabel,
   rosRankLabel,
   sortStash,
   startsText,
+  streamOptionLabel,
   trendingNote,
-  trendingText
+  trendingText,
+  weekOptionLabel
 } from '@/lib/waiverView'
-import { addOption, harris, stashRow, waiverAdds, wright } from '../../fixtures/waiver'
+import {
+  addOption,
+  harris,
+  stashRow,
+  streamOption,
+  streamRow,
+  waiverAdds,
+  wright
+} from '../../fixtures/waiver'
 
 describe('waiverView', () => {
+  it('labels streaming options, weeks and empty chips', () => {
+    expect(streamOptionLabel(streamOption({ net: -1.25 }))).toBe('Drop Kendre Miller · -1.25')
+    expect(releaseLabel(streamOption({ release: { kind: 'open' }, releasePlayer: null }))).toBe(
+      'Open spot'
+    )
+    expect(weekOptionLabel(3, 3)).toBe('Week 3 (this week)')
+    expect(weekOptionLabel(5, 3)).toBe('Week 5')
+    expect(noStreamers(5, ALL_POSITIONS)).toBe('No streamer beats your lineup in week 5.')
+    expect(noStreamers(5, 'TE')).toBe('No TE streamer beats your lineup in week 5.')
+    expect(STREAM_CHIPS).toEqual(['All', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF'])
+  })
+
+  it('filters streamers by chip and caps the list', () => {
+    const rows = [streamRow(), streamRow({ player: wright })]
+    expect(filterStream(rows, ALL_POSITIONS).map((r) => r.player.playerId)).toEqual([
+      harris.playerId,
+      wright.playerId
+    ])
+    expect(filterStream(rows, 'RB').map((r) => r.player.playerId)).toEqual([wright.playerId])
+    expect(filterStream(rows, 'TE')).toEqual([])
+    expect(
+      filterStream(
+        Array.from({ length: 40 }, () => streamRow()),
+        ALL_POSITIONS
+      )
+    ).toHaveLength(STREAM_SHOWN)
+  })
+
   it('labels each release kind', () => {
     expect(releaseLabel(addOption())).toBe('Drop Kendre Miller')
     expect(releaseLabel(addOption({ release: { kind: 'open' }, releasePlayer: null }))).toBe(

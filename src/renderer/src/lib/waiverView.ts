@@ -1,6 +1,14 @@
 import { fmtSigned, relativeTime } from '@/lib/format'
 import { fmtMarket } from '@/lib/tradeView'
-import type { AddOption, StashRow, TradePlayer, WaiverAdds } from '@shared/types'
+import { LINEUP_POSITIONS } from '@shared/rules'
+import type {
+  AddOption,
+  StashRow,
+  StreamOption,
+  StreamRow,
+  TradePlayer,
+  WaiverAdds
+} from '@shared/types'
 
 export const NO_LINEUP_ADDS = 'No free agent improves your lineup over the rest of the season.'
 export const NO_STASH = 'No free agent carries a market, trending or expert signal.'
@@ -14,8 +22,22 @@ export const STASH_SORTS: { key: StashSort; label: string }[] = [
   { key: 'rank', label: 'ROS rank' }
 ]
 
+export type WaiverMode = 'ros' | 'stream'
+export const WAIVER_MODES: { key: WaiverMode; label: string }[] = [
+  { key: 'ros', label: 'Rest of season' },
+  { key: 'stream', label: 'Streaming' }
+]
+
+/** Slice 6c spec §8: the streaming position chips; the UI shows this many rows of the current chip. */
+export const ALL_POSITIONS = 'All'
+export const STREAM_CHIPS: readonly string[] = [ALL_POSITIONS, ...LINEUP_POSITIONS]
+export const STREAM_SHOWN = 30
+
+/** What every release option carries — `AddOption` and `StreamOption` alike. */
+export type ReleaseChoice = Pick<AddOption, 'release' | 'releasePlayer'>
+
 /** Spec §8: "Drop Kendre Miller", "Open spot", "IR: Caleb Williams". */
-export function releaseLabel(o: AddOption): string {
+export function releaseLabel(o: ReleaseChoice): string {
   const name = o.releasePlayer?.fullName ?? ''
   switch (o.release.kind) {
     case 'open':
@@ -30,6 +52,28 @@ export function releaseLabel(o: AddOption): string {
 /** A dropdown entry: the release and the whole move's window Δ. */
 export function optionLabel(o: AddOption): string {
   return `${releaseLabel(o)} · ${fmtSigned(o.delta)}`
+}
+
+/** A streaming dropdown entry: the release and the whole move's net. */
+export function streamOptionLabel(o: StreamOption): string {
+  return `${releaseLabel(o)} · ${fmtSigned(o.net)}`
+}
+
+export function weekOptionLabel(week: number, currentWeek: number): string {
+  return week === currentWeek ? `Week ${week} (this week)` : `Week ${week}`
+}
+
+/** Spec §4 / §8: the chip's streamers in engine order, `STREAM_SHOWN` at most. */
+export function filterStream(rows: StreamRow[], chip: string): StreamRow[] {
+  return rows
+    .filter((r) => chip === ALL_POSITIONS || r.player.position === chip)
+    .slice(0, STREAM_SHOWN)
+}
+
+/** Spec §9: the empty streaming list, per chip. */
+export function noStreamers(week: number, chip: string): string {
+  const who = chip === ALL_POSITIONS ? 'streamer' : `${chip} streamer`
+  return `No ${who} beats your lineup in week ${week}.`
 }
 
 /** Spec §8: "wk 7, 9" up to three weeks, then "12 of 15 wks"; "—" when he never starts. */
