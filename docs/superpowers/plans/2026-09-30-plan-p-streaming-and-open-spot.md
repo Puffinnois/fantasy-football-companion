@@ -1,6 +1,6 @@
 # Plan P — Streaming and the trade builder's open spot (slice 6c, phase 2)
 
-**Status:** not started.
+**Status:** complete — executed inline on 2026-09-30, merged and released as `v0.17.0` (tag not pushed at time of writing). No deviations from the plan's code; every hand-computed number in the engine tests matched on the first run. Measured: streaming equals brute force on three generated leagues for every pickable week (IR moves included); budgets on 16 teams + 550 free agents — one streaming week 69 ms (limit 1 s, 71 rows), open spot 152 ms (limit 1 s). Real-data check on a copy of the dev DB (last synced 2026-09-22, current week 3, IR settings assumed 2 slots / `IR, Out` since the copy predates them): week 3 lists nobody (Sunday games already played), weeks 4 and 6 nobody beats the lineup, week 5 (a bye week) lists 10 — top Greg Dulcich TE vs CIN, net +3.45, dropping Barion Brown (2 of 15 starts, rest cost 1.59); opponents read `vs` / `@` correctly; Josh Jacobs is `NA` so no IR move; 14–51 ms per week. Open spot for Singleton + TB DEF → Cam Little: my side *Dulcich +1.1/wk*, theirs full after the auto-drop, 32 ms. The bundled `out/main/engineWorker.js` answered both new kinds in plain Node (streaming 442 ms, open spot 376 ms, rebuild included) and returned the out-of-range week error across the thread. The dev app launched and the renderer connected without errors. **Not verified:** the Streaming card and the builder's open-spot line were not clicked through in a running window (WSLg), and the worker inside a packaged asar remains untested — if it fails there, add `out/main/engineWorker.js` to `asarUnpack` in `electron-builder.yml`.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -38,7 +38,7 @@
 
 **Files:** none.
 
-- [ ] **Step 1: Create the branch from an up-to-date main**
+- [x] **Step 1: Create the branch from an up-to-date main**
 
 ```bash
 git checkout main && git status --short && git checkout -b feat/waiver-streaming
@@ -71,7 +71,7 @@ Expected: clean tree, on `feat/waiver-streaming`.
 
 The hand-computed numbers below come from `WAIVER_LEAGUE` (doc comment in `tests/fixtures/synthetic.ts`): my lineup is 42 a week (RB A20 · WR B10 · FLEX C12), D never starts; window 16–17, so the picker is weeks 16–17. Without each release my lineup scores A → 27, C → 35, B → 37, D → 42 a week, so the rest cost for the _other_ window week is A 15, C 7, B 5, D 0.
 
-- [ ] **Step 1: Write the failing `streamWeeks` test**
+- [x] **Step 1: Write the failing `streamWeeks` test**
 
 In `tests/shared/rules.test.ts`, add `streamWeeks` to the `@shared/rules` import and append:
 
@@ -85,7 +85,7 @@ describe('streamWeeks (slice 6c spec §4)', () => {
 })
 ```
 
-- [ ] **Step 2: Write the failing streaming tests**
+- [x] **Step 2: Write the failing streaming tests**
 
 Create `tests/main/waiver/stream.test.ts`:
 
@@ -221,12 +221,12 @@ describe('streaming (slice 6c spec §4)', () => {
 })
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/main/waiver/stream.test.ts tests/shared/rules.test.ts`
 Expected: FAIL — `Cannot find module '@main/waiver/stream'` / `streamWeeks is not a function`.
 
-- [ ] **Step 4: Add the shared types and `streamWeeks`**
+- [x] **Step 4: Add the shared types and `streamWeeks`**
 
 In `src/shared/types.ts`, directly after the `StashRow` interface:
 
@@ -268,7 +268,7 @@ export function streamWeeks(currentWeek: number, lastWeek: number): number[] {
 }
 ```
 
-- [ ] **Step 5: Let the synthetic league score a played game**
+- [x] **Step 5: Let the synthetic league score a played game**
 
 In `tests/fixtures/synthetic.ts`:
 
@@ -297,7 +297,7 @@ replacePoints(
 )
 ```
 
-- [ ] **Step 6: Split `scoreAdd` into `releaseSolves` + scoring**
+- [x] **Step 6: Split `scoreAdd` into `releaseSolves` + scoring**
 
 In `src/main/waiver/search.ts`:
 
@@ -383,7 +383,7 @@ export function scoreAdd(
 Run: `npx vitest run tests/main/waiver`
 Expected: the existing search / property / stash tests still PASS (pure refactor); `stream.test.ts` still fails on the missing module.
 
-- [ ] **Step 7: Write `stream.ts`**
+- [x] **Step 7: Write `stream.ts`**
 
 Create `src/main/waiver/stream.ts`:
 
@@ -534,12 +534,12 @@ export function waiverStream(build: LineupBuild, week: number, extras: StreamExt
 }
 ```
 
-- [ ] **Step 8: Run the tests to verify they pass**
+- [x] **Step 8: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/waiver tests/shared/rules.test.ts`
 Expected: PASS (all waiver files, including the unchanged Plan O tests).
 
-- [ ] **Step 9: Verify and commit**
+- [x] **Step 9: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -561,7 +561,7 @@ git commit -m "feat(waiver): add streaming search"
 - Consumes: `streamRows(ctx, week, opponents, { skip: false })` (Task 1) — the brute force: every free agent (played games still excluded), every release, every week solved; `waiverStream(build, week, extras)`; `streamWeeks` (`@shared/rules`); `generateLeague(seed, teamCount, freeAgents)`, `syntheticBuild` (`tests/fixtures/synthetic.ts`).
 - Produces: nothing new.
 
-- [ ] **Step 1: Write the property test**
+- [x] **Step 1: Write the property test**
 
 Create `tests/main/waiver/streamProperty.test.ts`:
 
@@ -607,12 +607,12 @@ describe('streaming shortcuts are exact (slice 6c spec §10)', () => {
 })
 ```
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 Run: `npx vitest run tests/main/waiver/streamProperty.test.ts`
 Expected: PASS for the three seeds. If `listed` is 0 for a seed, the generated free agents are too weak for that seed — pick the next seed that lists someone rather than weakening the assertion. Any mismatch in the numbers is a real bug in a shortcut (`canHelp` skip, the non-starter reuse, the "can't enter without him" reuse, or the rest costs from `ctx.without`): fix the engine, never the test.
 
-- [ ] **Step 3: Add the streaming budget**
+- [x] **Step 3: Add the streaming budget**
 
 In `tests/main/waiver/waiverBudget.test.ts`: add `import { waiverStream } from '@main/waiver/stream'`, a constant under `ADDS_MS`:
 
@@ -634,12 +634,12 @@ it('lists one streaming week inside 1 s', () => {
 })
 ```
 
-- [ ] **Step 4: Run the budget**
+- [x] **Step 4: Run the budget**
 
 Run: `npm run test:budget`
 Expected: PASS, the log line shows the streaming time (expected a few hundred ms: the context is the same as the rest-of-season one, and each free agent solves one week). If it is over 1 s, profile before optimising; do not raise the limit without asking the user.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -673,7 +673,7 @@ Hand numbers on `WAIVER_LEAGUE` (roster size 4; Rival holds only R1 WR30 and R2 
 - _I give C + D, get R2._ Mine after: A, B, R2 (3 < 4) → 60 a week (RB R2 · WR B · FLEX A). Y adds 5 in week 17 only (FLEX Y25 over A20) → +2.5/wk; X adds 1 a week (WR X11 over B10) → +1/wk. Best: **Y +2.5/wk**. Theirs after: R1, C, D (3 < 4) → 47 a week (RB C · WR R1 · FLEX D5). Y adds 20 in week 17 (RB Y25, FLEX C12) → +10/wk; X +6/wk; K +4/wk. Best: **Y +10/wk**.
 - _I give D, get R1 + R2._ Mine after: A, C, B, R1, R2 (5 > 4) → 6b drops one (a non-starter) → full → **no open spot**. Theirs after: D alone → 5 a week; Y adds 3 + 25 → **+14/wk** (X +11/wk).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/main/trade/openSpot.test.ts`:
 
@@ -738,12 +738,12 @@ describe('trade open spot (slice 6c spec §7)', () => {
 })
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `npx vitest run tests/main/trade/openSpot.test.ts`
 Expected: FAIL — `Cannot find module '@main/trade/openSpot'`.
 
-- [ ] **Step 3: `activePlayers` and `OPEN_RELEASE` in `release.ts`**
+- [x] **Step 3: `activePlayers` and `OPEN_RELEASE` in `release.ts`**
 
 In `src/main/waiver/release.ts`, after `onReserve`:
 
@@ -767,7 +767,7 @@ if (size === null || active.length < size || active.length === 0) {
 }
 ```
 
-- [ ] **Step 4: `searchContext` in `search.ts`**
+- [x] **Step 4: `searchContext` in `search.ts`**
 
 Replace `waiverContext` in `src/main/waiver/search.ts` with:
 
@@ -826,7 +826,7 @@ export function waiverContext(build: LineupBuild, ir: IrSettings): WaiverContext
 Run: `npx vitest run tests/main/waiver`
 Expected: PASS (refactor only).
 
-- [ ] **Step 5: The shared types**
+- [x] **Step 5: The shared types**
 
 In `src/shared/types.ts`, after `StreamRow`:
 
@@ -847,7 +847,7 @@ export interface TradeOpenSpots {
 }
 ```
 
-- [ ] **Step 6: Write `openSpot.ts`**
+- [x] **Step 6: Write `openSpot.ts`**
 
 Create `src/main/trade/openSpot.ts`:
 
@@ -903,12 +903,12 @@ export function tradeOpenSpots(build: LineupBuild, proposal: TradeProposal): Tra
 }
 ```
 
-- [ ] **Step 7: Run the tests to verify they pass**
+- [x] **Step 7: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/main/trade tests/main/waiver`
 Expected: PASS.
 
-- [ ] **Step 8: Add the open-spot budget**
+- [x] **Step 8: Add the open-spot budget**
 
 Create `tests/main/trade/openSpotBudget.test.ts`:
 
@@ -947,7 +947,7 @@ describe.skipIf(!process.env.FFC_BUDGET)('open spot budget', () => {
 Run: `npm run test:budget`
 Expected: all three budget files PASS (suggestions, waiver adds + stream, open spot).
 
-- [ ] **Step 9: Verify and commit**
+- [x] **Step 9: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -974,7 +974,7 @@ git commit -m "feat(trade): find the best add for an open spot"
   - `waiverStreamFromDb(dbPath, leagueId, season, week): StreamRow[]`, `openSpotFromDb(dbPath, leagueId, season, proposal): TradeOpenSpots`.
   - Renderer API: `api.waiver.stream(season: number, week: number): Promise<StreamRow[]>`, `api.trade.openSpot(season: number, proposal: TradeProposal): Promise<TradeOpenSpots>`; channels `IPC.waiverStream = 'waiver:stream'`, `IPC.tradeOpenSpot = 'trade:openSpot'`.
 
-- [ ] **Step 1: Write the failing worker test**
+- [x] **Step 1: Write the failing worker test**
 
 In `tests/main/engine/jobs.test.ts` add the imports `import { tradeOpenSpots } from '@main/trade/openSpot'` and `import { waiverStream } from '@main/waiver/stream'`, and a case:
 
@@ -1006,7 +1006,7 @@ it('answers a streaming week and a trade open spot with the in-process results',
 Run: `npx vitest run tests/main/engine/jobs.test.ts`
 Expected: FAIL — typecheck-level error in vitest (`'waiverStream'` not assignable to the job kind) or `runJob` returning `undefined`.
 
-- [ ] **Step 2: The DB entries**
+- [x] **Step 2: The DB entries**
 
 Append to `src/main/waiver/fromDb.ts` (add the imports `import { listRegularSeasonGames } from '@main/db/repos/stats'`, `import type { StreamRow, WaiverAdds } from '@shared/types'` replacing the old type import, and `import { waiverStream, weekOpponents } from './stream'`):
 
@@ -1049,7 +1049,7 @@ export function openSpotFromDb(
 }
 ```
 
-- [ ] **Step 3: The job kinds**
+- [x] **Step 3: The job kinds**
 
 In `src/main/engine/jobs.ts`:
 
@@ -1092,7 +1092,7 @@ and in `runJob`'s switch:
 Run: `npx vitest run tests/main/engine/jobs.test.ts`
 Expected: PASS.
 
-- [ ] **Step 4: The channels**
+- [x] **Step 4: The channels**
 
 `src/shared/ipc.ts` — add `StreamRow` and `TradeOpenSpots` to the types import; in `Api.trade` after `suggest`:
 
@@ -1158,7 +1158,7 @@ ipcMain.handle(IPC.waiverStream, (_event, season: number, week: number): Promise
 })
 ```
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1186,7 +1186,7 @@ Note: `npm test`'s TradeScreen / WaiverScreen component tests still pass here �
   - `tradeView.ts`: `openSpotLine(spot: OpenSpot): string`.
   - Fixtures: `streamOption(over?)`, `streamRow(over?)` in `tests/fixtures/waiver.ts`.
 
-- [ ] **Step 1: The fixtures**
+- [x] **Step 1: The fixtures**
 
 In `tests/fixtures/waiver.ts`, extend the types import to `import type { AddOption, AddRow, StashRow, StreamOption, StreamRow, WaiverAdds } from '@shared/types'` and append:
 
@@ -1208,7 +1208,7 @@ export function streamRow(over: Partial<StreamRow> = {}): StreamRow {
 }
 ```
 
-- [ ] **Step 2: Write the failing view tests**
+- [x] **Step 2: Write the failing view tests**
 
 In `tests/renderer/lib/waiverView.test.ts`, add to the `@/lib/waiverView` import: `ALL_POSITIONS`, `STREAM_CHIPS`, `STREAM_SHOWN`, `filterStream`, `noStreamers`, `releaseLabel` (if not imported yet), `streamOptionLabel`, `weekOptionLabel`; add `streamOption`, `streamRow` to the fixtures import; and inside `describe('waiverView', …)`:
 
@@ -1258,7 +1258,7 @@ it('describes an open spot', () => {
 Run: `npx vitest run tests/renderer/lib`
 Expected: FAIL — the new exports are missing.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/renderer/src/lib/waiverView.ts`:
 
@@ -1334,12 +1334,12 @@ export function openSpotLine(spot: OpenSpot): string {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/lib`
 Expected: PASS.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1361,7 +1361,7 @@ git commit -m "feat(ui): add streaming and open-spot view text"
 - Consumes: `api.waiver.stream(season, week)` (Task 4); `streamWeeks` (`@shared/rules`); from `@/lib/waiverView`: `WAIVER_MODES`, `WaiverMode`, `ALL_POSITIONS`, `STREAM_CHIPS`, `ReleaseChoice`, `filterStream`, `noStreamers`, `streamOptionLabel`, `weekOptionLabel`, `optionLabel`, `releaseLabel` (Task 5); `streamOption`, `streamRow` fixtures.
 - Produces: the screen's _Rest of season | Streaming_ switch, the _Streaming_ card (week picker `aria-label="Streaming week"`, chips, table rows `data-testid="stream-row"`, release dropdown `aria-label="Release for {name}"`).
 
-- [ ] **Step 1: Write the failing component tests**
+- [x] **Step 1: Write the failing component tests**
 
 In `tests/renderer/components/WaiverScreen.test.tsx`:
 
@@ -1458,7 +1458,7 @@ streamMock.mockResolvedValue([
 Run: `npx vitest run tests/renderer/components/WaiverScreen.test.tsx`
 Expected: the three new cases FAIL (no _Streaming_ button); the five existing ones PASS.
 
-- [ ] **Step 2: Make `ReleaseCell` generic**
+- [x] **Step 2: Make `ReleaseCell` generic**
 
 In `src/renderer/src/screens/WaiverScreen.tsx`, replace `ReleaseCell` with:
 
@@ -1497,7 +1497,7 @@ function ReleaseCell<T extends ReleaseChoice>({
 
 and pass `label={optionLabel}` to both existing `<ReleaseCell … />` uses (in `LineupCard` and `StashCard`).
 
-- [ ] **Step 3: Add `StreamCard`**
+- [x] **Step 3: Add `StreamCard`**
 
 Before `interface WaiverScreenProps`:
 
@@ -1633,7 +1633,7 @@ function StreamCard({
 }
 ```
 
-- [ ] **Step 4: The mode switch and the streaming fetch**
+- [x] **Step 4: The mode switch and the streaming fetch**
 
 Imports: add `streamWeeks` from `@shared/rules`; add `StreamRow` to the `@shared/types` import; the `@/lib/waiverView` import becomes:
 
@@ -1835,12 +1835,12 @@ export function WaiverScreen({ dataVersion }: WaiverScreenProps): React.JSX.Elem
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/components/WaiverScreen.test.tsx`
 Expected: all eight cases PASS.
 
-- [ ] **Step 6: Verify and commit**
+- [x] **Step 6: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -1862,7 +1862,7 @@ git commit -m "feat(ui): add streaming mode to Waivers screen"
 - Consumes: `api.trade.openSpot(season, proposal)` (Task 4); `openSpotLine` (Task 5); `OpenSpot`, `TradeOpenSpots` (`@shared/types`).
 - Produces: under each side of the verdict card, the line _Open spot: best add {name}, +x.xx/wk_ (or _… no free agent improves this lineup_) once the worker answers.
 
-- [ ] **Step 1: Write the failing component test**
+- [x] **Step 1: Write the failing component test**
 
 In `tests/renderer/components/TradeScreen.test.tsx`:
 
@@ -1898,7 +1898,7 @@ In `tests/renderer/components/TradeScreen.test.tsx`:
 Run: `npx vitest run tests/renderer/components/TradeScreen.test.tsx`
 Expected: the new case FAILS (no line); the existing ones PASS.
 
-- [ ] **Step 2: Render the line**
+- [x] **Step 2: Render the line**
 
 In `src/renderer/src/screens/TradeScreen.tsx`:
 
@@ -1979,12 +1979,12 @@ const spots = openSpots !== null && openSpots.ev === verdict ? openSpots.spots :
 
 5. `{verdict && <VerdictCard ev={verdict} />}` becomes `{verdict && <VerdictCard ev={verdict} spots={spots} />}`.
 
-- [ ] **Step 3: Run the tests to verify they pass**
+- [x] **Step 3: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/renderer/components/TradeScreen.test.tsx`
 Expected: PASS (all cases).
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 ```bash
 npm run typecheck && npm run lint && npm test
@@ -2001,7 +2001,7 @@ git commit -m "feat(ui): show the open-spot line in the builder"
 - Modify: `docs/reference/value-and-signals.md`
 - Modify: this plan (status block)
 
-- [ ] **Step 1: Data reference**
+- [x] **Step 1: Data reference**
 
 In `docs/reference/value-and-signals.md`:
 
@@ -2011,14 +2011,14 @@ In `docs/reference/value-and-signals.md`:
 - _Constants (single sources)_: add `STREAM_MIN_NET` (`src/main/waiver/stream.ts`), `STREAM_WEEKS_AHEAD` (`src/shared/rules.ts`), `STREAM_SHOWN`, `STREAM_CHIPS` (`waiverView.ts`).
 - _Module map_: `src/main/waiver/{release,search,stash,stream,adds,fromDb}.ts` (add streaming to its description), `src/main/trade/openSpot.ts` (after-roster and the open-spot search), and the engine row's job list (trade suggestions, waiver adds, streaming, open spot).
 
-- [ ] **Step 2: Commit the docs**
+- [x] **Step 2: Commit the docs**
 
 ```bash
 git add docs/reference/value-and-signals.md
 git commit -m "docs: document streaming and the open-spot line"
 ```
 
-- [ ] **Step 3: Final verification and the real-data check**
+- [x] **Step 3: Final verification and the real-data check**
 
 Run: `npm run typecheck && npm run lint && npm test && npm run test:budget` — all green; note the three budget times.
 
@@ -2026,7 +2026,7 @@ Then on a copy of the dev DB (`cp ~/.config/FantasyCompanion/companion.db <scrat
 
 Build and run the bundled worker once in plain Node against the copy for the two new kinds (`npm run build`, then a scratch script that starts `new Worker('out/main/engineWorker.js', { workerData: { dbPath, leagueId, job } })` for `{ kind: 'waiverStream', season: 2026, week }` and `{ kind: 'openSpot', season: 2026, proposal }` and prints the row count / the spots). Also run the app once (`npm run dev` via the Bash tool's `run_in_background`) and open Waivers → Streaming and the Trade screen. If WSLg can't show the window, say so in the status block rather than claiming it was checked.
 
-- [ ] **Step 4: Merge and release**
+- [x] **Step 4: Merge and release**
 
 ```bash
 git checkout main && git merge --no-ff feat/waiver-streaming -m "merge: feat/waiver-streaming (plan P)"
