@@ -21,6 +21,7 @@ import {
   meLine,
   noOffersHint,
   offerLine,
+  openSpotLine,
   playerOption,
   playerStats,
   rangeLine,
@@ -33,8 +34,10 @@ import { cn } from '@/lib/utils'
 import { LINEUP_POSITIONS } from '@shared/rules'
 import type {
   DetailTarget,
+  OpenSpot,
   TradeEvaluation,
   TradeFocus,
+  TradeOpenSpots,
   TradePlayer,
   TradePool,
   TradeSideResult,
@@ -150,7 +153,13 @@ function SideEditor({
   )
 }
 
-function SideVerdict({ side }: { side: TradeSideResult }): React.JSX.Element {
+function SideVerdict({
+  side,
+  spot
+}: {
+  side: TradeSideResult
+  spot: OpenSpot | null
+}): React.JSX.Element {
   const drop = dropLine(side)
   return (
     <div className="space-y-1 text-sm">
@@ -160,13 +169,20 @@ function SideVerdict({ side }: { side: TradeSideResult }): React.JSX.Element {
       </div>
       <div className="text-muted-foreground">{rangeLine(side)}</div>
       {drop && <div className="text-amber-400">{drop}</div>}
+      {spot && <div className="text-sky-400">{openSpotLine(spot)}</div>}
       <div className="text-muted-foreground">{marketLine(side)}</div>
     </div>
   )
 }
 
 /** Spec §5.1: the verdict card — both sides, the badges, this week's swaps on my side. */
-function VerdictCard({ ev }: { ev: TradeEvaluation }): React.JSX.Element {
+function VerdictCard({
+  ev,
+  spots
+}: {
+  ev: TradeEvaluation
+  spots: TradeOpenSpots | null
+}): React.JSX.Element {
   return (
     <Card>
       <CardHeader>
@@ -174,8 +190,8 @@ function VerdictCard({ ev }: { ev: TradeEvaluation }): React.JSX.Element {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-6 md:grid-cols-2">
-          <SideVerdict side={ev.me} />
-          <SideVerdict side={ev.them} />
+          <SideVerdict side={ev.me} spot={spots?.me ?? null} />
+          <SideVerdict side={ev.them} spot={spots?.them ?? null} />
         </div>
         <div className="flex gap-2">
           {verdictBadges(ev).map((b) => (
@@ -256,6 +272,10 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
   const [give, setGive] = useState<string[]>([])
   const [get, setGet] = useState<string[]>([])
   const [verdict, setVerdict] = useState<TradeEvaluation | null>(null)
+  const [openSpots, setOpenSpots] = useState<{
+    ev: TradeEvaluation
+    spots: TradeOpenSpots
+  } | null>(null)
   const [evaluating, setEvaluating] = useState(false)
   const [evalError, setEvalError] = useState<string | null>(null)
   const [selected, setSelected] = useState<DetailTarget | null>(null)
@@ -309,6 +329,27 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
       cancelled = true
     }
   }, [season, key])
+
+  // Slice 6c spec §7: the open-spot line follows the verdict; the verdict never waits for it.
+  useEffect(() => {
+    if (!verdict) return
+    let cancelled = false
+    void api.trade
+      .openSpot(verdict.season, {
+        rosterId: verdict.them.rosterId,
+        give: verdict.me.give.map((p) => p.playerId),
+        get: verdict.me.get.map((p) => p.playerId)
+      })
+      .then((spots) => {
+        if (!cancelled) setOpenSpots({ ev: verdict, spots })
+      })
+      // An info line: when it fails the verdict simply shows none.
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [verdict])
+  const spots = openSpots !== null && openSpots.ev === verdict ? openSpots.spots : null
 
   const pool = loaded?.key === key ? loaded.pool : null
   const notice = failed && (failed.key === key || failed.key === 'options') ? failed.message : null
@@ -460,7 +501,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
               )}
             </div>
 
-            {verdict && <VerdictCard ev={verdict} />}
+            {verdict && <VerdictCard ev={verdict} spots={spots} />}
           </div>
 
           <Card>
