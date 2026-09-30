@@ -120,3 +120,14 @@ export function scoringFormat(rules: Rules | null): ScoringFormat {
   const rec = rules?.scoring.rec ?? 0
   return rec >= 1 ? 'PPR' : rec > 0 ? 'HALF' : 'STD'
 }
+
+/** Slice 6c spec §4: how many weeks past the current one the streaming picker reaches. */
+export const STREAM_WEEKS_AHEAD = 3
+
+/** Spec §4: the weeks a streamer can be picked for — the current week up to 3 ahead, never past the window. */
+export function streamWeeks(currentWeek: number, lastWeek: number): number[] {
+  const weeks: number[] = []
+  const last = Math.min(currentWeek + STREAM_WEEKS_AHEAD, lastWeek)
+  for (let w = currentWeek; w <= last; w++) weeks.push(w)
+  return weeks
+}

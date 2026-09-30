@@ -5,6 +5,7 @@ import { upsertLeague } from '@main/db/repos/leagues'
 import { replaceMarketValues } from '@main/db/repos/marketValues'
 import { listMatchups } from '@main/db/repos/matchups'
 import { upsertPlayers, type PlayerRecord } from '@main/db/repos/players'
+import { replacePoints } from '@main/db/repos/points'
 import { replaceProjections } from '@main/db/repos/projections'
 import { saveRules } from '@main/db/repos/rules'
 import { SETTING_ACTIVE_LEAGUE, SETTING_MY_USER, setSetting } from '@main/db/repos/settings'
@@ -39,6 +40,8 @@ export interface SyntheticPlayer {
   team?: string
   /** FantasyPros ROS consensus (seeded as overall and positional rank); omitted = unranked. */
   rank?: number
+  /** Points already scored in the league's current week — his game that week is played. */
+  points?: number
 }
 
 export interface SyntheticTeam {
@@ -307,6 +310,18 @@ export function syntheticBuild(
       SEED_TS
     )
   })
+  const scored = players.filter((p) => typeof p.points === 'number')
+  replacePoints(
+    db,
+    'L1',
+    scored.map((p) => ({
+      playerId: p.id,
+      season: SEASON,
+      week: league.currentWeek,
+      points: p.points as number
+    })),
+    SEED_TS
+  )
   const valued = players.filter((p) => typeof p.market === 'number')
   replaceMarketValues(
     db,
