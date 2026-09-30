@@ -470,6 +470,21 @@ export interface StreamRow {
   options: StreamOption[]
 }
 
+/** Spec §7: the best free agent for a roster spot a trade leaves open. */
+export interface OpenSpot {
+  rosterId: number
+  /** null when no free agent adds `LINEUP_MIN_DELTA` over the window. */
+  add: TradePlayer | null
+  /** 0 when `add` is null. */
+  deltaPerWeek: number
+}
+
+/** Spec §7: per side of a proposal; null when that side's after-roster is full (or its size unknown). */
+export interface TradeOpenSpots {
+  me: OpenSpot | null
+  them: OpenSpot | null
+}
+
 /** Spec §6: the Waivers screen's rest-of-season payload. */
 export interface WaiverAdds {
   season: number

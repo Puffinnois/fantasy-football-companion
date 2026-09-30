@@ -54,12 +54,18 @@ function sum(values: number[]): number {
   return values.reduce((acc, v) => acc + v, 0)
 }
 
-export function waiverContext(build: LineupBuild, ir: IrSettings): WaiverContext {
-  const weeks = requireWindow(build)
-  const me = myTeam(build)
-  const roster = build.rosters.get(me.rosterId) ?? []
-  const base = weeks.map((w) => teamWeek(build, me.rosterId, w))
-  const releases = releaseCandidates(build, roster, ir)
+/**
+ * Spec §2.1: the search context for any roster — mine (§2–4) or a trade's after-roster (§7).
+ * `base` is the roster's optimal lineup per week of `weeks`; `starts` its players' window starts.
+ */
+export function searchContext(
+  build: LineupBuild,
+  weeks: number[],
+  roster: PlayerSeries[],
+  base: TeamWeek[],
+  releases: ReleaseCandidate[],
+  starts: Map<string, number>
+): WaiverContext {
   const without = new Map<string, TeamWeek[]>()
   for (const r of releases) {
     const leaving = r.series
@@ -80,8 +86,22 @@ export function waiverContext(build: LineupBuild, ir: IrSettings): WaiverContext
     before: sum(base.map((x) => x.optimalTotal)),
     releases,
     without,
-    starts: starterWeeks(build, me.rosterId, weeks)
+    starts
   }
+}
+
+export function waiverContext(build: LineupBuild, ir: IrSettings): WaiverContext {
+  const weeks = requireWindow(build)
+  const me = myTeam(build)
+  const roster = build.rosters.get(me.rosterId) ?? []
+  return searchContext(
+    build,
+    weeks,
+    roster,
+    weeks.map((w) => teamWeek(build, me.rosterId, w)),
+    releaseCandidates(build, roster, ir),
+    starterWeeks(build, me.rosterId, weeks)
+  )
 }
 
 /** 6b §2.3: can `add` raise `lineup`'s total in week `w`? Exact when false. */
