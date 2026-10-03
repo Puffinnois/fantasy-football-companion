@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { bridgeLabel, dealProposal, dealsAt, refuses, type Deal } from '@main/trade/bridge'
+import {
+  accepts,
+  BOUND_SLACK,
+  bridgeLabel,
+  dealProposal,
+  dealsAt,
+  refuses,
+  type Deal
+} from '@main/trade/bridge'
 import {
   mySideKey,
   searchContext,
+  sideOf,
   subsets,
   type MySide,
   type SearchContext
@@ -11,11 +20,14 @@ import { sideKey } from '@main/trade/side'
 import type { PlayerSeries } from '@main/value/series'
 import type { Team } from '@shared/types'
 import {
+  FORCED_PAIR_LEAGUE,
   NEGATIVE_LEAGUE,
   negativeSearchLeague,
+  OVERFULL_LEAGUE,
   searchLeague,
   syntheticBuild,
-  TRIANGLE_LEAGUE
+  TRIANGLE_LEAGUE,
+  type SyntheticLeague
 } from '../../fixtures/synthetic'
 import { cycleKey, oracleDeals, type EvalCache } from './suggestOracle'
 
@@ -174,17 +186,18 @@ describe('SearchContext.slack', () => {
   })
 })
 
+const player = (ctx: SearchContext, id: string): PlayerSeries => {
+  for (const roster of ctx.build.rosters.values()) {
+    const hit = roster.find((s) => s.base.playerId === id)
+    if (hit) return hit
+  }
+  throw new Error(`no player ${id}`)
+}
+const team = (ctx: SearchContext, id: number): Team =>
+  ctx.others.find((t) => t.rosterId === id) as Team
+
 describe('refuses (spec §3.3, exact prunes alone)', () => {
   const { build } = syntheticBuild(TRIANGLE_LEAGUE)
-  const player = (ctx: SearchContext, id: string): PlayerSeries => {
-    for (const roster of ctx.build.rosters.values()) {
-      const hit = roster.find((s) => s.base.playerId === id)
-      if (hit) return hit
-    }
-    throw new Error(`no player ${id}`)
-  }
-  const team = (ctx: SearchContext, id: number): Team =>
-    ctx.others.find((t) => t.rosterId === id) as Team
 
   it('refuses without a solve when nothing it gets can start and the market is short', () => {
     const ctx = searchContext(build, null)
@@ -221,5 +234,60 @@ describe('refuses (spec §3.3, exact prunes alone)', () => {
     // gains with the pair (drops b3, starts a4 at TE).
     const [b1, a4, a3] = ['b1', 'a4', 'a3'].map((id) => player(ctx, id))
     expect(refuses(ctx, team(ctx, 2), [b1], [a4, a3])).toBe(false)
+  })
+})
+
+describe('the received-pair bound steps aside where it is not exact', () => {
+  /** The search finds exactly what the brute force finds for me giving `x` for `z` with Two. */
+  const searchEqualsOracle = (league: SyntheticLeague, x: string[], z: string[]): string[] => {
+    const { build } = syntheticBuild(league)
+    const ctx = searchContext(build, null)
+    const side = sideOfIds(ctx, x, z, 2)
+    const fast = drain(dealsAt(ctx, side, 2)).map(cycleKey)
+    expect(fast).toEqual(oracleDeals(build, side, 2, null, new Map()))
+    return fast
+  }
+
+  it('when a received single needs a drop', () => {
+    const { build } = syntheticBuild(OVERFULL_LEAGUE)
+    const ctx = searchContext(build, null)
+    const two = team(ctx, 2)
+    const [t1, h1, h2] = ['t1', 'h1', 'h2'].map((id) => player(ctx, id))
+    // Two holds five at size 4: both singles drop t4 and so understate what h1 and h2 add…
+    const withH1 = sideOf(ctx, two, [t1], [h1])
+    const withH2 = sideOf(ctx, two, [t1], [h2])
+    const withNone = sideOf(ctx, two, [t1], [])
+    expect([withH1, withH2].map((s) => [s.delta, s.drops.map((p) => p.playerId)])).toEqual([
+      [1, ['t4']],
+      [-2, ['t4']]
+    ])
+    expect(withNone.delta).toBe(0)
+    // …so the bound they would give (−1) is below the pair's real +2, and it must not be applied.
+    expect(withH1.delta + withH2.delta - withNone.delta + BOUND_SLACK).toBeLessThan(0)
+    expect(refuses(ctx, two, [t1], [h1, h2])).toBe(false)
+    const taken = accepts(ctx, two, [t1], [h1, h2])
+    expect(taken?.acceptance).toBe('lineup')
+    expect(taken?.core.delta).toBe(2)
+    expect(searchEqualsOracle(OVERFULL_LEAGUE, ['h1', 'h2'], ['t1'])).toHaveLength(1)
+  })
+
+  it('when a negative value could be forced into a slot', () => {
+    const { build } = syntheticBuild(FORCED_PAIR_LEAGUE)
+    const ctx = searchContext(build, null)
+    const two = team(ctx, 2)
+    const [q1, n1, n2] = ['q1', 'n1', 'n2'].map((id) => player(ctx, id))
+    // Alone, each of n1 and n2 is forced into FLEX (−4, then 1 and 1); together they still fill
+    // only the one slot, so the pair is −2, not the −4 the singles add up to.
+    expect(ctx.slack(2, [n1, n2])).toBe(8)
+    const withN1 = sideOf(ctx, two, [q1], [n1])
+    const withN2 = sideOf(ctx, two, [q1], [n2])
+    const withNone = sideOf(ctx, two, [q1], [])
+    expect([withN1.delta, withN2.delta, withNone.delta]).toEqual([-2, -2, 0])
+    expect(withN1.delta + withN2.delta - withNone.delta + BOUND_SLACK).toBeLessThan(-3)
+    expect(refuses(ctx, two, [q1], [n1, n2])).toBe(false)
+    const taken = accepts(ctx, two, [q1], [n1, n2])
+    expect(taken?.acceptance).toBe('market')
+    expect(taken?.core.delta).toBe(-2)
+    expect(searchEqualsOracle(FORCED_PAIR_LEAGUE, ['n1', 'n2'], ['q1'])).toHaveLength(1)
   })
 })

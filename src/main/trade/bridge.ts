@@ -23,8 +23,11 @@ export interface Deal {
 }
 
 /**
- * Rounding headroom for the pair bound: each delta is rounded to the cent (±0.005), the bound sums
- * three of them and the pair's own delta is rounded again — 0.02 at most; 0.05 to spare.
+ * Float headroom for the pair bound, not rounding headroom. Candidate values are whole cents
+ * (`round2` in `weekPlayer`), a week's total is a sum of them and a delta a difference of such
+ * totals, so every figure the bound uses is an exact number of cents and the slack only absorbs
+ * float error. Were a value not a whole cent, each weekly total would round by up to ±0.005 and
+ * over a 14-week window a delta could drift by up to 0.07, more than this.
  */
 export const BOUND_SLACK = 0.05
 
@@ -64,8 +67,11 @@ export function refuses(
   }
   if (get.length === 2) {
     // With nothing below zero the weekly optimum is monotone and submodular in the roster, so the
-    // pair adds at most what each player adds alone: Δ(pair) ≤ Δ(h1) + Δ(h2) − Δ(nothing), valid
-    // when neither single needs a drop (drops only lower the pair's own total).
+    // pair adds at most what each player adds alone: Δ(pair) ≤ Δ(h1) + Δ(h2) − Δ(nothing). That
+    // compares the rosters S, S + h1, S + h2 and S + h1 + h2 (S = what is left after giving), so
+    // each single's after-roster must be exactly S + h: a single that needs a drop is S + h minus
+    // someone, its Δ understates what h adds and the bound could come out too small. The pair's
+    // own drops are fine — they only lower the pair's total, the safe direction.
     const one = sideOf(ctx, team, give, [get[0]])
     const two = sideOf(ctx, team, give, [get[1]])
     if (one.drops.length === 0 && two.drops.length === 0) {

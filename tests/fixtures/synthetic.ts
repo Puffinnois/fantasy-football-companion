@@ -728,3 +728,112 @@ export const NEGATIVE_LEAGUE: SyntheticLeague = {
     }
   ]
 }
+
+/**
+ * Slots RB · RB (+2 bench), roster size 4, window weeks 3–5, and Two already one over the limit —
+ * five players, as when one comes back from IR — so every swap of one for one forces a drop.
+ * Only RBs, so a week's lineup is its two best.
+ *
+ * | Me (1)      | Two (2)         |
+ * | ----------- | --------------- |
+ * | h1 RB 3 8 5 | t1 RB 1 1 6     |
+ * | h2 RB 8 4 1 | t2 RB 4 8 8     |
+ * |             | t3 RB 9 4 4     |
+ * |             | t4 RB 1 4 7     |
+ * |             | t5 RB 7 5 2     |
+ *
+ * (weekly points in weeks 3 · 4 · 5; every player is worth 1000 on the market but t1, 3000.)
+ * Two gives t1 (a bench player: giving it alone is Δ 0) for h1 + h2 and gains 2: it drops t4 and
+ * t5 and starts h2 · t3, t2 · h1, t2 · h1. Each single is dragged down by its own drop (both drop
+ * t4, who starts once like three others and has the fewest ROS points): h1 alone is +1 (+3 before
+ * the drop), h2 alone −2 (+1 before it). The submodular bound over those two, 1 − 2 − 0 = −1, is
+ * below the pair's real +2 — it holds only where the singles need no drop.
+ */
+export const OVERFULL_LEAGUE: SyntheticLeague = {
+  currentWeek: 3,
+  weeks: [3, 4, 5],
+  rosterPositions: ['RB', 'RB', 'BN', 'BN'],
+  rules: rules({
+    rosterSlots: [
+      { slot: 'RB', count: 2 },
+      { slot: 'BN', count: 2 }
+    ],
+    settings: { numTeams: 2, waiverType: 'faab', playoffStartWeek: 4, playoffTeams: 4 }
+  }),
+  teams: [
+    {
+      rosterId: 1,
+      name: 'Me',
+      isMe: true,
+      players: [
+        { id: 'h1', position: 'RB', weekly: [3, 8, 5], market: 1000 },
+        { id: 'h2', position: 'RB', weekly: [8, 4, 1], market: 1000 }
+      ]
+    },
+    {
+      rosterId: 2,
+      name: 'Two',
+      players: [
+        { id: 't1', position: 'RB', weekly: [1, 1, 6], market: 3000 },
+        { id: 't2', position: 'RB', weekly: [4, 8, 8], market: 1000 },
+        { id: 't3', position: 'RB', weekly: [9, 4, 4], market: 1000 },
+        { id: 't4', position: 'RB', weekly: [1, 4, 7], market: 1000 },
+        { id: 't5', position: 'RB', weekly: [7, 5, 2], market: 1000 }
+      ]
+    }
+  ]
+}
+
+/**
+ * Slots RB · WR · FLEX (+1 bench), roster size 4, window weeks 3–5, built so that two received
+ * players cost less together than apart: Two's lineup leaves FLEX empty (its QBs can never
+ * start), so each of n1 and n2 alone is forced into it — −4 in week 3, 1 after — while both
+ * together still fill only the one slot.
+ *
+ * | Me (1)       | Two (2)     |
+ * | ------------ | ----------- |
+ * | n1 RB −4 1 1 | r RB 10     |
+ * | n2 WR −4 1 1 | w WR 10     |
+ * |              | q1 QB 5     |
+ * |              | q2 QB 5     |
+ *
+ * (weekly points in weeks 3 · 4 · 5; every player is worth 1000 on the market but q1, 2000.)
+ * Two gives q1 for n1 + n2: −2 for the window (−0.67 a week) at a market ratio of 1.0, so it
+ * takes the deal. Each single is −2 too and giving q1 alone is 0, so the submodular bound,
+ * −2 − 2 − 0 = −4, would refuse it — it needs a roster with nothing below zero.
+ */
+export const FORCED_PAIR_LEAGUE: SyntheticLeague = {
+  currentWeek: 3,
+  weeks: [3, 4, 5],
+  rosterPositions: ['RB', 'WR', 'FLEX', 'BN'],
+  rules: rules({
+    rosterSlots: [
+      { slot: 'RB', count: 1 },
+      { slot: 'WR', count: 1 },
+      { slot: 'FLEX', count: 1 },
+      { slot: 'BN', count: 1 }
+    ],
+    settings: { numTeams: 2, waiverType: 'faab', playoffStartWeek: 4, playoffTeams: 4 }
+  }),
+  teams: [
+    {
+      rosterId: 1,
+      name: 'Me',
+      isMe: true,
+      players: [
+        { id: 'n1', position: 'RB', weekly: [-4, 1, 1], market: 1000 },
+        { id: 'n2', position: 'WR', weekly: [-4, 1, 1], market: 1000 }
+      ]
+    },
+    {
+      rosterId: 2,
+      name: 'Two',
+      players: [
+        { id: 'r', position: 'RB', weekly: 10, market: 1000 },
+        { id: 'w', position: 'WR', weekly: 10, market: 1000 },
+        { id: 'q1', position: 'QB', weekly: 5, market: 2000 },
+        { id: 'q2', position: 'QB', weekly: 5, market: 1000 }
+      ]
+    }
+  ]
+}
