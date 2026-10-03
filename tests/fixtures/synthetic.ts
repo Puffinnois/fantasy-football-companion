@@ -205,6 +205,62 @@ export const CYCLE_LEAGUE: SyntheticLeague = {
 }
 
 /**
+ * Multi-team spec §3: a deal only three teams can make. Slots RB · WR · TE (+1 bench), roster
+ * size 4, window weeks 16–17. Optimal per week: Me 35 (a1 · a3 · a4), Two 42 (b4 · b1 · b3),
+ * Three 43 (c3 · c4 · c1).
+ *
+ * | Me (1)        | Two (2)       | Three (3)     |
+ * | ------------- | ------------- | ------------- |
+ * | a1 RB 20 4000 | b1 WR 20 4000 | c1 TE 20 4000 |
+ * | a2 RB 15 1000 | b2 WR 15 3000 | c2 TE 14 1000 |
+ * | a3 WR 5 300   | b3 TE 4 200   | c3 RB 5 300   |
+ * | a4 TE 10 1500 | b4 RB 18 3500 | c4 WR 18 3000 |
+ *
+ * a2 for b2 fails with Two: a2 can't start behind b4, and 1 000 for 3 000 is not market-fair.
+ * Through Three it works — a2 → Three, c2 → Two, b2 → me, everyone +10 a week. Three could also
+ * send c1 (Three +4, Two +16), c2 + c3 (+10 / +10, Two drops b3) or c1 + c3 (+4 / +16, Two drops b3).
+ */
+export const TRIANGLE_LEAGUE: SyntheticLeague = {
+  currentWeek: 16,
+  weeks: [16, 17],
+  rosterPositions: ['RB', 'WR', 'TE', 'BN'],
+  rules: CYCLE_LEAGUE.rules,
+  teams: [
+    {
+      rosterId: 1,
+      name: 'Me',
+      isMe: true,
+      players: [
+        { id: 'a1', position: 'RB', weekly: 20, market: 4000 },
+        { id: 'a2', position: 'RB', weekly: 15, market: 1000 },
+        { id: 'a3', position: 'WR', weekly: 5, market: 300 },
+        { id: 'a4', position: 'TE', weekly: 10, market: 1500 }
+      ]
+    },
+    {
+      rosterId: 2,
+      name: 'Two',
+      players: [
+        { id: 'b1', position: 'WR', weekly: 20, market: 4000 },
+        { id: 'b2', position: 'WR', weekly: 15, market: 3000 },
+        { id: 'b3', position: 'TE', weekly: 4, market: 200 },
+        { id: 'b4', position: 'RB', weekly: 18, market: 3500 }
+      ]
+    },
+    {
+      rosterId: 3,
+      name: 'Three',
+      players: [
+        { id: 'c1', position: 'TE', weekly: 20, market: 4000 },
+        { id: 'c2', position: 'TE', weekly: 14, market: 1000 },
+        { id: 'c3', position: 'RB', weekly: 5, market: 300 },
+        { id: 'c4', position: 'WR', weekly: 18, market: 3000 }
+      ]
+    }
+  ]
+}
+
+/**
  * Slice 6c engine fixture: slots RB · WR · FLEX (+1 bench), roster size 4, window weeks 16–17.
  * My optimal lineup is 42 a week (RB A20 · WR B10 · FLEX C12); D never starts.
  *
@@ -535,5 +591,35 @@ export function generateLeague(seed: number, teamCount = 16, freeAgents = 0): Sy
     ],
     teams,
     freeAgents: pool
+  }
+}
+
+/**
+ * Multi-team spec §7 property-test league: `generateLeague(seed, 4)` cut to 2 RB + 2 WR per team,
+ * slots RB · WR · FLEX (+1 bench) so every 2-for-1 forces a drop, window weeks 3–5. Small enough
+ * for the brute force to enumerate every 4-team cycle.
+ */
+export function searchLeague(seed: number): SyntheticLeague {
+  const g = generateLeague(seed, 4)
+  return {
+    ...g,
+    weeks: g.weeks.slice(0, 3),
+    rosterPositions: ['RB', 'WR', 'FLEX', 'BN'],
+    rules: rules({
+      rosterSlots: [
+        { slot: 'RB', count: 1 },
+        { slot: 'WR', count: 1 },
+        { slot: 'FLEX', count: 1 },
+        { slot: 'BN', count: 1 }
+      ],
+      settings: { numTeams: 4, waiverType: 'faab', playoffStartWeek: 4, playoffTeams: 4 }
+    }),
+    teams: g.teams.map((t) => ({
+      ...t,
+      players: [t.players[2], t.players[3], t.players[7], t.players[8]].map((p) => ({
+        ...p,
+        weekly: Array.isArray(p.weekly) ? p.weekly.slice(0, 3) : p.weekly
+      }))
+    }))
   }
 }
