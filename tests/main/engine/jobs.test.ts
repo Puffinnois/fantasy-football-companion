@@ -61,7 +61,13 @@ describe('runJob (the engine worker body)', () => {
     const path = join(dir, 'trade.db')
     const { db, build } = syntheticBuild(SMALL_LEAGUE, path)
     db.close()
-    const query = { season: SEASON, focus: null, stance: 'fair' as const, partnerRosterId: null }
+    const query = {
+      season: SEASON,
+      focus: null,
+      stance: 'fair' as const,
+      maxTeams: 2,
+      mustInclude: null
+    }
     expect(runJob({ dbPath: path, leagueId: 'L1', job: { kind: 'tradeSuggest', query } })).toEqual(
       suggestTrades(build, query)
     )

@@ -1,15 +1,14 @@
-import { candidateFor, teamWeek, type LineupBuild, type TeamWeek } from '@main/lineup/build'
+import { teamWeek, type LineupBuild } from '@main/lineup/build'
 import type { PlayerSeries } from '@main/value/series'
 import { twoTeam } from '@shared/deal'
 import type {
   Team,
-  TradeAcceptance,
   TradeEvaluation,
   TradeStance,
   TradeSuggestQuery,
   TradeSuggestion
 } from '@shared/types'
-import { canEnter } from './enter'
+import { entersLineup } from './enter'
 import {
   evaluateTrade,
   MARKET_FAIR,
@@ -18,47 +17,24 @@ import {
   myTeam,
   requireWindow
 } from './evaluate'
+import {
+  ACCEPT_LOSS_PER_WEEK,
+  acceptanceOf,
+  DOMINANCE_PTS,
+  passesStance,
+  STANCES,
+  stanceDelta,
+  SUGGEST_MAX
+} from './thresholds'
 
-/** Spec 6b §3.3: what my side must clear per stance; `strict` makes the Δ/week bound exclusive. */
-export const STANCES: Record<
-  TradeStance,
-  { deltaPerWeek: number; strict: boolean; ratio: number }
-> = {
-  premium: { deltaPerWeek: 1, strict: false, ratio: 1 },
-  fair: { deltaPerWeek: 0, strict: true, ratio: 0.85 },
-  overpay: { deltaPerWeek: -1, strict: false, ratio: 0.7 }
-}
-/**
- * How much weekly lineup value the other manager will swallow for a fair-value trade. Without it,
- * every market-fair consolidation qualifies however much it guts their starting lineup — on a real
- * 16-team league that was the whole top 30. Mirrors the overpay stance's bound on my own side.
- */
-export const ACCEPT_LOSS_PER_WEEK = 1
-/** Spec §3.4: a 2-for-1 / 1-for-2 that beats its 1-for-1 by no more than this was padding. */
-export const DOMINANCE_PTS = 0.5
-export const SUGGEST_MAX = 30
-
-/** The Δ/week half of a stance's test — the bound the bigger shapes are checked against. */
-export function stanceDelta(stance: TradeStance, deltaPerWeek: number): boolean {
-  const s = STANCES[stance]
-  return s.strict ? deltaPerWeek > s.deltaPerWeek : deltaPerWeek >= s.deltaPerWeek
-}
-
-export function passesStance(stance: TradeStance, deltaPerWeek: number, ratio: number): boolean {
-  return stanceDelta(stance, deltaPerWeek) && ratio >= STANCES[stance].ratio
-}
-
-/** Spec §3.3: why the other manager would take it; null when they would not. */
-export function acceptanceOf(
-  theirDelta: number,
-  theirRatio: number,
-  theirDeltaPerWeek: number
-): TradeAcceptance | null {
-  const lineup = theirDelta > 0
-  const market = theirRatio >= MARKET_FAIR && theirDeltaPerWeek >= -ACCEPT_LOSS_PER_WEEK
-  if (lineup && market) return 'both'
-  if (lineup) return 'lineup'
-  return market ? 'market' : null
+export {
+  ACCEPT_LOSS_PER_WEEK,
+  acceptanceOf,
+  DOMINANCE_PTS,
+  passesStance,
+  STANCES,
+  stanceDelta,
+  SUGGEST_MAX
 }
 
 /**
@@ -95,19 +71,6 @@ const key = (give: string, get: string): string => `${give}|${get}`
 /** Descending comparator that is safe on ±∞ (no `b - a` NaN). */
 function desc(a: number, b: number): number {
   return a === b ? 0 : a > b ? -1 : 1
-}
-
-/** Whether `s` could raise that team's optimal lineup in at least one window week. */
-function entersLineup(
-  build: LineupBuild,
-  s: PlayerSeries,
-  weeks: number[],
-  teamWeeks: TeamWeek[]
-): boolean {
-  return weeks.some((w, i) => {
-    const c = candidateFor(build, s, w)
-    return c !== null && canEnter(c, build.slots, teamWeeks[i].optimal)
-  })
 }
 
 /** Spec §3.2–3.3: evaluate one candidate; null unless my stance and their acceptance both pass. */
@@ -147,7 +110,10 @@ function consider(
   return {
     evaluation,
     theirMarket,
-    suggestion: acceptance === null ? undefined : { evaluation, acceptance: [null, acceptance] }
+    suggestion:
+      acceptance === null
+        ? undefined
+        : { evaluation, teams: 2, acceptance: [null, acceptance], alternatives: [] }
   }
 }
 
@@ -212,8 +178,7 @@ export function suggestTrades(
   const found: TradeSuggestion[] = []
   const partners = build.inputs.teams.filter(
     (t) =>
-      t.rosterId !== me.rosterId &&
-      (query.partnerRosterId === null || t.rosterId === query.partnerRosterId)
+      t.rosterId !== me.rosterId && (query.mustInclude === null || t.rosterId === query.mustInclude)
   )
   for (const partner of partners) {
     const theirWeeks = weeks.map((w) => teamWeek(build, partner.rosterId, w))

@@ -111,7 +111,8 @@ const query = (over: Partial<TradeSuggestQuery> = {}): TradeSuggestQuery => ({
   season: SEASON,
   focus: null,
   stance: 'fair',
-  partnerRosterId: null,
+  maxTeams: 2,
+  mustInclude: null,
   ...over
 })
 /** "A+B→I@3": my give ids, their get ids (each sorted), partner roster. */
@@ -182,9 +183,9 @@ describe('suggestTrades on the small league (spec 6b §3)', () => {
   })
 
   it('restricts the scan to one partner', () => {
-    expect(shapes(suggestTrades(build, query({ partnerRosterId: 2 })))).toEqual(['C→F@2'])
-    expect(shapes(suggestTrades(build, query({ partnerRosterId: 3 })))).toEqual(['A+B→I@3'])
-    expect(suggestTrades(build, query({ partnerRosterId: 9 }))).toEqual([])
+    expect(shapes(suggestTrades(build, query({ mustInclude: 2 })))).toEqual(['C→F@2'])
+    expect(shapes(suggestTrades(build, query({ mustInclude: 3 })))).toEqual(['A+B→I@3'])
+    expect(suggestTrades(build, query({ mustInclude: 9 }))).toEqual([])
   })
 
   it('honours the focus: a player I give, a position I want', () => {

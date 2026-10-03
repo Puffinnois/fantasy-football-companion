@@ -22,7 +22,8 @@ describe.skipIf(!process.env.FFC_BUDGET)('suggestTrades budget', () => {
     season: SEASON,
     focus: null,
     stance: 'fair',
-    partnerRosterId: null,
+    maxTeams: 2,
+    mustInclude: null,
     ...over
   })
   const time = (q: Parameters<typeof suggestTrades>[1]): number => {
@@ -34,7 +35,7 @@ describe.skipIf(!process.env.FFC_BUDGET)('suggestTrades budget', () => {
   }
 
   it('answers the screen defaults — one partner, one focus player — well inside the budget', () => {
-    const partner = time(query({ partnerRosterId: 3 }))
+    const partner = time(query({ mustInclude: 3 }))
     const focus = time(query({ focus: { give: build.rosters.get(1)?.[2].base.playerId ?? '' } }))
     console.info(`one partner ${partner.toFixed(0)} ms · focus give ${focus.toFixed(0)} ms`)
     expect(partner).toBeLessThan(FOCUSED_MS)

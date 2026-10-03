@@ -210,7 +210,15 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
     setFinding(true)
     setFindError(null)
     try {
-      setSuggestions(await api.trade.suggest({ season, focus, stance, partnerRosterId }))
+      setSuggestions(
+        await api.trade.suggest({
+          season,
+          focus,
+          stance,
+          maxTeams: 2,
+          mustInclude: partnerRosterId
+        })
+      )
     } catch (err) {
       setFindError(errorMessage(err))
     } finally {

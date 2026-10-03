@@ -19,7 +19,8 @@ describe('suggestFromDb (the worker body)', () => {
       season: SEASON,
       focus: null,
       stance: 'fair' as const,
-      partnerRosterId: null
+      maxTeams: 2,
+      mustInclude: null
     }
     expect(suggestFromDb(path, 'L1', query)).toEqual(suggestTrades(build, query))
   })
@@ -32,7 +33,8 @@ describe('suggestFromDb (the worker body)', () => {
         season: SEASON,
         focus: null,
         stance: 'fair',
-        partnerRosterId: null
+        maxTeams: 2,
+        mustInclude: null
       })
     ).toThrow('No projections stored')
   })

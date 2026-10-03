@@ -233,7 +233,8 @@ describe('TradeScreen', () => {
       season: 2026,
       focus: null,
       stance: 'fair',
-      partnerRosterId: 2
+      maxTeams: 2,
+      mustInclude: 2
     })
     expect(screen.getByText('Me +4.00 (+0.27/wk)')).toBeTruthy()
     expect(screen.getByText('Them -4.00')).toBeTruthy()
@@ -268,7 +269,8 @@ describe('TradeScreen', () => {
       season: 2026,
       focus: { give: '4866' },
       stance: 'overpay',
-      partnerRosterId: 2
+      maxTeams: 2,
+      mustInclude: 2
     })
     expect((screen.getByLabelText('Suggest with') as HTMLSelectElement).value).toBe('2')
 
@@ -282,7 +284,8 @@ describe('TradeScreen', () => {
         season: 2026,
         focus: { want: 'WR' },
         stance: 'overpay',
-        partnerRosterId: null
+        maxTeams: 2,
+        mustInclude: null
       })
     )
 

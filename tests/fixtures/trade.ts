@@ -183,7 +183,9 @@ export function tradeSuggestion(over: Partial<TradeSuggestion> = {}): TradeSugge
       everyoneGains: false,
       marketFair: false // 8 000 / 9 340 = 0.86 on my side
     }),
+    teams: 2,
     acceptance: [null, 'market'],
+    alternatives: [],
     ...over
   }
 }

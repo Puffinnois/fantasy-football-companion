@@ -421,18 +421,33 @@ export interface TradeSuggestQuery {
   season: number
   focus: TradeFocus
   stance: TradeStance
-  /** Restrict the scan to one team; null = every other team. */
-  partnerRosterId: number | null
+  /** Multi-team spec §3.1: deals of 2 up to this many teams; clamped to 2..number of teams. */
+  maxTeams: number
+  /** The deal must involve this team; null = any. */
+  mustInclude: number | null
 }
 
 /** Why another manager would take an offer: his lineup improves, the market is fair for him, or both. */
 export type TradeAcceptance = 'lineup' | 'market' | 'both'
 
+/** Multi-team spec §3.5: another working deal for the same my side, at the same size. */
+export interface TradeAlternative {
+  proposal: TradeProposal
+  /** "via Gridiron Gang: James Cook" — the bridge teams and what each sends. */
+  label: string
+  /** The least happy other team's Δ/week. */
+  worstDeltaPerWeek: number
+}
+
 export interface TradeSuggestion {
   /** Exactly what `trade:evaluate` returns for this proposal — the card and the builder agree. */
   evaluation: TradeEvaluation
+  /** Number of teams in the deal, 2..maxTeams. */
+  teams: number
   /** Aligned with `evaluation.sides`: null for me, why each other manager would take it. */
   acceptance: (TradeAcceptance | null)[]
+  /** The other working deals of this size for the same my side, best first. */
+  alternatives: TradeAlternative[]
 }
 
 /** Slice 6c spec §2.2: how an add makes room on my roster. */

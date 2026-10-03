@@ -6,7 +6,10 @@ import {
   type LineupSlot,
   type Placed
 } from '@main/lineup/optimal'
-import { canEnter, reachableSlots } from '@main/trade/enter'
+import { teamWeek, windowWeeks } from '@main/lineup/build'
+import { canEnter, entersLineup, reachableSlots } from '@main/trade/enter'
+import type { PlayerSeries } from '@main/value/series'
+import { SMALL_LEAGUE, syntheticBuild } from '../../fixtures/synthetic'
 
 const c = (id: string, position: string | null, value: number): Candidate => ({
   id,
@@ -99,5 +102,21 @@ describe('canEnter (spec 6b §2.3)', () => {
         })
       }
     }
+  })
+})
+
+describe('entersLineup (spec 6b §3.2)', () => {
+  it('lists who could raise my lineup in some window week', () => {
+    const { build } = syntheticBuild(SMALL_LEAGUE)
+    const weeks = windowWeeks(build)
+    const mine = weeks.map((w) => teamWeek(build, 1, w))
+    const series = (id: string): PlayerSeries =>
+      [...build.rosters.values()].flat().find((s) => s.base.playerId === id) as PlayerSeries
+    // Me: RB A20 · WR B8 · FLEX C18 — F, E (Rival) and I (Other) beat a starter they can reach.
+    expect(
+      ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'].filter((id) =>
+        entersLineup(build, series(id), weeks, mine)
+      )
+    ).toEqual(['E', 'F', 'I'])
   })
 })
