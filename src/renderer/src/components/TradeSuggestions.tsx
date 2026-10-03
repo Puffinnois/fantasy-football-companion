@@ -30,7 +30,13 @@ import {
 import type { SuggestRun } from '@/lib/useSuggestRun'
 import { cn } from '@/lib/utils'
 import { LINEUP_POSITIONS } from '@shared/rules'
-import type { TradePool, TradeProposal, TradeStance, TradeSuggestion } from '@shared/types'
+import type {
+  TradeAlternative,
+  TradePool,
+  TradeProposal,
+  TradeStance,
+  TradeSuggestion
+} from '@shared/types'
 
 function Tag({ children }: { children: string }): React.JSX.Element {
   return (
@@ -102,7 +108,7 @@ function SuggestionRow({
             <ul className="mt-1 space-y-1">
               {suggestion.alternatives.map((a) => (
                 <li
-                  key={a.label}
+                  key={alternativeKey(a)}
                   className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
                 >
                   <span>{alternativeLine(a)}</span>
@@ -128,6 +134,11 @@ function suggestionKey(s: TradeSuggestion): string {
   return s.evaluation.sides
     .map((side) => `${side.rosterId}:${side.give.map((p) => p.playerId).join('+')}`)
     .join('>')
+}
+
+/** An alternative is its proposal; labels can repeat when two players share a name. */
+function alternativeKey(a: TradeAlternative): string {
+  return a.proposal.moves.map((m) => `${m.playerId}>${m.to}`).join('+')
 }
 
 interface TradeSuggestionsProps {
