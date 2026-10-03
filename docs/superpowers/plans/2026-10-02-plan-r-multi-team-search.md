@@ -233,7 +233,7 @@ Expected: all green, the new `entersLineup` test included; every existing sugges
 ```bash
 npx prettier --write src/shared/types.ts src/main/trade/thresholds.ts src/main/trade/enter.ts src/main/trade/suggest.ts src/renderer/src/screens/TradeScreen.tsx tests/fixtures/trade.ts tests/main/trade/enter.test.ts tests/main/trade/suggest.test.ts tests/main/trade/suggestBudget.test.ts tests/main/engine/jobs.test.ts tests/renderer/components/TradeScreen.test.tsx
 git add -A src tests
-git commit -m "refactor(trade): shape suggestion types for N teams"
+git commit -m "refactor(trade): reshape types for N-team search"
 ```
 
 ---
@@ -758,7 +758,7 @@ Expected: PASS. The oracle and the 6b search are independent implementations of 
 npm run typecheck && npm run lint && npm test
 npx prettier --write tests/fixtures/synthetic.ts tests/main/trade/suggestOracle.ts tests/main/trade/suggestOracle.test.ts
 git add tests/fixtures/synthetic.ts tests/main/trade/suggestOracle.ts tests/main/trade/suggestOracle.test.ts
-git commit -m "test(trade): add brute-force oracle for N-team search"
+git commit -m "test(trade): add N-team brute-force oracle"
 ```
 
 ---
