@@ -13,10 +13,19 @@ import {
   removePick,
   removeTeam,
   setDestination,
+  sidesInOrder,
   teamLabel,
+  dealFromProposal,
   type BuilderDeal
 } from '@/lib/tradeBuilder'
-import { bijan, higgins, threeTeamEvaluation, threeTeamPool, tradePool } from '../../fixtures/trade'
+import {
+  bijan,
+  higgins,
+  threeTeamEvaluation,
+  threeTeamPool,
+  tradePool,
+  threeTeamSuggestion
+} from '../../fixtures/trade'
 
 const pool = threeTeamPool()
 /** Jefferson → Rival (default), Chase → Tank Mode (picked), Higgins → me (default). */
@@ -134,5 +143,36 @@ describe('trade builder deal (multi-team spec §5.1)', () => {
     expect(getsLine(two, 1, pool)).toBe('gets: nobody')
     expect(teamLabel(pool, 1)).toBe('Me')
     expect(teamLabel(pool, 3)).toBe('Tank Mode')
+  })
+})
+
+describe('sidesInOrder (Plan Q follow-up)', () => {
+  it('orders verdict columns as the builder orders its cards', () => {
+    const ev = threeTeamEvaluation() // me (1), Rival (2), Tank Mode (3)
+    const ids = (deal: BuilderDeal): number[] => sidesInOrder(ev, deal, 1).map((s) => s.rosterId)
+    expect(ids({ teams: [3, 2], picks: [] })).toEqual([1, 3, 2])
+    expect(ids({ teams: [2, 3], picks: [] })).toEqual([1, 2, 3])
+    // a side whose team is not in the row (cannot happen on screen) goes last
+    expect(ids({ teams: [3], picks: [] })).toEqual([1, 3, 2])
+  })
+})
+
+describe('dealFromProposal (multi-team spec §5.2)', () => {
+  it("rebuilds an alternative's deal with every source from the pool", () => {
+    const { proposal } = threeTeamSuggestion().alternatives[0]
+    expect(dealFromProposal(proposal, threeTeamPool())).toEqual({
+      teams: [2, 3],
+      picks: [
+        { playerId: '6794', from: 1, to: 2 },
+        { playerId: '9509', from: 2, to: 3 },
+        { playerId: '5859', from: 3, to: 1 }
+      ]
+    })
+  })
+
+  it('leaves out a player no longer on any roster', () => {
+    expect(
+      dealFromProposal({ moves: [{ playerId: 'gone', to: 2 }] }, threeTeamPool()).picks
+    ).toEqual([])
   })
 })

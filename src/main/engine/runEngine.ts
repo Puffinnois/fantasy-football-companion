@@ -1,6 +1,14 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
-import type { EngineInput, EngineJob, EngineOutput, EngineResults } from './jobs'
+import type { SuggestUpdate } from '@shared/types'
+import type {
+  EngineInput,
+  EngineJob,
+  EngineOutput,
+  EngineResults,
+  StreamInput,
+  StreamJob
+} from './jobs'
 
 /** Bundled beside the main entry by `electron.vite.config.ts`. */
 function workerPath(): string {
@@ -38,4 +46,48 @@ export function runEngine<J extends EngineJob>(
       settle(() => reject(new Error(`Background calculation stopped unexpectedly (exit ${code})`)))
     )
   })
+}
+
+/** Multi-team spec §4.1: a running stream; `stop()` terminates its worker. */
+export interface StreamHandle {
+  stop(): void
+}
+
+/**
+ * The suggestion search streams: its worker posts updates until `done` or `error`. A worker error
+ * or an unexpected exit becomes an `error` update; after `stop()` nothing more is delivered.
+ */
+export function runEngineStream(
+  dbPath: string,
+  leagueId: string,
+  job: StreamJob,
+  onUpdate: (update: SuggestUpdate) => void
+): StreamHandle {
+  const workerData: StreamInput = { dbPath, leagueId, stream: job }
+  const worker = new Worker(workerPath(), { workerData })
+  let over = false
+  const end = (): void => {
+    if (over) return
+    over = true
+    void worker.terminate()
+  }
+  worker.on('message', (update: SuggestUpdate) => {
+    if (over) return
+    onUpdate(update)
+    if (update.type === 'done' || update.type === 'error') end()
+  })
+  worker.on('error', (err) => {
+    if (over) return
+    onUpdate({ type: 'error', message: err.message })
+    end()
+  })
+  worker.on('exit', (code) => {
+    if (over) return
+    over = true
+    onUpdate({
+      type: 'error',
+      message: `Background calculation stopped unexpectedly (exit ${code})`
+    })
+  })
+  return { stop: end }
 }

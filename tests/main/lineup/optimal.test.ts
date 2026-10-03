@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  assign,
   CLOSE_CALL_PTS,
   closeCall,
   currentAssignments,
@@ -13,6 +12,7 @@ import {
   type Candidate,
   type LineupSlot
 } from '@main/lineup/optimal'
+import { assign, hungarianLineup } from './hungarianReference'
 
 const c = (id: string, position: string | null, value: number, name = id): Candidate => ({
   id,
@@ -213,6 +213,47 @@ describe('optimalLineup', () => {
     ])
     const out = optimalLineup(slots, [c('rb2', 'RB', 8), c('rb1', 'RB', 14)])
     expect(out.starters.map((e) => e.player?.id)).toEqual(['rb1', 'rb2'])
+  })
+})
+
+describe('optimalLineup equals the Hungarian reference', () => {
+  /** One slot per name, in order, through `lineupSlots`. */
+  const shape = (names: string[]): LineupSlot[] =>
+    lineupSlots(names.map((slot) => ({ slot, count: 1 })))
+
+  it('on 5 000 random rosters: same total; same starters whenever values are distinct', () => {
+    // LB is not a lineup position: those players, like null ones, fit no slot
+    const positions = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB']
+    const shapes = [
+      shape(['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'K', 'DEF']),
+      shape(['QB', 'RB', 'WR', 'WR', 'FLEX', 'FLEX', 'SUPER_FLEX']),
+      shape(['RB', 'WR', 'FLEX']),
+      // crossing flex kinds, where the deterministic re-seat can fail
+      shape(['TE', 'REC_FLEX', 'WRRB_FLEX', 'SUPER_FLEX'])
+    ]
+    const ids = (o: { starters: { player: { id: string } | null }[] }): string[] =>
+      o.starters.flatMap((p) => (p.player ? [p.player.id] : [])).sort()
+    for (let n = 0; n < 5000; n++) {
+      // one seed per roster, like the brute-force test: one long stream of `rng` cycles early
+      const r = rng(1000 + n)
+      const slots = shapes[n % shapes.length]
+      const distinct = n % 2 === 0
+      const candidates = Array.from({ length: 4 + Math.floor(r() * 14) }, (_, i) =>
+        c(
+          `p${i}`,
+          r() < 0.05 ? null : positions[Math.floor(r() * positions.length)],
+          // even rosters: whole cents from −3 to 30, distinct by construction (cents ≡ i mod 20),
+          // so no total sits on a half cent where the summation order could tip `round2`;
+          // odd rosters: few values (ties), some negative
+          distinct ? (Math.floor(r() * 165) * 20 - 300 + i) / 100 : Math.round(r() * 8) - 2,
+          `P${i}`
+        )
+      )
+      const fast = optimalLineup(slots, candidates)
+      const slow = hungarianLineup(slots, candidates)
+      expect({ n, total: fast.total }).toEqual({ n, total: slow.total })
+      if (distinct) expect({ n, starters: ids(fast) }).toEqual({ n, starters: ids(slow) })
+    }
   })
 })
 

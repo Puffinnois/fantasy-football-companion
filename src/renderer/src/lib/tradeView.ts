@@ -7,7 +7,11 @@ import type {
   TradePlayer,
   TradeSideResult,
   TradeStance,
-  TradeSuggestion
+  TradeSuggestion,
+  SuggestSnapshot,
+  TradeAlternative,
+  TradeFocus,
+  TradeSuggestQuery
 } from '@shared/types'
 
 export const DEADLINE_NOTE =
@@ -48,6 +52,17 @@ export function deltaLine(s: TradeSideResult): string {
 
 export function deltaTone(delta: number): 'green' | 'red' | 'muted' {
   return delta > 0 ? 'green' : delta < 0 ? 'red' : 'muted'
+}
+
+/** The Trade screen's select styling (builder and suggestions). */
+export const SELECT_CLASS =
+  'h-8 rounded-md border border-input bg-transparent px-2 text-sm text-foreground dark:bg-input/30'
+
+/** Text colour per `deltaTone`. */
+export const TONE_CLASS: Record<ReturnType<typeof deltaTone>, string> = {
+  green: 'text-emerald-400',
+  red: 'text-red-400',
+  muted: 'text-muted-foreground'
 }
 
 /** "66.00 → 47.00 · this week -4.00 · 2 weeks change" */
@@ -148,8 +163,9 @@ export function themLine(s: TradeSuggestion): string {
   return `Them ${fmtSigned(s.evaluation.sides[1].delta)}`
 }
 
-export function acceptanceTags(s: TradeSuggestion): string[] {
-  const a = s.acceptance[1]
+/** Why the team at `index` of the deal would take it (1 = the only other team of a 2-team deal). */
+export function acceptanceTags(s: TradeSuggestion, index = 1): string[] {
+  const a = s.acceptance[index] ?? null
   return a === null ? [] : a === 'both' ? ['lineup', 'market'] : [a]
 }
 
@@ -182,4 +198,132 @@ export function openSpotLine(spot: OpenSpot): string {
 /** A side's open spot, looked up by roster: a re-evaluated proposal may order 3+-team sides differently. */
 export function spotFor(spots: TradeOpenSpots | null, rosterId: number): OpenSpot | null {
   return spots?.sides.find((s) => s?.rosterId === rosterId) ?? null
+}
+
+export type FocusKind = 'none' | 'give' | 'want'
+
+/** Multi-team spec §5.2: the Suggestions card's controls. */
+export interface SuggestControls {
+  focusKind: FocusKind
+  focusGive: string
+  focusWant: string
+  stance: TradeStance
+  maxTeams: number
+  /** null = any team. */
+  mustInclude: number | null
+}
+
+/** Spec §5.2 defaults: no focus, fair, up to 3 teams, any team. */
+export const DEFAULT_CONTROLS: SuggestControls = {
+  focusKind: 'none',
+  focusGive: '',
+  focusWant: 'RB',
+  stance: 'fair',
+  maxTeams: 3,
+  mustInclude: null
+}
+
+export function queryOf(c: SuggestControls, season: number): TradeSuggestQuery {
+  const focus: TradeFocus =
+    c.focusKind === 'give' && c.focusGive !== ''
+      ? { give: c.focusGive }
+      : c.focusKind === 'want'
+        ? { want: c.focusWant }
+        : null
+  return { season, focus, stance: c.stance, maxTeams: c.maxTeams, mustInclude: c.mustInclude }
+}
+
+/** A run's query back into controls — the screen restores them when it re-attaches. */
+export function controlsOf(q: TradeSuggestQuery): SuggestControls {
+  const base: SuggestControls = {
+    ...DEFAULT_CONTROLS,
+    stance: q.stance,
+    maxTeams: q.maxTeams,
+    mustInclude: q.mustInclude
+  }
+  if (q.focus === null) return base
+  return 'give' in q.focus
+    ? { ...base, focusKind: 'give', focusGive: q.focus.give }
+    : { ...base, focusKind: 'want', focusWant: q.focus.want }
+}
+
+/** Whether two queries ask for the same search. */
+export function sameQuery(a: TradeSuggestQuery, b: TradeSuggestQuery): boolean {
+  return (
+    a.season === b.season &&
+    a.stance === b.stance &&
+    a.maxTeams === b.maxTeams &&
+    a.mustInclude === b.mustInclude &&
+    JSON.stringify(a.focus) === JSON.stringify(b.focus)
+  )
+}
+
+/** "Up to" choices: 2 … the league's size. */
+export function teamCountOptions(leagueSize: number): number[] {
+  return Array.from({ length: Math.max(leagueSize - 1, 1) }, (_, i) => i + 2)
+}
+
+export const CONTROLS_CHANGED = 'Controls changed — Find to rerun'
+
+/** "0:37", "12:05" */
+export function fmtElapsed(ms: number): string {
+  const seconds = Math.floor(ms / 1000)
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
+/** Spec §5.2: the line under the controls, per run state. */
+export function suggestStatusLine(snap: SuggestSnapshot): string {
+  const n = snap.cards.length
+  switch (snap.status) {
+    case 'running': {
+      const p = snap.progress
+      return `Searching ${p.size}-team deals · ${fmtMarket(p.checked)} of ${fmtMarket(p.total)} ideas checked · ${n} found · ${fmtElapsed(p.elapsedMs)}`
+    }
+    case 'full':
+      return `Done: best ${n} found — nothing left could rank higher`
+    case 'complete':
+      return n === 0 ? noOffersHint(snap.query.stance) : `Done: ${n} found, every idea checked`
+    case 'stopped':
+      return `Stopped: ${n} found so far`
+    case 'stale':
+      return 'League data changed — run again'
+    case 'error':
+      return `Search failed: ${snap.message ?? 'unknown error'}`
+  }
+}
+
+/** "3-team" */
+export function teamsChip(s: TradeSuggestion): string {
+  return `${s.teams}-team`
+}
+
+/** Spec §5.2: "I send WR A → Gridiron Gang · Gridiron Gang sends RB B → me" — the sides in send order. */
+export function pathLine(s: TradeSuggestion): string {
+  const sides = s.evaluation.sides
+  const name = (rosterId: number): string => {
+    const side = sides.find((x) => x.rosterId === rosterId)
+    return !side ? `team ${rosterId}` : side.isMe ? 'me' : side.name
+  }
+  return sides
+    .map((side) => {
+      const to = side.give[0]?.to
+      const who = side.isMe ? 'I send' : `${side.name} sends`
+      return `${who} ${sideNames(side.give)} → ${to === undefined ? '—' : name(to)}`
+    })
+    .join(' · ')
+}
+
+/** "Tank Mode +0.20/wk" — one other team of a 3+-team card. */
+export function otherSideLine(side: TradeSideResult): string {
+  return `${side.name} ${fmtSigned(side.deltaPerWeek)}/wk`
+}
+
+/** "+1 other way" / "+3 other ways" */
+export function otherWaysLabel(n: number): string {
+  return n === 1 ? '+1 other way' : `+${n} other ways`
+}
+
+/** "via Rival: Bijan Robinson · worst side -0.30/wk" */
+export function alternativeLine(a: TradeAlternative): string {
+  return `${a.label} · worst side ${fmtSigned(a.worstDeltaPerWeek)}/wk`
 }

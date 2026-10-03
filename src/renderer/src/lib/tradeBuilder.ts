@@ -1,5 +1,5 @@
-import { dealProblem, type DealMove } from '@shared/deal'
-import type { TradeEvaluation, TradePool, TradeProposal } from '@shared/types'
+import { dealProblem, dealTeams, type DealMove } from '@shared/deal'
+import type { TradeEvaluation, TradePool, TradeProposal, TradeSideResult } from '@shared/types'
 
 /** One chosen player: the team he leaves and, once picked, where he goes (null = the default). */
 export interface BuilderPick {
@@ -122,4 +122,31 @@ export function getsLine(deal: BuilderDeal, rosterId: number, pool: TradePool): 
     return multi ? `${name} (${teamLabel(pool, m.from)})` : name
   })
   return `gets: ${names.join(', ')}`
+}
+
+/** Verdict columns in the builder's card order — me, then the teams row; anything else last. */
+export function sidesInOrder(
+  ev: TradeEvaluation,
+  deal: BuilderDeal,
+  me: number
+): TradeSideResult[] {
+  const order = [me, ...deal.teams]
+  const rank = (rosterId: number): number => {
+    const i = order.indexOf(rosterId)
+    return i === -1 ? order.length : i
+  }
+  return [...ev.sides].sort((a, b) => rank(a.rosterId) - rank(b.rosterId))
+}
+
+/** An alternative's deal (spec §5.2 "Open in builder"): every move with its source from the pool, teams in first appearance. */
+export function dealFromProposal(proposal: TradeProposal, pool: TradePool): BuilderDeal {
+  const owner = new Map<string, number>()
+  for (const team of [pool.me, ...pool.teams]) {
+    for (const p of team.players) owner.set(p.playerId, team.rosterId)
+  }
+  const picks = proposal.moves.flatMap((m) => {
+    const from = owner.get(m.playerId)
+    return from === undefined ? [] : [{ playerId: m.playerId, from, to: m.to }]
+  })
+  return { teams: dealTeams(picks).filter((t) => t !== pool.me.rosterId), picks }
 }

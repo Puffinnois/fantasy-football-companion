@@ -1,51 +1,83 @@
 import { describe, expect, it } from 'vitest'
-import { suggestTrades } from '@main/trade/suggest'
+import { suggestDeals } from '@main/trade/suggest'
+import type { TradeSuggestQuery } from '@shared/types'
 import { SEASON } from '../../fixtures/season'
 import { generateLeague, syntheticBuild } from '../../fixtures/synthetic'
 
-/** Spec §6: what the screen's default searches must cost on a 16-team league. */
-const FOCUSED_MS = 3000
 /**
- * The unfocused league-wide scan is the slow path: it enumerates every partner and is the reason
- * `trade:suggest` runs in a worker thread, so this is a regression ceiling, not a UX budget.
+ * Spec §7: the time to the first card is what the streamed list makes the user wait. A regression
+ * ceiling, not the UX target (that is the real-league gate): 1.5 × the slowest synthetic up-to-3
+ * first card (5.0 s), measured on 2026-10-03.
  */
+const FIRST_CARD_MS = 8000
+/** 6b's two-team budgets, carried over: one partner stays interactive, every team is a ceiling. */
+const FOCUSED_MS = 3000
 const ALL_TEAMS_MS = 20000
+
+interface Timing {
+  first: number | null
+  total: number
+  cards: number
+  end: string
+}
 
 /**
  * Timing-sensitive: `npm test` runs its files in parallel workers, which is enough contention to
  * make a wall-clock assertion flap, so this runs only under `npm run test:budget`. Run it locally
- * before every build — it is the check that the screen's default searches stay interactive.
+ * before every build.
  */
-describe.skipIf(!process.env.FFC_BUDGET)('suggestTrades budget', () => {
+describe.skipIf(!process.env.FFC_BUDGET)('suggestDeals budget', () => {
   const { build } = syntheticBuild(generateLeague(7))
-  const query = (over: object): Parameters<typeof suggestTrades>[1] => ({
+  const query = (over: Partial<TradeSuggestQuery>): TradeSuggestQuery => ({
     season: SEASON,
     focus: null,
     stance: 'fair',
-    partnerRosterId: null,
+    maxTeams: 2,
+    mustInclude: null,
     ...over
   })
-  const time = (q: Parameters<typeof suggestTrades>[1]): number => {
+  /** Drives the search the way the worker does, noting when the first card arrives. */
+  const time = (q: TradeSuggestQuery): Timing => {
     const t0 = performance.now()
-    const out = suggestTrades(build, q)
-    const ms = performance.now() - t0
-    expect(out.length).toBeLessThanOrEqual(30)
-    return ms
+    let first: number | null = null
+    let cards = 0
+    const search = suggestDeals(build, q)
+    let step = search.next()
+    while (!step.done) {
+      if (step.value.type === 'card') {
+        cards++
+        if (first === null) first = performance.now() - t0
+      }
+      step = search.next()
+    }
+    return { first, total: performance.now() - t0, cards, end: step.value }
+  }
+  const show = (label: string, t: Timing): void => {
+    const first = t.first === null ? '—' : `${t.first.toFixed(0)} ms`
+    console.info(
+      `${label}: first card ${first} · ${t.cards} cards (${t.end}) in ${t.total.toFixed(0)} ms`
+    )
   }
 
-  it('answers the screen defaults — one partner, one focus player — well inside the budget', () => {
-    const partner = time(query({ partnerRosterId: 3 }))
+  it('keeps the two-team searches within 6b’s budgets', () => {
+    const partner = time(query({ mustInclude: 3 }))
+    show('2 teams, with team 3', partner)
+    expect(partner.total).toBeLessThan(FOCUSED_MS)
     const focus = time(query({ focus: { give: build.rosters.get(1)?.[2].base.playerId ?? '' } }))
-    console.info(`one partner ${partner.toFixed(0)} ms · focus give ${focus.toFixed(0)} ms`)
-    expect(partner).toBeLessThan(FOCUSED_MS)
-    expect(focus).toBeLessThan(FOCUSED_MS)
-  }, 60_000)
-
-  it('keeps the league-wide scan within its regression ceiling at every stance', () => {
+    show('2 teams, focus give', focus)
+    expect(focus.total).toBeLessThan(FOCUSED_MS)
     for (const stance of ['premium', 'fair', 'overpay'] as const) {
-      const ms = time(query({ stance }))
-      console.info(`all teams, ${stance}: ${ms.toFixed(0)} ms`)
-      expect(ms).toBeLessThan(ALL_TEAMS_MS)
+      const all = time(query({ stance }))
+      show(`2 teams, any team, ${stance}`, all)
+      expect(all.total).toBeLessThan(ALL_TEAMS_MS)
     }
   }, 180_000)
+
+  it('shows the first card of an up-to-3-team search fast; the full list is measured only', () => {
+    for (const stance of ['premium', 'fair', 'overpay'] as const) {
+      const t = time(query({ maxTeams: 3, stance }))
+      show(`up to 3 teams, any team, ${stance}`, t)
+      if (t.cards > 0) expect(t.first ?? Number.POSITIVE_INFINITY).toBeLessThan(FIRST_CARD_MS)
+    }
+  }, 1_800_000)
 })

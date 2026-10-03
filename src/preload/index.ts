@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IPC, type Api } from '@shared/ipc'
-import type { SyncLogEntry, UpdateState } from '@shared/types'
+import type { SuggestEvent, SyncLogEntry, UpdateState } from '@shared/types'
 
 const api: Api = {
   setup: {
@@ -27,7 +27,16 @@ const api: Api = {
   trade: {
     pool: (season) => ipcRenderer.invoke(IPC.tradePool, season),
     evaluate: (season, proposal) => ipcRenderer.invoke(IPC.tradeEvaluate, season, proposal),
-    suggest: (query) => ipcRenderer.invoke(IPC.tradeSuggest, query),
+    suggestStart: (query) => ipcRenderer.invoke(IPC.tradeSuggestStart, query),
+    suggestStop: () => ipcRenderer.invoke(IPC.tradeSuggestStop),
+    suggestSnapshot: () => ipcRenderer.invoke(IPC.tradeSuggestSnapshot),
+    onSuggestEvent: (listener) => {
+      const handler = (_event: IpcRendererEvent, event: SuggestEvent): void => listener(event)
+      ipcRenderer.on(IPC.tradeSuggestEvent, handler)
+      return () => {
+        ipcRenderer.removeListener(IPC.tradeSuggestEvent, handler)
+      }
+    },
     openSpot: (season, proposal) => ipcRenderer.invoke(IPC.tradeOpenSpot, season, proposal)
   },
   waiver: {

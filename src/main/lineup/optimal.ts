@@ -20,11 +20,6 @@ export const QUESTIONABLE_STATUS = 'Questionable'
 export const RESERVE_SLOTS: ReadonlySet<string> = new Set(['BN', 'IR', 'TAXI'])
 const EMPTY_STARTER = '0'
 
-/** Cost of an ineligible pairing; never chosen because every slot can stay empty and every player sit for less. */
-const FORBIDDEN = 1e6
-/** Cost of leaving a slot empty: worse than any real player (weekly points never fall below −1000). */
-const EMPTY_SLOT = 1e3
-
 export interface LineupSlot {
   slot: string
   eligible: readonly string[]
@@ -105,59 +100,6 @@ export function byValueDesc(a: Candidate, b: Candidate): number {
 }
 
 /**
- * Minimum-cost perfect matching of a square matrix (Hungarian algorithm with potentials, O(n³)).
- * Returns the column matched to each row.
- */
-export function assign(cost: number[][]): number[] {
-  const n = cost.length
-  const u = new Array<number>(n + 1).fill(0)
-  const v = new Array<number>(n + 1).fill(0)
-  const p = new Array<number>(n + 1).fill(0)
-  const way = new Array<number>(n + 1).fill(0)
-  for (let i = 1; i <= n; i++) {
-    p[0] = i
-    let j0 = 0
-    const minv = new Array<number>(n + 1).fill(Number.POSITIVE_INFINITY)
-    const used = new Array<boolean>(n + 1).fill(false)
-    do {
-      used[j0] = true
-      const i0 = p[j0]
-      let delta = Number.POSITIVE_INFINITY
-      let j1 = 0
-      for (let j = 1; j <= n; j++) {
-        if (used[j]) continue
-        const cur = cost[i0 - 1][j - 1] - u[i0] - v[j]
-        if (cur < minv[j]) {
-          minv[j] = cur
-          way[j] = j0
-        }
-        if (minv[j] < delta) {
-          delta = minv[j]
-          j1 = j
-        }
-      }
-      for (let j = 0; j <= n; j++) {
-        if (used[j]) {
-          u[p[j]] += delta
-          v[j] -= delta
-        } else {
-          minv[j] -= delta
-        }
-      }
-      j0 = j1
-    } while (p[j0] !== 0)
-    do {
-      const j1 = way[j0]
-      p[j0] = p[j1]
-      j0 = j1
-    } while (j0 !== 0)
-  }
-  const result = new Array<number>(n).fill(-1)
-  for (let j = 1; j <= n; j++) if (p[j] !== 0) result[p[j] - 1] = j - 1
-  return result
-}
-
-/**
  * Re-seats an optimal set so equal-value ties never shuffle players between slots: dedicated slots
  * first, then flex slots from the most restrictive, each taking the best remaining eligible player.
  * Null when that order cannot seat everyone (crossing flex kinds) — the caller then keeps the
@@ -181,38 +123,41 @@ function placeDeterministically(slots: LineupSlot[], chosen: Candidate[]): Place
 }
 
 /**
- * Spec §2.4: exact maximum-weight assignment of candidates to slots. Rows are the slots plus one
- * "bench" row per player, columns the players plus one "empty" column per slot, so no slot ever
- * needs an ineligible player and no player ever needs a slot. Filling a slot always beats leaving
- * it empty; among full lineups the total is maximal.
+ * Spec §2.4: the optimal lineup — every slot it can fill filled, then the highest total. The sets
+ * of players that can be seated together form a (transversal) matroid, so a greedy pass is exact:
+ * players best first (`byValueDesc`), each kept when the kept set can still be seated (an
+ * augmenting path over the slots). Ties resolve by `byValueDesc`, whatever the input order.
  */
 export function optimalLineup(slots: LineupSlot[], candidates: Candidate[]): Optimal {
-  const s = slots.length
-  const p = candidates.length
-  const n = s + p
-  const cost: number[][] = []
-  for (let i = 0; i < n; i++) {
-    const row = new Array<number>(n).fill(0)
-    if (i < s) {
-      for (let j = 0; j < n; j++) {
-        if (j >= p) {
-          row[j] = EMPTY_SLOT
-        } else {
-          const c = candidates[j]
-          row[j] =
-            c.position !== null && slots[i].eligible.includes(c.position) ? -c.value : FORBIDDEN
+  const order = [...candidates].sort(byValueDesc)
+  const eligible: number[][] = order.map((c) =>
+    slots.flatMap((slot, i) =>
+      c.position !== null && slot.eligible.includes(c.position) ? [i] : []
+    )
+  )
+  /** The kept player seated in each slot (index into `order`), −1 when empty. */
+  const seat = new Array<number>(slots.length).fill(-1)
+  const chosen: Candidate[] = []
+  for (let j = 0; j < order.length && chosen.length < slots.length; j++) {
+    if (eligible[j].length === 0) continue
+    const seen = new Array<boolean>(slots.length).fill(false)
+    const place = (p: number): boolean => {
+      for (const i of eligible[p]) {
+        if (seen[i]) continue
+        seen[i] = true
+        if (seat[i] === -1 || place(seat[i])) {
+          seat[i] = p
+          return true
         }
       }
+      return false
     }
-    cost.push(row)
+    if (place(j)) chosen.push(order[j])
   }
-  const match = assign(cost)
-  const chosen: Candidate[] = []
-  const raw: Placed[] = slots.map((slot, i) => {
-    const player = match[i] < p ? candidates[match[i]] : null
-    if (player) chosen.push(player)
-    return { slot: slot.slot, player }
-  })
+  const raw: Placed[] = slots.map((slot, i) => ({
+    slot: slot.slot,
+    player: seat[i] >= 0 ? order[seat[i]] : null
+  }))
   const chosenIds = new Set(chosen.map((c) => c.id))
   return {
     starters: placeDeterministically(slots, chosen) ?? raw,

@@ -1,95 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PlayerDetailPanel } from '@/components/PlayerDetailPanel'
 import { TradeBuilder } from '@/components/TradeBuilder'
+import { TradeSuggestions } from '@/components/TradeSuggestions'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
 import {
   EMPTY_DEAL,
   addTeam,
+  dealFromProposal,
   dealOf,
   proposalFrom,
   pruneDeal,
   type BuilderDeal
 } from '@/lib/tradeBuilder'
-import {
-  DEADLINE_NOTE,
-  STANCE_OPTIONS,
-  acceptanceTags,
-  deltaTone,
-  focusMarketLine,
-  groupByPosition,
-  meLine,
-  noOffersHint,
-  offerLine,
-  playerOption,
-  stanceHint,
-  themLine,
-  windowLabel
-} from '@/lib/tradeView'
-import { cn } from '@/lib/utils'
+import { DEADLINE_NOTE, windowLabel } from '@/lib/tradeView'
+import { useSuggestRun } from '@/lib/useSuggestRun'
 import { proposalOf } from '@shared/deal'
-import { LINEUP_POSITIONS } from '@shared/rules'
 import type {
   DetailTarget,
   TradeEvaluation,
-  TradeFocus,
   TradeOpenSpots,
-  TradePlayer,
   TradePool,
-  TradeStance,
+  TradeProposal,
   TradeSuggestion
 } from '@shared/types'
-
-const selectClass =
-  'h-8 rounded-md border border-input bg-transparent px-2 text-sm text-foreground dark:bg-input/30'
-
-const TONE: Record<ReturnType<typeof deltaTone>, string> = {
-  green: 'text-emerald-400',
-  red: 'text-red-400',
-  muted: 'text-muted-foreground'
-}
-
-type FocusKind = 'none' | 'give' | 'want'
-
-/** Spec 6b §5.2: one offer — who with, both deltas, why they'd take it, the players, the way into the builder. */
-function SuggestionRow({
-  suggestion,
-  onOpen
-}: {
-  suggestion: TradeSuggestion
-  onOpen: () => void
-}): React.JSX.Element {
-  const [me, them] = suggestion.evaluation.sides
-  return (
-    <li className="rounded-md border px-3 py-2 text-sm">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="font-medium">with {them.name}</span>
-        <span className={cn('font-semibold', TONE[deltaTone(me.delta)])}>{meLine(suggestion)}</span>
-        <span className={TONE[deltaTone(them.delta)]}>{themLine(suggestion)}</span>
-        {acceptanceTags(suggestion).map((tag) => (
-          <span
-            key={tag}
-            className="rounded bg-muted px-1.5 text-xs font-semibold text-muted-foreground"
-          >
-            {tag}
-          </span>
-        ))}
-        <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={onOpen}>
-          Open in builder
-        </Button>
-      </div>
-      <div className="mt-1 text-muted-foreground">{offerLine(suggestion)}</div>
-    </li>
-  )
-}
-
-function suggestionKey(s: TradeSuggestion): string {
-  const ids = (list: TradePlayer[]): string => list.map((p) => p.playerId).join('+')
-  const [me, them] = s.evaluation.sides
-  return `${them.rosterId}:${ids(me.give)}:${ids(me.get)}`
-}
 
 interface TradeScreenProps {
   dataVersion: number
@@ -108,16 +42,11 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
   const [evaluating, setEvaluating] = useState(false)
   const [evalError, setEvalError] = useState<string | null>(null)
   const [selected, setSelected] = useState<DetailTarget | null>(null)
-  // Spec 6b §5.2: the suggestions section
-  const [focusKind, setFocusKind] = useState<FocusKind>('none')
-  const [focusGive, setFocusGive] = useState('')
-  const [focusWant, setFocusWant] = useState('RB')
-  const [stance, setStance] = useState<TradeStance>('fair')
-  const [suggestWith, setSuggestWith] = useState<number | null>(null)
-  const [suggestions, setSuggestions] = useState<TradeSuggestion[] | null>(null)
-  const [finding, setFinding] = useState(false)
-  const [findError, setFindError] = useState<string | null>(null)
+  const suggest = useSuggestRun(season)
+  const { prune } = suggest
   const builderRef = useRef<HTMLDivElement>(null)
+  /** Bumped on every deal change: an evaluate answer for an older deal is dropped. */
+  const dealSeq = useRef(0)
 
   useEffect(() => {
     void api.players
@@ -137,18 +66,16 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
         setLoaded({ key, pool })
         // Multi-team spec §5.1: keep the teams and players that still exist after a sync; a deal
         // with no other team starts with the first one, as 6b's partner did.
+        dealSeq.current++
         setDeal((d) => {
           const kept = pruneDeal(d, pool)
           const first = pool.teams[0]
           return kept.teams.length > 0 || !first ? kept : addTeam(kept, first.rosterId)
         })
         setVerdict(null)
-        setFocusGive((id) => (pool.me.players.some((p) => p.playerId === id) ? id : ''))
-        // Default to one partner: a league-wide scan costs seconds (spec 6b §6).
-        setSuggestWith((t) =>
-          pool.teams.some((x) => x.rosterId === t) ? t : (pool.teams[0]?.rosterId ?? null)
-        )
-        setSuggestions(null)
+        setEvaluating(false)
+        setEvalError(null)
+        prune(pool)
       })
       .catch((err) => {
         if (!cancelled) setFailed({ key, message: errorMessage(err) })
@@ -156,7 +83,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
     return () => {
       cancelled = true
     }
-  }, [season, key])
+  }, [season, key, prune])
 
   // Slice 6c spec §7: the open-spot line follows the verdict; the verdict never waits for it.
   useEffect(() => {
@@ -177,53 +104,55 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
 
   const pool = loaded?.key === key ? loaded.pool : null
   const notice = failed && (failed.key === key || failed.key === 'options') ? failed.message : null
-  const focusPlayer = pool?.me.players.find((p) => p.playerId === focusGive) ?? null
 
   const changeDeal = (d: BuilderDeal): void => {
+    dealSeq.current++
     setDeal(d)
     setVerdict(null)
     setEvalError(null)
+    setEvaluating(false)
   }
 
-  async function evaluate(): Promise<void> {
+  async function evaluate(d: BuilderDeal = deal): Promise<void> {
     if (season === null || !pool) return
+    const seq = dealSeq.current
     setEvaluating(true)
     setEvalError(null)
     try {
-      setVerdict(await api.trade.evaluate(season, proposalFrom(deal, pool.me.rosterId)))
+      const ev = await api.trade.evaluate(season, proposalFrom(d, pool.me.rosterId))
+      if (seq === dealSeq.current) setVerdict(ev)
     } catch (err) {
-      setEvalError(errorMessage(err))
+      if (seq === dealSeq.current) setEvalError(errorMessage(err))
     } finally {
-      setEvaluating(false)
+      if (seq === dealSeq.current) setEvaluating(false)
     }
   }
 
-  const focus: TradeFocus =
-    focusKind === 'give' && focusGive !== ''
-      ? { give: focusGive }
-      : focusKind === 'want'
-        ? { want: focusWant }
-        : null
-
-  async function find(partnerRosterId: number | null): Promise<void> {
-    if (season === null) return
-    setFinding(true)
-    setFindError(null)
-    try {
-      setSuggestions(await api.trade.suggest({ season, focus, stance, partnerRosterId }))
-    } catch (err) {
-      setFindError(errorMessage(err))
-    } finally {
-      setFinding(false)
-    }
-  }
+  const scrollToBuilder = (): void =>
+    builderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   /** Spec 6b §5.2: the builder shows the suggestion's own evaluation — no second trade:evaluate call. */
-  const openInBuilder = (s: TradeSuggestion): void => {
-    setDeal(dealOf(s.evaluation))
+  const openSuggestion = (s: TradeSuggestion): void => {
+    if (pool && suggest.run?.status === 'stale') {
+      // The carried verdict predates the data change: evaluate what the builder shows, fresh.
+      const d = pruneDeal(dealOf(s.evaluation), pool)
+      changeDeal(d)
+      void evaluate(d)
+      scrollToBuilder()
+      return
+    }
+    changeDeal(dealOf(s.evaluation))
     setVerdict(s.evaluation)
-    setEvalError(null)
-    builderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    scrollToBuilder()
+  }
+
+  /** Multi-team spec §5.2: an alternative carries only its proposal, so it is evaluated on opening. */
+  const openProposal = (proposal: TradeProposal): void => {
+    if (!pool) return
+    const d = dealFromProposal(proposal, pool)
+    changeDeal(d)
+    void evaluate(d)
+    scrollToBuilder()
   }
 
   return (
@@ -242,7 +171,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
       {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
       {!pool && !notice && <p className="text-sm text-muted-foreground">Loading…</p>}
 
-      {pool && (
+      {pool && season !== null && (
         <>
           {pool.tradeDeadlinePassed && (
             <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-400">
@@ -260,122 +189,17 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
               evalError={evalError}
               onEvaluate={() => void evaluate()}
               onOpenPlayer={setSelected}
-              finding={finding}
-              onSuggestWith={(rosterId) => {
-                setSuggestWith(rosterId)
-                void find(rosterId)
-              }}
+              finding={suggest.running}
+              onSuggestWith={(rosterId) => suggest.find({ mustInclude: rosterId })}
             />
           </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Suggestions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Focus</span>
-                <select
-                  aria-label="Focus"
-                  className={selectClass}
-                  value={focusKind}
-                  onChange={(e) => setFocusKind(e.target.value as FocusKind)}
-                >
-                  <option value="none">none</option>
-                  <option value="give">I give</option>
-                  <option value="want">I want</option>
-                </select>
-                {focusKind === 'give' && (
-                  <select
-                    aria-label="Focus player"
-                    className={selectClass}
-                    value={focusGive}
-                    onChange={(e) => setFocusGive(e.target.value)}
-                  >
-                    <option value="">pick a player</option>
-                    {groupByPosition(pool.me.players).map(([pos, players]) => (
-                      <optgroup key={pos} label={pos}>
-                        {players.map((p) => (
-                          <option key={p.playerId} value={p.playerId}>
-                            {playerOption(p)}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                )}
-                {focusKind === 'give' && focusPlayer && (
-                  <span className="text-xs text-muted-foreground">
-                    {focusMarketLine(focusPlayer)}
-                  </span>
-                )}
-                {focusKind === 'want' && (
-                  <select
-                    aria-label="Focus position"
-                    className={selectClass}
-                    value={focusWant}
-                    onChange={(e) => setFocusWant(e.target.value)}
-                  >
-                    {LINEUP_POSITIONS.map((pos) => (
-                      <option key={pos} value={pos}>
-                        {pos}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                <span className="ml-2 text-muted-foreground">Stance</span>
-                <select
-                  aria-label="Stance"
-                  className={selectClass}
-                  value={stance}
-                  onChange={(e) => setStance(e.target.value as TradeStance)}
-                >
-                  {STANCE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-                <span className="ml-2 text-muted-foreground">with</span>
-                <select
-                  aria-label="Suggest with"
-                  className={selectClass}
-                  value={suggestWith ?? ''}
-                  onChange={(e) =>
-                    setSuggestWith(e.target.value === '' ? null : Number(e.target.value))
-                  }
-                >
-                  {pool.teams.map((t) => (
-                    <option key={t.rosterId} value={t.rosterId}>
-                      {t.name}
-                    </option>
-                  ))}
-                  <option value="">every team (slower)</option>
-                </select>
-                <Button type="button" disabled={finding} onClick={() => void find(suggestWith)}>
-                  Find
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">{stanceHint(stance)}</p>
-              {finding && <p className="text-sm text-muted-foreground">Searching offers…</p>}
-              {findError && <p className="text-destructive text-sm">{findError}</p>}
-              {suggestions &&
-                !finding &&
-                (suggestions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{noOffersHint(stance)}</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {suggestions.map((s) => (
-                      <SuggestionRow
-                        key={suggestionKey(s)}
-                        suggestion={s}
-                        onOpen={() => openInBuilder(s)}
-                      />
-                    ))}
-                  </ul>
-                ))}
-            </CardContent>
-          </Card>
+          <TradeSuggestions
+            pool={pool}
+            season={season}
+            suggest={suggest}
+            onOpen={openSuggestion}
+            onOpenProposal={openProposal}
+          />
         </>
       )}
 

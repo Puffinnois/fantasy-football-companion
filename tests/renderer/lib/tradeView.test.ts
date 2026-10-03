@@ -24,7 +24,19 @@ import {
   startsLabel,
   verdictBadges,
   verdictGetsLine,
-  windowLabel
+  windowLabel,
+  queryOf,
+  controlsOf,
+  sameQuery,
+  teamCountOptions,
+  fmtElapsed,
+  suggestStatusLine,
+  teamsChip,
+  pathLine,
+  otherSideLine,
+  otherWaysLabel,
+  alternativeLine,
+  DEFAULT_CONTROLS
 } from '@/lib/tradeView'
 import {
   barkley,
@@ -39,8 +51,10 @@ import {
   threeTeamEvaluation,
   tradeEvaluation,
   tradeSide,
-  tradeSuggestion
+  tradeSuggestion,
+  threeTeamSuggestion
 } from '../../fixtures/trade'
+import type { SuggestSnapshot } from '@shared/types'
 
 const tradePlayerX = { ...barkley, playerId: 'x', position: null }
 
@@ -188,5 +202,106 @@ describe('tradeView', () => {
       'gets Justin Jefferson from me',
       "gets Ja'Marr Chase from Rival"
     ])
+  })
+})
+
+describe('suggestion controls (multi-team spec §5.2)', () => {
+  it('turns controls into a query and back', () => {
+    expect(queryOf(DEFAULT_CONTROLS, 2026)).toEqual({
+      season: 2026,
+      focus: null,
+      stance: 'fair',
+      maxTeams: 3,
+      mustInclude: null
+    })
+    const give = { ...DEFAULT_CONTROLS, focusKind: 'give' as const, focusGive: '4866' }
+    expect(queryOf(give, 2026).focus).toEqual({ give: '4866' })
+    // "I give" with nobody picked yet is no focus
+    expect(queryOf({ ...give, focusGive: '' }, 2026).focus).toBeNull()
+    const want = { ...DEFAULT_CONTROLS, focusKind: 'want' as const, focusWant: 'WR' }
+    expect(queryOf(want, 2026).focus).toEqual({ want: 'WR' })
+    for (const c of [
+      DEFAULT_CONTROLS,
+      give,
+      want,
+      { ...DEFAULT_CONTROLS, maxTeams: 4, mustInclude: 7 }
+    ]) {
+      expect(queryOf(controlsOf(queryOf(c, 2026)), 2026)).toEqual(queryOf(c, 2026))
+    }
+  })
+
+  it('compares queries and lists the team counts', () => {
+    const q = queryOf(DEFAULT_CONTROLS, 2026)
+    expect(sameQuery(q, { ...q })).toBe(true)
+    expect(sameQuery(q, { ...q, focus: { give: '1' } })).toBe(false)
+    expect(sameQuery(q, { ...q, maxTeams: 4 })).toBe(false)
+    expect(sameQuery(q, { ...q, mustInclude: 2 })).toBe(false)
+    expect(sameQuery(q, { ...q, stance: 'premium' })).toBe(false)
+    expect(teamCountOptions(2)).toEqual([2])
+    expect(teamCountOptions(5)).toEqual([2, 3, 4, 5])
+  })
+})
+
+describe('suggestion status line (multi-team spec §5.2)', () => {
+  const snap = (over: Partial<SuggestSnapshot>): SuggestSnapshot => ({
+    runId: 1,
+    query: queryOf(DEFAULT_CONTROLS, 2026),
+    cards: [],
+    progress: { checked: 412, total: 18900, found: 12, size: 3, elapsedMs: 37_400 },
+    status: 'running',
+    message: null,
+    ...over
+  })
+  const twelve = Array.from({ length: 12 }, () => tradeSuggestion())
+
+  it('reads each state', () => {
+    expect(fmtElapsed(0)).toBe('0:00')
+    expect(fmtElapsed(37_400)).toBe('0:37')
+    expect(fmtElapsed(725_000)).toBe('12:05')
+    expect(suggestStatusLine(snap({ cards: twelve }))).toBe(
+      'Searching 3-team deals · 412 of 18 900 ideas checked · 12 found · 0:37'
+    )
+    expect(suggestStatusLine(snap({ status: 'full', cards: twelve }))).toBe(
+      'Done: best 12 found — nothing left could rank higher'
+    )
+    expect(suggestStatusLine(snap({ status: 'complete', cards: twelve }))).toBe(
+      'Done: 12 found, every idea checked'
+    )
+    expect(suggestStatusLine(snap({ status: 'complete' }))).toBe(
+      'No offers at this stance — try overpay'
+    )
+    expect(suggestStatusLine(snap({ status: 'stopped', cards: twelve }))).toBe(
+      'Stopped: 12 found so far'
+    )
+    expect(suggestStatusLine(snap({ status: 'stale' }))).toBe('League data changed — run again')
+    expect(suggestStatusLine(snap({ status: 'error', message: 'boom' }))).toBe(
+      'Search failed: boom'
+    )
+  })
+})
+
+describe('suggestion rows (multi-team spec §5.2)', () => {
+  it('shows a 3-team card as a path with every other team', () => {
+    const s = threeTeamSuggestion()
+    expect(teamsChip(s)).toBe('3-team')
+    expect(teamsChip(tradeSuggestion())).toBe('2-team')
+    expect(pathLine(s)).toBe(
+      "I send WR Justin Jefferson → Rival · Rival sends WR Ja'Marr Chase → Tank Mode · Tank Mode sends WR Tee Higgins → me"
+    )
+    expect(s.evaluation.sides.slice(1).map(otherSideLine)).toEqual([
+      'Rival +0.20/wk',
+      'Tank Mode -0.10/wk'
+    ])
+    expect(acceptanceTags(s, 1)).toEqual(['lineup'])
+    expect(acceptanceTags(s, 2)).toEqual(['market'])
+    expect(acceptanceTags(tradeSuggestion())).toEqual(['market'])
+  })
+
+  it('labels the other ways', () => {
+    expect(otherWaysLabel(1)).toBe('+1 other way')
+    expect(otherWaysLabel(3)).toBe('+3 other ways')
+    expect(alternativeLine(threeTeamSuggestion().alternatives[0])).toBe(
+      'via Rival: Bijan Robinson · worst side -0.30/wk'
+    )
   })
 })

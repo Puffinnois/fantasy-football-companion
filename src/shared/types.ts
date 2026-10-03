@@ -421,18 +421,72 @@ export interface TradeSuggestQuery {
   season: number
   focus: TradeFocus
   stance: TradeStance
-  /** Restrict the scan to one team; null = every other team. */
-  partnerRosterId: number | null
+  /** Multi-team spec §3.1: deals of 2 up to this many teams; clamped to 2..number of teams. */
+  maxTeams: number
+  /** The deal must involve this team; null = any. */
+  mustInclude: number | null
 }
 
 /** Why another manager would take an offer: his lineup improves, the market is fair for him, or both. */
 export type TradeAcceptance = 'lineup' | 'market' | 'both'
 
+/** Multi-team spec §3.5: another working deal for the same my side, at the same size. */
+export interface TradeAlternative {
+  proposal: TradeProposal
+  /** "via Gridiron Gang: James Cook" — the bridge teams and what each sends. */
+  label: string
+  /** The least happy other team's Δ/week. */
+  worstDeltaPerWeek: number
+}
+
 export interface TradeSuggestion {
   /** Exactly what `trade:evaluate` returns for this proposal — the card and the builder agree. */
   evaluation: TradeEvaluation
+  /** Number of teams in the deal, 2..maxTeams. */
+  teams: number
   /** Aligned with `evaluation.sides`: null for me, why each other manager would take it. */
   acceptance: (TradeAcceptance | null)[]
+  /** The other working deals of this size for the same my side, best first. */
+  alternatives: TradeAlternative[]
+}
+
+/** Multi-team spec §4.1: how far a suggestion run has got. */
+export interface SuggestProgress {
+  /** My sides resolved: discarded on their bound, failed the stance, or searched. */
+  checked: number
+  /** My-side candidates after the market precheck. */
+  total: number
+  /** Cards so far. */
+  found: number
+  /** The deal size being tried for the current my side. */
+  size: number
+  elapsedMs: number
+}
+
+/** `complete`: every idea checked; `full`: the best 30 found; `stopped`: by the user; `stale`: league data changed. */
+export type SuggestDoneReason = 'complete' | 'full' | 'stopped' | 'stale'
+
+/** What the engine worker posts during a run; the run manager adds the run id. */
+export type SuggestUpdate =
+  | { type: 'cards'; cards: TradeSuggestion[] }
+  | { type: 'progress'; progress: SuggestProgress }
+  | { type: 'done'; reason: SuggestDoneReason; progress: SuggestProgress }
+  | { type: 'error'; message: string }
+
+/** Spec §4.1: one run's update as main sends it to the renderer. */
+export type SuggestEvent = SuggestUpdate & { runId: number }
+
+export type SuggestStatus = 'running' | SuggestDoneReason | 'error'
+
+/** Spec §4.2: the active or last run, for a screen that (re)attaches. */
+export interface SuggestSnapshot {
+  runId: number
+  query: TradeSuggestQuery
+  cards: TradeSuggestion[]
+  progress: SuggestProgress
+  status: SuggestStatus
+  /** The error text when `status` is `error`. */
+  message: string | null
 }
 
 /** Slice 6c spec §2.2: how an add makes room on my roster. */

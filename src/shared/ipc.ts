@@ -11,6 +11,8 @@ import type {
   PointsContext,
   RosterPlayer,
   StreamRow,
+  SuggestEvent,
+  SuggestSnapshot,
   SyncLogEntry,
   SyncResult,
   SyncStatus,
@@ -20,7 +22,6 @@ import type {
   TradeOpenSpots,
   TradePool,
   TradeProposal,
-  TradeSuggestion,
   TradeSuggestQuery,
   UpdateState,
   WaiverAdds
@@ -66,8 +67,14 @@ export interface Api {
     pool(season: number): Promise<TradePool>
     /** Both teams' window strength before / after the proposal, drops, market balance. */
     evaluate(season: number, proposal: TradeProposal): Promise<TradeEvaluation>
-    /** Offers that pass my stance and their acceptance, ranked (slice 6b spec §3); `[]` is a normal answer. */
-    suggest(query: TradeSuggestQuery): Promise<TradeSuggestion[]>
+    /** Multi-team spec §4.2: starts a suggestion run in the engine worker (stopping the active one); resolves to its id. */
+    suggestStart(query: TradeSuggestQuery): Promise<number>
+    /** Stops the active run; its cards stay. */
+    suggestStop(): Promise<void>
+    /** The active or last run, for a screen that (re)attaches; null before the first run. */
+    suggestSnapshot(): Promise<SuggestSnapshot | null>
+    /** Every run's updates; returns the unsubscribe function. */
+    onSuggestEvent(listener: (event: SuggestEvent) => void): () => void
     /** Slice 6c spec §7: the best add for a spot the trade leaves open, per side; runs in the engine worker. */
     openSpot(season: number, proposal: TradeProposal): Promise<TradeOpenSpots>
   }
@@ -121,7 +128,10 @@ export const IPC = {
   lineupStrength: 'lineup:strength',
   tradePool: 'trade:pool',
   tradeEvaluate: 'trade:evaluate',
-  tradeSuggest: 'trade:suggest',
+  tradeSuggestStart: 'trade:suggestStart',
+  tradeSuggestStop: 'trade:suggestStop',
+  tradeSuggestSnapshot: 'trade:suggestSnapshot',
+  tradeSuggestEvent: 'trade:suggestEvent',
   tradeOpenSpot: 'trade:openSpot',
   waiverAdds: 'waiver:adds',
   waiverStream: 'waiver:stream',

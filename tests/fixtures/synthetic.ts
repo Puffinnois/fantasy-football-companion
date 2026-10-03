@@ -205,6 +205,62 @@ export const CYCLE_LEAGUE: SyntheticLeague = {
 }
 
 /**
+ * Multi-team spec §3: a deal only three teams can make. Slots RB · WR · TE (+1 bench), roster
+ * size 4, window weeks 16–17. Optimal per week: Me 35 (a1 · a3 · a4), Two 42 (b4 · b1 · b3),
+ * Three 43 (c3 · c4 · c1).
+ *
+ * | Me (1)        | Two (2)       | Three (3)     |
+ * | ------------- | ------------- | ------------- |
+ * | a1 RB 20 4000 | b1 WR 20 4000 | c1 TE 20 4000 |
+ * | a2 RB 15 1000 | b2 WR 15 3000 | c2 TE 14 1000 |
+ * | a3 WR 5 300   | b3 TE 4 200   | c3 RB 5 300   |
+ * | a4 TE 10 1500 | b4 RB 18 3500 | c4 WR 18 3000 |
+ *
+ * a2 for b2 fails with Two: a2 can't start behind b4, and 1 000 for 3 000 is not market-fair.
+ * Through Three it works — a2 → Three, c2 → Two, b2 → me, everyone +10 a week. Three could also
+ * send c1 (Three +4, Two +16), c2 + c3 (+10 / +10, Two drops b3) or c1 + c3 (+4 / +16, Two drops b3).
+ */
+export const TRIANGLE_LEAGUE: SyntheticLeague = {
+  currentWeek: 16,
+  weeks: [16, 17],
+  rosterPositions: ['RB', 'WR', 'TE', 'BN'],
+  rules: CYCLE_LEAGUE.rules,
+  teams: [
+    {
+      rosterId: 1,
+      name: 'Me',
+      isMe: true,
+      players: [
+        { id: 'a1', position: 'RB', weekly: 20, market: 4000 },
+        { id: 'a2', position: 'RB', weekly: 15, market: 1000 },
+        { id: 'a3', position: 'WR', weekly: 5, market: 300 },
+        { id: 'a4', position: 'TE', weekly: 10, market: 1500 }
+      ]
+    },
+    {
+      rosterId: 2,
+      name: 'Two',
+      players: [
+        { id: 'b1', position: 'WR', weekly: 20, market: 4000 },
+        { id: 'b2', position: 'WR', weekly: 15, market: 3000 },
+        { id: 'b3', position: 'TE', weekly: 4, market: 200 },
+        { id: 'b4', position: 'RB', weekly: 18, market: 3500 }
+      ]
+    },
+    {
+      rosterId: 3,
+      name: 'Three',
+      players: [
+        { id: 'c1', position: 'TE', weekly: 20, market: 4000 },
+        { id: 'c2', position: 'TE', weekly: 14, market: 1000 },
+        { id: 'c3', position: 'RB', weekly: 5, market: 300 },
+        { id: 'c4', position: 'WR', weekly: 18, market: 3000 }
+      ]
+    }
+  ]
+}
+
+/**
  * Slice 6c engine fixture: slots RB · WR · FLEX (+1 bench), roster size 4, window weeks 16–17.
  * My optimal lineup is 42 a week (RB A20 · WR B10 · FLEX C12); D never starts.
  *
@@ -536,4 +592,248 @@ export function generateLeague(seed: number, teamCount = 16, freeAgents = 0): Sy
     teams,
     freeAgents: pool
   }
+}
+
+/**
+ * Multi-team spec §7 property-test league: `generateLeague(seed, 4)` cut to 2 RB + 2 WR per team,
+ * slots RB · WR · FLEX (+1 bench) so every 2-for-1 forces a drop, window weeks 3–5. Small enough
+ * for the brute force to enumerate every 4-team cycle.
+ */
+export function searchLeague(seed: number): SyntheticLeague {
+  const g = generateLeague(seed, 4)
+  return {
+    ...g,
+    weeks: g.weeks.slice(0, 3),
+    rosterPositions: ['RB', 'WR', 'FLEX', 'BN'],
+    rules: rules({
+      rosterSlots: [
+        { slot: 'RB', count: 1 },
+        { slot: 'WR', count: 1 },
+        { slot: 'FLEX', count: 1 },
+        { slot: 'BN', count: 1 }
+      ],
+      settings: { numTeams: 4, waiverType: 'faab', playoffStartWeek: 4, playoffTeams: 4 }
+    }),
+    teams: g.teams.map((t) => ({
+      ...t,
+      players: [t.players[2], t.players[3], t.players[7], t.players[8]].map((p) => ({
+        ...p,
+        weekly: Array.isArray(p.weekly) ? p.weekly.slice(0, 3) : p.weekly
+      }))
+    }))
+  }
+}
+
+/**
+ * `searchLeague` with negative values in the current week (3) on teams 1 and 3: each one's second
+ * RB and second WR are at −2, so every lineup there forces a negative player into FLEX and the
+ * optimum stops being monotone in the roster. Teams 2 and 4 stay positive, so prunes stay on for
+ * deals that touch no negative player.
+ */
+export function negativeSearchLeague(seed: number): SyntheticLeague {
+  const league = searchLeague(seed)
+  return {
+    ...league,
+    teams: league.teams.map((t) =>
+      t.rosterId !== 1 && t.rosterId !== 3
+        ? t
+        : {
+            ...t,
+            players: t.players.map((p, i) =>
+              (i === 1 || i === 3) && Array.isArray(p.weekly)
+                ? { ...p, weekly: [-2, ...p.weekly.slice(1)] }
+                : p
+            )
+          }
+    )
+  }
+}
+
+/**
+ * Four teams, slots RB · WR · FLEX (+1 bench), roster size 4, window weeks 3–5, built so that a
+ * bigger roster totals less: Me and Two each hold two players at −2 in the current week (3) and
+ * 0.5 after it, and with nobody better for FLEX the lineup solver is forced to start one of them
+ * there. Giving both away leaves FLEX empty, which is worth more than the forced −2 that week.
+ * Every prune that assumes "more players never total less" is wrong somewhere in here; the
+ * `SearchContext.slack` guards keep them exact.
+ *
+ * | Me (1)             | Two (2)            | Three (3)         | Four (4)            |
+ * | ------------------ | ------------------ | ----------------- | ------------------- |
+ * | n1 RB −2 .5 .5 100 | m1 RB −2 .5 .5 100 | j QB 5 40         | z WR out 1.5 1000   |
+ * | n2 WR −2 .5 .5 100 | m2 WR −2 .5 .5 100 | c1 RB 12 1500     | f1 RB 8 800         |
+ * | a1 RB 10 1000      | b1 RB 10 1000      | c2 WR 12 1500     | f2 WR 8 800         |
+ * | a2 WR 10 1000      | b2 WR 10 1000      | c3 WR 3 300       | f3 RB 2 200         |
+ *
+ * (weekly points in weeks 3 · 4 · 5, then the FantasyCalc value; "out" = Out in week 3.)
+ * - Two takes j (a QB, who can never start) for m1 + m2: week 3 gains 2, weeks 4–5 lose 0.5 each,
+ *   so +1 — yet m1 for j and m2 for j are both Δ 0 and refused on the market. Me → Three → Two → Me
+ *   (a1, j, m1 + m2) is the one deal that needs both of the bridge prunes switched off.
+ * - I get z (Out in week 3, 1.5 after) for n1 + n2: +4 over the window, 1.33 a week — a premium
+ *   deal — while z alone adds only 2 (0.67 a week) and n1 for z only 2 as well.
+ */
+export const NEGATIVE_LEAGUE: SyntheticLeague = {
+  currentWeek: 3,
+  weeks: [3, 4, 5],
+  rosterPositions: ['RB', 'WR', 'FLEX', 'BN'],
+  rules: rules({
+    rosterSlots: [
+      { slot: 'RB', count: 1 },
+      { slot: 'WR', count: 1 },
+      { slot: 'FLEX', count: 1 },
+      { slot: 'BN', count: 1 }
+    ],
+    settings: { numTeams: 4, waiverType: 'faab', playoffStartWeek: 4, playoffTeams: 4 }
+  }),
+  teams: [
+    {
+      rosterId: 1,
+      name: 'Me',
+      isMe: true,
+      players: [
+        { id: 'n1', position: 'RB', weekly: [-2, 0.5, 0.5], market: 100 },
+        { id: 'n2', position: 'WR', weekly: [-2, 0.5, 0.5], market: 100 },
+        { id: 'a1', position: 'RB', weekly: 10, market: 1000 },
+        { id: 'a2', position: 'WR', weekly: 10, market: 1000 }
+      ]
+    },
+    {
+      rosterId: 2,
+      name: 'Two',
+      players: [
+        { id: 'm1', position: 'RB', weekly: [-2, 0.5, 0.5], market: 100 },
+        { id: 'm2', position: 'WR', weekly: [-2, 0.5, 0.5], market: 100 },
+        { id: 'b1', position: 'RB', weekly: 10, market: 1000 },
+        { id: 'b2', position: 'WR', weekly: 10, market: 1000 }
+      ]
+    },
+    {
+      rosterId: 3,
+      name: 'Three',
+      players: [
+        { id: 'j', position: 'QB', weekly: 5, market: 40 },
+        { id: 'c1', position: 'RB', weekly: 12, market: 1500 },
+        { id: 'c2', position: 'WR', weekly: 12, market: 1500 },
+        { id: 'c3', position: 'WR', weekly: 3, market: 300 }
+      ]
+    },
+    {
+      rosterId: 4,
+      name: 'Four',
+      players: [
+        { id: 'z', position: 'WR', weekly: 1.5, market: 1000, injuryStatus: 'Out' },
+        { id: 'f1', position: 'RB', weekly: 8, market: 800 },
+        { id: 'f2', position: 'WR', weekly: 8, market: 800 },
+        { id: 'f3', position: 'RB', weekly: 2, market: 200 }
+      ]
+    }
+  ]
+}
+
+/**
+ * Slots RB · RB (+2 bench), roster size 4, window weeks 3–5, and Two already one over the limit —
+ * five players, as when one comes back from IR — so every swap of one for one forces a drop.
+ * Only RBs, so a week's lineup is its two best.
+ *
+ * | Me (1)      | Two (2)         |
+ * | ----------- | --------------- |
+ * | h1 RB 3 8 5 | t1 RB 1 1 6     |
+ * | h2 RB 8 4 1 | t2 RB 4 8 8     |
+ * |             | t3 RB 9 4 4     |
+ * |             | t4 RB 1 4 7     |
+ * |             | t5 RB 7 5 2     |
+ *
+ * (weekly points in weeks 3 · 4 · 5; every player is worth 1000 on the market but t1, 3000.)
+ * Two gives t1 (a bench player: giving it alone is Δ 0) for h1 + h2 and gains 2: it drops t4 and
+ * t5 and starts h2 · t3, t2 · h1, t2 · h1. Each single is dragged down by its own drop (both drop
+ * t4, who starts once like three others and has the fewest ROS points): h1 alone is +1 (+3 before
+ * the drop), h2 alone −2 (+1 before it). The submodular bound over those two, 1 − 2 − 0 = −1, is
+ * below the pair's real +2 — it holds only where the singles need no drop.
+ */
+export const OVERFULL_LEAGUE: SyntheticLeague = {
+  currentWeek: 3,
+  weeks: [3, 4, 5],
+  rosterPositions: ['RB', 'RB', 'BN', 'BN'],
+  rules: rules({
+    rosterSlots: [
+      { slot: 'RB', count: 2 },
+      { slot: 'BN', count: 2 }
+    ],
+    settings: { numTeams: 2, waiverType: 'faab', playoffStartWeek: 4, playoffTeams: 4 }
+  }),
+  teams: [
+    {
+      rosterId: 1,
+      name: 'Me',
+      isMe: true,
+      players: [
+        { id: 'h1', position: 'RB', weekly: [3, 8, 5], market: 1000 },
+        { id: 'h2', position: 'RB', weekly: [8, 4, 1], market: 1000 }
+      ]
+    },
+    {
+      rosterId: 2,
+      name: 'Two',
+      players: [
+        { id: 't1', position: 'RB', weekly: [1, 1, 6], market: 3000 },
+        { id: 't2', position: 'RB', weekly: [4, 8, 8], market: 1000 },
+        { id: 't3', position: 'RB', weekly: [9, 4, 4], market: 1000 },
+        { id: 't4', position: 'RB', weekly: [1, 4, 7], market: 1000 },
+        { id: 't5', position: 'RB', weekly: [7, 5, 2], market: 1000 }
+      ]
+    }
+  ]
+}
+
+/**
+ * Slots RB · WR · FLEX (+1 bench), roster size 4, window weeks 3–5, built so that two received
+ * players cost less together than apart: Two's lineup leaves FLEX empty (its QBs can never
+ * start), so each of n1 and n2 alone is forced into it — −4 in week 3, 1 after — while both
+ * together still fill only the one slot.
+ *
+ * | Me (1)       | Two (2)     |
+ * | ------------ | ----------- |
+ * | n1 RB −4 1 1 | r RB 10     |
+ * | n2 WR −4 1 1 | w WR 10     |
+ * |              | q1 QB 5     |
+ * |              | q2 QB 5     |
+ *
+ * (weekly points in weeks 3 · 4 · 5; every player is worth 1000 on the market but q1, 2000.)
+ * Two gives q1 for n1 + n2: −2 for the window (−0.67 a week) at a market ratio of 1.0, so it
+ * takes the deal. Each single is −2 too and giving q1 alone is 0, so the submodular bound,
+ * −2 − 2 − 0 = −4, would refuse it — it needs a roster with nothing below zero.
+ */
+export const FORCED_PAIR_LEAGUE: SyntheticLeague = {
+  currentWeek: 3,
+  weeks: [3, 4, 5],
+  rosterPositions: ['RB', 'WR', 'FLEX', 'BN'],
+  rules: rules({
+    rosterSlots: [
+      { slot: 'RB', count: 1 },
+      { slot: 'WR', count: 1 },
+      { slot: 'FLEX', count: 1 },
+      { slot: 'BN', count: 1 }
+    ],
+    settings: { numTeams: 2, waiverType: 'faab', playoffStartWeek: 4, playoffTeams: 4 }
+  }),
+  teams: [
+    {
+      rosterId: 1,
+      name: 'Me',
+      isMe: true,
+      players: [
+        { id: 'n1', position: 'RB', weekly: [-4, 1, 1], market: 1000 },
+        { id: 'n2', position: 'WR', weekly: [-4, 1, 1], market: 1000 }
+      ]
+    },
+    {
+      rosterId: 2,
+      name: 'Two',
+      players: [
+        { id: 'r', position: 'RB', weekly: 10, market: 1000 },
+        { id: 'w', position: 'WR', weekly: 10, market: 1000 },
+        { id: 'q1', position: 'QB', weekly: 5, market: 2000 },
+        { id: 'q2', position: 'QB', weekly: 5, market: 1000 }
+      ]
+    }
+  ]
 }

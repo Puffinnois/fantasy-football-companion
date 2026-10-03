@@ -1,4 +1,6 @@
+import { candidateFor, type LineupBuild, type TeamWeek } from '@main/lineup/build'
 import type { Candidate, LineupSlot, Placed } from '@main/lineup/optimal'
+import type { PlayerSeries } from '@main/value/series'
 
 /**
  * Spec 6b §2.3: the slots a player of `position` could end up affecting — the slots he is
@@ -40,4 +42,17 @@ export function canEnter(candidate: Candidate, slots: LineupSlot[], starters: Pl
     if (starter === null || starter.value < candidate.value) return true
   }
   return false
+}
+
+/** Spec 6b §3.2: whether `s` could raise that team's optimal lineup in at least one window week. */
+export function entersLineup(
+  build: LineupBuild,
+  s: PlayerSeries,
+  weeks: number[],
+  teamWeeks: TeamWeek[]
+): boolean {
+  return weeks.some((w, i) => {
+    const c = candidateFor(build, s, w)
+    return c !== null && canEnter(c, build.slots, teamWeeks[i].optimal)
+  })
 }

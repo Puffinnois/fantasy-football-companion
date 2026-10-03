@@ -221,7 +221,7 @@ One active run, owned by main (`src/main/trade/suggestRun.ts`): its id, query, c
 
 - Preload: `api.trade.suggestStart / suggestStop / suggestSnapshot / onSuggestEvent(cb) → unsubscribe`.
 - The one-shot `trade:suggest` is removed (in Plan R; §9).
-- **Stale data.** When `invalidateCaches()` runs (sync, rules save) during a run, main stops it with `stale`: the cards stay visible under "League data changed — run again".
+- **Stale data.** When `invalidateCaches()` runs (sync, rules save), main marks the active or last run `stale` — stopping it if it is still running: the cards stay visible under "League data changed — run again". _Open in builder_ on a stale card prunes its deal to the current rosters and evaluates it afresh instead of showing the card's verdict. (Amended 2026-10-03, Plan R Task 11 review: originally only a running search went stale, so a finished list kept old verdicts after a sync.)
 - App quit terminates the worker.
 - The renderer ignores events whose `runId` is not the one it follows.
 
@@ -260,7 +260,7 @@ One active run, owned by main (`src/main/trade/suggestRun.ts`): its id, query, c
 | `maxTeams` out of range              | Clamped to 2..number of teams.                                                                                                                                                                     |
 | `mustInclude` is me or unknown       | `INVALID_TRADE` on start; the UI never offers it.                                                                                                                                                  |
 | Worker error or unexpected exit      | `error` event; cards so far stay.                                                                                                                                                                  |
-| Sync during a run                    | `stale` (§4.2).                                                                                                                                                                                    |
+| Sync during or after a run           | `stale` (§4.2).                                                                                                                                                                                    |
 | Packaged-asar worker                 | Unchanged from v0.16 (fallback: add `out/main/engineWorker.js` to `asarUnpack`).                                                                                                                   |
 
 ## 7. Testing
