@@ -1628,22 +1628,35 @@ import { describe, expect, it } from 'vitest'
 import { collectDeals, suggestDeals, type DealEvent } from '@main/trade/suggest'
 import type { TradeEvaluation, TradeFocus, TradeStance, TradeSuggestQuery } from '@shared/types'
 import { SEASON } from '../../fixtures/season'
-import { negativeSearchLeague, searchLeague, syntheticBuild } from '../../fixtures/synthetic'
+import {
+  NEGATIVE_LEAGUE,
+  negativeSearchLeague,
+  searchLeague,
+  syntheticBuild,
+  type SyntheticLeague
+} from '../../fixtures/synthetic'
 import { oracleSuggest } from './suggestOracle'
 
 const SEEDS = [1, 2, 3]
 const STANCE_LIST: TradeStance[] = ['premium', 'fair', 'overpay']
-/** Negative values break the optimum's monotonicity: the prunes must stay exact there too. */
-const LEAGUES = { positive: searchLeague, negative: negativeSearchLeague }
-const CASES = SEEDS.flatMap((seed) =>
-  (['positive', 'negative'] as const).map((values) => [values, seed] as const)
-)
+/**
+ * Negative values break the optimum's monotonicity: the prunes must stay exact there too.
+ * `negativeSearchLeague` is a regression net; `NEGATIVE_LEAGUE` is the fixture where a missing
+ * negative-value guard actually changes the answer.
+ */
+const CASES: [string, SyntheticLeague][] = [
+  ...SEEDS.flatMap((seed): [string, SyntheticLeague][] => [
+    [`positive values, seed ${seed}`, searchLeague(seed)],
+    [`negative values, seed ${seed}`, negativeSearchLeague(seed)]
+  ]),
+  ['hand-built negative values', NEGATIVE_LEAGUE]
+]
 
 describe('suggestDeals equals the brute force (spec §7)', () => {
   it.each(CASES)(
-    '%s values, seed %i: every team count, stance, focus and must-include',
-    (values, seed) => {
-      const { build } = syntheticBuild(LEAGUES[values](seed))
+    '%s: every team count, stance, focus and must-include',
+    (_label, league) => {
+      const { build } = syntheticBuild(league)
       const cache = new Map<string, TradeEvaluation>()
       const mine = build.rosters.get(1) ?? []
       const focuses: TradeFocus[] = [null, { give: mine[0].base.playerId }, { want: 'WR' }]
