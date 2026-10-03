@@ -304,11 +304,29 @@ describe('TradeScreen', () => {
     )
     render(<TradeScreen dataVersion={0} />)
     fireEvent.change(await screen.findByLabelText('Add to I send'), { target: { value: '6794' } })
+    fireEvent.change(screen.getByLabelText('Add to I send'), { target: { value: '4866' } })
     fireEvent.change(screen.getByLabelText('Add to Rival sends'), { target: { value: '7564' } })
     fireEvent.click(screen.getByText('Evaluate'))
-    fireEvent.click(screen.getByLabelText('Remove Justin Jefferson'))
+    // a still-valid deal after the edit, so the button is only held back by a pending answer
+    fireEvent.click(screen.getByLabelText('Remove Saquon Barkley'))
     await act(async () => answer(tradeEvaluation()))
     expect(screen.queryByText('Verdict')).toBeNull()
+    expect(screen.queryByText('Evaluating…')).toBeNull()
+    expect((screen.getByText('Evaluate') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('clears evaluating when the pool reloads under an unanswered evaluate', async () => {
+    evaluateMock.mockReturnValue(new Promise<TradeEvaluation>(() => undefined))
+    const { rerender } = render(<TradeScreen dataVersion={0} />)
+    fireEvent.change(await screen.findByLabelText('Add to I send'), { target: { value: '6794' } })
+    fireEvent.change(screen.getByLabelText('Add to Rival sends'), { target: { value: '7564' } })
+    fireEvent.click(screen.getByText('Evaluate'))
+    expect(screen.getByText('Evaluating…')).toBeTruthy()
+    rerender(<TradeScreen dataVersion={1} />)
+    const evaluate = await screen.findByText('Evaluate')
+    await waitFor(() => expect(poolMock).toHaveBeenCalledTimes(2))
+    expect(screen.queryByText('Evaluating…')).toBeNull()
+    expect((evaluate as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('puts each open-spot line under its own side when the answer comes back reordered', async () => {

@@ -141,6 +141,8 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
           return kept.teams.length > 0 || !first ? kept : addTeam(kept, first.rosterId)
         })
         setVerdict(null)
+        setEvaluating(false)
+        setEvalError(null)
         setFocusGive((id) => (pool.me.players.some((p) => p.playerId === id) ? id : ''))
         // Default to one partner: a league-wide scan costs seconds (spec 6b §6).
         setSuggestWith((t) =>
