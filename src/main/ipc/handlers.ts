@@ -1,6 +1,6 @@
 import { app, ipcMain, type BrowserWindow } from 'electron'
 import { withTransaction, type Db } from '@main/db/connection'
-import { runEngine } from '@main/engine/runEngine'
+import { runEngine, runEngineStream } from '@main/engine/runEngine'
 import { listExpertRanks } from '@main/db/repos/expertRanks'
 import { getLeague, leagueRosterPositions } from '@main/db/repos/leagues'
 import { listMatchups } from '@main/db/repos/matchups'
@@ -16,6 +16,7 @@ import { buildLineups, lineupWeek, teamStrengths, type LineupBuild } from '@main
 import type { NewsCache } from '@main/news/newsCache'
 import { evaluateTrade } from '@main/trade/evaluate'
 import { tradePool } from '@main/trade/pool'
+import { suggestRuns, type SuggestRuns } from '@main/trade/suggestRun'
 import { normalizeRules } from '@main/scoring/normalize'
 import { recomputePoints } from '@main/scoring/recompute'
 import type { FantasyCalcClient } from '@main/sources/fantasycalc'
@@ -42,6 +43,7 @@ import type {
   PointsContext,
   RosterPlayer,
   StreamRow,
+  SuggestSnapshot,
   SyncResult,
   SyncStatus,
   Team,
@@ -103,10 +105,15 @@ const valueCache = new Map<string, ValueBuild>()
 /** Lineups derive from the value build and the same DB rows; same key, same invalidation. */
 const lineupCache = new Map<string, LineupBuild>()
 
+/** Multi-team spec §4.2: the one suggestion run main owns; set when the handlers register. */
+let activeRuns: SuggestRuns | null = null
+
 export function invalidateCaches(): void {
   invalidateWeekCache()
   valueCache.clear()
   lineupCache.clear()
+  // Spec §4.2: league data changed under a running search — its cards stay, marked stale.
+  activeRuns?.stale()
 }
 
 function cachedValue(ctx: AppContext, leagueId: string, season: number): ValueBuild {
@@ -320,6 +327,26 @@ export function registerIpcHandlers(ctx: AppContext): void {
       return runEngine(ctx.dbPath, id, { kind: 'tradeSuggest', query })
     }
   )
+
+  const runs = suggestRuns({
+    start: (query, onUpdate) => {
+      const id = activeLeagueId()
+      if (!id) throw new Error('No league imported')
+      return runEngineStream(ctx.dbPath, id, { kind: 'tradeSuggest', query }, onUpdate)
+    },
+    send: (event) => {
+      const win = ctx.getWindow()
+      if (win && !win.isDestroyed()) win.webContents.send(IPC.tradeSuggestEvent, event)
+    }
+  })
+  activeRuns = runs
+
+  ipcMain.handle(IPC.tradeSuggestStart, (_event, query: TradeSuggestQuery): number => {
+    if (!activeLeagueId()) throw new Error('No league imported')
+    return runs.start(query)
+  })
+  ipcMain.handle(IPC.tradeSuggestStop, (): void => runs.stop())
+  ipcMain.handle(IPC.tradeSuggestSnapshot, (): SuggestSnapshot | null => runs.snapshot())
 
   ipcMain.handle(
     IPC.tradeOpenSpot,
