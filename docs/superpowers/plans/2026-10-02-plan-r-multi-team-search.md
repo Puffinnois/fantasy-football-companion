@@ -36,6 +36,7 @@
   - **Status line.** A start still waiting for its run id shows zero progress ("Searching 2-team deals · 0 of 0 ideas checked · 0 found · 0:00"); `complete` with 0 cards shows 6b's empty-state hint.
   - **Plan Q carry-overs** (Task 9): verdict columns follow the builder's card order; a stale evaluate answer is dropped; a screen test with a reordered open-spot answer; `SELECT_CLASS` / `TONE_CLASS` shared from `tradeView.ts`. Dropped: a per-run ownership map in `resolveDeal` — the search evaluates only the cards it emits (≤ 30), so `resolveDeal` is not on a hot path.
   - **Negative values** (added after Task 4's review, user decision 2026-10-02): the lineup solver fills every slot it can and weekly values can be negative (points already scored), so "more players never total less" fails when a negative player is forced into a slot. Every monotonicity prune carries a slack — `SearchContext.slack(rosterId, extra)`, the window's negative values on that roster plus `extra` — U(z) is widened by it (plus a cent for rounding), and the Plan M pair bound and both bridge prunes apply only when it is zero. `negativeSearchLeague(seed)` (teams 1 and 3 at −2 in the current week) joins every property test.
+  - **Gate outcome** (2026-10-02, user decision): Task 6 failed the gate (see Status). The user chose all three measured exact remedies — Tasks 13 (refuse before solving), 14 (bound for received pairs) and 15 (greedy lineup solver), then Task 16 (measure again) — and kept the **Up to 3 teams** default. **Execution order: 0–6, 13–16, then 7–12.**
   - **Measurement gate** (Task 6): on the user's league, **Up to 3 teams, any team**, practical means time to first card ≤ 5 s **and** final list ≤ 60 s. Beyond either, work stops and the numbers go to the user.
 
 ---
@@ -2297,6 +2298,441 @@ git commit -m "test(trade): budget the N-team search"
   2. a different default (`mustInclude` set to the builder's partner, or **Up to** 2).
 
   The user decides; record the decision in the Global Constraints and amend the remaining tasks before continuing.
+
+---
+
+### Task 13: Refuse early
+
+Gate remedy 1 (profile: `.superpowers/sdd/task-6-profile.md` §6, items 1–2). The exact prunes move into `refuses(ctx, team, give, get)`; prune (b) solves the smaller deal when it is not known yet ("B-first"); and with **Up to 2 teams** the queue asks C's refusal **before** solving my side — at two teams C's refusal is the whole answer.
+
+**Files:**
+
+- Modify: `src/main/trade/bridge.ts` (`refuses`, `accepts`)
+- Modify: `src/main/trade/mySides.ts` (`mySideQueue` takes an optional `refuse`)
+- Modify: `src/main/trade/suggest.ts` (passes it when `kMax === 2`)
+- Test: `tests/main/trade/bridge.test.ts`, `tests/main/trade/mySides.test.ts`
+
+**Interfaces:**
+
+- Produces: `refuses(ctx: SearchContext, team: Team, give: PlayerSeries[], get: PlayerSeries[]): boolean` (exported from `bridge.ts`); `mySideQueue(ctx, query, kMax, refuse?: (side: MySide) => boolean)`.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `tests/main/trade/bridge.test.ts` add `refuses` to the `@main/trade/bridge` import and `sideKey` from `@main/trade/side`, then:
+
+```ts
+describe('refuses (spec §3.3, exact prunes alone)', () => {
+  const { build } = syntheticBuild(TRIANGLE_LEAGUE)
+  const player = (ctx: SearchContext, id: string): PlayerSeries => {
+    for (const roster of ctx.build.rosters.values()) {
+      const hit = roster.find((s) => s.base.playerId === id)
+      if (hit) return hit
+    }
+    throw new Error(`no player ${id}`)
+  }
+  const team = (ctx: SearchContext, id: number): Team =>
+    ctx.others.find((t) => t.rosterId === id) as Team
+
+  it('refuses without a solve when nothing it gets can start and the market is short', () => {
+    const ctx = searchContext(build, null)
+    // Two gives b2 for a2: a2 can't start behind b4, 1 000 for 3 000.
+    expect(refuses(ctx, team(ctx, 2), [player(ctx, 'b2')], [player(ctx, 'a2')])).toBe(true)
+    expect(ctx.memo.size).toBe(0)
+    // Three takes a2 for c2 (it starts a2 over c3): no prune applies.
+    expect(refuses(ctx, team(ctx, 3), [player(ctx, 'c2')], [player(ctx, 'a2')])).toBe(false)
+  })
+
+  it('solves the smaller deal a pair is compared against (B-first)', () => {
+    const ctx = searchContext(build, null)
+    const [c2, c3, a2] = ['c2', 'c3', 'a2'].map((id) => player(ctx, id))
+    // Three would take a2 for c2 alone and for c3 alone, so the pair is not refused…
+    expect(refuses(ctx, team(ctx, 3), [c2, c3], [a2])).toBe(false)
+    // …and both smaller deals are now solved and shared.
+    expect(ctx.memo.has(sideKey(3, [c2], [a2]))).toBe(true)
+    expect(ctx.memo.has(sideKey(3, [c3], [a2]))).toBe(true)
+    expect(ctx.memo.has(sideKey(3, [c2, c3], [a2]))).toBe(false)
+  })
+})
+```
+
+(`Team` comes from `@shared/types`; add the imports the file lacks.)
+
+In `tests/main/trade/mySides.test.ts` add `TRIANGLE_LEAGUE` to the fixture import, `refuses` from `@main/trade/bridge`, `sideKey` from `@main/trade/side`, and:
+
+```ts
+it('asks C first at two teams: a refused side is never scored', () => {
+  const { build } = syntheticBuild(TRIANGLE_LEAGUE)
+  const q = query({ maxTeams: 2 })
+  const scoredKey = (ctx: ReturnType<typeof searchContext>): string => {
+    const roster = build.rosters.get(1) ?? []
+    const a2 = roster.filter((s) => s.base.playerId === 'a2')
+    const b2 = (build.rosters.get(2) ?? []).filter((s) => s.base.playerId === 'b2')
+    return sideKey(ctx.me.rosterId, a2, b2)
+  }
+  const plain = searchContext(build, null)
+  const without = mySideQueue(plain, q, 2)
+  while (without.next() !== null);
+  expect(plain.memo.has(scoredKey(plain))).toBe(true) // a2 → b2 passes my stance: scored
+  const early = searchContext(build, null)
+  const withRefuse = mySideQueue(early, q, 2, (side) => refuses(early, side.c, side.z, side.x))
+  const popped: string[] = []
+  for (let s = withRefuse.next(); s !== null; s = withRefuse.next()) popped.push(s.key)
+  expect(early.memo.has(scoredKey(early))).toBe(false) // Two refuses a2 for b2: never scored
+  expect(popped).not.toContain('a2|b2|2')
+  expect(withRefuse.discarded + popped.length).toBe(withRefuse.total)
+})
+```
+
+Run: `npx vitest run tests/main/trade/bridge.test.ts tests/main/trade/mySides.test.ts`
+Expected: FAIL — `refuses` is not exported; `mySideQueue` ignores the fourth argument.
+
+- [ ] **Step 2: Split `refuses` out of `accepts`**
+
+In `src/main/trade/bridge.ts`, replace `accepts` with:
+
+```ts
+/**
+ * Spec §3.3, the exact prunes alone: true when `team` provably refuses `get` for `give`. It may
+ * solve the smaller deals it compares against (shared through the run's memo), never this one.
+ */
+export function refuses(
+  ctx: SearchContext,
+  team: Team,
+  give: PlayerSeries[],
+  get: PlayerSeries[]
+): boolean {
+  // Every prune rests on "more players never total less", which holds unless a negative value
+  // could be forced into a slot (`SearchContext.slack`).
+  if (ctx.slack(team.rosterId, get) !== 0) return false
+  const ratio = marketRatio({
+    marketGive: marketSum(ctx.build, give).total,
+    marketGet: marketSum(ctx.build, get).total
+  })
+  // Nothing it gets can start for it, so its delta cannot be positive — and the market can't
+  // carry the deal either (6b's rule, now for every team).
+  if (ratio < MARKET_FAIR && !get.some((s) => ctx.enters(team.rosterId, s))) return true
+  if (give.length === 2) {
+    for (const one of give) {
+      // Plan M generalized: giving both can only do worse than giving one of them for the same
+      // players — when that smaller deal needs no drops, its after-roster contains this one's and
+      // it gives less market value. Solved now when unknown: it is shared and usually decisive.
+      const smaller = sideOf(ctx, team, [one], get)
+      if (
+        smaller.drops.length === 0 &&
+        acceptanceOf(smaller.delta, marketRatio(smaller), smaller.deltaPerWeek) === null
+      ) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+/** Spec §3.3: whether `team` takes `get` for `give` — the prunes first, then 6b's acceptance on the memoized side. */
+export function accepts(
+  ctx: SearchContext,
+  team: Team,
+  give: PlayerSeries[],
+  get: PlayerSeries[]
+): Accepted | null {
+  if (refuses(ctx, team, give, get)) return null
+  const core = sideOf(ctx, team, give, get)
+  const acceptance = acceptanceOf(core.delta, marketRatio(core), core.deltaPerWeek)
+  return acceptance === null ? null : { core, acceptance }
+}
+```
+
+Remove the `sideKey` import if it becomes unused.
+
+- [ ] **Step 3: Let the queue ask C first**
+
+In `src/main/trade/mySides.ts`, `mySideQueue` gains a fourth parameter and its doc comment a sentence:
+
+```ts
+export function mySideQueue(
+  ctx: SearchContext,
+  query: TradeSuggestQuery,
+  kMax: number,
+  /** Up to 2 teams only: C's refusal of the 2-team deal, asked before my side is solved. */
+  refuse?: (side: MySide) => boolean
+): MySideQueue {
+```
+
+and in `next()`, first thing for a bound entry:
+
+```ts
+if (refuse?.(e.side) === true) {
+  discarded++
+  continue
+}
+```
+
+(before the `boundedOut` check).
+
+In `src/main/trade/suggest.ts`, import `refuses` from `./bridge` and build the queue as:
+
+```ts
+// Spec §3.3 at two teams: a my side has one deal, so C's refusal settles it before my side is
+// solved. With a bridge, C receives something else and the side may still work.
+const queue = mySideQueue(
+  ctx,
+  query,
+  kMax,
+  kMax === 2 ? (side) => refuses(ctx, side.c, side.z, side.x) : undefined
+)
+```
+
+- [ ] **Step 4: Run the tests**
+
+Run: `npx vitest run tests/main/trade`
+Expected: PASS — including `suggestProperty.test.ts` (the oracle comparison is the proof these stay exact) and the bridge brute force.
+
+- [ ] **Step 5: Verify and commit**
+
+```bash
+npm run typecheck && npm run lint && npm test
+npx prettier --write src/main/trade/bridge.ts src/main/trade/mySides.ts src/main/trade/suggest.ts tests/main/trade/bridge.test.ts tests/main/trade/mySides.test.ts
+git add src/main/trade tests/main/trade
+git commit -m "perf(trade): refuse deals before solving them"
+```
+
+---
+
+### Task 14: A bound for getting two players
+
+Gate remedy 2 (profile §6, item 3). With nothing below zero, a team's weekly lineup value is a max-weight matching with slot-independent values — a weighted matroid rank, monotone and submodular — so a pair adds at most what each player adds alone. That refuses most "get two for one" checks after three shared solves.
+
+**Files:**
+
+- Modify: `src/main/trade/bridge.ts` (`refuses`)
+- Test: `tests/main/trade/bridge.test.ts`
+
+**Interfaces:**
+
+- Consumes: Task 13's `refuses`. Produces: `BOUND_SLACK = 0.05` (exported from `bridge.ts`).
+
+- [ ] **Step 1: Write the failing test**
+
+Add to the `refuses` `describe` in `tests/main/trade/bridge.test.ts`:
+
+```ts
+it('bounds a received pair by its two singles when nothing is below zero', () => {
+  const ctx = searchContext(build, null)
+  const [c4, a2, b3] = ['c4', 'a2', 'b3'].map((id) => player(ctx, id))
+  // Three gives c4 (its only WR) for a2 + b3. a2 starts at RB, so the "can't start" prune
+  // does not apply; but a2 alone is −16, b3 alone −36, nothing at all −36: the pair is at most
+  // −16 and the market (1 200 for 3 000) is short — refused without solving the pair.
+  expect(refuses(ctx, team(ctx, 3), [c4], [a2, b3])).toBe(true)
+  expect(ctx.memo.has(sideKey(3, [c4], [a2]))).toBe(true)
+  expect(ctx.memo.has(sideKey(3, [c4], [b3]))).toBe(true)
+  expect(ctx.memo.has(sideKey(3, [c4], []))).toBe(true)
+  expect(ctx.memo.has(sideKey(3, [c4], [a2, b3]))).toBe(false)
+  // Two gives b1 for a4 + a3: a4 alone is +2, so the bound (+2) allows it — and indeed Two
+  // gains with the pair (drops b3, starts a4 at TE).
+  const [b1, a4, a3] = ['b1', 'a4', 'a3'].map((id) => player(ctx, id))
+  expect(refuses(ctx, team(ctx, 2), [b1], [a4, a3])).toBe(false)
+})
+```
+
+Run: `npx vitest run tests/main/trade/bridge.test.ts -t "received pair"`
+Expected: FAIL — the pair is not refused (or is solved).
+
+- [ ] **Step 2: Add the bound to `refuses`**
+
+In `src/main/trade/bridge.ts`, import `ACCEPT_LOSS_PER_WEEK` with `acceptanceOf` from `./thresholds`, add above `refuses`:
+
+```ts
+/**
+ * Rounding headroom for the pair bound: each delta is rounded to the cent (±0.005), the bound sums
+ * three of them and the pair's own delta is rounded again — 0.02 at most; 0.05 to spare.
+ */
+export const BOUND_SLACK = 0.05
+```
+
+and, in `refuses`, after the `give.length === 2` block:
+
+```ts
+if (get.length === 2) {
+  // With nothing below zero the weekly optimum is monotone and submodular in the roster, so the
+  // pair adds at most what each player adds alone: Δ(pair) ≤ Δ(h1) + Δ(h2) − Δ(nothing), valid
+  // when neither single needs a drop (drops only lower the pair's own total).
+  const one = sideOf(ctx, team, give, [get[0]])
+  const two = sideOf(ctx, team, give, [get[1]])
+  if (one.drops.length === 0 && two.drops.length === 0) {
+    const none = sideOf(ctx, team, give, [])
+    const bound = one.delta + two.delta - none.delta + BOUND_SLACK
+    const lineupFails = bound <= 0
+    const marketFails =
+      ratio < MARKET_FAIR || bound / ctx.weeks.length + 0.01 < -ACCEPT_LOSS_PER_WEEK
+    if (lineupFails && marketFails) return true
+  }
+}
+```
+
+- [ ] **Step 3: Run the tests**
+
+Run: `npx vitest run tests/main/trade`
+Expected: PASS — the property test against the oracle stays green (seven leagues, negative values included).
+
+- [ ] **Step 4: Verify and commit**
+
+```bash
+npm run typecheck && npm run lint && npm test
+npx prettier --write src/main/trade/bridge.ts tests/main/trade/bridge.test.ts
+git add src/main/trade/bridge.ts tests/main/trade/bridge.test.ts
+git commit -m "perf(trade): bound received pairs by their singles"
+```
+
+---
+
+### Task 15: A faster exact lineup solver
+
+Gate remedy 3 (profile §6, item 4). `optimalLineup` builds a dense (slots + players)² matrix for the Hungarian algorithm; the lineup is a max-weight basis of a transversal matroid, which a greedy pass finds exactly: players by `byValueDesc`, each kept when the kept set can still be seated (augmenting path). Same objective — fill every slot it can, then the highest total — about 9× faster per call. The whole app uses this solver; only a tie between exactly equal values can pick a different, equally good set (and `byValueDesc` makes the greedy's choice independent of input order).
+
+**Files:**
+
+- Modify: `src/main/lineup/optimal.ts`
+- Create: `tests/main/lineup/hungarianReference.ts` (the old solver, test-only)
+- Test: `tests/main/lineup/optimal.test.ts`
+
+**Interfaces:**
+
+- `optimalLineup(slots, candidates): Optimal` keeps its signature and contract (starters one per slot in slot order, re-seated by `placeDeterministically`; `total` rounded; `bench` = everyone not chosen, `byValueDesc`). `assign` leaves `src` (moved to the test reference).
+
+- [ ] **Step 1: Keep the old solver as a test reference**
+
+Create `tests/main/lineup/hungarianReference.ts` with the current `assign` and the current body of `optimalLineup` (renamed `hungarianLineup`), copied verbatim from `src/main/lineup/optimal.ts`, plus the `FORBIDDEN` / `EMPTY_SLOT` constants they use. It imports `byValueDesc`, `round2` and the types from the source modules; `placeDeterministically` is private to `optimal.ts`, so the reference returns `starters: raw` — the tests compare totals and chosen sets, not seats. Move the existing `describe('assign', …)` test to target the reference's `assign`.
+
+- [ ] **Step 2: Write the failing equivalence test**
+
+Append to `tests/main/lineup/optimal.test.ts` (import `hungarianLineup` from `./hungarianReference`; reuse the file's existing random-roster helpers if it has them, otherwise build rosters inline with a seeded `rng` from `../../fixtures/synthetic`):
+
+```ts
+describe('optimalLineup equals the Hungarian reference', () => {
+  it('on 5 000 random rosters: same total; same starters whenever values are distinct', () => {
+    const r = rng(11)
+    const positions = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'LB']
+    const shapes = [
+      lineupSlotsOf(['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'K', 'DEF']),
+      lineupSlotsOf(['QB', 'RB', 'WR', 'WR', 'FLEX', 'FLEX', 'SUPER_FLEX']),
+      lineupSlotsOf(['RB', 'WR', 'FLEX'])
+    ]
+    for (let n = 0; n < 5000; n++) {
+      const slots = shapes[n % shapes.length]
+      const distinct = n % 2 === 0
+      const candidates = Array.from({ length: 4 + Math.floor(r() * 14) }, (_, i) => ({
+        id: `p${i}`,
+        name: `P${i}`,
+        position: r() < 0.05 ? null : positions[Math.floor(r() * positions.length)],
+        // odd rosters draw from few values (ties) and some negatives
+        value: distinct ? Math.round(r() * 3000) / 100 + i / 1e4 : Math.round(r() * 8) - 2
+      }))
+      const fast = optimalLineup(slots, candidates)
+      const slow = hungarianLineup(slots, candidates)
+      expect({ n, total: fast.total }).toEqual({ n, total: slow.total })
+      if (distinct) {
+        const ids = (o: { starters: { player: { id: string } | null }[] }): string[] =>
+          o.starters.flatMap((p) => (p.player ? [p.player.id] : [])).sort()
+        expect({ n, starters: ids(fast) }).toEqual({ n, starters: ids(slow) })
+      }
+    }
+  })
+})
+```
+
+`lineupSlotsOf(positions)` stands for however the file already builds `LineupSlot[]` from roster positions (it tests `lineupSlots` — use that function with the shape the existing tests pass it); adjust the helper name to what exists. Note `value: … + i / 1e4` keeps distinct rosters tie-free; values are not rounded to cents there, which is fine for the solver.
+
+Run: `npx vitest run tests/main/lineup/optimal.test.ts`
+Expected: PASS already (both are the Hungarian) — this is the safety net for Step 3, so also run it once with the next step's change to see it stay green.
+
+- [ ] **Step 3: Replace the Hungarian with the greedy**
+
+In `src/main/lineup/optimal.ts`, replace `optimalLineup`'s body (and delete `assign`, `FORBIDDEN`, `EMPTY_SLOT` when nothing else uses them) with:
+
+```ts
+/**
+ * Spec §2.4: the optimal lineup — every slot it can fill filled, then the highest total. The sets
+ * of players that can be seated together form a (transversal) matroid, so a greedy pass is exact:
+ * players best first (`byValueDesc`), each kept when the kept set can still be seated (an
+ * augmenting path over the slots). Ties resolve by `byValueDesc`, whatever the input order.
+ */
+export function optimalLineup(slots: LineupSlot[], candidates: Candidate[]): Optimal {
+  const order = [...candidates].sort(byValueDesc)
+  const eligible: number[][] = order.map((c) =>
+    slots.flatMap((slot, i) =>
+      c.position !== null && slot.eligible.includes(c.position) ? [i] : []
+    )
+  )
+  /** The kept player seated in each slot (index into `order`), −1 when empty. */
+  const seat = new Array<number>(slots.length).fill(-1)
+  const chosen: Candidate[] = []
+  for (let j = 0; j < order.length && chosen.length < slots.length; j++) {
+    if (eligible[j].length === 0) continue
+    const seen = new Array<boolean>(slots.length).fill(false)
+    const place = (p: number): boolean => {
+      for (const i of eligible[p]) {
+        if (seen[i]) continue
+        seen[i] = true
+        if (seat[i] === -1 || place(seat[i])) {
+          seat[i] = p
+          return true
+        }
+      }
+      return false
+    }
+    if (place(j)) chosen.push(order[j])
+  }
+  const raw: Placed[] = slots.map((slot, i) => ({
+    slot: slot.slot,
+    player: seat[i] >= 0 ? order[seat[i]] : null
+  }))
+  const chosenIds = new Set(chosen.map((c) => c.id))
+  return {
+    starters: placeDeterministically(slots, chosen) ?? raw,
+    total: round2(chosen.reduce((sum, c) => sum + c.value, 0)) ?? 0,
+    bench: candidates.filter((c) => !chosenIds.has(c.id)).sort(byValueDesc)
+  }
+}
+```
+
+- [ ] **Step 4: Run everything and account for every changed expectation**
+
+Run: `npx vitest run tests/main/lineup/optimal.test.ts` — green, then `npm test`.
+
+Any other test whose expectation changes must be explained as an exact tie (two players with the same value for the slot); write each case in the report (test, players, values). Fix such a test only by asserting the tie-independent fact (total, or either-of), never by pinning the new pick. A change that is **not** a tie is a bug — stop and report it.
+
+- [ ] **Step 5: Verify and commit**
+
+```bash
+npm run typecheck && npm run lint && npm test
+npx prettier --write src/main/lineup/optimal.ts tests/main/lineup/optimal.test.ts tests/main/lineup/hungarianReference.ts
+git add src/main/lineup/optimal.ts tests/main/lineup
+git commit -m "perf(lineup): solve lineups with an exact greedy"
+```
+
+---
+
+### Task 16: Measure again
+
+The gate after the remedies. Same measurements as Task 6 Steps 2–3 (the budget, and the throwaway `tests/zz-search.test.ts` on a fresh copy of the dev DB — never committed, deleted after; print the window and every team's `slack` too).
+
+- [ ] **Step 1: Re-run the budget and the real league**
+
+Run `npm run test:budget` (use `--silent=false` on the trade budget file to see every line) and the throwaway real-league test. Record every line.
+
+- [ ] **Step 2: Set the first-card budget**
+
+In `tests/main/trade/suggestBudget.test.ts`, set `FIRST_CARD_MS` to 1.5 × the slowest measured synthetic "up to 3 teams" first card, rounded up to the next 1 000 ms, and change its comment to say it is a regression ceiling measured on 2026-10-02 (the UX target is the real-league gate below). Commit:
+
+```bash
+npx prettier --write tests/main/trade/suggestBudget.test.ts
+git add tests/main/trade/suggestBudget.test.ts
+git commit -m "test(trade): reset the first-card budget"
+```
+
+- [ ] **Step 3: Gate 2**
+
+Expected from the prototypes: up to 2 / any team ≈ 1.9 s; up to 3 / any team first card ≈ 19 s, final ≈ 25 s. **Continue to Task 7** when, on the real league, up to 2 / any team finishes within 5 s **and** up to 3 / any team shows its first card within 30 s and finishes within 60 s. Otherwise stop and report the numbers to the user. Either way, replace the plan's Status line with the new numbers and commit it as `docs(plan): record plan R second gate`.
 
 ---
 
