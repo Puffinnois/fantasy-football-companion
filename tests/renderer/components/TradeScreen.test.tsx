@@ -447,6 +447,75 @@ describe('TradeScreen', () => {
     expect(screen.getByText('Find')).toBeTruthy()
   })
 
+  it('marks a finished list stale when league data changes, keeping its cards', async () => {
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+    expect(screen.getByText('Done: 1 found, every idea checked')).toBeTruthy()
+    send({ runId: 7, type: 'done', reason: 'stale', progress: { ...PROGRESS, found: 1 } })
+    expect(screen.getByText('League data changed — run again')).toBeTruthy()
+    expect(screen.getByText('with Rival')).toBeTruthy()
+    expect(screen.getByText('Find')).toBeTruthy()
+  })
+
+  it('evaluates a stale card fresh on opening, without its carried verdict', async () => {
+    let answer: (ev: TradeEvaluation) => void = () => undefined
+    evaluateMock.mockReturnValue(
+      new Promise<TradeEvaluation>((resolve) => {
+        answer = resolve
+      })
+    )
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+    send({ runId: 7, type: 'done', reason: 'stale', progress: { ...PROGRESS, found: 1 } })
+
+    fireEvent.click(screen.getByText('Open in builder'))
+    expect(evaluateMock).toHaveBeenCalledWith(2026, {
+      moves: [
+        { playerId: '4866', to: 2 },
+        { playerId: '7564', to: 1 }
+      ]
+    })
+    expect(screen.getByText('Evaluating…')).toBeTruthy()
+    expect(screen.getByText('Saquon Barkley')).toBeTruthy()
+    expect(screen.queryByText('+4.00 (+0.27/wk)')).toBeNull()
+    await act(async () => answer(tradeSuggestion().evaluation))
+    expect(screen.getByText('+4.00 (+0.27/wk)')).toBeTruthy()
+  })
+
+  it('drops a stale card’s player who left the roster before evaluating it', async () => {
+    evaluateMock.mockRejectedValue(new Error('Rival gets nobody'))
+    const { rerender } = render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+
+    // a sync moves Barkley off my roster; the same event tells the screen the list is stale
+    const before = tradePool()
+    poolMock.mockResolvedValue(
+      tradePool({
+        me: { ...before.me, players: before.me.players.filter((p) => p.playerId !== '4866') }
+      })
+    )
+    rerender(<TradeScreen dataVersion={1} />)
+    await screen.findByLabelText('Add to I send')
+    send({ runId: 7, type: 'done', reason: 'stale', progress: { ...PROGRESS, found: 1 } })
+
+    fireEvent.click(screen.getByText('Open in builder'))
+    expect(evaluateMock).toHaveBeenCalledWith(2026, { moves: [{ playerId: '7564', to: 1 }] })
+    expect(screen.queryByText('Saquon Barkley')).toBeNull()
+    expect(await screen.findByText('Rival gets nobody')).toBeTruthy()
+  })
+
   it('drops an evaluate answer that lands after the deal changed', async () => {
     let answer: (ev: TradeEvaluation) => void = () => undefined
     evaluateMock.mockReturnValue(

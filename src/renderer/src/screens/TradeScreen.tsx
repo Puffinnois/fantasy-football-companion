@@ -133,6 +133,14 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
 
   /** Spec 6b §5.2: the builder shows the suggestion's own evaluation — no second trade:evaluate call. */
   const openSuggestion = (s: TradeSuggestion): void => {
+    if (pool && suggest.run?.status === 'stale') {
+      // The carried verdict predates the data change: evaluate what the builder shows, fresh.
+      const d = pruneDeal(dealOf(s.evaluation), pool)
+      changeDeal(d)
+      void evaluate(d)
+      scrollToBuilder()
+      return
+    }
     changeDeal(dealOf(s.evaluation))
     setVerdict(s.evaluation)
     scrollToBuilder()
