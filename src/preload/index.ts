@@ -27,7 +27,6 @@ const api: Api = {
   trade: {
     pool: (season) => ipcRenderer.invoke(IPC.tradePool, season),
     evaluate: (season, proposal) => ipcRenderer.invoke(IPC.tradeEvaluate, season, proposal),
-    suggest: (query) => ipcRenderer.invoke(IPC.tradeSuggest, query),
     suggestStart: (query) => ipcRenderer.invoke(IPC.tradeSuggestStart, query),
     suggestStop: () => ipcRenderer.invoke(IPC.tradeSuggestStop),
     suggestSnapshot: () => ipcRenderer.invoke(IPC.tradeSuggestSnapshot),

@@ -52,7 +52,6 @@ import type {
   TradeOpenSpots,
   TradePool,
   TradeProposal,
-  TradeSuggestion,
   TradeSuggestQuery,
   UpdateState,
   WaiverAdds,
@@ -315,16 +314,6 @@ export function registerIpcHandlers(ctx: AppContext): void {
       const id = activeLeagueId()
       if (!id) throw new Error('No league imported')
       return evaluateTrade(cachedLineup(ctx, id, season), proposal)
-    }
-  )
-
-  ipcMain.handle(
-    IPC.tradeSuggest,
-    (_event, query: TradeSuggestQuery): Promise<TradeSuggestion[]> => {
-      const id = activeLeagueId()
-      if (!id) throw new Error('No league imported')
-      // Spec §6: a league-wide scan takes seconds, so it runs off the main thread.
-      return runEngine(ctx.dbPath, id, { kind: 'tradeSuggest', query })
     }
   )
 

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { TradeScreen } from '@/screens/TradeScreen'
 import { api } from '@/lib/api'
-import type { PlayersOptions, TradeEvaluation } from '@shared/types'
+import type { PlayersOptions, SuggestEvent, TradeEvaluation } from '@shared/types'
 import { lineupPlayer } from '../../fixtures/lineup'
 import {
   bijan,
@@ -11,6 +11,7 @@ import {
   rivalSide,
   threeTeamEvaluation,
   threeTeamPool,
+  threeTeamSuggestion,
   tradeEvaluation,
   tradePool,
   tradeSide,
@@ -20,14 +21,37 @@ import {
 vi.mock('@/lib/api', () => ({
   api: {
     players: { options: vi.fn(), detail: vi.fn() },
-    trade: { pool: vi.fn(), evaluate: vi.fn(), suggest: vi.fn(), openSpot: vi.fn() }
+    trade: {
+      pool: vi.fn(),
+      evaluate: vi.fn(),
+      openSpot: vi.fn(),
+      suggestStart: vi.fn(),
+      suggestStop: vi.fn(),
+      suggestSnapshot: vi.fn(),
+      onSuggestEvent: vi.fn()
+    }
   }
 }))
 const optionsMock = vi.mocked(api.players.options)
 const poolMock = vi.mocked(api.trade.pool)
 const evaluateMock = vi.mocked(api.trade.evaluate)
-const suggestMock = vi.mocked(api.trade.suggest)
 const openSpotMock = vi.mocked(api.trade.openSpot)
+const startMock = vi.mocked(api.trade.suggestStart)
+const stopMock = vi.mocked(api.trade.suggestStop)
+const snapshotMock = vi.mocked(api.trade.suggestSnapshot)
+const onEventMock = vi.mocked(api.trade.onSuggestEvent)
+let emit: (event: SuggestEvent) => void = () => undefined
+const unsubscribe = vi.fn()
+
+const PROGRESS = { checked: 412, total: 18900, found: 0, size: 3, elapsedMs: 37_000 }
+/** Main sends an event; React re-renders inside act. */
+const send = (event: SuggestEvent): void => {
+  act(() => emit(event))
+}
+/** Lets pending promise callbacks (the start's run id, the snapshot) land. */
+const flush = async (): Promise<void> => {
+  await act(async () => undefined)
+}
 
 const options: PlayersOptions = {
   seasons: [2026],
@@ -48,12 +72,22 @@ beforeEach(() => {
   optionsMock.mockReset()
   poolMock.mockReset()
   evaluateMock.mockReset()
-  suggestMock.mockReset()
-  suggestMock.mockResolvedValue([])
   openSpotMock.mockReset()
   openSpotMock.mockResolvedValue({ sides: [null, null] })
   optionsMock.mockResolvedValue(options)
   poolMock.mockResolvedValue(tradePool())
+  startMock.mockReset()
+  startMock.mockResolvedValue(7)
+  stopMock.mockReset()
+  stopMock.mockResolvedValue(undefined)
+  snapshotMock.mockReset()
+  snapshotMock.mockResolvedValue(null)
+  unsubscribe.mockReset()
+  onEventMock.mockReset()
+  onEventMock.mockImplementation((listener) => {
+    emit = listener
+    return unsubscribe
+  })
 })
 afterEach(cleanup)
 
@@ -218,8 +252,7 @@ describe('TradeScreen', () => {
     await waitFor(() => expect(screen.getByLabelText('Add to I send')).toBeTruthy())
   })
 
-  it('finds offers and opens one in the builder with the carried numbers', async () => {
-    suggestMock.mockResolvedValue([tradeSuggestion()])
+  it('streams cards in live and opens one in the builder with its numbers', async () => {
     const scrollIntoView = vi.fn()
     window.HTMLElement.prototype.scrollIntoView = scrollIntoView
     render(<TradeScreen dataVersion={0} />)
@@ -227,19 +260,33 @@ describe('TradeScreen', () => {
     expect(screen.getByText('I gain and get ≥ 85 % of the market value I give')).toBeTruthy()
 
     fireEvent.click(screen.getByText('Find'))
-    expect(await screen.findByText('with Rival')).toBeTruthy()
-    // the default scan is the builder's partner — the league-wide one is an explicit choice
-    expect(suggestMock).toHaveBeenCalledWith({
+    // a two-team league caps "Up to" at 2
+    expect(startMock).toHaveBeenCalledWith({
       season: 2026,
       focus: null,
       stance: 'fair',
       maxTeams: 2,
-      mustInclude: 2
+      mustInclude: null
     })
+    expect(
+      screen.getByText('Searching 2-team deals · 0 of 0 ideas checked · 0 found · 0:00')
+    ).toBeTruthy()
+    expect(screen.getByText('Stop')).toBeTruthy()
+    await flush()
+    send({ runId: 7, type: 'progress', progress: PROGRESS })
+    expect(
+      screen.getByText('Searching 3-team deals · 412 of 18 900 ideas checked · 0 found · 0:37')
+    ).toBeTruthy()
+    send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
+    expect(screen.getByText('with Rival')).toBeTruthy()
     expect(screen.getByText('Me +4.00 (+0.27/wk)')).toBeTruthy()
+    expect(screen.getByText('2-team')).toBeTruthy()
     expect(screen.getByText('Them -4.00')).toBeTruthy()
     expect(screen.getByText('market')).toBeTruthy()
     expect(screen.getByText("give RB Saquon Barkley · get WR Ja'Marr Chase")).toBeTruthy()
+    send({ runId: 7, type: 'done', reason: 'full', progress: { ...PROGRESS, found: 1 } })
+    expect(screen.getByText('Done: best 1 found — nothing left could rank higher')).toBeTruthy()
+    expect(screen.getByText('Find')).toBeTruthy()
 
     fireEvent.click(screen.getByText('Open in builder'))
     expect(screen.getByLabelText('Remove team Rival')).toBeTruthy()
@@ -250,49 +297,154 @@ describe('TradeScreen', () => {
     expect(screen.getByText('gives 9 340 → gets 8 000 (86 %)')).toBeTruthy()
     expect(evaluateMock).not.toHaveBeenCalled()
     expect(scrollIntoView).toHaveBeenCalled()
-    // the rows are editable as usual: removing one clears the verdict
     fireEvent.click(screen.getByLabelText('Remove Saquon Barkley'))
     expect(screen.queryByText('+4.00 (+0.27/wk)')).toBeNull()
   })
 
-  it('carries the focus and stance, scans every team on request, hints on an empty result', async () => {
+  it('shows a 3-team card with its path, every other team and the other ways', async () => {
+    poolMock.mockResolvedValue(threeTeamPool())
+    evaluateMock.mockResolvedValue(threeTeamEvaluation())
+    openSpotMock.mockResolvedValue({ sides: [null, null, null] })
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    expect(startMock).toHaveBeenCalledWith({
+      season: 2026,
+      focus: null,
+      stance: 'fair',
+      maxTeams: 3,
+      mustInclude: null
+    })
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [threeTeamSuggestion()] })
+    expect(screen.getByText('3-team')).toBeTruthy()
+    expect(
+      screen.getByText(
+        "I send WR Justin Jefferson → Rival · Rival sends WR Ja'Marr Chase → Tank Mode · Tank Mode sends WR Tee Higgins → me"
+      )
+    ).toBeTruthy()
+    expect(screen.getByText('Rival +0.20/wk')).toBeTruthy()
+    expect(screen.getByText('Tank Mode -0.10/wk')).toBeTruthy()
+    expect(screen.queryByText('with Rival')).toBeNull()
+
+    fireEvent.click(screen.getByText('+1 other way ▸'))
+    expect(screen.getByText('via Rival: Bijan Robinson · worst side -0.30/wk')).toBeTruthy()
+    fireEvent.click(screen.getAllByText('Open in builder')[1])
+    // an alternative carries no evaluation: it is evaluated on opening
+    await waitFor(() =>
+      expect(evaluateMock).toHaveBeenCalledWith(
+        2026,
+        threeTeamSuggestion().alternatives[0].proposal
+      )
+    )
+    expect(screen.getByLabelText('Remove team Tank Mode')).toBeTruthy()
+    expect(screen.getByText('Bijan Robinson')).toBeTruthy()
+  })
+
+  it('stops a run, ignores old runs and reports how each run ended', async () => {
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    fireEvent.click(screen.getByText('Stop'))
+    expect(stopMock).toHaveBeenCalled()
+    send({ runId: 7, type: 'done', reason: 'stopped', progress: PROGRESS })
+    expect(screen.getByText('Stopped: 0 found so far')).toBeTruthy()
+
+    startMock.mockResolvedValue(8)
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] }) // the old run: ignored
+    expect(screen.queryByText('with Rival')).toBeNull()
+    send({ runId: 8, type: 'done', reason: 'stale', progress: PROGRESS })
+    expect(screen.getByText('League data changed — run again')).toBeTruthy()
+
+    startMock.mockResolvedValue(9)
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({
+      runId: 9,
+      type: 'error',
+      message: 'Background calculation stopped unexpectedly (exit 1)'
+    })
+    expect(
+      screen.getByText('Search failed: Background calculation stopped unexpectedly (exit 1)')
+    ).toBeTruthy()
+
+    startMock.mockResolvedValue(10)
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 10, type: 'done', reason: 'complete', progress: PROGRESS })
+    expect(screen.getByText('No offers at this stance — try overpay')).toBeTruthy()
+  })
+
+  it('re-attaches to the running search and leaves it running on unmount', async () => {
+    snapshotMock.mockResolvedValue({
+      runId: 3,
+      query: {
+        season: 2026,
+        focus: { give: '4866' },
+        stance: 'overpay',
+        maxTeams: 2,
+        mustInclude: 2
+      },
+      cards: [tradeSuggestion()],
+      progress: PROGRESS,
+      status: 'running',
+      message: null
+    })
+    const { unmount } = render(<TradeScreen dataVersion={0} />)
+    expect(await screen.findByText('with Rival')).toBeTruthy()
+    expect((screen.getByLabelText('Focus') as HTMLSelectElement).value).toBe('give')
+    expect((screen.getByLabelText('Focus player') as HTMLSelectElement).value).toBe('4866')
+    expect((screen.getByLabelText('Stance') as HTMLSelectElement).value).toBe('overpay')
+    expect((screen.getByLabelText('Must include') as HTMLSelectElement).value).toBe('2')
+    expect(screen.getByText('Stop')).toBeTruthy()
+    send({ runId: 3, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+    expect(screen.getByText('Done: 1 found, every idea checked')).toBeTruthy()
+    unmount()
+    expect(unsubscribe).toHaveBeenCalled()
+    expect(stopMock).not.toHaveBeenCalled()
+  })
+
+  it('notes changed controls and starts nothing until Find', async () => {
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    fireEvent.change(screen.getByLabelText('Stance'), { target: { value: 'premium' } })
+    expect(
+      screen.getByText(
+        'Searching 2-team deals · 0 of 0 ideas checked · 0 found · 0:00 · Controls changed — Find to rerun'
+      )
+    ).toBeTruthy()
+    expect(startMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('suggests with the builder’s team by making it the must-include team', async () => {
     render(<TradeScreen dataVersion={0} />)
     await screen.findByLabelText('Add to I send')
     fireEvent.change(screen.getByLabelText('Focus'), { target: { value: 'give' } })
     fireEvent.change(screen.getByLabelText('Focus player'), { target: { value: '4866' } })
     expect(screen.getByText('MKT 9 340 · 30d -310')).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Stance'), { target: { value: 'overpay' } })
-
     fireEvent.click(screen.getByText('Suggest with this team'))
-    expect(await screen.findByText('No offers — widen the focus or pick another team')).toBeTruthy()
-    expect(suggestMock).toHaveBeenCalledWith({
+    expect(startMock).toHaveBeenCalledWith({
       season: 2026,
       focus: { give: '4866' },
-      stance: 'overpay',
+      stance: 'fair',
       maxTeams: 2,
       mustInclude: 2
     })
-    expect((screen.getByLabelText('Suggest with') as HTMLSelectElement).value).toBe('2')
+    expect((screen.getByLabelText('Must include') as HTMLSelectElement).value).toBe('2')
+  })
 
-    // a position focus, scanning every team
-    fireEvent.change(screen.getByLabelText('Focus'), { target: { value: 'want' } })
-    fireEvent.change(screen.getByLabelText('Focus position'), { target: { value: 'WR' } })
-    fireEvent.change(screen.getByLabelText('Suggest with'), { target: { value: '' } })
+  it('shows a failed start under the controls', async () => {
+    startMock.mockRejectedValue(new Error('No league imported'))
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
     fireEvent.click(screen.getByText('Find'))
-    await waitFor(() =>
-      expect(suggestMock).toHaveBeenLastCalledWith({
-        season: 2026,
-        focus: { want: 'WR' },
-        stance: 'overpay',
-        maxTeams: 2,
-        mustInclude: null
-      })
-    )
-
-    // a failed search shows under the controls
-    suggestMock.mockRejectedValue(new Error('No projections stored for this season'))
-    fireEvent.click(screen.getByText('Find'))
-    expect(await screen.findByText('No projections stored for this season')).toBeTruthy()
+    expect(await screen.findByText('No league imported')).toBeTruthy()
+    expect(screen.getByText('Find')).toBeTruthy()
   })
 
   it('drops an evaluate answer that lands after the deal changed', async () => {

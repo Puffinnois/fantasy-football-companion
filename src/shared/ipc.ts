@@ -22,7 +22,6 @@ import type {
   TradeOpenSpots,
   TradePool,
   TradeProposal,
-  TradeSuggestion,
   TradeSuggestQuery,
   UpdateState,
   WaiverAdds
@@ -68,8 +67,6 @@ export interface Api {
     pool(season: number): Promise<TradePool>
     /** Both teams' window strength before / after the proposal, drops, market balance. */
     evaluate(season: number, proposal: TradeProposal): Promise<TradeEvaluation>
-    /** Offers that pass my stance and their acceptance, ranked (slice 6b spec §3); `[]` is a normal answer. */
-    suggest(query: TradeSuggestQuery): Promise<TradeSuggestion[]>
     /** Multi-team spec §4.2: starts a suggestion run in the engine worker (stopping the active one); resolves to its id. */
     suggestStart(query: TradeSuggestQuery): Promise<number>
     /** Stops the active run; its cards stay. */
@@ -131,7 +128,6 @@ export const IPC = {
   lineupStrength: 'lineup:strength',
   tradePool: 'trade:pool',
   tradeEvaluate: 'trade:evaluate',
-  tradeSuggest: 'trade:suggest',
   tradeSuggestStart: 'trade:suggestStart',
   tradeSuggestStop: 'trade:suggestStop',
   tradeSuggestSnapshot: 'trade:suggestSnapshot',

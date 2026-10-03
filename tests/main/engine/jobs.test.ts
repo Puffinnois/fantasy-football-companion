@@ -12,12 +12,7 @@ import { twoTeam } from '@shared/deal'
 import type { SuggestUpdate } from '@shared/types'
 import { SEED_TS } from '../../fixtures/db'
 import { SEASON } from '../../fixtures/season'
-import {
-  SMALL_LEAGUE,
-  TRIANGLE_LEAGUE,
-  syntheticBuild,
-  WAIVER_LEAGUE
-} from '../../fixtures/synthetic'
+import { TRIANGLE_LEAGUE, syntheticBuild, WAIVER_LEAGUE } from '../../fixtures/synthetic'
 
 const dir = mkdtempSync(join(tmpdir(), 'ffc-engine-'))
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
@@ -61,22 +56,6 @@ describe('runJob (the engine worker body)', () => {
     expect(
       runJob({ dbPath: path, leagueId: 'L1', job: { kind: 'openSpot', season: SEASON, proposal } })
     ).toEqual(tradeOpenSpots(build, proposal))
-  })
-
-  it('still answers trade suggestions', () => {
-    const path = join(dir, 'trade.db')
-    const { db, build } = syntheticBuild(SMALL_LEAGUE, path)
-    db.close()
-    const query = {
-      season: SEASON,
-      focus: null,
-      stance: 'fair' as const,
-      maxTeams: 2,
-      mustInclude: null
-    }
-    expect(runJob({ dbPath: path, leagueId: 'L1', job: { kind: 'tradeSuggest', query } })).toEqual(
-      collectDeals(build, query).cards
-    )
   })
 
   it('surfaces the engine error without projections', () => {
