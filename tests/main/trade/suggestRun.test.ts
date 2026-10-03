@@ -95,15 +95,63 @@ describe('suggestRuns (spec §4.2)', () => {
     expect(sent).toHaveLength(1)
   })
 
-  it('marks a running search stale when league data changes, and only then', () => {
-    const { runs, streams, sent } = setup()
-    runs.stale() // nothing running: no-op
-    expect(sent).toEqual([])
-    runs.start(QUERY)
-    runs.stale()
-    expect(streams[0].stopped).toBe(true)
-    expect(runs.snapshot()?.status).toBe('stale')
-    expect(sent[sent.length - 1]).toMatchObject({ runId: 1, type: 'done', reason: 'stale' })
+  describe('stale (league data changed)', () => {
+    it('does nothing before the first run', () => {
+      const { runs, sent } = setup()
+      runs.stale()
+      expect(sent).toEqual([])
+      expect(runs.snapshot()).toBeNull()
+    })
+
+    it('stops a running search and marks it stale', () => {
+      const { runs, streams, sent } = setup()
+      runs.start(QUERY)
+      streams[0].push({ type: 'progress', progress: PROGRESS })
+      runs.stale()
+      expect(streams[0].stopped).toBe(true)
+      expect(runs.snapshot()?.status).toBe('stale')
+      expect(sent[sent.length - 1]).toEqual({
+        runId: 1,
+        type: 'done',
+        reason: 'stale',
+        progress: PROGRESS
+      })
+    })
+
+    it('marks a finished run stale without touching its stream', () => {
+      const { runs, streams, sent } = setup()
+      runs.start(QUERY)
+      const card = tradeSuggestion()
+      streams[0].push({ type: 'cards', cards: [card] })
+      streams[0].push({ type: 'done', reason: 'complete', progress: PROGRESS })
+      sent.length = 0
+      runs.stale()
+      expect(streams[0].stopped).toBe(false)
+      expect(sent).toEqual([{ runId: 1, type: 'done', reason: 'stale', progress: PROGRESS }])
+      // a screen that attaches later sees it too, cards kept
+      expect(runs.snapshot()).toMatchObject({ status: 'stale', cards: [card], progress: PROGRESS })
+    })
+
+    it('marks a stopped run stale', () => {
+      const { runs, sent } = setup()
+      runs.start(QUERY)
+      runs.stop()
+      sent.length = 0
+      runs.stale()
+      expect(runs.snapshot()?.status).toBe('stale')
+      expect(sent).toEqual([expect.objectContaining({ runId: 1, type: 'done', reason: 'stale' })])
+    })
+
+    it('says it once', () => {
+      const { runs, streams, sent } = setup()
+      runs.start(QUERY)
+      streams[0].push({ type: 'done', reason: 'full', progress: PROGRESS })
+      runs.stale()
+      sent.length = 0
+      runs.stale()
+      expect(sent).toEqual([])
+      expect(runs.snapshot()?.status).toBe('stale')
+    })
   })
 
   it('records a worker error, and a start that fails', () => {

@@ -14,7 +14,7 @@ export interface SuggestRuns {
   start(query: TradeSuggestQuery): number
   /** Stops the active run (`stopped`); its cards stay. */
   stop(): void
-  /** League data changed under the active run: stops it (`stale`). */
+  /** League data changed under the active or last run: stops it if running, and marks it `stale` (once). */
   stale(): void
   /** The active or last run. */
   snapshot(): SuggestSnapshot | null
@@ -59,7 +59,19 @@ export function suggestRuns(deps: SuggestRunDeps): SuggestRuns {
       return runId
     },
     stop: () => end('stopped'),
-    stale: () => end('stale'),
+    stale: () => {
+      if (snap === null || snap.status === 'stale') return
+      if (snap.status === 'running') return end('stale')
+      // Finished: no stream left to stop, but its cards no longer match the league.
+      const event: SuggestEvent = {
+        runId: snap.runId,
+        type: 'done',
+        reason: 'stale',
+        progress: snap.progress
+      }
+      snap = applyUpdate(snap, event)
+      deps.send(event)
+    },
     snapshot: () => snap
   }
 }

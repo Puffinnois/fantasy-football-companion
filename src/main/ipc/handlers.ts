@@ -111,7 +111,7 @@ export function invalidateCaches(): void {
   invalidateWeekCache()
   valueCache.clear()
   lineupCache.clear()
-  // Spec §4.2: league data changed under a running search — its cards stay, marked stale.
+  // Spec §4.2: league data changed under the active or last search — its cards stay, marked stale.
   activeRuns?.stale()
 }
 
