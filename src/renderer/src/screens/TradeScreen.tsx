@@ -28,7 +28,8 @@ import {
   stanceHint,
   themLine,
   TONE_CLASS,
-  windowLabel
+  windowLabel,
+  type FocusKind
 } from '@/lib/tradeView'
 import { cn } from '@/lib/utils'
 import { proposalOf } from '@shared/deal'
@@ -43,8 +44,6 @@ import type {
   TradeStance,
   TradeSuggestion
 } from '@shared/types'
-
-type FocusKind = 'none' | 'give' | 'want'
 
 /** Spec 6b §5.2: one offer — who with, both deltas, why they'd take it, the players, the way into the builder. */
 function SuggestionRow({

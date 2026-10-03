@@ -237,3 +237,25 @@ export function threeTeamEvaluation(): TradeEvaluation {
     ]
   })
 }
+
+/** Me → Rival → Tank Mode → me as a search card, with one other way: Rival sends Bijan instead. */
+export function threeTeamSuggestion(): TradeSuggestion {
+  return {
+    evaluation: threeTeamEvaluation(),
+    teams: 3,
+    acceptance: [null, 'lineup', 'market'],
+    alternatives: [
+      {
+        proposal: {
+          moves: [
+            { playerId: '6794', to: 2 },
+            { playerId: '9509', to: 3 },
+            { playerId: '5859', to: 1 }
+          ]
+        },
+        label: 'via Rival: Bijan Robinson',
+        worstDeltaPerWeek: -0.3
+      }
+    ]
+  }
+}
