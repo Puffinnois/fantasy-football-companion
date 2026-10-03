@@ -12,6 +12,7 @@ import {
   removePick,
   removeTeam,
   setDestination,
+  sidesInOrder,
   teamLabel,
   type BuilderDeal,
   type BuilderPick
@@ -27,7 +28,9 @@ import {
   playerOption,
   playerStats,
   rangeLine,
+  SELECT_CLASS,
   spotFor,
+  TONE_CLASS,
   verdictBadges,
   verdictGetsLine
 } from '@/lib/tradeView'
@@ -41,15 +44,6 @@ import type {
   TradePool,
   TradeSideResult
 } from '@shared/types'
-
-const selectClass =
-  'h-8 rounded-md border border-input bg-transparent px-2 text-sm text-foreground dark:bg-input/30'
-
-const TONE: Record<ReturnType<typeof deltaTone>, string> = {
-  green: 'text-emerald-400',
-  red: 'text-red-400',
-  muted: 'text-muted-foreground'
-}
 
 function PlayerRow({
   player,
@@ -121,7 +115,7 @@ function TeamCard({
     deal.teams.length < 2 ? null : (
       <select
         aria-label={`Destination of ${player.fullName}`}
-        className={selectClass}
+        className={SELECT_CLASS}
         value={destinationOf(deal, pick, me) ?? ''}
         onChange={(e) => onChange(setDestination(deal, pick.playerId, Number(e.target.value)))}
       >
@@ -150,7 +144,7 @@ function TeamCard({
         ))}
         <select
           aria-label={`Add to ${title}`}
-          className={selectClass}
+          className={SELECT_CLASS}
           value=""
           onChange={(e) => {
             if (e.target.value) onChange(addPick(deal, e.target.value, rosterId))
@@ -185,9 +179,13 @@ function SideVerdict({
 }): React.JSX.Element {
   const drop = dropLine(side)
   return (
-    <div className="space-y-1 text-sm">
+    <div
+      role="group"
+      aria-label={side.isMe ? 'Verdict for me' : `Verdict for ${side.name}`}
+      className="space-y-1 text-sm"
+    >
       <div className="font-semibold">{side.isMe ? `Me · ${side.name}` : side.name}</div>
-      <div className={cn('text-2xl font-semibold', TONE[deltaTone(side.delta)])}>
+      <div className={cn('text-2xl font-semibold', TONE_CLASS[deltaTone(side.delta)])}>
         {deltaLine(side)}
       </div>
       <div className="text-muted-foreground">{rangeLine(side)}</div>
@@ -202,9 +200,11 @@ function SideVerdict({
 /** Multi-team spec §5.1: one column per team, the badges, this week's swaps on my side. */
 function VerdictCard({
   ev,
+  sides,
   spots
 }: {
   ev: TradeEvaluation
+  sides: TradeSideResult[]
   spots: TradeOpenSpots | null
 }): React.JSX.Element {
   const multi = ev.sides.length > 2
@@ -216,7 +216,7 @@ function VerdictCard({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {ev.sides.map((side) => (
+          {sides.map((side) => (
             <SideVerdict
               key={side.rosterId}
               side={side}
@@ -311,7 +311,7 @@ export function TradeBuilder({
         {addable.length > 0 && (
           <select
             aria-label="Add team"
-            className={selectClass}
+            className={SELECT_CLASS}
             value=""
             onChange={(e) => {
               if (e.target.value) onDealChange(addTeam(deal, Number(e.target.value)))
@@ -363,7 +363,9 @@ export function TradeBuilder({
         )}
       </div>
 
-      {verdict && <VerdictCard ev={verdict} spots={spots} />}
+      {verdict && (
+        <VerdictCard ev={verdict} sides={sidesInOrder(verdict, deal, me)} spots={spots} />
+      )}
     </div>
   )
 }

@@ -50,6 +50,17 @@ export function deltaTone(delta: number): 'green' | 'red' | 'muted' {
   return delta > 0 ? 'green' : delta < 0 ? 'red' : 'muted'
 }
 
+/** The Trade screen's select styling (builder and suggestions). */
+export const SELECT_CLASS =
+  'h-8 rounded-md border border-input bg-transparent px-2 text-sm text-foreground dark:bg-input/30'
+
+/** Text colour per `deltaTone`. */
+export const TONE_CLASS: Record<ReturnType<typeof deltaTone>, string> = {
+  green: 'text-emerald-400',
+  red: 'text-red-400',
+  muted: 'text-muted-foreground'
+}
+
 /** "66.00 → 47.00 · this week -4.00 · 2 weeks change" */
 export function rangeLine(s: TradeSideResult): string {
   const weeks = s.weeksChanged === 1 ? '1 week changes' : `${s.weeksChanged} weeks change`

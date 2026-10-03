@@ -1,5 +1,5 @@
 import { dealProblem, type DealMove } from '@shared/deal'
-import type { TradeEvaluation, TradePool, TradeProposal } from '@shared/types'
+import type { TradeEvaluation, TradePool, TradeProposal, TradeSideResult } from '@shared/types'
 
 /** One chosen player: the team he leaves and, once picked, where he goes (null = the default). */
 export interface BuilderPick {
@@ -122,4 +122,18 @@ export function getsLine(deal: BuilderDeal, rosterId: number, pool: TradePool): 
     return multi ? `${name} (${teamLabel(pool, m.from)})` : name
   })
   return `gets: ${names.join(', ')}`
+}
+
+/** Verdict columns in the builder's card order — me, then the teams row; anything else last. */
+export function sidesInOrder(
+  ev: TradeEvaluation,
+  deal: BuilderDeal,
+  me: number
+): TradeSideResult[] {
+  const order = [me, ...deal.teams]
+  const rank = (rosterId: number): number => {
+    const i = order.indexOf(rosterId)
+    return i === -1 ? order.length : i
+  }
+  return [...ev.sides].sort((a, b) => rank(a.rosterId) - rank(b.rosterId))
 }

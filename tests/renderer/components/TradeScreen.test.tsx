@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { TradeScreen } from '@/screens/TradeScreen'
 import { api } from '@/lib/api'
-import type { PlayersOptions } from '@shared/types'
+import type { PlayersOptions, TradeEvaluation } from '@shared/types'
 import { lineupPlayer } from '../../fixtures/lineup'
 import {
   bijan,
@@ -293,5 +293,66 @@ describe('TradeScreen', () => {
     suggestMock.mockRejectedValue(new Error('No projections stored for this season'))
     fireEvent.click(screen.getByText('Find'))
     expect(await screen.findByText('No projections stored for this season')).toBeTruthy()
+  })
+
+  it('drops an evaluate answer that lands after the deal changed', async () => {
+    let answer: (ev: TradeEvaluation) => void = () => undefined
+    evaluateMock.mockReturnValue(
+      new Promise<TradeEvaluation>((resolve) => {
+        answer = resolve
+      })
+    )
+    render(<TradeScreen dataVersion={0} />)
+    fireEvent.change(await screen.findByLabelText('Add to I send'), { target: { value: '6794' } })
+    fireEvent.change(screen.getByLabelText('Add to Rival sends'), { target: { value: '7564' } })
+    fireEvent.click(screen.getByText('Evaluate'))
+    fireEvent.click(screen.getByLabelText('Remove Justin Jefferson'))
+    await act(async () => answer(tradeEvaluation()))
+    expect(screen.queryByText('Verdict')).toBeNull()
+  })
+
+  it('puts each open-spot line under its own side when the answer comes back reordered', async () => {
+    evaluateMock.mockResolvedValue(tradeEvaluation())
+    openSpotMock.mockResolvedValue({
+      sides: [
+        { rosterId: 2, add: null, deltaPerWeek: 0 },
+        { rosterId: 1, add: bijan, deltaPerWeek: 0.8 }
+      ]
+    })
+    render(<TradeScreen dataVersion={0} />)
+    fireEvent.change(await screen.findByLabelText('Add to I send'), { target: { value: '6794' } })
+    fireEvent.change(screen.getByLabelText('Add to Rival sends'), { target: { value: '7564' } })
+    fireEvent.click(screen.getByText('Evaluate'))
+    const mine = await screen.findByRole('group', { name: 'Verdict for me' })
+    expect(
+      await within(mine).findByText(`Open spot: best add ${bijan.fullName}, +0.80/wk`)
+    ).toBeTruthy()
+    expect(
+      within(screen.getByRole('group', { name: 'Verdict for Rival' })).getByText(
+        'Open spot: no free agent improves this lineup'
+      )
+    ).toBeTruthy()
+  })
+
+  it('orders the verdict columns as the builder’s cards', async () => {
+    poolMock.mockResolvedValue(threeTeamPool())
+    const [me, rival, tank] = threeTeamEvaluation().sides
+    evaluateMock.mockResolvedValue({ ...threeTeamEvaluation(), sides: [me, tank, rival] })
+    openSpotMock.mockResolvedValue({ sides: [null, null, null] })
+    render(<TradeScreen dataVersion={0} />)
+    fireEvent.change(await screen.findByLabelText('Add to I send'), { target: { value: '6794' } })
+    fireEvent.change(screen.getByLabelText('Add team'), { target: { value: '3' } })
+    fireEvent.change(screen.getByLabelText('Add to Rival sends'), { target: { value: '7564' } })
+    fireEvent.change(screen.getByLabelText('Add to Tank Mode sends'), { target: { value: '5859' } })
+    fireEvent.change(screen.getByLabelText("Destination of Ja'Marr Chase"), {
+      target: { value: '3' }
+    })
+    fireEvent.click(screen.getByText('Evaluate'))
+    await screen.findByText('+6.00 (+0.40/wk)')
+    expect(
+      screen
+        .getAllByRole('group', { name: /^Verdict for/ })
+        .map((g) => g.getAttribute('aria-label'))
+    ).toEqual(['Verdict for me', 'Verdict for Rival', 'Verdict for Tank Mode'])
   })
 })

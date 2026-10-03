@@ -13,6 +13,7 @@ import {
   removePick,
   removeTeam,
   setDestination,
+  sidesInOrder,
   teamLabel,
   type BuilderDeal
 } from '@/lib/tradeBuilder'
@@ -134,5 +135,16 @@ describe('trade builder deal (multi-team spec §5.1)', () => {
     expect(getsLine(two, 1, pool)).toBe('gets: nobody')
     expect(teamLabel(pool, 1)).toBe('Me')
     expect(teamLabel(pool, 3)).toBe('Tank Mode')
+  })
+})
+
+describe('sidesInOrder (Plan Q follow-up)', () => {
+  it('orders verdict columns as the builder orders its cards', () => {
+    const ev = threeTeamEvaluation() // me (1), Rival (2), Tank Mode (3)
+    const ids = (deal: BuilderDeal): number[] => sidesInOrder(ev, deal, 1).map((s) => s.rosterId)
+    expect(ids({ teams: [3, 2], picks: [] })).toEqual([1, 3, 2])
+    expect(ids({ teams: [2, 3], picks: [] })).toEqual([1, 2, 3])
+    // a side whose team is not in the row (cannot happen on screen) goes last
+    expect(ids({ teams: [3], picks: [] })).toEqual([1, 3, 2])
   })
 })

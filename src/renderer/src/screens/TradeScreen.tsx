@@ -24,8 +24,10 @@ import {
   noOffersHint,
   offerLine,
   playerOption,
+  SELECT_CLASS,
   stanceHint,
   themLine,
+  TONE_CLASS,
   windowLabel
 } from '@/lib/tradeView'
 import { cn } from '@/lib/utils'
@@ -42,15 +44,6 @@ import type {
   TradeSuggestion
 } from '@shared/types'
 
-const selectClass =
-  'h-8 rounded-md border border-input bg-transparent px-2 text-sm text-foreground dark:bg-input/30'
-
-const TONE: Record<ReturnType<typeof deltaTone>, string> = {
-  green: 'text-emerald-400',
-  red: 'text-red-400',
-  muted: 'text-muted-foreground'
-}
-
 type FocusKind = 'none' | 'give' | 'want'
 
 /** Spec 6b §5.2: one offer — who with, both deltas, why they'd take it, the players, the way into the builder. */
@@ -66,8 +59,10 @@ function SuggestionRow({
     <li className="rounded-md border px-3 py-2 text-sm">
       <div className="flex flex-wrap items-center gap-3">
         <span className="font-medium">with {them.name}</span>
-        <span className={cn('font-semibold', TONE[deltaTone(me.delta)])}>{meLine(suggestion)}</span>
-        <span className={TONE[deltaTone(them.delta)]}>{themLine(suggestion)}</span>
+        <span className={cn('font-semibold', TONE_CLASS[deltaTone(me.delta)])}>
+          {meLine(suggestion)}
+        </span>
+        <span className={TONE_CLASS[deltaTone(them.delta)]}>{themLine(suggestion)}</span>
         {acceptanceTags(suggestion).map((tag) => (
           <span
             key={tag}
@@ -118,6 +113,8 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
   const [finding, setFinding] = useState(false)
   const [findError, setFindError] = useState<string | null>(null)
   const builderRef = useRef<HTMLDivElement>(null)
+  /** Bumped on every deal change: an evaluate answer for an older deal is dropped. */
+  const dealSeq = useRef(0)
 
   useEffect(() => {
     void api.players
@@ -137,6 +134,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
         setLoaded({ key, pool })
         // Multi-team spec §5.1: keep the teams and players that still exist after a sync; a deal
         // with no other team starts with the first one, as 6b's partner did.
+        dealSeq.current++
         setDeal((d) => {
           const kept = pruneDeal(d, pool)
           const first = pool.teams[0]
@@ -180,21 +178,25 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
   const focusPlayer = pool?.me.players.find((p) => p.playerId === focusGive) ?? null
 
   const changeDeal = (d: BuilderDeal): void => {
+    dealSeq.current++
     setDeal(d)
     setVerdict(null)
     setEvalError(null)
+    setEvaluating(false)
   }
 
-  async function evaluate(): Promise<void> {
+  async function evaluate(d: BuilderDeal = deal): Promise<void> {
     if (season === null || !pool) return
+    const seq = dealSeq.current
     setEvaluating(true)
     setEvalError(null)
     try {
-      setVerdict(await api.trade.evaluate(season, proposalFrom(deal, pool.me.rosterId)))
+      const ev = await api.trade.evaluate(season, proposalFrom(d, pool.me.rosterId))
+      if (seq === dealSeq.current) setVerdict(ev)
     } catch (err) {
-      setEvalError(errorMessage(err))
+      if (seq === dealSeq.current) setEvalError(errorMessage(err))
     } finally {
-      setEvaluating(false)
+      if (seq === dealSeq.current) setEvaluating(false)
     }
   }
 
@@ -228,9 +230,8 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
 
   /** Spec 6b §5.2: the builder shows the suggestion's own evaluation — no second trade:evaluate call. */
   const openInBuilder = (s: TradeSuggestion): void => {
-    setDeal(dealOf(s.evaluation))
+    changeDeal(dealOf(s.evaluation))
     setVerdict(s.evaluation)
-    setEvalError(null)
     builderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -285,7 +286,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
                 <span className="text-muted-foreground">Focus</span>
                 <select
                   aria-label="Focus"
-                  className={selectClass}
+                  className={SELECT_CLASS}
                   value={focusKind}
                   onChange={(e) => setFocusKind(e.target.value as FocusKind)}
                 >
@@ -296,7 +297,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
                 {focusKind === 'give' && (
                   <select
                     aria-label="Focus player"
-                    className={selectClass}
+                    className={SELECT_CLASS}
                     value={focusGive}
                     onChange={(e) => setFocusGive(e.target.value)}
                   >
@@ -320,7 +321,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
                 {focusKind === 'want' && (
                   <select
                     aria-label="Focus position"
-                    className={selectClass}
+                    className={SELECT_CLASS}
                     value={focusWant}
                     onChange={(e) => setFocusWant(e.target.value)}
                   >
@@ -334,7 +335,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
                 <span className="ml-2 text-muted-foreground">Stance</span>
                 <select
                   aria-label="Stance"
-                  className={selectClass}
+                  className={SELECT_CLASS}
                   value={stance}
                   onChange={(e) => setStance(e.target.value as TradeStance)}
                 >
@@ -347,7 +348,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
                 <span className="ml-2 text-muted-foreground">with</span>
                 <select
                   aria-label="Suggest with"
-                  className={selectClass}
+                  className={SELECT_CLASS}
                   value={suggestWith ?? ''}
                   onChange={(e) =>
                     setSuggestWith(e.target.value === '' ? null : Number(e.target.value))
