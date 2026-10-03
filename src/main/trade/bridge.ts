@@ -27,7 +27,7 @@ export interface Deal {
  * (`round2` in `weekPlayer`), a week's total is a sum of them and a delta a difference of such
  * totals, so every figure the bound uses is an exact number of cents and the slack only absorbs
  * float error. Were a value not a whole cent, each weekly total would round by up to ±0.005 and
- * over a 14-week window a delta could drift by up to 0.07, more than this.
+ * each window total could drift by up to 0.07 over 14 weeks — already more than this.
  */
 export const BOUND_SLACK = 0.05
 
