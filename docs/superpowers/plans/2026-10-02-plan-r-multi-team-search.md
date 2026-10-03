@@ -35,6 +35,7 @@
   - **Builder shortcut.** _Suggest with this team_ (2-team deal) sets **Must include** to that team and starts a run with the current **Up to**. An alternative's _Open in builder_ loads its proposal and evaluates it (an alternative carries no evaluation).
   - **Status line.** A start still waiting for its run id shows zero progress ("Searching 2-team deals · 0 of 0 ideas checked · 0 found · 0:00"); `complete` with 0 cards shows 6b's empty-state hint.
   - **Plan Q carry-overs** (Task 9): verdict columns follow the builder's card order; a stale evaluate answer is dropped; a screen test with a reordered open-spot answer; `SELECT_CLASS` / `TONE_CLASS` shared from `tradeView.ts`. Dropped: a per-run ownership map in `resolveDeal` — the search evaluates only the cards it emits (≤ 30), so `resolveDeal` is not on a hot path.
+  - **Negative values** (added after Task 4's review, user decision 2026-10-02): the lineup solver fills every slot it can and weekly values can be negative (points already scored), so "more players never total less" fails when a negative player is forced into a slot. Every monotonicity prune carries a slack — `SearchContext.slack(rosterId, extra)`, the window's negative values on that roster plus `extra` — U(z) is widened by it (plus a cent for rounding), and the Plan M pair bound and both bridge prunes apply only when it is zero. `negativeSearchLeague(seed)` (teams 1 and 3 at −2 in the current week) joins every property test.
   - **Measurement gate** (Task 6): on the user's league, **Up to 3 teams, any team**, practical means time to first card ≤ 5 s **and** final list ≤ 60 s. Beyond either, work stops and the numbers go to the user.
 
 ---
@@ -1627,17 +1628,22 @@ import { describe, expect, it } from 'vitest'
 import { collectDeals, suggestDeals, type DealEvent } from '@main/trade/suggest'
 import type { TradeEvaluation, TradeFocus, TradeStance, TradeSuggestQuery } from '@shared/types'
 import { SEASON } from '../../fixtures/season'
-import { searchLeague, syntheticBuild } from '../../fixtures/synthetic'
+import { negativeSearchLeague, searchLeague, syntheticBuild } from '../../fixtures/synthetic'
 import { oracleSuggest } from './suggestOracle'
 
 const SEEDS = [1, 2, 3]
 const STANCE_LIST: TradeStance[] = ['premium', 'fair', 'overpay']
+/** Negative values break the optimum's monotonicity: the prunes must stay exact there too. */
+const LEAGUES = { positive: searchLeague, negative: negativeSearchLeague }
+const CASES = SEEDS.flatMap((seed) =>
+  (['positive', 'negative'] as const).map((values) => [values, seed] as const)
+)
 
 describe('suggestDeals equals the brute force (spec §7)', () => {
-  it.each(SEEDS)(
-    'seed %i: every team count, stance, focus and must-include',
-    (seed) => {
-      const { build } = syntheticBuild(searchLeague(seed))
+  it.each(CASES)(
+    '%s values, seed %i: every team count, stance, focus and must-include',
+    (values, seed) => {
+      const { build } = syntheticBuild(LEAGUES[values](seed))
       const cache = new Map<string, TradeEvaluation>()
       const mine = build.rosters.get(1) ?? []
       const focuses: TradeFocus[] = [null, { give: mine[0].base.playerId }, { want: 'WR' }]
@@ -4434,7 +4440,7 @@ In `docs/reference/value-and-signals.md`, section `## Trade (added in v0.13.0; N
 
 - Rename it `## Trade (added in v0.13.0; N-team deals v0.18.0; N-team search v0.19.0)`; the module line becomes `src/main/trade/{enter,player,side,evaluate,pool,thresholds,searchContext,heap,mySides,bridge,suggest,suggestRun,openSpot}.ts`.
 - `### Suggestions`: the query is `{ season, focus, stance, maxTeams, mustInclude }` (`partnerRosterId` is gone); a k-team deal is a cycle me → T₁ → … → C → me, 1–2 players per hop, at most one 2-player hop; a **my side** is (what I give, what I get, from whom); my sides come best-first on the bound U(z) (my total with z added, nothing given, no drop rule); per my side the smallest size with a working deal wins and every working deal at that size is kept — the representative maximizes the least-happy other team's Δ/week (ties: fewer players, names in cycle order, ids), the rest are `alternatives` with a `via …` label; dominance of a pair by its contained single now requires the single to work with no more teams; the list is the top `SUGGEST_MAX` in rank order (`full`) or everything (`complete`). `TradeSuggestion` gains `teams` and `alternatives`.
-- `#### Cost and the prunes`: replace with the exact prunes now in force — the market precheck; the U(z) bound (whole z groups discarded, the rest lazily solved); Plan M's pair bound on my side; per team, "nothing it gets can start and the market is short" and "a pair given after the contained single was refused with no drops"; the side memo per run. State the guarantee: a property test against a brute-force oracle (`tests/main/trade/suggestOracle.ts`) over every team count 2–4, stance, focus and must-include on random 4-team leagues. Add the budget and real-league times from this plan's status block.
+- `#### Cost and the prunes`: replace with the exact prunes now in force — the market precheck; the U(z) bound (whole z groups discarded, the rest lazily solved); Plan M's pair bound on my side; per team, "nothing it gets can start and the market is short" and "a pair given after the contained single was refused with no drops"; the side memo per run; and the negative-value slack that keeps all of them exact when someone has scored below zero. State the guarantee: a property test against a brute-force oracle (`tests/main/trade/suggestOracle.ts`) over every team count 2–4, stance, focus and must-include on random 4-team leagues, with and without negative values. Add the budget and real-league times from this plan's status block.
 - Add a **Streaming** paragraph: the engine worker runs the search and posts batched updates (≤ 1 per 250 ms, the first card at once); main owns one run (`trade:suggestStart` / `suggestStop` / `suggestSnapshot`, event `trade:suggestEvent`), a sync or rules save marks it `stale`; the screen re-attaches after a tab switch.
 - `### Where it is shown`: the Suggestions card — Focus, Stance, **Up to** (2 … league size, default 3), **Must include** (any team), Find / Stop, the status line per state, 2-team rows as before plus a `2-team` chip, k-team rows with the path line and each other team's Δ/week and reason, `+n other ways ▸`; _Suggest with this team_ sets Must include.
 - `## Constants (single sources)`: the stance / acceptance constants now live in `src/main/trade/thresholds.ts`. `## Module map`: add the new modules.
