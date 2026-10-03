@@ -4,7 +4,7 @@ import type { Team, TradeAcceptance, TradeProposal } from '@shared/types'
 import { MARKET_FAIR, marketRatio, marketSum } from './evaluate'
 import { sideOf, type MySide, type SearchContext } from './searchContext'
 import type { SideCore } from './side'
-import { acceptanceOf } from './thresholds'
+import { ACCEPT_LOSS_PER_WEEK, acceptanceOf } from './thresholds'
 
 /** A team that takes its part of a deal: its verdict and why (6b §3.3). */
 export interface Accepted {
@@ -21,6 +21,12 @@ export interface Deal {
   /** Aligned with `teams`. */
   accepted: Accepted[]
 }
+
+/**
+ * Rounding headroom for the pair bound: each delta is rounded to the cent (±0.005), the bound sums
+ * three of them and the pair's own delta is rounded again — 0.02 at most; 0.05 to spare.
+ */
+export const BOUND_SLACK = 0.05
 
 /**
  * Spec §3.3, the exact prunes alone: true when `team` provably refuses `get` for `give`. It may
@@ -54,6 +60,21 @@ export function refuses(
       ) {
         return true
       }
+    }
+  }
+  if (get.length === 2) {
+    // With nothing below zero the weekly optimum is monotone and submodular in the roster, so the
+    // pair adds at most what each player adds alone: Δ(pair) ≤ Δ(h1) + Δ(h2) − Δ(nothing), valid
+    // when neither single needs a drop (drops only lower the pair's own total).
+    const one = sideOf(ctx, team, give, [get[0]])
+    const two = sideOf(ctx, team, give, [get[1]])
+    if (one.drops.length === 0 && two.drops.length === 0) {
+      const none = sideOf(ctx, team, give, [])
+      const bound = one.delta + two.delta - none.delta + BOUND_SLACK
+      const lineupFails = bound <= 0
+      const marketFails =
+        ratio < MARKET_FAIR || bound / ctx.weeks.length + 0.01 < -ACCEPT_LOSS_PER_WEEK
+      if (lineupFails && marketFails) return true
     }
   }
   return false

@@ -205,4 +205,21 @@ describe('refuses (spec §3.3, exact prunes alone)', () => {
     expect(ctx.memo.has(sideKey(3, [c3], [a2]))).toBe(true)
     expect(ctx.memo.has(sideKey(3, [c2, c3], [a2]))).toBe(false)
   })
+
+  it('bounds a received pair by its two singles when nothing is below zero', () => {
+    const ctx = searchContext(build, null)
+    const [c4, a2, b3] = ['c4', 'a2', 'b3'].map((id) => player(ctx, id))
+    // Three gives c4 (its only WR) for a2 + b3. a2 starts at RB, so the "can't start" prune
+    // does not apply; but a2 alone is −16, b3 alone −36, nothing at all −36: the pair is at most
+    // −16 and the market (1 200 for 3 000) is short — refused without solving the pair.
+    expect(refuses(ctx, team(ctx, 3), [c4], [a2, b3])).toBe(true)
+    expect(ctx.memo.has(sideKey(3, [c4], [a2]))).toBe(true)
+    expect(ctx.memo.has(sideKey(3, [c4], [b3]))).toBe(true)
+    expect(ctx.memo.has(sideKey(3, [c4], []))).toBe(true)
+    expect(ctx.memo.has(sideKey(3, [c4], [a2, b3]))).toBe(false)
+    // Two gives b1 for a4 + a3: a4 alone is +2, so the bound (+2) allows it — and indeed Two
+    // gains with the pair (drops b3, starts a4 at TE).
+    const [b1, a4, a3] = ['b1', 'a4', 'a3'].map((id) => player(ctx, id))
+    expect(refuses(ctx, team(ctx, 2), [b1], [a4, a3])).toBe(false)
+  })
 })
