@@ -11,26 +11,41 @@ import {
 } from '../../fixtures/synthetic'
 import { oracleSuggest } from './suggestOracle'
 
-const SEEDS = [1, 2, 3]
+/**
+ * Seeds picked so no league is vacuous: of the 54 queries each runs, seed 2 gave no card at all
+ * with positive values, while these give cards (positive 19 / 33 / 54, with 3- and 4-team cards
+ * on seed 8; negative 30 / 28 / 44).
+ */
+const POSITIVE_SEEDS = [1, 3, 8]
+const NEGATIVE_SEEDS = [1, 2, 3]
 const STANCE_LIST: TradeStance[] = ['premium', 'fair', 'overpay']
 /**
  * Negative values break the optimum's monotonicity: the prunes must stay exact there too.
  * `negativeSearchLeague` is a regression net; `NEGATIVE_LEAGUE` is the fixture where a missing
- * negative-value guard actually changes the answer.
+ * negative-value guard actually changes the answer. `multi`: the league must also yield a card
+ * of 3+ teams (`NEGATIVE_LEAGUE` yields 2-team cards only, by design).
  */
-const CASES: [string, SyntheticLeague][] = [
-  ...SEEDS.flatMap((seed): [string, SyntheticLeague][] => [
-    [`positive values, seed ${seed}`, searchLeague(seed)],
-    [`negative values, seed ${seed}`, negativeSearchLeague(seed)]
+const CASES: [string, SyntheticLeague, boolean][] = [
+  ...POSITIVE_SEEDS.map((seed): [string, SyntheticLeague, boolean] => [
+    `positive values, seed ${seed}`,
+    searchLeague(seed),
+    true
   ]),
-  ['hand-built negative values', NEGATIVE_LEAGUE]
+  ...NEGATIVE_SEEDS.map((seed): [string, SyntheticLeague, boolean] => [
+    `negative values, seed ${seed}`,
+    negativeSearchLeague(seed),
+    true
+  ]),
+  ['hand-built negative values', NEGATIVE_LEAGUE, false]
 ]
 
 describe('suggestDeals equals the brute force (spec §7)', () => {
   it.each(CASES)(
     '%s: every team count, stance, focus and must-include',
-    (_label, league) => {
+    (_label, league, wantsMulti) => {
       const { build } = syntheticBuild(league)
+      let withCards = 0
+      let multiTeam = 0
       const cache = new Map<string, TradeEvaluation>()
       const mine = build.rosters.get(1) ?? []
       const focuses: TradeFocus[] = [null, { give: mine[0].base.playerId }, { want: 'WR' }]
@@ -46,6 +61,8 @@ describe('suggestDeals equals the brute force (spec §7)', () => {
                 mustInclude
               }
               const expected = oracleSuggest(build, query, { cache })
+              if (expected.length > 0) withCards++
+              if (expected.some((card) => card.teams >= 3)) multiTeam++
               expect({ query, cards: collectDeals(build, query).cards }).toEqual({
                 query,
                 cards: expected
@@ -59,15 +76,18 @@ describe('suggestDeals equals the brute force (spec §7)', () => {
           }
         }
       }
+      // Guards the league: an empty answer in every query would make the equality above vacuous.
+      expect(withCards).toBeGreaterThan(0)
+      if (wantsMulti) expect(multiTeam).toBeGreaterThan(0)
     },
     180_000
   )
 
   it('exercises deals beyond two teams and alternatives', () => {
-    // Guards the fixture: if it ever stops producing these, raise SEEDS (e.g. 1–6).
+    // Guards the fixture: if it ever stops producing these, pick other POSITIVE_SEEDS.
     let multi = 0
     let alternatives = 0
-    for (const seed of SEEDS) {
+    for (const seed of POSITIVE_SEEDS) {
       const { build } = syntheticBuild(searchLeague(seed))
       for (const stance of STANCE_LIST) {
         const query: TradeSuggestQuery = {
