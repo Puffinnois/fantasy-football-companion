@@ -1,4 +1,3 @@
-import { round2 } from '@main/db/repos/points'
 import { teamName } from '@main/lineup/build'
 import type { PlayerSeries } from '@main/value/series'
 import type { Team, TradeSuggestQuery } from '@shared/types'
@@ -62,9 +61,10 @@ function before(a: Entry, b: Entry): boolean {
 /**
  * Spec §3.2: my sides, lazily best-first. Each candidate enters the queue at its bound U(z) — my
  * window total on my roster plus z, nothing given, no drop rule, minus my total now. My
- * after-roster is a subset of that roster and the optimum is monotone in the roster, so U(z)
- * bounds my Δ for every x. A popped bound entry is replaced by its exact result; an exact entry
- * is popped only when nothing unevaluated can tie or beat it.
+ * after-roster is a subset of that roster and the optimum is monotone in the roster, so U(z) —
+ * widened by the negative-value slack when there is one — bounds my Δ for every x. A popped bound
+ * entry is replaced by its exact result; an exact entry is popped only when nothing unevaluated
+ * can tie or beat it.
  */
 export function mySideQueue(
   ctx: SearchContext,
@@ -102,15 +102,12 @@ export function mySideQueue(
         byKey.set(side.key, side)
       }
       if (group.length === 0) continue
-      const bound = sideFor(
-        build,
-        { team: me, give: [], get: z },
-        weeks,
-        null,
-        ctx.startsOf,
-        {}
-      ).delta
-      if (!stanceDelta(stance, round2(bound / weeks.length) ?? 0)) {
+      const plain = sideFor(build, { team: me, give: [], get: z }, weeks, null, ctx.startsOf, {})
+      // Negative values break monotonicity: widen U(z) by the slack, plus a cent for rounding.
+      const slack = ctx.slack(me.rosterId, z)
+      const bound = slack === 0 ? plain.delta : plain.delta + slack + 0.01
+      const boundPerWeek = slack === 0 ? plain.deltaPerWeek : bound / weeks.length + 0.01
+      if (!stanceDelta(stance, boundPerWeek)) {
         discarded += group.length
         continue
       }
@@ -124,9 +121,10 @@ export function mySideQueue(
     const ratio = marketRatio(core)
     return passesStance(stance, core.deltaPerWeek, ratio) ? { ...side, core, ratio } : null
   }
-  /** Plan M: giving a second player cannot beat a contained single (same z) that needed no drops. */
+  /** Plan M: giving a second player cannot beat a contained single (same z) that needed no drops — when no negative value can be forced into a slot. */
   const boundedOut = (side: MySide): boolean =>
     side.x.length === 2 &&
+    ctx.slack(me.rosterId, side.z) === 0 &&
     side.x.some((s) => {
       const smaller = ctx.memo.get(sideKey(me.rosterId, [s], side.z))
       return (

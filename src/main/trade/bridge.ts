@@ -36,10 +36,13 @@ export function accepts(
     marketGive: marketSum(ctx.build, give).total,
     marketGet: marketSum(ctx.build, get).total
   })
+  // Both prunes rest on "more players never total less", which holds unless a negative value
+  // could be forced into a slot (`SearchContext.slack`).
+  const monotone = ctx.slack(team.rosterId, get) === 0
   // Nothing it gets can start for it, so its delta cannot be positive — and the market can't
   // carry the deal either (6b's rule, now for every team).
-  if (ratio < MARKET_FAIR && !get.some((s) => ctx.enters(team.rosterId, s))) return null
-  if (give.length === 2) {
+  if (monotone && ratio < MARKET_FAIR && !get.some((s) => ctx.enters(team.rosterId, s))) return null
+  if (monotone && give.length === 2) {
     for (const one of give) {
       // Plan M generalized: giving both can only do worse than giving one of them for the same
       // players — when that smaller deal needed no drops, its after-roster contains this one's,

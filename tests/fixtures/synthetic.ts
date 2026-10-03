@@ -623,3 +623,108 @@ export function searchLeague(seed: number): SyntheticLeague {
     }))
   }
 }
+
+/**
+ * `searchLeague` with negative values in the current week (3) on teams 1 and 3: each one's second
+ * RB and second WR are at −2, so every lineup there forces a negative player into FLEX and the
+ * optimum stops being monotone in the roster. Teams 2 and 4 stay positive, so prunes stay on for
+ * deals that touch no negative player.
+ */
+export function negativeSearchLeague(seed: number): SyntheticLeague {
+  const league = searchLeague(seed)
+  return {
+    ...league,
+    teams: league.teams.map((t) =>
+      t.rosterId !== 1 && t.rosterId !== 3
+        ? t
+        : {
+            ...t,
+            players: t.players.map((p, i) =>
+              (i === 1 || i === 3) && Array.isArray(p.weekly)
+                ? { ...p, weekly: [-2, ...p.weekly.slice(1)] }
+                : p
+            )
+          }
+    )
+  }
+}
+
+/**
+ * Four teams, slots RB · WR · FLEX (+1 bench), roster size 4, window weeks 3–5, built so that a
+ * bigger roster totals less: Me and Two each hold two players at −2 in the current week (3) and
+ * 0.5 after it, and with nobody better for FLEX the lineup solver is forced to start one of them
+ * there. Giving both away leaves FLEX empty, which is worth more than the forced −2 that week.
+ * Every prune that assumes "more players never total less" is wrong somewhere in here; the
+ * `SearchContext.slack` guards keep them exact.
+ *
+ * | Me (1)             | Two (2)            | Three (3)         | Four (4)            |
+ * | ------------------ | ------------------ | ----------------- | ------------------- |
+ * | n1 RB −2 .5 .5 100 | m1 RB −2 .5 .5 100 | j QB 5 40         | z WR out 1.5 1000   |
+ * | n2 WR −2 .5 .5 100 | m2 WR −2 .5 .5 100 | c1 RB 12 1500     | f1 RB 8 800         |
+ * | a1 RB 10 1000      | b1 RB 10 1000      | c2 WR 12 1500     | f2 WR 8 800         |
+ * | a2 WR 10 1000      | b2 WR 10 1000      | c3 WR 3 300       | f3 RB 2 200         |
+ *
+ * (weekly points in weeks 3 · 4 · 5, then the FantasyCalc value; "out" = Out in week 3.)
+ * - Two takes j (a QB, who can never start) for m1 + m2: week 3 gains 2, weeks 4–5 lose 0.5 each,
+ *   so +1 — yet m1 for j and m2 for j are both Δ 0 and refused on the market. Me → Three → Two → Me
+ *   (a1, j, m1 + m2) is the one deal that needs both of the bridge prunes switched off.
+ * - I get z (Out in week 3, 1.5 after) for n1 + n2: +4 over the window, 1.33 a week — a premium
+ *   deal — while z alone adds only 2 (0.67 a week) and n1 for z only 2 as well.
+ */
+export const NEGATIVE_LEAGUE: SyntheticLeague = {
+  currentWeek: 3,
+  weeks: [3, 4, 5],
+  rosterPositions: ['RB', 'WR', 'FLEX', 'BN'],
+  rules: rules({
+    rosterSlots: [
+      { slot: 'RB', count: 1 },
+      { slot: 'WR', count: 1 },
+      { slot: 'FLEX', count: 1 },
+      { slot: 'BN', count: 1 }
+    ],
+    settings: { numTeams: 4, waiverType: 'faab', playoffStartWeek: 4, playoffTeams: 4 }
+  }),
+  teams: [
+    {
+      rosterId: 1,
+      name: 'Me',
+      isMe: true,
+      players: [
+        { id: 'n1', position: 'RB', weekly: [-2, 0.5, 0.5], market: 100 },
+        { id: 'n2', position: 'WR', weekly: [-2, 0.5, 0.5], market: 100 },
+        { id: 'a1', position: 'RB', weekly: 10, market: 1000 },
+        { id: 'a2', position: 'WR', weekly: 10, market: 1000 }
+      ]
+    },
+    {
+      rosterId: 2,
+      name: 'Two',
+      players: [
+        { id: 'm1', position: 'RB', weekly: [-2, 0.5, 0.5], market: 100 },
+        { id: 'm2', position: 'WR', weekly: [-2, 0.5, 0.5], market: 100 },
+        { id: 'b1', position: 'RB', weekly: 10, market: 1000 },
+        { id: 'b2', position: 'WR', weekly: 10, market: 1000 }
+      ]
+    },
+    {
+      rosterId: 3,
+      name: 'Three',
+      players: [
+        { id: 'j', position: 'QB', weekly: 5, market: 40 },
+        { id: 'c1', position: 'RB', weekly: 12, market: 1500 },
+        { id: 'c2', position: 'WR', weekly: 12, market: 1500 },
+        { id: 'c3', position: 'WR', weekly: 3, market: 300 }
+      ]
+    },
+    {
+      rosterId: 4,
+      name: 'Four',
+      players: [
+        { id: 'z', position: 'WR', weekly: 1.5, market: 1000, injuryStatus: 'Out' },
+        { id: 'f1', position: 'RB', weekly: 8, market: 800 },
+        { id: 'f2', position: 'WR', weekly: 8, market: 800 },
+        { id: 'f3', position: 'RB', weekly: 2, market: 200 }
+      ]
+    }
+  ]
+}

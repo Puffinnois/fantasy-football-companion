@@ -8,7 +8,13 @@ import {
   type SearchContext
 } from '@main/trade/searchContext'
 import type { PlayerSeries } from '@main/value/series'
-import { searchLeague, syntheticBuild, TRIANGLE_LEAGUE } from '../../fixtures/synthetic'
+import {
+  NEGATIVE_LEAGUE,
+  negativeSearchLeague,
+  searchLeague,
+  syntheticBuild,
+  TRIANGLE_LEAGUE
+} from '../../fixtures/synthetic'
 import { cycleKey, oracleDeals, type EvalCache } from './suggestOracle'
 
 function drain<T>(it: Generator<void, T>): T {
@@ -88,38 +94,80 @@ describe('dealsAt on the triangle league (spec §3.3)', () => {
 })
 
 describe('dealsAt equals a brute force (prunes are exact)', () => {
-  it('finds exactly the working deals of every size on random leagues', () => {
-    for (const seed of [1, 2]) {
-      const { build } = syntheticBuild(searchLeague(seed))
-      const cache: EvalCache = new Map()
-      for (const mustInclude of [null, 3]) {
-        const ctx = searchContext(build, mustInclude)
-        const mine = build.rosters.get(ctx.me.rosterId) ?? []
-        const xs = subsets(mine).slice(0, mine.length + 2) // singles and the first two pairs
-        for (const c of ctx.others) {
-          const theirs = build.rosters.get(c.rosterId) ?? []
-          const zs = subsets(theirs).slice(0, theirs.length + 1) // singles and the first pair
-          for (const x of xs) {
-            for (const z of zs) {
-              if (x.length === 2 && z.length === 2) continue
-              const side: MySide = { x, z, c, key: mySideKey(x, z, c) }
-              for (const k of [2, 3, 4]) {
-                const fast = drain(dealsAt(ctx, side, k))
-                  .map(cycleKey)
-                  .sort()
-                const slow = oracleDeals(build, side, k, mustInclude, cache)
-                expect({ seed, mustInclude, side: side.key, k, deals: fast }).toEqual({
-                  seed,
-                  mustInclude,
-                  side: side.key,
-                  k,
-                  deals: slow
-                })
+  it.each([
+    ['positive values', searchLeague, [1, 2]],
+    ['negative values', negativeSearchLeague, [1, 2]],
+    // Hand-built: the one league where the unguarded prunes really drop a deal.
+    ['forced negatives', () => NEGATIVE_LEAGUE, [0]]
+  ] as const)(
+    'finds exactly the working deals of every size with %s',
+    (_label, league, seeds) => {
+      for (const seed of seeds) {
+        const { build } = syntheticBuild(league(seed))
+        const cache: EvalCache = new Map()
+        for (const mustInclude of [null, 3]) {
+          const ctx = searchContext(build, mustInclude)
+          const mine = build.rosters.get(ctx.me.rosterId) ?? []
+          const xs = subsets(mine).slice(0, mine.length + 2) // singles and the first two pairs
+          for (const c of ctx.others) {
+            const theirs = build.rosters.get(c.rosterId) ?? []
+            const zs = subsets(theirs).slice(0, theirs.length + 1) // singles and the first pair
+            for (const x of xs) {
+              for (const z of zs) {
+                if (x.length === 2 && z.length === 2) continue
+                const side: MySide = { x, z, c, key: mySideKey(x, z, c) }
+                for (const k of [2, 3, 4]) {
+                  const fast = drain(dealsAt(ctx, side, k))
+                    .map(cycleKey)
+                    .sort()
+                  const slow = oracleDeals(build, side, k, mustInclude, cache)
+                  expect({ seed, mustInclude, side: side.key, k, deals: fast }).toEqual({
+                    seed,
+                    mustInclude,
+                    side: side.key,
+                    k,
+                    deals: slow
+                  })
+                }
               }
             }
           }
         }
       }
-    }
-  }, 120_000)
+    },
+    120_000
+  )
+})
+
+describe('dealsAt on the negative league', () => {
+  it('keeps the deal where Two sheds both forced negatives for a QB it can never start', () => {
+    const { build } = syntheticBuild(NEGATIVE_LEAGUE)
+    const ctx = searchContext(build, null)
+    const side = sideOfIds(ctx, ['a1'], ['m1', 'm2'], 2)
+    // Two: m1 for j and m2 for j are Δ 0 (refused on the market); both together are +1 a window.
+    const deals = drain(dealsAt(ctx, side, 3))
+    expect(labels(deals)).toContain('via Three: j')
+    const viaJ = deals.find((d) => bridgeLabel(d) === 'via Three: j')
+    expect(viaJ?.accepted.map((a) => [a.acceptance, a.core.delta])).toEqual([
+      ['both', 21],
+      ['lineup', 1]
+    ])
+  })
+})
+
+describe('SearchContext.slack', () => {
+  it('sums the negative weekly values a lineup could be forced to take', () => {
+    const plain = searchContext(syntheticBuild(searchLeague(1)).build, null)
+    expect([1, 2, 3, 4].map((id) => plain.slack(id, []))).toEqual([0, 0, 0, 0])
+    const { build } = syntheticBuild(negativeSearchLeague(1))
+    const ctx = searchContext(build, null)
+    // teams 1 and 3: two players at −2 in week 3
+    expect([1, 2, 3, 4].map((id) => ctx.slack(id, []))).toEqual([4, 0, 4, 0])
+    // generateLeague numbers players p1… team by team (16 each); team 3 keeps p35, p36 (RBs) and
+    // p40, p41 (WRs), and p36 / p41 are the negative ones.
+    const three = (id: string): PlayerSeries =>
+      (build.rosters.get(3) ?? []).find((s) => s.base.playerId === id) as PlayerSeries
+    expect(ctx.slack(2, [three('p36')])).toBe(2)
+    expect(ctx.slack(1, [three('p35')])).toBe(4)
+  })
 })

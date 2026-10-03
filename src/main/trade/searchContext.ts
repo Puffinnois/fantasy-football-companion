@@ -1,4 +1,4 @@
-import { teamWeek, type LineupBuild, type TeamWeek } from '@main/lineup/build'
+import { candidateFor, teamWeek, type LineupBuild, type TeamWeek } from '@main/lineup/build'
 import type { PlayerSeries } from '@main/value/series'
 import type { Team } from '@shared/types'
 import { entersLineup } from './enter'
@@ -24,6 +24,13 @@ export interface SearchContext {
   enters(rosterId: number, s: PlayerSeries): boolean
   /** What a team could send on one hop: singles in roster order, then pairs when `pairs` is set. */
   hopsOf(rosterId: number, pairs: boolean): PlayerSeries[][]
+  /**
+   * Σ over the window of the negative weekly values (as positive points) of `rosterId`'s players
+   * and `extra` — the slack every monotonicity argument needs. The lineup solver fills every slot
+   * it can, so with a player below zero a bigger roster can total less; for rosters A ⊆ B,
+   * optimum(A) ≤ optimum(B) + slack(B). Zero unless someone has scored or is projected below zero.
+   */
+  slack(rosterId: number, extra: PlayerSeries[]): number
 }
 
 /** Spec §3.1: a my side — what I give (x), what I get (z) and the team z comes from (C). */
@@ -82,6 +89,16 @@ export function searchContext(build: LineupBuild, mustInclude: number | null): S
   const lineups = new Map<number, TeamWeek[]>()
   const entered = new Map<string, boolean>()
   const hops = new Map<number, { singles: PlayerSeries[][]; all: PlayerSeries[][] }>()
+  const negatives = new Map<string, number>()
+  const negativeOf = (s: PlayerSeries): number => {
+    const known = negatives.get(s.base.playerId)
+    if (known !== undefined) return known
+    // A player who can't start that week (bye, out, IR) is never forced into a slot.
+    const sum = weeks.reduce((n, w) => n + Math.max(0, -(candidateFor(build, s, w)?.value ?? 0)), 0)
+    negatives.set(s.base.playerId, sum)
+    return sum
+  }
+  const rosterSlack = new Map<number, number>()
   return {
     build,
     weeks,
@@ -112,6 +129,14 @@ export function searchContext(build: LineupBuild, mustInclude: number | null): S
         hops.set(rosterId, known)
       }
       return pairs ? known.all : known.singles
+    },
+    slack(rosterId: number, extra: PlayerSeries[]): number {
+      let own = rosterSlack.get(rosterId)
+      if (own === undefined) {
+        own = (build.rosters.get(rosterId) ?? []).reduce((n, s) => n + negativeOf(s), 0)
+        rosterSlack.set(rosterId, own)
+      }
+      return extra.reduce((n, s) => n + negativeOf(s), own)
     }
   }
 }
