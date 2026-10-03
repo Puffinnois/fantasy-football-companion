@@ -7,7 +7,7 @@ import type {
   TradeSuggestQuery
 } from '@shared/types'
 import { tradeOpenSpots } from './openSpot'
-import { suggestTrades } from './suggest'
+import { collectDeals } from './suggest'
 
 /** The trade search on its own connection, for the engine worker (6b spec §6). */
 export function suggestFromDb(
@@ -17,7 +17,7 @@ export function suggestFromDb(
 ): TradeSuggestion[] {
   const db = openDatabase(dbPath)
   try {
-    return suggestTrades(lineupBuildFromDb(db, leagueId, query.season), query)
+    return collectDeals(lineupBuildFromDb(db, leagueId, query.season), query).cards
   } finally {
     db.close()
   }

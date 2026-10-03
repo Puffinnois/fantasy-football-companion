@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { replaceTrendingAdds } from '@main/db/repos/trending'
 import { runJob } from '@main/engine/jobs'
 import { tradeOpenSpots } from '@main/trade/openSpot'
-import { suggestTrades } from '@main/trade/suggest'
+import { collectDeals } from '@main/trade/suggest'
 import { waiverAdds } from '@main/waiver/adds'
 import { waiverStream } from '@main/waiver/stream'
 import { twoTeam } from '@shared/deal'
@@ -69,7 +69,7 @@ describe('runJob (the engine worker body)', () => {
       mustInclude: null
     }
     expect(runJob({ dbPath: path, leagueId: 'L1', job: { kind: 'tradeSuggest', query } })).toEqual(
-      suggestTrades(build, query)
+      collectDeals(build, query).cards
     )
   })
 

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { suggestFromDb } from '@main/trade/fromDb'
-import { suggestTrades } from '@main/trade/suggest'
+import { collectDeals } from '@main/trade/suggest'
 import { SEASON } from '../../fixtures/season'
 import { SMALL_LEAGUE, syntheticBuild } from '../../fixtures/synthetic'
 
@@ -22,7 +22,7 @@ describe('suggestFromDb (the worker body)', () => {
       maxTeams: 2,
       mustInclude: null
     }
-    expect(suggestFromDb(path, 'L1', query)).toEqual(suggestTrades(build, query))
+    expect(suggestFromDb(path, 'L1', query)).toEqual(collectDeals(build, query).cards)
   })
 
   it('surfaces the engine error when the league has no projections', () => {

@@ -1,31 +1,18 @@
-import { teamWeek, type LineupBuild } from '@main/lineup/build'
+import { teamName, type LineupBuild } from '@main/lineup/build'
 import type { PlayerSeries } from '@main/value/series'
-import { twoTeam } from '@shared/deal'
-import type {
-  Team,
-  TradeEvaluation,
-  TradeStance,
-  TradeSuggestQuery,
-  TradeSuggestion
-} from '@shared/types'
-import { entersLineup } from './enter'
+import type { TradeAlternative, TradeSuggestion, TradeSuggestQuery } from '@shared/types'
+import { bridgeLabel, dealProposal, dealsAt, type Deal } from './bridge'
+import { evaluateTrade, TradeError } from './evaluate'
+import { mySideQueue, type RankedSide } from './mySides'
 import {
-  evaluateTrade,
-  MARKET_FAIR,
-  marketRatio,
-  marketSum,
-  myTeam,
-  requireWindow
-} from './evaluate'
-import {
-  ACCEPT_LOSS_PER_WEEK,
-  acceptanceOf,
-  DOMINANCE_PTS,
-  passesStance,
-  STANCES,
-  stanceDelta,
-  SUGGEST_MAX
-} from './thresholds'
+  byText,
+  desc,
+  idsKey,
+  searchContext,
+  type MySide,
+  type SearchContext
+} from './searchContext'
+import { DOMINANCE_PTS, SUGGEST_MAX } from './thresholds'
 
 export {
   ACCEPT_LOSS_PER_WEEK,
@@ -35,217 +22,170 @@ export {
   STANCES,
   stanceDelta,
   SUGGEST_MAX
+} from './thresholds'
+
+/** Spec §4.1 without the clock — the worker stamps `elapsedMs`. */
+export interface SearchProgress {
+  /** My sides resolved: discarded on their bound, failed the stance, or searched. */
+  checked: number
+  /** My-side candidates after the market precheck. */
+  total: number
+  /** Cards so far. */
+  found: number
+  /** The deal size being tried for the current my side. */
+  size: number
+}
+
+export type DealEvent =
+  { type: 'card'; card: TradeSuggestion } | { type: 'progress'; progress: SearchProgress }
+
+/** `full`: the cap was reached, nothing left could rank higher; `complete`: every my side resolved. */
+export type SearchEnd = 'complete' | 'full'
+
+export interface SuggestOptions {
+  /** Result cap (default `SUGGEST_MAX`). */
+  max?: number
+  /** Tests only: keep going past `max` until every my side is resolved. */
+  exhaust?: boolean
+}
+
+/** The smallest size with a working deal for one my side, and every working deal of that size. */
+interface Found {
+  k: number
+  deals: Deal[]
+}
+
+const worstOf = (d: Deal): number => Math.min(...d.accepted.map((a) => a.core.deltaPerWeek))
+const movedOf = (d: Deal): number => d.hops.reduce((n, hop) => n + hop.length, 0)
+
+/** Spec §3.4: the least happy other team's Δ/week desc, fewer players moved, names in cycle order, ids. */
+function dealOrder(a: Deal, b: Deal): number {
+  const byWorst = desc(worstOf(a), worstOf(b))
+  if (byWorst !== 0) return byWorst
+  const byMoved = movedOf(a) - movedOf(b)
+  if (byMoved !== 0) return byMoved
+  for (let i = 0; i < a.teams.length; i++) {
+    const byName = teamName(a.teams[i]).localeCompare(teamName(b.teams[i]))
+    if (byName !== 0) return byName
+  }
+  return byText(a.hops.map(idsKey).join('>'), b.hops.map(idsKey).join('>'))
+}
+
+/** Spec §3.4–3.5: one card per my side — the representative evaluated whole, the rest as alternatives. */
+function cardOf(ctx: SearchContext, found: Found): TradeSuggestion {
+  const [best, ...rest] = [...found.deals].sort(dealOrder)
+  return {
+    evaluation: evaluateTrade(ctx.build, dealProposal(ctx.me, best), { memo: ctx.memo }),
+    teams: found.k,
+    acceptance: [null, ...best.accepted.map((a) => a.acceptance)],
+    alternatives: rest.map((d): TradeAlternative => ({
+      proposal: dealProposal(ctx.me, d),
+      label: bridgeLabel(d),
+      worstDeltaPerWeek: worstOf(d)
+    }))
+  }
 }
 
 /**
- * What `consider` did with a candidate: the suggestion when it passed everything, the evaluation
- * whenever one was run (the bigger shapes bound themselves on the 1-for-1 ones), and their market
- * ratio, which costs nothing.
+ * Multi-team spec §3: deals of 2..maxTeams teams, one card per my side, yielded in final rank
+ * order — so the list only appends and the run can stop at the cap. Progress events interleave.
  */
-interface Considered {
-  suggestion?: TradeSuggestion
-  evaluation?: TradeEvaluation
-  theirMarket: number
-}
-
-export interface SuggestOptions {
-  /** Tests only: result cap (default `SUGGEST_MAX`). */
-  max?: number
-  /** Tests only: `false` evaluates every candidate instead of skipping the provably rejected ones. */
-  prune?: boolean
-  /** Tests only: `false` makes every evaluation solve every week (`EvaluateOptions.skip`). */
-  skip?: boolean
-}
-
-function pairs<T>(list: T[]): [T, T][] {
-  const out: [T, T][] = []
-  for (let i = 0; i < list.length; i++) {
-    for (let j = i + 1; j < list.length; j++) out.push([list[i], list[j]])
-  }
-  return out
-}
-
-const ids = (list: PlayerSeries[]): string[] => list.map((s) => s.base.playerId)
-const key = (give: string, get: string): string => `${give}|${get}`
-
-/** Descending comparator that is safe on ±∞ (no `b - a` NaN). */
-function desc(a: number, b: number): number {
-  return a === b ? 0 : a > b ? -1 : 1
-}
-
-/** Spec §3.2–3.3: evaluate one candidate; null unless my stance and their acceptance both pass. */
-function consider(
-  build: LineupBuild,
-  me: Team,
-  partner: Team,
-  give: PlayerSeries[],
-  get: PlayerSeries[],
-  stance: TradeStance,
-  entersTheirs: (s: PlayerSeries) => boolean,
-  opts: SuggestOptions,
-  /** 1-for-1s are evaluated even when they look hopeless: the bigger shapes bound themselves on them. */
-  always = false
-): Considered {
-  // Both market ratios need no lineup solve — the same sums evaluateTrade would compute.
-  const marketGive = marketSum(build, give).total
-  const marketGet = marketSum(build, get).total
-  const theirMarket = marketRatio({ marketGive: marketGet, marketGet: marketGive })
-  if (marketRatio({ marketGive, marketGet }) < STANCES[stance].ratio) return { theirMarket }
-  if (opts.prune !== false && !always) {
-    // They accept on their lineup or on the market. Their market side is these sums swapped; their
-    // delta cannot be positive when nothing they receive can enter their lineup in any window week
-    // (they only lose players and gain ones that never start), so neither test can pass — no solve.
-    if (theirMarket < MARKET_FAIR && !give.some(entersTheirs)) return { theirMarket }
-  }
-  const evaluation = evaluateTrade(
-    build,
-    twoTeam(me.rosterId, partner.rosterId, ids(give), ids(get)),
-    { skip: opts.skip }
-  )
-  const [mine, theirs] = evaluation.sides
-  if (!passesStance(stance, mine.deltaPerWeek, marketRatio(mine))) {
-    return { evaluation, theirMarket }
-  }
-  const acceptance = acceptanceOf(theirs.delta, marketRatio(theirs), theirs.deltaPerWeek)
-  return {
-    evaluation,
-    theirMarket,
-    suggestion:
-      acceptance === null
-        ? undefined
-        : { evaluation, teams: 2, acceptance: [null, acceptance], alternatives: [] }
-  }
-}
-
-/** Spec 6b §3: 1-for-1, 2-for-1 and 1-for-2 offers that pass my stance and their acceptance, ranked. */
-export function suggestTrades(
+export function* suggestDeals(
   build: LineupBuild,
   query: TradeSuggestQuery,
   opts: SuggestOptions = {}
-): TradeSuggestion[] {
-  const weeks = requireWindow(build)
-  const me = myTeam(build)
-  const myRoster = build.rosters.get(me.rosterId) ?? []
+): Generator<DealEvent, SearchEnd> {
+  const ctx = searchContext(build, query.mustInclude)
+  if (query.mustInclude !== null && !ctx.others.some((t) => t.rosterId === query.mustInclude)) {
+    throw new TradeError('INVALID_TRADE', 'Must include another team in this league')
+  }
+  const kMax = Math.min(Math.max(Math.trunc(query.maxTeams), 2), ctx.others.length + 1)
+  const max = opts.max ?? SUGGEST_MAX
   const focusGive = query.focus !== null && 'give' in query.focus ? query.focus.give : null
-  const want = query.focus !== null && 'want' in query.focus ? query.focus.want : null
-  if (focusGive !== null && !myRoster.some((s) => s.base.playerId === focusGive)) return []
+  const myRoster = build.rosters.get(ctx.me.rosterId) ?? []
+  if (focusGive !== null && !myRoster.some((s) => s.base.playerId === focusGive)) return 'complete'
 
-  const includesFocus = (give: PlayerSeries[]): boolean =>
-    focusGive === null || give.some((s) => s.base.playerId === focusGive)
-  const giveSingles = myRoster.map((s) => [s]).filter(includesFocus)
-  const givePairs = pairs(myRoster).filter(includesFocus)
+  const queue = mySideQueue(ctx, query, kMax)
+  let found = 0
+  let resolved = 0
+  let size = 2
+  const progress = (): DealEvent => ({
+    type: 'progress',
+    progress: { checked: queue.discarded + resolved, total: queue.total, found, size }
+  })
 
-  // Their pool: players who could raise my current optimal lineup in at least one window week.
-  const myWeeks = weeks.map((w) => teamWeek(build, me.rosterId, w))
-  const entersMine = (s: PlayerSeries): boolean => entersLineup(build, s, weeks, myWeeks)
-  const hasWant = (get: PlayerSeries[]): boolean =>
-    want === null || get.some((s) => s.base.position === want)
+  /** Per my side: how far its sizes were tried and what was found — dominance reuses it. */
+  const searched = new Map<string, { upTo: number; hit: Found | null }>()
+  function* search(side: MySide, upTo: number): Generator<DealEvent, Found | null> {
+    let state = searched.get(side.key)
+    if (!state) {
+      state = { upTo: 1, hit: null }
+      searched.set(side.key, state)
+    }
+    while (state.hit === null && state.upTo < upTo) {
+      const k = state.upTo + 1
+      size = k
+      yield progress()
+      const deals = dealsAt(ctx, side, k)
+      let step = deals.next()
+      while (!step.done) {
+        yield progress()
+        step = deals.next()
+      }
+      state.upTo = k
+      if (step.value.length > 0) state.hit = { k, deals: step.value }
+    }
+    return state.hit !== null && state.hit.k <= upTo ? state.hit : null
+  }
 
   /**
-   * Every 1-for-1 that was evaluated, by give|get. `mine` / `theirs` are usable as bounds on the
-   * bigger shapes only when that side needed no drops: optimal totals are monotone in the roster,
-   * so giving a second player can only lower my after-total, and receiving a second player can only
-   * lower theirs — but a drop removes a player the bigger shape may keep, which breaks the subset.
+   * Spec §3.4: a pair is padding when a contained single my side passes the stance, works with no
+   * more teams and is nearly as good. Resolved now — before the card is emitted — so a card is
+   * never withdrawn; the single's search is remembered for when it comes up itself.
    */
-  interface Single {
-    mine: number
-    minePerWeek: number
-    theirs: number
-    myDrops: number
-    theirDrops: number
-    passed: boolean
+  function* dominated(side: RankedSide, k: number): Generator<DealEvent, boolean> {
+    const contained: [PlayerSeries[], PlayerSeries[]][] = [
+      ...(side.x.length === 2
+        ? side.x.map((s): [PlayerSeries[], PlayerSeries[]] => [[s], side.z])
+        : []),
+      ...(side.z.length === 2
+        ? side.z.map((s): [PlayerSeries[], PlayerSeries[]] => [side.x, [s]])
+        : [])
+    ]
+    for (const [x, z] of contained) {
+      const single = queue.exact(x, z, side.c)
+      if (single === null || side.core.delta - single.core.delta > DOMINANCE_PTS) continue
+      if ((yield* search(single, k)) !== null) return true
+    }
+    return false
   }
-  const singles = new Map<string, Single>()
-  const record = (give: string, get: string, ev: TradeEvaluation, passed: boolean): void => {
-    const [mine, theirs] = ev.sides
-    singles.set(key(give, get), {
-      mine: mine.delta,
-      minePerWeek: mine.deltaPerWeek,
-      theirs: theirs.delta,
-      myDrops: mine.drops.length,
-      theirDrops: theirs.drops.length,
-      passed
-    })
-  }
-  const contained = (keys: string[]): Single[] =>
-    keys.flatMap((k) => {
-      const hit = singles.get(k)
-      return hit ? [hit] : []
-    })
-  const dominated = (delta: number, keys: string[]): boolean =>
-    contained(keys).some((s) => s.passed && delta - s.mine <= DOMINANCE_PTS)
 
-  const found: TradeSuggestion[] = []
-  const partners = build.inputs.teams.filter(
-    (t) =>
-      t.rosterId !== me.rosterId && (query.mustInclude === null || t.rosterId === query.mustInclude)
-  )
-  for (const partner of partners) {
-    const theirWeeks = weeks.map((w) => teamWeek(build, partner.rosterId, w))
-    const entersCache = new Map<string, boolean>()
-    const entersTheirs = (s: PlayerSeries): boolean => {
-      const hit = entersCache.get(s.base.playerId)
-      if (hit !== undefined) return hit
-      const enters = entersLineup(build, s, weeks, theirWeeks)
-      entersCache.set(s.base.playerId, enters)
-      return enters
+  yield progress()
+  for (let side = queue.next(); side !== null; side = queue.next()) {
+    const hit = yield* search(side, kMax)
+    if (hit !== null && !(yield* dominated(side, hit.k))) {
+      found++
+      yield { type: 'card', card: cardOf(ctx, hit) }
     }
-    const pool = (build.rosters.get(partner.rosterId) ?? []).filter(entersMine)
-    const getSingles = pool.map((s) => [s]).filter(hasWant)
-    const getPairs = pairs(pool).filter(hasWant)
-    for (const give of giveSingles) {
-      for (const get of getSingles) {
-        const r = consider(build, me, partner, give, get, query.stance, entersTheirs, opts, true)
-        if (r.evaluation) {
-          record(
-            give[0].base.playerId,
-            get[0].base.playerId,
-            r.evaluation,
-            r.suggestion !== undefined
-          )
-        }
-        if (r.suggestion) found.push(r.suggestion)
-      }
-    }
-    for (const give of givePairs) {
-      for (const get of getSingles) {
-        const keys = give.map((s) => key(s.base.playerId, get[0].base.playerId))
-        // My after-roster is a subset of each contained 1-for-1's, so my delta cannot beat theirs.
-        if (
-          opts.prune !== false &&
-          contained(keys).some((c) => c.myDrops === 0 && !stanceDelta(query.stance, c.minePerWeek))
-        ) {
-          continue
-        }
-        const r = consider(build, me, partner, give, get, query.stance, entersTheirs, opts)
-        if (r.suggestion && !dominated(r.suggestion.evaluation.sides[0].delta, keys))
-          found.push(r.suggestion)
-      }
-    }
-    for (const give of giveSingles) {
-      for (const get of getPairs) {
-        const keys = get.map((s) => key(give[0].base.playerId, s.base.playerId))
-        const r =
-          opts.prune !== false &&
-          contained(keys).some((c) => c.theirDrops === 0 && c.theirs <= 0) &&
-          marketRatio({
-            marketGive: marketSum(build, get).total,
-            marketGet: marketSum(build, give).total
-          }) < MARKET_FAIR
-            ? // Their after-roster is a subset of the contained 1-for-1's, so their delta cannot be
-              // positive either, and the market cannot carry it: they would refuse.
-              { theirMarket: 0 }
-            : consider(build, me, partner, give, get, query.stance, entersTheirs, opts)
-        if (r.suggestion && !dominated(r.suggestion.evaluation.sides[0].delta, keys))
-          found.push(r.suggestion)
-      }
-    }
+    resolved++
+    yield progress()
+    if (found >= max && !opts.exhaust) return 'full'
   }
-  found.sort(
-    (a, b) =>
-      desc(a.evaluation.sides[0].delta, b.evaluation.sides[0].delta) ||
-      desc(marketRatio(a.evaluation.sides[0]), marketRatio(b.evaluation.sides[0])) ||
-      a.evaluation.sides[1].name.localeCompare(b.evaluation.sides[1].name)
-  )
-  return found.slice(0, opts.max ?? SUGGEST_MAX)
+  return 'complete'
+}
+
+/** `suggestDeals` run to the end synchronously — tests and the budget check. */
+export function collectDeals(
+  build: LineupBuild,
+  query: TradeSuggestQuery,
+  opts: SuggestOptions = {}
+): { cards: TradeSuggestion[]; end: SearchEnd } {
+  const cards: TradeSuggestion[] = []
+  const search = suggestDeals(build, query, opts)
+  let step = search.next()
+  while (!step.done) {
+    if (step.value.type === 'card') cards.push(step.value.card)
+    step = search.next()
+  }
+  return { cards, end: step.value }
 }

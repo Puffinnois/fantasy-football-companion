@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { suggestTrades } from '@main/trade/suggest'
+import { collectDeals } from '@main/trade/suggest'
 import { SEASON } from '../../fixtures/season'
 import { generateLeague, syntheticBuild } from '../../fixtures/synthetic'
 
@@ -16,9 +16,9 @@ const ALL_TEAMS_MS = 20000
  * make a wall-clock assertion flap, so this runs only under `npm run test:budget`. Run it locally
  * before every build — it is the check that the screen's default searches stay interactive.
  */
-describe.skipIf(!process.env.FFC_BUDGET)('suggestTrades budget', () => {
+describe.skipIf(!process.env.FFC_BUDGET)('collectDeals budget', () => {
   const { build } = syntheticBuild(generateLeague(7))
-  const query = (over: object): Parameters<typeof suggestTrades>[1] => ({
+  const query = (over: object): Parameters<typeof collectDeals>[1] => ({
     season: SEASON,
     focus: null,
     stance: 'fair',
@@ -26,9 +26,9 @@ describe.skipIf(!process.env.FFC_BUDGET)('suggestTrades budget', () => {
     mustInclude: null,
     ...over
   })
-  const time = (q: Parameters<typeof suggestTrades>[1]): number => {
+  const time = (q: Parameters<typeof collectDeals>[1]): number => {
     const t0 = performance.now()
-    const out = suggestTrades(build, q)
+    const out = collectDeals(build, q).cards
     const ms = performance.now() - t0
     expect(out.length).toBeLessThanOrEqual(30)
     return ms

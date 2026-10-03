@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { windowWeeks } from '@main/lineup/build'
-import { suggestTrades } from '@main/trade/suggest'
+import { collectDeals } from '@main/trade/suggest'
 import type { TradeFocus, TradeSuggestion, TradeSuggestQuery } from '@shared/types'
 import { SEASON } from '../../fixtures/season'
 import {
@@ -29,33 +29,34 @@ const shape = (s: TradeSuggestion): string => {
   const sides = s.evaluation.sides
   return `${ids(sides[0].give)}→${ids(sides[0].get)}@${sides[sides.length - 1].rosterId}`
 }
-const byShape = (list: TradeSuggestion[]): TradeSuggestion[] =>
-  [...list].sort((a, b) => (shape(a) < shape(b) ? -1 : shape(a) > shape(b) ? 1 : 0))
 
-describe('the oracle at two teams is 6b’s search', () => {
-  it('matches suggestTrades on the small league', () => {
+describe('the oracle at two teams agrees with the search', () => {
+  it('matches the search on the small league', () => {
     const { build } = syntheticBuild(SMALL_LEAGUE)
     const focuses: TradeFocus[] = [null, { give: 'C' }, { give: 'D' }, { want: 'WR' }]
     for (const stance of ['premium', 'fair', 'overpay'] as const) {
       for (const focus of focuses) {
         for (const mustInclude of [null, 2, 3]) {
           const q = query({ stance, focus, mustInclude })
-          expect({ q, out: oracleSuggest(build, q) }).toEqual({ q, out: suggestTrades(build, q) })
+          expect({ q, out: oracleSuggest(build, q) }).toEqual({
+            q,
+            out: collectDeals(build, q).cards
+          })
         }
       }
     }
   })
 
-  it('matches suggestTrades on random leagues (ties ordered apart)', () => {
+  it('matches the search on random leagues, ties included', () => {
     for (const seed of [1, 2, 3]) {
       const { build } = syntheticBuild(searchLeague(seed))
       expect(windowWeeks(build)).toEqual([3, 4, 5])
       for (const stance of ['premium', 'fair', 'overpay'] as const) {
         const q = query({ stance })
-        expect({ seed, stance, out: byShape(oracleSuggest(build, q, { max: 1000 })) }).toEqual({
+        expect({ seed, stance, out: oracleSuggest(build, q, { max: 1000 }) }).toEqual({
           seed,
           stance,
-          out: byShape(suggestTrades(build, q, { max: 1000 }))
+          out: collectDeals(build, q, { max: 1000 }).cards
         })
       }
     }
