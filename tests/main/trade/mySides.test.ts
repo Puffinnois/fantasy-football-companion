@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { LineupBuild } from '@main/lineup/build'
+import { refuses } from '@main/trade/bridge'
 import { marketRatio, marketSum } from '@main/trade/evaluate'
 import { mySideQueue, rankOrder, type RankedSide } from '@main/trade/mySides'
 import { searchContext } from '@main/trade/searchContext'
+import { sideKey } from '@main/trade/side'
 import { STANCES } from '@main/trade/thresholds'
 import type { TradeSuggestQuery } from '@shared/types'
 import { SEASON } from '../../fixtures/season'
@@ -12,7 +14,8 @@ import {
   negativeSearchLeague,
   searchLeague,
   SMALL_LEAGUE,
-  syntheticBuild
+  syntheticBuild,
+  TRIANGLE_LEAGUE
 } from '../../fixtures/synthetic'
 
 const query = (over: Partial<TradeSuggestQuery> = {}): TradeSuggestQuery => ({
@@ -108,4 +111,26 @@ describe('mySideQueue (spec §3.2)', () => {
     expect(q.next()).not.toBeNull()
     expect(ctx.memo.size).toBeLessThan(q.total / 10)
   }, 60_000)
+
+  it('asks C first at two teams: a refused side is never scored', () => {
+    const { build } = syntheticBuild(TRIANGLE_LEAGUE)
+    const q = query({ maxTeams: 2 })
+    const scoredKey = (ctx: ReturnType<typeof searchContext>): string => {
+      const roster = build.rosters.get(1) ?? []
+      const a2 = roster.filter((s) => s.base.playerId === 'a2')
+      const b2 = (build.rosters.get(2) ?? []).filter((s) => s.base.playerId === 'b2')
+      return sideKey(ctx.me.rosterId, a2, b2)
+    }
+    const plain = searchContext(build, null)
+    const without = mySideQueue(plain, q, 2)
+    while (without.next() !== null);
+    expect(plain.memo.has(scoredKey(plain))).toBe(true) // a2 → b2 passes my stance: scored
+    const early = searchContext(build, null)
+    const withRefuse = mySideQueue(early, q, 2, (side) => refuses(early, side.c, side.z, side.x))
+    const popped: string[] = []
+    for (let s = withRefuse.next(); s !== null; s = withRefuse.next()) popped.push(s.key)
+    expect(early.memo.has(scoredKey(early))).toBe(false) // Two refuses a2 for b2: never scored
+    expect(popped).not.toContain('a2|b2|2')
+    expect(withRefuse.discarded + popped.length).toBe(withRefuse.total)
+  })
 })

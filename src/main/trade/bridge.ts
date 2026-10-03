@@ -3,7 +3,7 @@ import type { PlayerSeries } from '@main/value/series'
 import type { Team, TradeAcceptance, TradeProposal } from '@shared/types'
 import { MARKET_FAIR, marketRatio, marketSum } from './evaluate'
 import { sideOf, type MySide, type SearchContext } from './searchContext'
-import { sideKey, type SideCore } from './side'
+import type { SideCore } from './side'
 import { acceptanceOf } from './thresholds'
 
 /** A team that takes its part of a deal: its verdict and why (6b §3.3). */
@@ -23,40 +23,50 @@ export interface Deal {
 }
 
 /**
- * Spec §3.3: whether `team` takes `get` for `give` — 6b's acceptance on the memoized side, after
- * two exact prunes that skip the solve.
+ * Spec §3.3, the exact prunes alone: true when `team` provably refuses `get` for `give`. It may
+ * solve the smaller deals it compares against (shared through the run's memo), never this one.
  */
+export function refuses(
+  ctx: SearchContext,
+  team: Team,
+  give: PlayerSeries[],
+  get: PlayerSeries[]
+): boolean {
+  // Every prune rests on "more players never total less", which holds unless a negative value
+  // could be forced into a slot (`SearchContext.slack`).
+  if (ctx.slack(team.rosterId, get) !== 0) return false
+  const ratio = marketRatio({
+    marketGive: marketSum(ctx.build, give).total,
+    marketGet: marketSum(ctx.build, get).total
+  })
+  // Nothing it gets can start for it, so its delta cannot be positive — and the market can't
+  // carry the deal either (6b's rule, now for every team).
+  if (ratio < MARKET_FAIR && !get.some((s) => ctx.enters(team.rosterId, s))) return true
+  if (give.length === 2) {
+    for (const one of give) {
+      // Plan M generalized: giving both can only do worse than giving one of them for the same
+      // players — when that smaller deal needs no drops, its after-roster contains this one's and
+      // it gives less market value. Solved now when unknown: it is shared and usually decisive.
+      const smaller = sideOf(ctx, team, [one], get)
+      if (
+        smaller.drops.length === 0 &&
+        acceptanceOf(smaller.delta, marketRatio(smaller), smaller.deltaPerWeek) === null
+      ) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+/** Spec §3.3: whether `team` takes `get` for `give` — the prunes first, then 6b's acceptance on the memoized side. */
 export function accepts(
   ctx: SearchContext,
   team: Team,
   give: PlayerSeries[],
   get: PlayerSeries[]
 ): Accepted | null {
-  const ratio = marketRatio({
-    marketGive: marketSum(ctx.build, give).total,
-    marketGet: marketSum(ctx.build, get).total
-  })
-  // Both prunes rest on "more players never total less", which holds unless a negative value
-  // could be forced into a slot (`SearchContext.slack`).
-  const monotone = ctx.slack(team.rosterId, get) === 0
-  // Nothing it gets can start for it, so its delta cannot be positive — and the market can't
-  // carry the deal either (6b's rule, now for every team).
-  if (monotone && ratio < MARKET_FAIR && !get.some((s) => ctx.enters(team.rosterId, s))) return null
-  if (monotone && give.length === 2) {
-    for (const one of give) {
-      // Plan M generalized: giving both can only do worse than giving one of them for the same
-      // players — when that smaller deal needed no drops, its after-roster contains this one's,
-      // and it gives less market value. If the smaller deal was refused, so is this one.
-      const smaller = ctx.memo.get(sideKey(team.rosterId, [one], get))
-      if (
-        smaller &&
-        smaller.drops.length === 0 &&
-        acceptanceOf(smaller.delta, marketRatio(smaller), smaller.deltaPerWeek) === null
-      ) {
-        return null
-      }
-    }
-  }
+  if (refuses(ctx, team, give, get)) return null
   const core = sideOf(ctx, team, give, get)
   const acceptance = acceptanceOf(core.delta, marketRatio(core), core.deltaPerWeek)
   return acceptance === null ? null : { core, acceptance }

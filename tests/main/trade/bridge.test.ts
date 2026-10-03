@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bridgeLabel, dealProposal, dealsAt, type Deal } from '@main/trade/bridge'
+import { bridgeLabel, dealProposal, dealsAt, refuses, type Deal } from '@main/trade/bridge'
 import {
   mySideKey,
   searchContext,
@@ -7,7 +7,9 @@ import {
   type MySide,
   type SearchContext
 } from '@main/trade/searchContext'
+import { sideKey } from '@main/trade/side'
 import type { PlayerSeries } from '@main/value/series'
+import type { Team } from '@shared/types'
 import {
   NEGATIVE_LEAGUE,
   negativeSearchLeague,
@@ -169,5 +171,38 @@ describe('SearchContext.slack', () => {
       (build.rosters.get(3) ?? []).find((s) => s.base.playerId === id) as PlayerSeries
     expect(ctx.slack(2, [three('p36')])).toBe(2)
     expect(ctx.slack(1, [three('p35')])).toBe(4)
+  })
+})
+
+describe('refuses (spec §3.3, exact prunes alone)', () => {
+  const { build } = syntheticBuild(TRIANGLE_LEAGUE)
+  const player = (ctx: SearchContext, id: string): PlayerSeries => {
+    for (const roster of ctx.build.rosters.values()) {
+      const hit = roster.find((s) => s.base.playerId === id)
+      if (hit) return hit
+    }
+    throw new Error(`no player ${id}`)
+  }
+  const team = (ctx: SearchContext, id: number): Team =>
+    ctx.others.find((t) => t.rosterId === id) as Team
+
+  it('refuses without a solve when nothing it gets can start and the market is short', () => {
+    const ctx = searchContext(build, null)
+    // Two gives b2 for a2: a2 can't start behind b4, 1 000 for 3 000.
+    expect(refuses(ctx, team(ctx, 2), [player(ctx, 'b2')], [player(ctx, 'a2')])).toBe(true)
+    expect(ctx.memo.size).toBe(0)
+    // Three takes a2 for c2 (it starts a2 over c3): no prune applies.
+    expect(refuses(ctx, team(ctx, 3), [player(ctx, 'c2')], [player(ctx, 'a2')])).toBe(false)
+  })
+
+  it('solves the smaller deal a pair is compared against (B-first)', () => {
+    const ctx = searchContext(build, null)
+    const [c2, c3, a2] = ['c2', 'c3', 'a2'].map((id) => player(ctx, id))
+    // Three would take a2 for c2 alone and for c3 alone, so the pair is not refused…
+    expect(refuses(ctx, team(ctx, 3), [c2, c3], [a2])).toBe(false)
+    // …and both smaller deals are now solved and shared.
+    expect(ctx.memo.has(sideKey(3, [c2], [a2]))).toBe(true)
+    expect(ctx.memo.has(sideKey(3, [c3], [a2]))).toBe(true)
+    expect(ctx.memo.has(sideKey(3, [c2, c3], [a2]))).toBe(false)
   })
 })

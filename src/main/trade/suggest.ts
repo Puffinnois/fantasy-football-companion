@@ -1,7 +1,7 @@
 import { teamName, type LineupBuild } from '@main/lineup/build'
 import type { PlayerSeries } from '@main/value/series'
 import type { TradeAlternative, TradeSuggestion, TradeSuggestQuery } from '@shared/types'
-import { bridgeLabel, dealProposal, dealsAt, type Deal } from './bridge'
+import { bridgeLabel, dealProposal, dealsAt, refuses, type Deal } from './bridge'
 import { evaluateTrade, TradeError } from './evaluate'
 import { mySideQueue, type RankedSide } from './mySides'
 import {
@@ -105,7 +105,14 @@ export function* suggestDeals(
   const myRoster = build.rosters.get(ctx.me.rosterId) ?? []
   if (focusGive !== null && !myRoster.some((s) => s.base.playerId === focusGive)) return 'complete'
 
-  const queue = mySideQueue(ctx, query, kMax)
+  // Spec §3.3 at two teams: a my side has one deal, so C's refusal settles it before my side is
+  // solved. With a bridge, C receives something else and the side may still work.
+  const queue = mySideQueue(
+    ctx,
+    query,
+    kMax,
+    kMax === 2 ? (side) => refuses(ctx, side.c, side.z, side.x) : undefined
+  )
   let found = 0
   let resolved = 0
   let size = 2

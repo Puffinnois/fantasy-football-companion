@@ -64,12 +64,15 @@ function before(a: Entry, b: Entry): boolean {
  * after-roster is a subset of that roster and the optimum is monotone in the roster, so U(z) —
  * widened by the negative-value slack when there is one — bounds my Δ for every x. A popped bound
  * entry is replaced by its exact result; an exact entry is popped only when nothing unevaluated
- * can tie or beat it.
+ * can tie or beat it. `refuse`, when given, is asked first for a popped bound entry and a refused
+ * side is dropped unsolved.
  */
 export function mySideQueue(
   ctx: SearchContext,
   query: TradeSuggestQuery,
-  kMax: number
+  kMax: number,
+  /** Up to 2 teams only: C's refusal of the 2-team deal, asked before my side is solved. */
+  refuse?: (side: MySide) => boolean
 ): MySideQueue {
   const { build, me, weeks } = ctx
   const { stance } = query
@@ -143,6 +146,10 @@ export function mySideQueue(
     next(): RankedSide | null {
       for (let e = queue.pop(); e !== undefined; e = queue.pop()) {
         if (e.kind === 'exact') return e.side
+        if (refuse?.(e.side) === true) {
+          discarded++
+          continue
+        }
         if (boundedOut(e.side)) {
           discarded++
           continue
