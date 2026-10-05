@@ -66,7 +66,7 @@ No new feature: seven fixes, one measurement, one test. Search results do not ch
 
 ## 8. Testing and delivery
 
-- TDD per fix: a failing test first (types, `dealTransfers`, `dealFromTransfers`, the stale `openProposal`, `pruneControls` and the late snapshot, the status line, `messageerror` and OOM in a fake-worker test, the refresh refusal in `suggestRun.test.ts`, the k = 5 case).
+- TDD per fix: a failing test first (types, `dealTransfers`, `dealFromMoves`, the stale `openAlternative`, `pruneControls` and the late snapshot, the status line, `messageerror` and OOM in a fake-worker test, the refresh refusal in `suggestRun.test.ts`, the k = 5 case).
 - The full suite, `npm run typecheck`, `npm run lint` and `npm run test:budget` are green. The two-team and synthetic budgets must not regress, since search results are unchanged.
 - `npm run dev` starts without main-process errors. Not GUI-verified (WSLg), as before.
 - Docs: `docs/reference/value-and-signals.md`, covering the Streaming paragraph (refresh refusal, `messageerror`/OOM) and the Suggestions card (stale error line, alternatives pruned when stale).
