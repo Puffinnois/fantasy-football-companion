@@ -703,4 +703,67 @@ describe('TradeScreen', () => {
     expect(await screen.findByText('with Rival')).toBeTruthy()
     expect(screen.getByText('League data changed — run again')).toBeTruthy()
   })
+
+  it("follows main's run again after a refused start", async () => {
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+
+    startMock.mockRejectedValueOnce(
+      new Error(
+        "Error invoking remote method 'trade:suggestStart': Error: League data is refreshing — Find again when it finishes"
+      )
+    )
+    // main's run 7 is still running, so the hook re-attaches to it
+    snapshotMock.mockResolvedValue({
+      runId: 7,
+      query: { season: 2026, focus: null, stance: 'fair', maxTeams: 2, mustInclude: null },
+      cards: [tradeSuggestion()],
+      progress: PROGRESS,
+      status: 'running',
+      message: null
+    })
+    fireEvent.click(screen.getByText('Find'))
+    expect(
+      await screen.findByText('League data is refreshing — Find again when it finishes')
+    ).toBeTruthy()
+    expect(await screen.findByText('with Rival')).toBeTruthy()
+    expect(screen.getByText('Stop')).toBeTruthy()
+
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+    expect(screen.getByText('Done: 1 found, every idea checked')).toBeTruthy()
+  })
+
+  it("keeps the user's controls after a refused start", async () => {
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+    fireEvent.change(screen.getByLabelText('Stance'), { target: { value: 'overpay' } })
+
+    startMock.mockRejectedValueOnce(
+      new Error(
+        "Error invoking remote method 'trade:suggestStart': Error: League data is refreshing — Find again when it finishes"
+      )
+    )
+    snapshotMock.mockResolvedValue({
+      runId: 7,
+      query: { season: 2026, focus: null, stance: 'fair', maxTeams: 2, mustInclude: null },
+      cards: [tradeSuggestion()],
+      progress: { ...PROGRESS, found: 1 },
+      status: 'stale',
+      message: null
+    })
+    fireEvent.click(screen.getByText('Find'))
+    expect(
+      await screen.findByText('League data is refreshing — Find again when it finishes')
+    ).toBeTruthy()
+    expect((screen.getByLabelText('Stance') as HTMLSelectElement).value).toBe('overpay')
+    expect(screen.getByText(/Controls changed — Find to rerun/)).toBeTruthy()
+  })
 })
