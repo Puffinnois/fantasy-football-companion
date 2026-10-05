@@ -12,9 +12,9 @@ No new feature: seven fixes, one measurement, one test. Search results do not ch
 
 **Change.**
 
-- `src/shared/types.ts`: `TradeTransfer = TradeMove & { from: number }`. `TradeAlternative.proposal` is replaced by `moves: TradeTransfer[]`. `TradeProposal` and `trade:evaluate` stay as they are.
+- `src/shared/types.ts`: `TradeAlternative.proposal` is replaced by `moves: DealMove[]`, reusing the shared `DealMove { playerId, from, to }` from `src/shared/deal.ts`. `TradeProposal` and `trade:evaluate` stay as they are.
 - `src/main/trade/bridge.ts`: a `dealTransfers(me, deal)` next to `dealProposal`, using the same hop order. Hop `i` leaves `teams[i - 1]` (hop 0 leaves me) and goes to `teams[i]` (the last hop goes to me). `suggest.ts` `cardOf` fills `moves` from it.
-- Renderer: `dealFromProposal` is replaced by `dealFromTransfers(moves, me)`. Picks are the moves as they are, teams in order of first appearance, me left out. It needs no pool lookup.
+- Renderer: `dealFromProposal` is replaced by `dealFromMoves(moves, me)`. Picks are the moves as they are, teams in order of first appearance, me left out. It needs no pool lookup.
 - `TradeScreen.openProposal` matches `openSuggestion`: when the run is `stale` it applies `pruneDeal(deal, pool)` first. The deal is evaluated in both cases, since an alternative carries no evaluation.
 - `TradeSuggestions` keys alternative rows on `moves`, not `proposal.moves`.
 
@@ -40,7 +40,7 @@ No new feature: seven fixes, one measurement, one test. Search results do not ch
 - `runEngine`: `messageerror` → reject with the same text.
 - `UNREADABLE` = `Background calculation sent an unreadable update`.
 
-**Out of memory.** In both functions, a worker `error` whose `code` is `ERR_WORKER_OUT_OF_MEMORY` becomes `The search ran out of memory — try fewer teams or one partner`. Any other error keeps its own message.
+**Out of memory.** A worker `error` whose `code` is `ERR_WORKER_OUT_OF_MEMORY` becomes `The search ran out of memory — try fewer teams or one partner` in `runEngineStream` (only the suggestion search streams), and `Background calculation ran out of memory` in `runEngine` (waivers, open spot — where "fewer teams" means nothing). Any other error keeps its own message.
 
 ## 5. Worker memory at Up to 4 (measurement)
 
@@ -53,6 +53,8 @@ No new feature: seven fixes, one measurement, one test. Search results do not ch
 **Today.** Every sync step that succeeds calls `invalidateCaches()`, which marks the active run stale. A Find clicked during a refresh (for example the on-launch one) starts, then gets stopped `stale` a few seconds later.
 
 **Change.** `SuggestRunDeps` gains `refreshing(): boolean`, which the handler wires to `startRefresh`'s `inFlight !== null`. `SuggestRuns.start` checks it **first**, before it stops anything, and throws `League data is refreshing — Find again when it finishes` (exported as `REFRESHING`). The renderer shows it through the hook's existing `startError`. The current run and its cards are left untouched. A refresh that begins while a search runs still marks it `stale`, as before.
+
+**Renderer.** Today a failed start clears the shown run (`setRun(null)`, `following = null`), so the list would vanish and a still-running run would stop being followed. A failed start now **re-attaches**: it shows `startError`, then asks `suggestSnapshot()` again and shows main's run (cards, status, following its events) while keeping the controls the user set. With no run in main (e.g. no league imported) it shows nothing, as today.
 
 **Spec amendment.** Multi-team spec §4.2 (run lifecycle) and the §6 error table gain the row "Find during a refresh → refused with the hint; the shown run is unchanged".
 
