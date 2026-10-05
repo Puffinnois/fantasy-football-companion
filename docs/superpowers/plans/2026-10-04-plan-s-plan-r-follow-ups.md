@@ -1,6 +1,6 @@
 # Plan S — Plan R follow-ups
 
-**Status:** not started.
+**Status:** in progress — Tasks 0–8 Steps 1–3 done on `fix/plan-r-follow-ups`. Memory gate (Task 7; real league, 16 teams, fair, no focus, `--expose-gc`; peak = max `used_heap_size` sampled per search event): up to 3 / any team — baseline 16 MB, peak 152 MB, end 150 MB, 30 cards (full) in 25.4 s; up to 4 / any team — baseline 130 MB, peak 645 MB, end 643 MB, 30 cards (full) in 516.9 s → **passed** (≤ 1 GB). The heap grows with the run (end ≈ peak: memo and found deals), and is released when the worker ends; the 516.9 s ran alongside other agents' test runs (gate 2: 419.9 s).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
