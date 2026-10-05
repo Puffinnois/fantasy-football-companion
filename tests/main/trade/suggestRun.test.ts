@@ -152,6 +152,14 @@ describe('suggestRuns (spec §4.2)', () => {
       expect(sent).toEqual([])
       expect(runs.snapshot()?.status).toBe('stale')
     })
+
+    it("keeps an errored run's message when it goes stale", () => {
+      const { runs, streams } = setup()
+      runs.start(QUERY)
+      streams[0].push({ type: 'error', message: 'boom' })
+      runs.stale()
+      expect(runs.snapshot()).toMatchObject({ status: 'stale', message: 'boom' })
+    })
   })
 
   it('records a worker error, and a start that fails', () => {

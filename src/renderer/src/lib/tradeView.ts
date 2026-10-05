@@ -300,7 +300,9 @@ export function suggestStatusLine(snap: SuggestSnapshot): string {
     case 'stopped':
       return `Stopped: ${n} found so far`
     case 'stale':
-      return 'League data changed — run again'
+      return snap.message === null
+        ? 'League data changed — run again'
+        : `Search failed: ${snap.message} · League data changed — run again`
     case 'error':
       return `Search failed: ${snap.message ?? 'unknown error'}`
   }

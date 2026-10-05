@@ -295,6 +295,10 @@ describe('suggestion status line (multi-team spec §5.2)', () => {
       'Stopped: 12 found so far'
     )
     expect(suggestStatusLine(snap({ status: 'stale' }))).toBe('League data changed — run again')
+    // an errored run that went stale keeps its error
+    expect(suggestStatusLine(snap({ status: 'stale', message: 'boom' }))).toBe(
+      'Search failed: boom · League data changed — run again'
+    )
     expect(suggestStatusLine(snap({ status: 'error', message: 'boom' }))).toBe(
       'Search failed: boom'
     )
