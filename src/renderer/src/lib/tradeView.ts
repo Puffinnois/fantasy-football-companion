@@ -5,6 +5,7 @@ import type {
   TradeEvaluation,
   TradeOpenSpots,
   TradePlayer,
+  TradePool,
   TradeSideResult,
   TradeStance,
   TradeSuggestion,
@@ -245,6 +246,19 @@ export function controlsOf(q: TradeSuggestQuery): SuggestControls {
   return 'give' in q.focus
     ? { ...base, focusKind: 'give', focusGive: q.focus.give }
     : { ...base, focusKind: 'want', focusWant: q.focus.want }
+}
+
+/** After a pool reload: forget a focus player or team that is gone; cap "Up to" at the league size. */
+export function pruneControls(c: SuggestControls, pool: TradePool): SuggestControls {
+  return {
+    ...c,
+    focusGive: pool.me.players.some((p) => p.playerId === c.focusGive) ? c.focusGive : '',
+    mustInclude:
+      c.mustInclude !== null && pool.teams.some((t) => t.rosterId === c.mustInclude)
+        ? c.mustInclude
+        : null,
+    maxTeams: Math.max(2, Math.min(c.maxTeams, pool.teams.length + 1))
+  }
 }
 
 /** Whether two queries ask for the same search. */

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { TradeScreen } from '@/screens/TradeScreen'
 import { api } from '@/lib/api'
-import type { PlayersOptions, SuggestEvent, TradeEvaluation } from '@shared/types'
+import type { PlayersOptions, SuggestEvent, SuggestSnapshot, TradeEvaluation } from '@shared/types'
 import { lineupPlayer } from '../../fixtures/lineup'
 import {
   bijan,
@@ -408,6 +408,42 @@ describe('TradeScreen', () => {
     unmount()
     expect(unsubscribe).toHaveBeenCalled()
     expect(stopMock).not.toHaveBeenCalled()
+  })
+
+  it('prunes controls restored from a snapshot that answers after the pool', async () => {
+    let answer: (snap: SuggestSnapshot | null) => void = () => undefined
+    snapshotMock.mockReturnValue(
+      new Promise<SuggestSnapshot | null>((resolve) => {
+        answer = resolve
+      })
+    )
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send') // the pool is in, and pruned what it could
+    await act(async () =>
+      answer({
+        runId: 3,
+        query: {
+          season: 2026,
+          focus: { give: 'gone' },
+          stance: 'overpay',
+          maxTeams: 4,
+          mustInclude: 9
+        },
+        cards: [],
+        progress: PROGRESS,
+        status: 'stopped',
+        message: null
+      })
+    )
+    expect((screen.getByLabelText('Stance') as HTMLSelectElement).value).toBe('overpay')
+    fireEvent.click(screen.getByText('Find'))
+    expect(startMock).toHaveBeenLastCalledWith({
+      season: 2026,
+      focus: null,
+      stance: 'overpay',
+      maxTeams: 2,
+      mustInclude: null
+    })
   })
 
   it('notes changed controls and starts nothing until Find', async () => {
