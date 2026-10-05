@@ -162,13 +162,11 @@ For each my side taken from the queue, sizes k = 2, 3, … up to `min(maxTeams, 
 ```ts
 export type TradeAcceptance = 'lineup' | 'market' | 'both'
 export interface TradeAlternative {
-  proposal: TradeProposal
+  proposal: TradeProposal // amended 2026-10-04: now moves: DealMove[]
   /** e.g. "via Gridiron Gang: J. Cook". */
   label: string
   worstDeltaPerWeek: number
 }
-
-(Amended 2026-10-04, Plan S: `proposal` is now `moves: DealMove[]`, each move with the team it leaves, so a stale list can prune an alternative.)
 
 export interface TradeSuggestion {
   /** Exactly what `trade:evaluate` returns for the shown deal. */
@@ -180,6 +178,8 @@ export interface TradeSuggestion {
   alternatives: TradeAlternative[]
 }
 ```
+
+(Amended 2026-10-04, Plan S: `proposal` is now `moves: DealMove[]`, each move with the team it leaves, so a stale list can prune an alternative.)
 
 The search is a generator, `suggestDeals(build, query, opts)`, yielding cards and progress in order; the worker batches what it yields and tests consume it synchronously.
 
