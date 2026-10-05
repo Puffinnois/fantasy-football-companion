@@ -332,10 +332,13 @@ describe('TradeScreen', () => {
     fireEvent.click(screen.getAllByText('Open in builder')[1])
     // an alternative carries no evaluation: it is evaluated on opening
     await waitFor(() =>
-      expect(evaluateMock).toHaveBeenCalledWith(
-        2026,
-        threeTeamSuggestion().alternatives[0].proposal
-      )
+      expect(evaluateMock).toHaveBeenCalledWith(2026, {
+        moves: [
+          { playerId: '6794', to: 2 },
+          { playerId: '9509', to: 3 },
+          { playerId: '5859', to: 1 }
+        ]
+      })
     )
     expect(screen.getByLabelText('Remove team Tank Mode')).toBeTruthy()
     expect(screen.getByText('Bijan Robinson')).toBeTruthy()
@@ -514,6 +517,46 @@ describe('TradeScreen', () => {
     expect(evaluateMock).toHaveBeenCalledWith(2026, { moves: [{ playerId: '7564', to: 1 }] })
     expect(screen.queryByText('Saquon Barkley')).toBeNull()
     expect(await screen.findByText('Rival gets nobody')).toBeTruthy()
+  })
+
+  it('drops a stale alternative’s player who left the team it came from', async () => {
+    poolMock.mockResolvedValue(threeTeamPool())
+    evaluateMock.mockRejectedValue(new Error('Tank Mode gets nobody'))
+    openSpotMock.mockResolvedValue({ sides: [null, null, null] })
+    const { rerender } = render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [threeTeamSuggestion()] })
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+
+    // a sync moves Bijan from Rival to Tank Mode; the same event marks the list stale
+    const before = threeTeamPool()
+    poolMock.mockResolvedValue(
+      tradePool({
+        teams: [
+          {
+            ...before.teams[0],
+            players: before.teams[0].players.filter((p) => p.playerId !== '9509')
+          },
+          { ...before.teams[1], players: [...before.teams[1].players, bijan] }
+        ]
+      })
+    )
+    rerender(<TradeScreen dataVersion={1} />)
+    await screen.findByLabelText('Add to I send')
+    send({ runId: 7, type: 'done', reason: 'stale', progress: { ...PROGRESS, found: 1 } })
+
+    fireEvent.click(screen.getByText('+1 other way ▸'))
+    fireEvent.click(screen.getAllByText('Open in builder')[1])
+    // not re-homed onto Tank Mode (from = to): Bijan leaves the deal
+    expect(evaluateMock).toHaveBeenLastCalledWith(2026, {
+      moves: [
+        { playerId: '6794', to: 2 },
+        { playerId: '5859', to: 1 }
+      ]
+    })
+    expect(await screen.findByText('Tank Mode gets nobody')).toBeTruthy()
   })
 
   it('drops an evaluate answer that lands after the deal changed', async () => {

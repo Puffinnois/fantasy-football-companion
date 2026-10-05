@@ -3,6 +3,7 @@ import { entersLineup } from '@main/trade/enter'
 import { evaluateTrade, marketRatio } from '@main/trade/evaluate'
 import { acceptanceOf, DOMINANCE_PTS, passesStance, SUGGEST_MAX } from '@main/trade/thresholds'
 import type { PlayerSeries } from '@main/value/series'
+import type { DealMove } from '@shared/deal'
 import type {
   Team,
   TradeEvaluation,
@@ -88,6 +89,18 @@ export function cycleProposal(me: number, cycle: Cycle): TradeProposal {
       hop.map((s) => ({ playerId: s.base.playerId, to: i === last ? me : cycle.teams[i].rosterId }))
     )
   }
+}
+
+/** `cycleProposal` with each move's source: hop i leaves the team before it, hop 0 leaves me. */
+export function cycleMoves(me: number, cycle: Cycle): DealMove[] {
+  const last = cycle.hops.length - 1
+  return cycle.hops.flatMap((hop, i) =>
+    hop.map((s) => ({
+      playerId: s.base.playerId,
+      from: i === 0 ? me : cycle.teams[i - 1].rosterId,
+      to: i === last ? me : cycle.teams[i].rosterId
+    }))
+  )
 }
 
 export function cycleKey(cycle: Cycle): string {
@@ -263,7 +276,7 @@ export function oracleSuggest(
         s.isMe ? null : acceptanceOf(s.delta, marketRatio(s), s.deltaPerWeek)
       ),
       alternatives: rest.map((d) => ({
-        proposal: cycleProposal(me.rosterId, d),
+        moves: cycleMoves(me.rosterId, d),
         label: label(d),
         worstDeltaPerWeek: worst(d)
       }))

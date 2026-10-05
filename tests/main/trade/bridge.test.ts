@@ -5,6 +5,7 @@ import {
   bridgeLabel,
   dealProposal,
   dealsAt,
+  dealTransfers,
   refuses,
   type Deal
 } from '@main/trade/bridge'
@@ -81,6 +82,12 @@ describe('dealsAt on the triangle league (spec §3.3)', () => {
         { playerId: 'b2', to: 1 }
       ]
     })
+    // The same deal with each move's source: hop i leaves the team before it (me first).
+    expect(viaC2 && dealTransfers(ctx.me, viaC2)).toEqual([
+      { playerId: 'a2', from: 1, to: 3 },
+      { playerId: 'c2', from: 3, to: 2 },
+      { playerId: 'b2', from: 2, to: 1 }
+    ])
     const viaC1C3 = deals.find((d) => bridgeLabel(d) === 'via Three: c1, c3')
     expect(viaC1C3?.accepted[1].core.drops.map((p) => p.playerId)).toEqual(['b3'])
   })

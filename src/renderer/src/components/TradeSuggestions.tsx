@@ -30,13 +30,8 @@ import {
 import type { SuggestRun } from '@/lib/useSuggestRun'
 import { cn } from '@/lib/utils'
 import { LINEUP_POSITIONS } from '@shared/rules'
-import type {
-  TradeAlternative,
-  TradePool,
-  TradeProposal,
-  TradeStance,
-  TradeSuggestion
-} from '@shared/types'
+import type { DealMove } from '@shared/deal'
+import type { TradeAlternative, TradePool, TradeStance, TradeSuggestion } from '@shared/types'
 
 function Tag({ children }: { children: string }): React.JSX.Element {
   return (
@@ -50,11 +45,11 @@ function Tag({ children }: { children: string }): React.JSX.Element {
 function SuggestionRow({
   suggestion,
   onOpen,
-  onOpenProposal
+  onOpenAlternative
 }: {
   suggestion: TradeSuggestion
   onOpen: () => void
-  onOpenProposal: (proposal: TradeProposal) => void
+  onOpenAlternative: (moves: DealMove[]) => void
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false)
   const sides = suggestion.evaluation.sides
@@ -116,7 +111,7 @@ function SuggestionRow({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => onOpenProposal(a.proposal)}
+                    onClick={() => onOpenAlternative(a.moves)}
                   >
                     Open in builder
                   </Button>
@@ -136,9 +131,9 @@ function suggestionKey(s: TradeSuggestion): string {
     .join('>')
 }
 
-/** An alternative is its proposal; labels can repeat when two players share a name. */
+/** An alternative is its moves; labels can repeat when two players share a name. */
 function alternativeKey(a: TradeAlternative): string {
-  return a.proposal.moves.map((m) => `${m.playerId}>${m.to}`).join('+')
+  return a.moves.map((m) => `${m.playerId}>${m.to}`).join('+')
 }
 
 interface TradeSuggestionsProps {
@@ -146,7 +141,7 @@ interface TradeSuggestionsProps {
   season: number
   suggest: SuggestRun
   onOpen: (suggestion: TradeSuggestion) => void
-  onOpenProposal: (proposal: TradeProposal) => void
+  onOpenAlternative: (moves: DealMove[]) => void
 }
 
 /** Multi-team spec §5.2: the controls, Find / Stop, the live status line and the streamed list. */
@@ -155,7 +150,7 @@ export function TradeSuggestions({
   season,
   suggest,
   onOpen,
-  onOpenProposal
+  onOpenAlternative
 }: TradeSuggestionsProps): React.JSX.Element {
   const { controls, setControls, run, running, startError } = suggest
   const set = (over: Partial<SuggestControls>): void => setControls({ ...controls, ...over })
@@ -281,7 +276,7 @@ export function TradeSuggestions({
                 key={suggestionKey(s)}
                 suggestion={s}
                 onOpen={() => onOpen(s)}
-                onOpenProposal={onOpenProposal}
+                onOpenAlternative={onOpenAlternative}
               />
             ))}
           </ul>

@@ -1,5 +1,6 @@
 import { teamName } from '@main/lineup/build'
 import type { PlayerSeries } from '@main/value/series'
+import type { DealMove } from '@shared/deal'
 import type { Team, TradeAcceptance, TradeProposal } from '@shared/types'
 import { MARKET_FAIR, marketRatio, marketSum } from './evaluate'
 import { sideOf, type MySide, type SearchContext } from './searchContext'
@@ -158,17 +159,21 @@ export function* dealsAt(ctx: SearchContext, side: MySide, k: number): Generator
   return out
 }
 
-/** The deal as moves, hop by hop: hop i goes to `teams[i]`, the last hop to me. */
-export function dealProposal(me: Team, deal: Deal): TradeProposal {
+/** The deal as moves, hop by hop: hop i leaves `teams[i − 1]` (hop 0 leaves me) for `teams[i]` (the last hop comes to me). */
+export function dealTransfers(me: Team, deal: Deal): DealMove[] {
   const last = deal.hops.length - 1
-  return {
-    moves: deal.hops.flatMap((hop, i) =>
-      hop.map((s) => ({
-        playerId: s.base.playerId,
-        to: i === last ? me.rosterId : deal.teams[i].rosterId
-      }))
-    )
-  }
+  return deal.hops.flatMap((hop, i) =>
+    hop.map((s) => ({
+      playerId: s.base.playerId,
+      from: i === 0 ? me.rosterId : deal.teams[i - 1].rosterId,
+      to: i === last ? me.rosterId : deal.teams[i].rosterId
+    }))
+  )
+}
+
+/** The deal as a proposal: its moves without their sources. */
+export function dealProposal(me: Team, deal: Deal): TradeProposal {
+  return { moves: dealTransfers(me, deal).map(({ playerId, to }) => ({ playerId, to })) }
 }
 
 /** "via Gridiron Gang: James Cook · Tank Mode: Bijan Robinson" — the bridge teams and what each sends. */

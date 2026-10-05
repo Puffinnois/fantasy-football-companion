@@ -1,4 +1,5 @@
 import type { WaiverType } from './rules'
+import type { DealMove } from './deal'
 
 export interface LeagueSummary {
   leagueId: string
@@ -432,7 +433,8 @@ export type TradeAcceptance = 'lineup' | 'market' | 'both'
 
 /** Multi-team spec §3.5: another working deal for the same my side, at the same size. */
 export interface TradeAlternative {
-  proposal: TradeProposal
+  /** The deal hop by hop, each move with the team it leaves — a stale list prunes it (follow-ups §1). */
+  moves: DealMove[]
   /** "via Gridiron Gang: James Cook" — the bridge teams and what each sends. */
   label: string
   /** The least happy other team's Δ/week. */
