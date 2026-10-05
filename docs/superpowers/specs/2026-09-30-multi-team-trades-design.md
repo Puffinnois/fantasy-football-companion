@@ -167,6 +167,9 @@ export interface TradeAlternative {
   label: string
   worstDeltaPerWeek: number
 }
+
+(Amended 2026-10-04, Plan S: `proposal` is now `moves: DealMove[]`, each move with the team it leaves, so a stale list can prune an alternative.)
+
 export interface TradeSuggestion {
   /** Exactly what `trade:evaluate` returns for the shown deal. */
   evaluation: TradeEvaluation
@@ -212,16 +215,17 @@ Cards arrive in final rank order: the list only appends. `stop()` terminates the
 
 One active run, owned by main (`src/main/trade/suggestRun.ts`): its id, query, cards so far, progress and status (`running` or the `done` reason, or `error`).
 
-| Channel                                             | Direction       | Does                                                                                 |
-| --------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------ |
-| `trade:suggestStart(query) → runId`                 | invoke          | Starts a run; stops the previous one (`stopped`).                                    |
-| `trade:suggestStop()`                               | invoke          | Stops the active run (`stopped`); cards stay.                                        |
-| `trade:suggestSnapshot() → SuggestSnapshot \| null` | invoke          | The active or last run: `runId`, `query`, `cards`, `progress`, `status`, `message?`. |
-| `trade:suggestEvent`                                | main → renderer | `SuggestEvent`s via `webContents.send`.                                              |
+| Channel                                             | Direction       | Does                                                                                                    |
+| --------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------- |
+| `trade:suggestStart(query) → runId`                 | invoke          | Starts a run; stops the previous one (`stopped`). Refused during a league refresh (amended 2026-10-04). |
+| `trade:suggestStop()`                               | invoke          | Stops the active run (`stopped`); cards stay.                                                           |
+| `trade:suggestSnapshot() → SuggestSnapshot \| null` | invoke          | The active or last run: `runId`, `query`, `cards`, `progress`, `status`, `message?`.                    |
+| `trade:suggestEvent`                                | main → renderer | `SuggestEvent`s via `webContents.send`.                                                                 |
 
 - Preload: `api.trade.suggestStart / suggestStop / suggestSnapshot / onSuggestEvent(cb) → unsubscribe`.
 - The one-shot `trade:suggest` is removed (in Plan R; §9).
 - **Stale data.** When `invalidateCaches()` runs (sync, rules save), main marks the active or last run `stale` — stopping it if it is still running: the cards stay visible under "League data changed — run again". _Open in builder_ on a stale card prunes its deal to the current rosters and evaluates it afresh instead of showing the card's verdict. (Amended 2026-10-03, Plan R Task 11 review: originally only a running search went stale, so a finished list kept old verdicts after a sync.)
+- **During a refresh** (amended 2026-10-04, Plan S): `trade:suggestStart` is refused while a league refresh is in flight — "League data is refreshing — Find again when it finishes" — before anything stops; the renderer then re-attaches to main's run (snapshot), so the shown list stays. The controls stay as the user set them.
 - App quit terminates the worker.
 - The renderer ignores events whose `runId` is not the one it follows.
 
@@ -261,6 +265,7 @@ One active run, owned by main (`src/main/trade/suggestRun.ts`): its id, query, c
 | `mustInclude` is me or unknown       | `INVALID_TRADE` on start; the UI never offers it.                                                                                                                                                  |
 | Worker error or unexpected exit      | `error` event; cards so far stay.                                                                                                                                                                  |
 | Sync during or after a run           | `stale` (§4.2).                                                                                                                                                                                    |
+| Find during a refresh                | Refused with "League data is refreshing — Find again when it finishes"; the shown run is unchanged (§4.2).                                                                                         |
 | Packaged-asar worker                 | Unchanged from v0.16 (fallback: add `out/main/engineWorker.js` to `asarUnpack`).                                                                                                                   |
 
 ## 7. Testing
