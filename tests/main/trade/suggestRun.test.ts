@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { suggestRuns } from '@main/trade/suggestRun'
+import { REFRESHING, suggestRuns } from '@main/trade/suggestRun'
 import type { SuggestEvent, SuggestUpdate, TradeSuggestQuery } from '@shared/types'
 import { tradeSuggestion } from '../../fixtures/trade'
 
@@ -13,7 +13,7 @@ const QUERY: TradeSuggestQuery = {
 const PROGRESS = { checked: 3, total: 10, found: 1, size: 3, elapsedMs: 900 }
 
 /** A run manager over a stubbed stream: each start is recorded with its update callback. */
-function setup(): {
+function setup(refreshing: () => boolean = () => false): {
   runs: ReturnType<typeof suggestRuns>
   streams: { query: TradeSuggestQuery; push: (u: SuggestUpdate) => void; stopped: boolean }[]
   sent: SuggestEvent[]
@@ -34,7 +34,8 @@ function setup(): {
         }
       }
     },
-    send: (event) => sent.push(event)
+    send: (event) => sent.push(event),
+    refreshing
   })
   return { runs, streams, sent }
 }
@@ -152,6 +153,14 @@ describe('suggestRuns (spec §4.2)', () => {
       expect(sent).toEqual([])
       expect(runs.snapshot()?.status).toBe('stale')
     })
+
+    it("keeps an errored run's message when it goes stale", () => {
+      const { runs, streams } = setup()
+      runs.start(QUERY)
+      streams[0].push({ type: 'error', message: 'boom' })
+      runs.stale()
+      expect(runs.snapshot()).toMatchObject({ status: 'stale', message: 'boom' })
+    })
   })
 
   it('records a worker error, and a start that fails', () => {
@@ -166,9 +175,26 @@ describe('suggestRuns (spec §4.2)', () => {
       start: () => {
         throw new Error('no worker')
       },
-      send: () => undefined
+      send: () => undefined,
+      refreshing: () => false
     })
     expect(() => failing.start(QUERY)).toThrow('no worker')
     expect(failing.snapshot()).toMatchObject({ status: 'error', message: 'no worker' })
+  })
+
+  it('refuses a start while league data refreshes, before stopping anything', () => {
+    let refreshing = false
+    const { runs, streams, sent } = setup(() => refreshing)
+    const first = runs.start(QUERY)
+    streams[0].push({ type: 'cards', cards: [tradeSuggestion()] })
+    refreshing = true
+    expect(() => runs.start({ ...QUERY, maxTeams: 2 })).toThrow(REFRESHING)
+    expect(streams).toHaveLength(1)
+    expect(streams[0].stopped).toBe(false)
+    expect(runs.snapshot()).toMatchObject({ runId: first, query: QUERY, status: 'running' })
+    expect(runs.snapshot()?.cards).toHaveLength(1)
+    expect(sent.some((e) => e.type === 'done')).toBe(false)
+    refreshing = false
+    expect(runs.start(QUERY)).toBe(first + 1)
   })
 })

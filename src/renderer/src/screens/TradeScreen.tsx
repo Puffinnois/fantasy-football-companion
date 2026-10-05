@@ -7,7 +7,7 @@ import { errorMessage } from '@/lib/format'
 import {
   EMPTY_DEAL,
   addTeam,
-  dealFromProposal,
+  dealFromMoves,
   dealOf,
   proposalFrom,
   pruneDeal,
@@ -15,13 +15,12 @@ import {
 } from '@/lib/tradeBuilder'
 import { DEADLINE_NOTE, windowLabel } from '@/lib/tradeView'
 import { useSuggestRun } from '@/lib/useSuggestRun'
-import { proposalOf } from '@shared/deal'
+import { proposalOf, type DealMove } from '@shared/deal'
 import type {
   DetailTarget,
   TradeEvaluation,
   TradeOpenSpots,
   TradePool,
-  TradeProposal,
   TradeSuggestion
 } from '@shared/types'
 
@@ -146,10 +145,12 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
     scrollToBuilder()
   }
 
-  /** Multi-team spec §5.2: an alternative carries only its proposal, so it is evaluated on opening. */
-  const openProposal = (proposal: TradeProposal): void => {
+  /** Multi-team spec §5.2: an alternative carries only its moves, so it is evaluated on opening. */
+  const openAlternative = (moves: DealMove[]): void => {
     if (!pool) return
-    const d = dealFromProposal(proposal, pool)
+    const built = dealFromMoves(moves, pool.me.rosterId)
+    // Follow-ups §1: on a stale list, drop a player who has left the team the search had him on.
+    const d = suggest.run?.status === 'stale' ? pruneDeal(built, pool) : built
     changeDeal(d)
     void evaluate(d)
     scrollToBuilder()
@@ -198,7 +199,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
             season={season}
             suggest={suggest}
             onOpen={openSuggestion}
-            onOpenProposal={openProposal}
+            onOpenAlternative={openAlternative}
           />
         </>
       )}

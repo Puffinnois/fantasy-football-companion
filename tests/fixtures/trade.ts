@@ -246,13 +246,11 @@ export function threeTeamSuggestion(): TradeSuggestion {
     acceptance: [null, 'lineup', 'market'],
     alternatives: [
       {
-        proposal: {
-          moves: [
-            { playerId: '6794', to: 2 },
-            { playerId: '9509', to: 3 },
-            { playerId: '5859', to: 1 }
-          ]
-        },
+        moves: [
+          { playerId: '6794', from: 1, to: 2 },
+          { playerId: '9509', from: 2, to: 3 },
+          { playerId: '5859', from: 3, to: 1 }
+        ],
         label: 'via Rival: Bijan Robinson',
         worstDeltaPerWeek: -0.3
       }

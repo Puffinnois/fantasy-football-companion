@@ -36,7 +36,8 @@ import {
   otherSideLine,
   otherWaysLabel,
   alternativeLine,
-  DEFAULT_CONTROLS
+  DEFAULT_CONTROLS,
+  pruneControls
 } from '@/lib/tradeView'
 import {
   barkley,
@@ -50,6 +51,7 @@ import {
   rivalSide,
   threeTeamEvaluation,
   tradeEvaluation,
+  tradePool,
   tradeSide,
   tradeSuggestion,
   threeTeamSuggestion
@@ -206,6 +208,25 @@ describe('tradeView', () => {
 })
 
 describe('suggestion controls (multi-team spec §5.2)', () => {
+  it('forgets a focus player or team that is gone and caps Up to at the league size', () => {
+    // tradePool(): me holds Barkley (4866); one other team, Rival (2)
+    const gone = {
+      ...DEFAULT_CONTROLS,
+      focusKind: 'give' as const,
+      focusGive: 'gone',
+      maxTeams: 4,
+      mustInclude: 9
+    }
+    expect(pruneControls(gone, tradePool())).toEqual({
+      ...gone,
+      focusGive: '',
+      maxTeams: 2,
+      mustInclude: null
+    })
+    const kept = { ...gone, focusGive: '4866', maxTeams: 2, mustInclude: 2 }
+    expect(pruneControls(kept, tradePool())).toEqual(kept)
+  })
+
   it('turns controls into a query and back', () => {
     expect(queryOf(DEFAULT_CONTROLS, 2026)).toEqual({
       season: 2026,
@@ -274,6 +295,10 @@ describe('suggestion status line (multi-team spec §5.2)', () => {
       'Stopped: 12 found so far'
     )
     expect(suggestStatusLine(snap({ status: 'stale' }))).toBe('League data changed — run again')
+    // an errored run that went stale keeps its error
+    expect(suggestStatusLine(snap({ status: 'stale', message: 'boom' }))).toBe(
+      'Search failed: boom · League data changed — run again'
+    )
     expect(suggestStatusLine(snap({ status: 'error', message: 'boom' }))).toBe(
       'Search failed: boom'
     )

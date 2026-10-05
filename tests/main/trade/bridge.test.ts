@@ -5,6 +5,7 @@ import {
   bridgeLabel,
   dealProposal,
   dealsAt,
+  dealTransfers,
   refuses,
   type Deal
 } from '@main/trade/bridge'
@@ -81,6 +82,12 @@ describe('dealsAt on the triangle league (spec §3.3)', () => {
         { playerId: 'b2', to: 1 }
       ]
     })
+    // The same deal with each move's source: hop i leaves the team before it (me first).
+    expect(viaC2 && dealTransfers(ctx.me, viaC2)).toEqual([
+      { playerId: 'a2', from: 1, to: 3 },
+      { playerId: 'c2', from: 3, to: 2 },
+      { playerId: 'b2', from: 2, to: 1 }
+    ])
     const viaC1C3 = deals.find((d) => bridgeLabel(d) === 'via Three: c1, c3')
     expect(viaC1C3?.accepted[1].core.drops.map((p) => p.playerId)).toEqual(['b3'])
   })
@@ -151,6 +158,33 @@ describe('dealsAt equals a brute force (prunes are exact)', () => {
     },
     120_000
   )
+})
+
+describe('dealsAt with the must-include team in any bridge slot (follow-ups §7)', () => {
+  it('equals the brute force on 5-team deals', () => {
+    const { build } = syntheticBuild(searchLeague(1, 5))
+    const cache: EvalCache = new Map()
+    const ctx = searchContext(build, 3)
+    const c = ctx.others.find((t) => t.rosterId === 2)
+    if (!c) throw new Error('no team 2')
+    const mine = build.rosters.get(ctx.me.rosterId) ?? []
+    const theirs = build.rosters.get(c.rosterId) ?? []
+    /** Deals with team 3 in bridge slot 0, 1 (the middle) and 2. */
+    const slots = [0, 0, 0]
+    for (const x of mine) {
+      for (const z of theirs) {
+        const side: MySide = { x: [x], z: [z], c, key: mySideKey([x], [z], c) }
+        const deals = drain(dealsAt(ctx, side, 5))
+        for (const d of deals) slots[d.teams.findIndex((t) => t.rosterId === 3)]++
+        expect({ side: side.key, deals: deals.map(cycleKey).sort() }).toEqual({
+          side: side.key,
+          deals: oracleDeals(build, side, 5, 3, cache)
+        })
+      }
+    }
+    // The test reaches every slot, the middle one included — it cannot pass by checking nothing.
+    expect(slots.every((n) => n > 0)).toBe(true)
+  }, 120_000)
 })
 
 describe('dealsAt on the negative league', () => {

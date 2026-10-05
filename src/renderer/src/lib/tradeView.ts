@@ -5,6 +5,7 @@ import type {
   TradeEvaluation,
   TradeOpenSpots,
   TradePlayer,
+  TradePool,
   TradeSideResult,
   TradeStance,
   TradeSuggestion,
@@ -247,6 +248,19 @@ export function controlsOf(q: TradeSuggestQuery): SuggestControls {
     : { ...base, focusKind: 'want', focusWant: q.focus.want }
 }
 
+/** After a pool reload: forget a focus player or team that is gone; cap "Up to" at the league size. */
+export function pruneControls(c: SuggestControls, pool: TradePool): SuggestControls {
+  return {
+    ...c,
+    focusGive: pool.me.players.some((p) => p.playerId === c.focusGive) ? c.focusGive : '',
+    mustInclude:
+      c.mustInclude !== null && pool.teams.some((t) => t.rosterId === c.mustInclude)
+        ? c.mustInclude
+        : null,
+    maxTeams: Math.max(2, Math.min(c.maxTeams, pool.teams.length + 1))
+  }
+}
+
 /** Whether two queries ask for the same search. */
 export function sameQuery(a: TradeSuggestQuery, b: TradeSuggestQuery): boolean {
   return (
@@ -286,7 +300,9 @@ export function suggestStatusLine(snap: SuggestSnapshot): string {
     case 'stopped':
       return `Stopped: ${n} found so far`
     case 'stale':
-      return 'League data changed — run again'
+      return snap.message === null
+        ? 'League data changed — run again'
+        : `Search failed: ${snap.message} · League data changed — run again`
     case 'error':
       return `Search failed: ${snap.message ?? 'unknown error'}`
   }

@@ -597,10 +597,10 @@ export function generateLeague(seed: number, teamCount = 16, freeAgents = 0): Sy
 /**
  * Multi-team spec §7 property-test league: `generateLeague(seed, 4)` cut to 2 RB + 2 WR per team,
  * slots RB · WR · FLEX (+1 bench) so every 2-for-1 forces a drop, window weeks 3–5. Small enough
- * for the brute force to enumerate every 4-team cycle.
+ * for the brute force to enumerate every 4-team cycle. `teamCount` 5 lets a test reach a 5-team deal.
  */
-export function searchLeague(seed: number): SyntheticLeague {
-  const g = generateLeague(seed, 4)
+export function searchLeague(seed: number, teamCount = 4): SyntheticLeague {
+  const g = generateLeague(seed, teamCount)
   return {
     ...g,
     weeks: g.weeks.slice(0, 3),
@@ -612,7 +612,7 @@ export function searchLeague(seed: number): SyntheticLeague {
         { slot: 'FLEX', count: 1 },
         { slot: 'BN', count: 1 }
       ],
-      settings: { numTeams: 4, waiverType: 'faab', playoffStartWeek: 4, playoffTeams: 4 }
+      settings: { numTeams: teamCount, waiverType: 'faab', playoffStartWeek: 4, playoffTeams: 4 }
     }),
     teams: g.teams.map((t) => ({
       ...t,

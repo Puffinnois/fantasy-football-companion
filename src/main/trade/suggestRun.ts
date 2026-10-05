@@ -2,15 +2,20 @@ import type { StreamHandle } from '@main/engine/runEngine'
 import { applyUpdate, EMPTY_PROGRESS } from '@shared/suggestRun'
 import type { SuggestEvent, SuggestSnapshot, SuggestUpdate, TradeSuggestQuery } from '@shared/types'
 
+/** Follow-ups §6: every sync step marks the run stale, so a start during a refresh is refused. */
+export const REFRESHING = 'League data is refreshing — Find again when it finishes'
+
 export interface SuggestRunDeps {
   /** Starts the search; its updates arrive through `onUpdate` until `done`, `error` or `stop()`. */
   start(query: TradeSuggestQuery, onUpdate: (update: SuggestUpdate) => void): StreamHandle
   /** Forwards an event to the renderer. */
   send(event: SuggestEvent): void
+  /** A league refresh is in flight: its steps would mark a new run stale at once. */
+  refreshing(): boolean
 }
 
 export interface SuggestRuns {
-  /** Starts a run, stopping the active one (`stopped`); returns the new run's id. */
+  /** Starts a run, stopping the active one (`stopped`); returns the new run's id. Throws `REFRESHING` during a refresh. */
   start(query: TradeSuggestQuery): number
   /** Stops the active run (`stopped`); its cards stay. */
   stop(): void
@@ -37,6 +42,8 @@ export function suggestRuns(deps: SuggestRunDeps): SuggestRuns {
 
   return {
     start(query: TradeSuggestQuery): number {
+      // Refused before anything stops: the shown run and its cards stay as they are.
+      if (deps.refreshing()) throw new Error(REFRESHING)
       end('stopped')
       const runId = ++lastId
       snap = { runId, query, cards: [], progress: EMPTY_PROGRESS, status: 'running', message: null }

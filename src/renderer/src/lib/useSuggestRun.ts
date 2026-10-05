@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
-import { DEFAULT_CONTROLS, controlsOf, queryOf, type SuggestControls } from '@/lib/tradeView'
+import {
+  DEFAULT_CONTROLS,
+  controlsOf,
+  pruneControls,
+  queryOf,
+  type SuggestControls
+} from '@/lib/tradeView'
 import { applyUpdate, EMPTY_PROGRESS } from '@shared/suggestRun'
 import type { SuggestSnapshot, TradePool } from '@shared/types'
 
@@ -34,6 +40,8 @@ export function useSuggestRun(season: number | null): SuggestRun {
   const following = useRef<number | null>(null)
   /** Counts starts, so only the latest start's answer is taken. */
   const starts = useRef(0)
+  /** The pool `prune` last saw: a snapshot that answers after it is pruned against it too. */
+  const lastPool = useRef<TradePool | null>(null)
 
   useEffect(() => {
     let live = true
@@ -48,7 +56,10 @@ export function useSuggestRun(season: number | null): SuggestRun {
         if (!live || snap === null || starts.current > 0) return
         following.current = snap.runId
         setRun(snap)
-        setControls(controlsOf(snap.query))
+        const restored = controlsOf(snap.query)
+        setControls(
+          lastPool.current === null ? restored : pruneControls(restored, lastPool.current)
+        )
       })
       .catch(() => undefined)
     return () => {
@@ -82,9 +93,18 @@ export function useSuggestRun(season: number | null): SuggestRun {
       })
       .catch((err) => {
         if (token !== starts.current) return
+        setStartError(errorMessage(err))
+        // Follow-ups §6: a refused start leaves main's run as it was — show and follow it again.
         following.current = null
         setRun(null)
-        setStartError(errorMessage(err))
+        void api.trade
+          .suggestSnapshot()
+          .then((snap) => {
+            if (token !== starts.current || snap === null) return
+            following.current = snap.runId
+            setRun(snap)
+          })
+          .catch(() => undefined)
       })
   }
 
@@ -94,15 +114,8 @@ export function useSuggestRun(season: number | null): SuggestRun {
   }
 
   const prune = useCallback((pool: TradePool): void => {
-    setControls((c) => ({
-      ...c,
-      focusGive: pool.me.players.some((p) => p.playerId === c.focusGive) ? c.focusGive : '',
-      mustInclude:
-        c.mustInclude !== null && pool.teams.some((t) => t.rosterId === c.mustInclude)
-          ? c.mustInclude
-          : null,
-      maxTeams: Math.max(2, Math.min(c.maxTeams, pool.teams.length + 1))
-    }))
+    lastPool.current = pool
+    setControls((c) => pruneControls(c, pool))
   }, [])
 
   return {

@@ -138,15 +138,10 @@ export function sidesInOrder(
   return [...ev.sides].sort((a, b) => rank(a.rosterId) - rank(b.rosterId))
 }
 
-/** An alternative's deal (spec §5.2 "Open in builder"): every move with its source from the pool, teams in first appearance. */
-export function dealFromProposal(proposal: TradeProposal, pool: TradePool): BuilderDeal {
-  const owner = new Map<string, number>()
-  for (const team of [pool.me, ...pool.teams]) {
-    for (const p of team.players) owner.set(p.playerId, team.rosterId)
+/** An alternative's deal (spec §5.2 "Open in builder"): its moves as picks, teams in first appearance. */
+export function dealFromMoves(moves: DealMove[], me: number): BuilderDeal {
+  return {
+    teams: dealTeams(moves).filter((t) => t !== me),
+    picks: moves.map(({ playerId, from, to }) => ({ playerId, from, to }))
   }
-  const picks = proposal.moves.flatMap((m) => {
-    const from = owner.get(m.playerId)
-    return from === undefined ? [] : [{ playerId: m.playerId, from, to: m.to }]
-  })
-  return { teams: dealTeams(picks).filter((t) => t !== pool.me.rosterId), picks }
 }

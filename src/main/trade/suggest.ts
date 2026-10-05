@@ -1,7 +1,7 @@
 import { teamName, type LineupBuild } from '@main/lineup/build'
 import type { PlayerSeries } from '@main/value/series'
 import type { TradeAlternative, TradeSuggestion, TradeSuggestQuery } from '@shared/types'
-import { bridgeLabel, dealProposal, dealsAt, refuses, type Deal } from './bridge'
+import { bridgeLabel, dealProposal, dealsAt, dealTransfers, refuses, type Deal } from './bridge'
 import { evaluateTrade, TradeError } from './evaluate'
 import { mySideQueue, type RankedSide } from './mySides'
 import {
@@ -79,7 +79,7 @@ function cardOf(ctx: SearchContext, found: Found): TradeSuggestion {
     teams: found.k,
     acceptance: [null, ...best.accepted.map((a) => a.acceptance)],
     alternatives: rest.map((d): TradeAlternative => ({
-      proposal: dealProposal(ctx.me, d),
+      moves: dealTransfers(ctx.me, d),
       label: bridgeLabel(d),
       worstDeltaPerWeek: worstOf(d)
     }))

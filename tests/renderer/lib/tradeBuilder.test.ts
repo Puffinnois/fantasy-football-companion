@@ -15,7 +15,7 @@ import {
   setDestination,
   sidesInOrder,
   teamLabel,
-  dealFromProposal,
+  dealFromMoves,
   type BuilderDeal
 } from '@/lib/tradeBuilder'
 import {
@@ -157,10 +157,10 @@ describe('sidesInOrder (Plan Q follow-up)', () => {
   })
 })
 
-describe('dealFromProposal (multi-team spec §5.2)', () => {
-  it("rebuilds an alternative's deal with every source from the pool", () => {
-    const { proposal } = threeTeamSuggestion().alternatives[0]
-    expect(dealFromProposal(proposal, threeTeamPool())).toEqual({
+describe('dealFromMoves (multi-team spec §5.2, follow-ups §1)', () => {
+  it("rebuilds an alternative's deal from its moves, teams in first appearance", () => {
+    const { moves } = threeTeamSuggestion().alternatives[0]
+    expect(dealFromMoves(moves, 1)).toEqual({
       teams: [2, 3],
       picks: [
         { playerId: '6794', from: 1, to: 2 },
@@ -170,9 +170,22 @@ describe('dealFromProposal (multi-team spec §5.2)', () => {
     })
   })
 
-  it('leaves out a player no longer on any roster', () => {
-    expect(
-      dealFromProposal({ moves: [{ playerId: 'gone', to: 2 }] }, threeTeamPool()).picks
-    ).toEqual([])
+  it('keeps the team the search had a player on, so a stale prune drops a player who moved', () => {
+    const { moves } = threeTeamSuggestion().alternatives[0]
+    const before = threeTeamPool()
+    // a sync moves Bijan from Rival to Tank Mode
+    const after = tradePool({
+      teams: [
+        {
+          ...before.teams[0],
+          players: before.teams[0].players.filter((p) => p.playerId !== '9509')
+        },
+        { ...before.teams[1], players: [...before.teams[1].players, bijan] }
+      ]
+    })
+    expect(pruneDeal(dealFromMoves(moves, 1), after).picks).toEqual([
+      { playerId: '6794', from: 1, to: 2 },
+      { playerId: '5859', from: 3, to: 1 }
+    ])
   })
 })

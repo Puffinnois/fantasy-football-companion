@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { TradeScreen } from '@/screens/TradeScreen'
 import { api } from '@/lib/api'
-import type { PlayersOptions, SuggestEvent, TradeEvaluation } from '@shared/types'
+import type { PlayersOptions, SuggestEvent, SuggestSnapshot, TradeEvaluation } from '@shared/types'
 import { lineupPlayer } from '../../fixtures/lineup'
 import {
   bijan,
@@ -332,10 +332,13 @@ describe('TradeScreen', () => {
     fireEvent.click(screen.getAllByText('Open in builder')[1])
     // an alternative carries no evaluation: it is evaluated on opening
     await waitFor(() =>
-      expect(evaluateMock).toHaveBeenCalledWith(
-        2026,
-        threeTeamSuggestion().alternatives[0].proposal
-      )
+      expect(evaluateMock).toHaveBeenCalledWith(2026, {
+        moves: [
+          { playerId: '6794', to: 2 },
+          { playerId: '9509', to: 3 },
+          { playerId: '5859', to: 1 }
+        ]
+      })
     )
     expect(screen.getByLabelText('Remove team Tank Mode')).toBeTruthy()
     expect(screen.getByText('Bijan Robinson')).toBeTruthy()
@@ -405,6 +408,42 @@ describe('TradeScreen', () => {
     unmount()
     expect(unsubscribe).toHaveBeenCalled()
     expect(stopMock).not.toHaveBeenCalled()
+  })
+
+  it('prunes controls restored from a snapshot that answers after the pool', async () => {
+    let answer: (snap: SuggestSnapshot | null) => void = () => undefined
+    snapshotMock.mockReturnValue(
+      new Promise<SuggestSnapshot | null>((resolve) => {
+        answer = resolve
+      })
+    )
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send') // the pool is in, and pruned what it could
+    await act(async () =>
+      answer({
+        runId: 3,
+        query: {
+          season: 2026,
+          focus: { give: 'gone' },
+          stance: 'overpay',
+          maxTeams: 4,
+          mustInclude: 9
+        },
+        cards: [],
+        progress: PROGRESS,
+        status: 'stopped',
+        message: null
+      })
+    )
+    expect((screen.getByLabelText('Stance') as HTMLSelectElement).value).toBe('overpay')
+    fireEvent.click(screen.getByText('Find'))
+    expect(startMock).toHaveBeenLastCalledWith({
+      season: 2026,
+      focus: null,
+      stance: 'overpay',
+      maxTeams: 2,
+      mustInclude: null
+    })
   })
 
   it('notes changed controls and starts nothing until Find', async () => {
@@ -516,6 +555,46 @@ describe('TradeScreen', () => {
     expect(await screen.findByText('Rival gets nobody')).toBeTruthy()
   })
 
+  it('drops a stale alternative’s player who left the team it came from', async () => {
+    poolMock.mockResolvedValue(threeTeamPool())
+    evaluateMock.mockRejectedValue(new Error('Tank Mode gets nobody'))
+    openSpotMock.mockResolvedValue({ sides: [null, null, null] })
+    const { rerender } = render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [threeTeamSuggestion()] })
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+
+    // a sync moves Bijan from Rival to Tank Mode; the same event marks the list stale
+    const before = threeTeamPool()
+    poolMock.mockResolvedValue(
+      tradePool({
+        teams: [
+          {
+            ...before.teams[0],
+            players: before.teams[0].players.filter((p) => p.playerId !== '9509')
+          },
+          { ...before.teams[1], players: [...before.teams[1].players, bijan] }
+        ]
+      })
+    )
+    rerender(<TradeScreen dataVersion={1} />)
+    await screen.findByLabelText('Add to I send')
+    send({ runId: 7, type: 'done', reason: 'stale', progress: { ...PROGRESS, found: 1 } })
+
+    fireEvent.click(screen.getByText('+1 other way ▸'))
+    fireEvent.click(screen.getAllByText('Open in builder')[1])
+    // not re-homed onto Tank Mode (from = to): Bijan leaves the deal
+    expect(evaluateMock).toHaveBeenLastCalledWith(2026, {
+      moves: [
+        { playerId: '6794', to: 2 },
+        { playerId: '5859', to: 1 }
+      ]
+    })
+    expect(await screen.findByText('Tank Mode gets nobody')).toBeTruthy()
+  })
+
   it('drops an evaluate answer that lands after the deal changed', async () => {
     let answer: (ev: TradeEvaluation) => void = () => undefined
     evaluateMock.mockReturnValue(
@@ -593,5 +672,98 @@ describe('TradeScreen', () => {
         .getAllByRole('group', { name: /^Verdict for/ })
         .map((g) => g.getAttribute('aria-label'))
     ).toEqual(['Verdict for me', 'Verdict for Rival', 'Verdict for Tank Mode'])
+  })
+
+  it('keeps the shown list when a start is refused during a refresh', async () => {
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+
+    startMock.mockRejectedValueOnce(
+      new Error(
+        "Error invoking remote method 'trade:suggestStart': Error: League data is refreshing — Find again when it finishes"
+      )
+    )
+    // main still holds run 7 — by now marked stale by the refresh (a two-team league caps "Up to" at 2)
+    snapshotMock.mockResolvedValue({
+      runId: 7,
+      query: { season: 2026, focus: null, stance: 'fair', maxTeams: 2, mustInclude: null },
+      cards: [tradeSuggestion()],
+      progress: { ...PROGRESS, found: 1 },
+      status: 'stale',
+      message: null
+    })
+    fireEvent.click(screen.getByText('Find'))
+    expect(
+      await screen.findByText('League data is refreshing — Find again when it finishes')
+    ).toBeTruthy()
+    expect(await screen.findByText('with Rival')).toBeTruthy()
+    expect(screen.getByText('League data changed — run again')).toBeTruthy()
+  })
+
+  it("follows main's run again after a refused start", async () => {
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+
+    startMock.mockRejectedValueOnce(
+      new Error(
+        "Error invoking remote method 'trade:suggestStart': Error: League data is refreshing — Find again when it finishes"
+      )
+    )
+    // main's run 7 is still running, so the hook re-attaches to it
+    snapshotMock.mockResolvedValue({
+      runId: 7,
+      query: { season: 2026, focus: null, stance: 'fair', maxTeams: 2, mustInclude: null },
+      cards: [tradeSuggestion()],
+      progress: PROGRESS,
+      status: 'running',
+      message: null
+    })
+    fireEvent.click(screen.getByText('Find'))
+    expect(
+      await screen.findByText('League data is refreshing — Find again when it finishes')
+    ).toBeTruthy()
+    expect(await screen.findByText('with Rival')).toBeTruthy()
+    expect(screen.getByText('Stop')).toBeTruthy()
+
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+    expect(screen.getByText('Done: 1 found, every idea checked')).toBeTruthy()
+  })
+
+  it("keeps the user's controls after a refused start", async () => {
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+    fireEvent.change(screen.getByLabelText('Stance'), { target: { value: 'overpay' } })
+
+    startMock.mockRejectedValueOnce(
+      new Error(
+        "Error invoking remote method 'trade:suggestStart': Error: League data is refreshing — Find again when it finishes"
+      )
+    )
+    snapshotMock.mockResolvedValue({
+      runId: 7,
+      query: { season: 2026, focus: null, stance: 'fair', maxTeams: 2, mustInclude: null },
+      cards: [tradeSuggestion()],
+      progress: { ...PROGRESS, found: 1 },
+      status: 'stale',
+      message: null
+    })
+    fireEvent.click(screen.getByText('Find'))
+    expect(
+      await screen.findByText('League data is refreshing — Find again when it finishes')
+    ).toBeTruthy()
+    expect((screen.getByLabelText('Stance') as HTMLSelectElement).value).toBe('overpay')
+    expect(screen.getByText(/Controls changed — Find to rerun/)).toBeTruthy()
   })
 })
