@@ -326,7 +326,8 @@ export function registerIpcHandlers(ctx: AppContext): void {
     send: (event) => {
       const win = ctx.getWindow()
       if (win && !win.isDestroyed()) win.webContents.send(IPC.tradeSuggestEvent, event)
-    }
+    },
+    refreshing: () => inFlight !== null
   })
   activeRuns = runs
 

@@ -673,4 +673,34 @@ describe('TradeScreen', () => {
         .map((g) => g.getAttribute('aria-label'))
     ).toEqual(['Verdict for me', 'Verdict for Rival', 'Verdict for Tank Mode'])
   })
+
+  it('keeps the shown list when a start is refused during a refresh', async () => {
+    render(<TradeScreen dataVersion={0} />)
+    await screen.findByLabelText('Add to I send')
+    fireEvent.click(screen.getByText('Find'))
+    await flush()
+    send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
+    send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
+
+    startMock.mockRejectedValueOnce(
+      new Error(
+        "Error invoking remote method 'trade:suggestStart': Error: League data is refreshing — Find again when it finishes"
+      )
+    )
+    // main still holds run 7 — by now marked stale by the refresh (a two-team league caps "Up to" at 2)
+    snapshotMock.mockResolvedValue({
+      runId: 7,
+      query: { season: 2026, focus: null, stance: 'fair', maxTeams: 2, mustInclude: null },
+      cards: [tradeSuggestion()],
+      progress: { ...PROGRESS, found: 1 },
+      status: 'stale',
+      message: null
+    })
+    fireEvent.click(screen.getByText('Find'))
+    expect(
+      await screen.findByText('League data is refreshing — Find again when it finishes')
+    ).toBeTruthy()
+    expect(await screen.findByText('with Rival')).toBeTruthy()
+    expect(screen.getByText('League data changed — run again')).toBeTruthy()
+  })
 })

@@ -93,9 +93,18 @@ export function useSuggestRun(season: number | null): SuggestRun {
       })
       .catch((err) => {
         if (token !== starts.current) return
+        setStartError(errorMessage(err))
+        // Follow-ups §6: a refused start leaves main's run as it was — show and follow it again.
         following.current = null
         setRun(null)
-        setStartError(errorMessage(err))
+        void api.trade
+          .suggestSnapshot()
+          .then((snap) => {
+            if (token !== starts.current || snap === null) return
+            following.current = snap.runId
+            setRun(snap)
+          })
+          .catch(() => undefined)
       })
   }
 
