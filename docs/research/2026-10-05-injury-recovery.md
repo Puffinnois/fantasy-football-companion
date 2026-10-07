@@ -2,6 +2,8 @@
 
 Status: research only, 2026-10-05 (2026 season, week 5). No code changed. Read this before touching injury handling in `src/main/value/realism.ts` or the lineup engine.
 
+**Update 2026-10-07:** steps 2–4 below are done — see `2026-10-07-first-game-back-study.md`. Historical projections are pre-kickoff; only WRs fall short (about −10% over games 1–2) and the effect has faded since 2023, so no value change for now.
+
 Detail lives in two companion notes:
 
 - `2026-10-05-injury-recovery-literature.md` — what the sports-medicine studies and fantasy analysts say, per injury type (summary table, about 65 references).
