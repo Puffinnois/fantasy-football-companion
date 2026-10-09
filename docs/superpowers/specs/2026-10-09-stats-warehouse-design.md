@@ -1,6 +1,6 @@
 # Stats warehouse — design
 
-**Date:** 2026-10-09 · **Status:** draft, awaiting review · **Plans:** T (warehouse + light sources), U (play-by-play worker), V (FTN + participation joins)
+**Date:** 2026-10-09 · **Status:** approved 2026-10-09 · **Plans:** T (warehouse + light sources), U (play-by-play worker), V (FTN + participation joins)
 
 **Source:** the stats catalog (`docs/research/2026-10-09-nfl-stats-catalog.md`). Every free source below was checked live on 2026-10-09 (file names, columns, 2026 availability, sizes).
 
