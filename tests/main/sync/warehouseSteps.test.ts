@@ -97,6 +97,18 @@ describe('warehouse steps', () => {
     expect(await step('qbr').fetch(ctx(fakeWarehouse()), 0)).toBeNull()
   })
 
+  it('reads injuries before 2025, which have no season_type column', async () => {
+    const files = {
+      'injuries/injuries_2019':
+        'season,game_type,team,week,gsis_id,report_status,practice_status\n2019,REG,ARI,1,00-0022161,,Did Not Participate In Practice\n2019,WC,BAL,19,00-0029263,Out,\n'
+    }
+    const out = await step('injuries').fetch(ctx(fakeWarehouse(files)), 2019)
+    expect(out?.playerWeeks.map((r) => [r.seasonType, r.week, r.team])).toEqual([
+      ['REG', 1, 'ARI'],
+      ['POST', 19, 'BAL']
+    ])
+  })
+
   it('maps QBR team codes and reads the season file as week 0', async () => {
     const files = {
       'espn_data/qbr_week_level':

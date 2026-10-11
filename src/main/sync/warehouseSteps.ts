@@ -358,7 +358,8 @@ export const WAREHOUSE_STEPS: WarehouseStep[] = [
       ids: [{ column: 'gsis_id', keyType: 'gsis' }],
       season: 'season',
       week: 'week',
-      seasonType: 'season_type',
+      // `season_type` only exists from 2025; `game_type` (REG / WC / DIV / CON / SB) in every season
+      seasonType: 'game_type',
       team: 'team'
     },
     (client, season) => client.nflverseCsv('injuries', `injuries_${season}`)
