@@ -1,6 +1,6 @@
 # Stats warehouse — data reference
 
-Added in v0.20.0 (Plan T; spec `docs/superpowers/specs/2026-10-09-stats-warehouse-design.md`). Every stat the free, keyless sources publish, 2019 through the current season, in the app database. **Nothing in the app reads it yet**: it is storage for later features and research.
+Added in v0.20.0 (Plan T; spec `docs/superpowers/specs/2026-10-09-stats-warehouse-design.md`). Every stat the free, keyless sources publish, 2019 through the current season, in its own SQLite file, `warehouse.db` beside `companion.db` (about 540 MB with every light source, measured 2026-10-11). Deleting the file just makes the next refresh rebuild it. **Nothing in the app reads it yet**: it is storage for later features and research.
 
 ## Tables
 
@@ -12,7 +12,7 @@ Added in v0.20.0 (Plan T; spec `docs/superpowers/specs/2026-10-09-stats-warehous
 | `wh_player`       | source, player_key                            | Profiles: `combine` (every draft year), `rosters` (each player's latest bio, `as_of` = season × 100 + week).                                                                         |
 | `wh_source_state` | source, season                                | What was fetched, when, at which adapter version; `sealed` seasons are never re-fetched. Season 0 = an all-seasons file.                                                             |
 
-`data_json` holds every column the source publishes: numbers as numbers, text as text, `*_id` columns as text, empty / `NA` dropped. Depth charts store their slots as `entries: [{ formation, position, rank }]`.
+`data_json` holds the columns the source publishes: numbers as numbers, text as text, `*_id` columns as text. Empty / `NA` values and **zeros are dropped** (read a missing count as 0), and so are the columns the row already stores in its own fields (season, week, season type, team, opponent, the id). Weekly `rosters` rows keep only status, depth position, jersey and position; the bio is in `wh_player`. `ff_opportunity` team totals (`*_team`) are team-week rows. Depth charts store their slots as `entries: [{ formation, position, rank }]`.
 
 ## Sources
 
@@ -39,18 +39,18 @@ Added in v0.20.0 (Plan T; spec `docs/superpowers/specs/2026-10-09-stats-warehous
   - The current season and all-seasons files are refreshed daily, and on a forced refresh.
   - The prior season is refreshed weekly.
   - Older seasons are fetched once and sealed. Only a version bump in `src/main/sync/warehouseSteps.ts` re-fetches them.
-- Steps log to `sync_log` as `wh:<id>:<season>` (or `wh:<id>`). Their errors stay out of the status bar.
+- Steps log to `warehouse.db`'s own `sync_log` as `wh:<id>:<season>` (or `wh:<id>`), so their errors never reach the status bar.
 
 ## Reading it
 
-Join to Sleeper players through `player_ids` (`gsis_id`, `pfr_id`, `espn_id`), or by Sleeper id for `sleeper` rows:
+Attach the app database to reach `player_ids` (`ATTACH 'companion.db' AS app`), then join to Sleeper players through `app.player_ids` (`gsis_id`, `pfr_id`, `espn_id`), or by Sleeper id for `sleeper` rows:
 
 ```sql
 -- expected vs actual fantasy points by week for one Sleeper player, 2025
 SELECT w.week,
        json_extract(w.data_json, '$.total_fantasy_points_exp') AS xfp,
        json_extract(w.data_json, '$.total_fantasy_points') AS fp
-FROM wh_player_week w JOIN player_ids p ON p.gsis_id = w.player_key
+FROM wh_player_week w JOIN app.player_ids p ON p.gsis_id = w.player_key
 WHERE w.source = 'ff_opportunity' AND w.season = 2025 AND p.player_id = ?
 ORDER BY w.week;
 ```
