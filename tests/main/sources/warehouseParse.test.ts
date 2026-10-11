@@ -5,6 +5,7 @@ import {
   parseGamesCsv,
   parsePlayerCsv,
   parseTeamCsv,
+  rowData,
   seasonTypeOf,
   seasonTypeOfWeek,
   type PlayerCsvSpec
@@ -39,6 +40,20 @@ describe('cellValue', () => {
     expect(cellValue('sleeper_id', '4866')).toBe('4866')
     expect(cellValue('ht', '6-4')).toBe('6-4')
     expect(cellValue('roof', ' ')).toBe(' ')
+  })
+})
+
+describe('rowData', () => {
+  it('drops zeros and the columns a row already stores in its own fields (spec §10)', () => {
+    expect(
+      rowData(
+        { season: '2025', rush_yd: '0', rec_yd: '12', note: 'x', blank: '' },
+        new Set(['season'])
+      )
+    ).toEqual({
+      rec_yd: 12,
+      note: 'x'
+    })
   })
 })
 
@@ -106,17 +121,11 @@ describe('parsePlayerCsv', () => {
       team: 'LA',
       opponent: 'DAL',
       data: {
-        season: 2025,
-        week: 1,
-        season_type: 'REG',
-        player_id: '00-0034844',
-        team: 'LA',
-        opponent_team: 'DAL',
-        passing_yards: 0,
         headshot_url: 'https://x/img?f_auto,q_auto',
         game_id: '2025_01_DAL_PHI'
       }
     })
+    expect(rows[1].data).toEqual({ passing_yards: 12, game_id: '2025_19_GB_PHI' })
     expect(rows[2].opponent).toBeNull()
     expect(rows[2].data).not.toHaveProperty('passing_yards')
   })
@@ -204,14 +213,7 @@ describe('parseTeamCsv', () => {
         week: 1,
         team: 'PHI',
         opponent: 'DAL',
-        data: {
-          season: 2025,
-          week: 1,
-          team: 'PHI',
-          season_type: 'REG',
-          opponent_team: 'DAL',
-          passing_yards: 220
-        }
+        data: { passing_yards: 220 }
       }
     ])
   })
@@ -236,5 +238,7 @@ describe('parseGamesCsv', () => {
       old_game_id: '2025090400'
     })
     expect(rows[0].data).not.toHaveProperty('temp')
+    expect(Object.keys(rows[0].data)).not.toEqual(expect.arrayContaining(['game_id']))
+    expect(rows[0].data).not.toHaveProperty('season')
   })
 })

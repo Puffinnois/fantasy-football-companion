@@ -140,9 +140,10 @@ describe('parseRosters', () => {
 `
     const { weeks, bios } = parseRosters(csv, 2019)
     expect(weeks.skipped).toBe(1)
-    expect(weeks.rows.map((r) => [r.week, r.data.status])).toEqual([
-      [1, 'ACT'],
-      [2, 'INA']
+    // weekly rows keep only what changes week to week (spec §10)
+    expect(weeks.rows.map((r) => [r.week, r.data])).toEqual([
+      [1, { status: 'ACT' }],
+      [2, { status: 'INA' }]
     ])
     expect(bios).toEqual([
       {
@@ -156,7 +157,6 @@ describe('parseRosters', () => {
           height: 72,
           weight: 235,
           college: 'Penn State',
-          gsis_id: '00-0034844',
           sleeper_id: '4866',
           entry_year: 2018,
           draft_club: 'NYG',

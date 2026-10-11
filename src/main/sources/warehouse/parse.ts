@@ -22,12 +22,19 @@ export function cellValue(column: string, raw: string): number | string | null {
   return raw.trim() !== '' && Number.isFinite(n) ? n : raw
 }
 
-/** Every column of a CSV row, by the rules of `cellValue`. */
-export function rowData(row: Record<string, string>): WhData {
+/**
+ * A CSV row's columns by the rules of `cellValue`, without zeros and without the `omit` columns
+ * (those the row already stores in its own fields) — spec §10.
+ */
+export function rowData(
+  row: Record<string, string>,
+  omit: ReadonlySet<string> = new Set()
+): WhData {
   const data: WhData = {}
   for (const [column, raw] of Object.entries(row)) {
+    if (omit.has(column)) continue
     const value = cellValue(column, raw)
-    if (value !== null) data[column] = value
+    if (value !== null && value !== 0) data[column] = value
   }
   return data
 }
@@ -96,6 +103,11 @@ function dimColumns(spec: DimSpec): string[] {
   return [spec.season, spec.week, spec.seasonType].filter((c): c is string => c !== null)
 }
 
+/** The columns a row stores in its own fields, so `data_json` leaves them out (spec §10). */
+function keyColumns(spec: DimSpec, ...others: (string | undefined)[]): ReadonlySet<string> {
+  return new Set([...dimColumns(spec), ...others.filter((c): c is string => c !== undefined)])
+}
+
 /** null: left out on purpose (before `minSeason`, preseason); 'skip': unparseable, counted. */
 function dimsOf(
   row: Record<string, string>,
@@ -138,6 +150,7 @@ export function parsePlayerCsv(
   minSeason: number
 ): Parsed<WhPlayerWeek> {
   requireColumns(text, spec.source, [spec.ids[0].column, ...dimColumns(spec)])
+  const omit = keyColumns(spec, ...spec.ids.map((i) => i.column), spec.team, spec.opponent)
   const rows: WhPlayerWeek[] = []
   let skipped = 0
   for (const row of parseCsv(text)) {
@@ -155,7 +168,7 @@ export function parsePlayerCsv(
       keyType: id.keyType,
       team: teamOf(row, spec.team, spec.teamCodes),
       opponent: teamOf(row, spec.opponent, spec.teamCodes),
-      data: rowData(row)
+      data: rowData(row, omit)
     })
   }
   return { rows, skipped }
@@ -174,6 +187,7 @@ export function parseTeamCsv(
   minSeason: number
 ): Parsed<WhTeamWeek> {
   requireColumns(text, spec.source, [spec.team, ...dimColumns(spec)])
+  const omit = keyColumns(spec, spec.team, spec.opponent)
   const rows: WhTeamWeek[] = []
   let skipped = 0
   for (const row of parseCsv(text)) {
@@ -189,11 +203,13 @@ export function parseTeamCsv(
       ...dims,
       team,
       opponent: teamOf(row, spec.opponent, spec.teamCodes),
-      data: rowData(row)
+      data: rowData(row, omit)
     })
   }
   return { rows, skipped }
 }
+
+const GAME_KEY_COLUMNS: ReadonlySet<string> = new Set(['game_id', 'season', 'week'])
 
 /** nflverse `schedules/games.csv`: one row per game, every column kept. */
 export function parseGamesCsv(text: string, minSeason: number): Parsed<WhGame> {
@@ -209,7 +225,7 @@ export function parseGamesCsv(text: string, minSeason: number): Parsed<WhGame> {
       skipped++
       continue
     }
-    rows.push({ gameId, season, week, data: rowData(row) })
+    rows.push({ gameId, season, week, data: rowData(row, GAME_KEY_COLUMNS) })
   }
   return { rows, skipped }
 }

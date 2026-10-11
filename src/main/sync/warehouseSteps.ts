@@ -8,6 +8,7 @@ import {
 } from '@main/db/repos/warehouse'
 import type { WarehouseClient } from '@main/sources/warehouse/client'
 import { parseCombine } from '@main/sources/warehouse/combine'
+import { parseFfOpportunity } from '@main/sources/warehouse/ffOpportunity'
 import {
   firstKickoffs,
   isSnapshotDepthChart,
@@ -222,6 +223,18 @@ const nflverseTeamStep: WarehouseStep = {
   }
 }
 
+const ffOpportunityStep: WarehouseStep = {
+  id: 'ff_opportunity',
+  sources: v1('ff_opportunity'),
+  firstSeason: WAREHOUSE_FIRST_SEASON,
+  allSeasons: false,
+  async fetch(ctx, season) {
+    const csv = await ctx.client.text(`${FF_OPPORTUNITY_URL}/ep_weekly_${season}.csv`)
+    if (csv === null) return null
+    return stepRows(parseFfOpportunity(csv, WAREHOUSE_FIRST_SEASON))
+  }
+}
+
 const qbrStep: WarehouseStep = {
   id: 'qbr',
   sources: v1('qbr'),
@@ -330,17 +343,7 @@ export const WAREHOUSE_STEPS: WarehouseStep[] = [
     },
     (client, season) => client.nflverseCsv('snap_counts', `snap_counts_${season}`)
   ),
-  playerStep(
-    {
-      source: 'ff_opportunity',
-      ids: [{ column: 'player_id', keyType: 'gsis' }],
-      season: 'season',
-      week: 'week',
-      seasonType: null,
-      team: 'posteam'
-    },
-    (client, season) => client.text(`${FF_OPPORTUNITY_URL}/ep_weekly_${season}.csv`)
-  ),
+  ffOpportunityStep,
   ngsStep('ngs_pass', 'ngs_passing'),
   ngsStep('ngs_rush', 'ngs_rushing'),
   ngsStep('ngs_rec', 'ngs_receiving'),

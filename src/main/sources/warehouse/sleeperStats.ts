@@ -18,12 +18,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** The numeric entries of a row's `stats` object. */
+/** The non-zero numeric entries of a row's `stats` object (spec §10). */
 function numbers(stats: unknown): WhData {
   const data: WhData = {}
   if (!isRecord(stats)) return data
   for (const [key, value] of Object.entries(stats)) {
-    if (typeof value === 'number' && Number.isFinite(value)) data[key] = value
+    if (typeof value === 'number' && Number.isFinite(value) && value !== 0) data[key] = value
   }
   return data
 }

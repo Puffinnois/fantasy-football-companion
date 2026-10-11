@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { parseSleeperStats } from '@main/sources/warehouse/sleeperStats'
 
 describe('parseSleeperStats', () => {
-  it('splits players, team defenses and team offenses; keeps numbers only; maps team codes', () => {
+  it('splits players, team defenses and team offenses; keeps non-zero numbers only; maps team codes', () => {
     const rows: unknown[] = [
       {
         player_id: '4866',
         team: 'PHI',
         opponent: 'LAR',
-        stats: { rush_yd: 60, rec_rz_tgt: 1, pts_ppr: 20.4 },
+        stats: { rush_yd: 60, rec_rz_tgt: 1, pts_ppr: 20.4, fum: 0 },
         player: { position: 'RB' }
       },
       {

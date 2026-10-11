@@ -12,6 +12,15 @@ const ROSTER_SPEC: PlayerCsvSpec = {
   team: 'team'
 }
 
+/** What a weekly roster row keeps (spec §10); everything else is the bio, stored once in `wh_player`. */
+const WEEK_COLUMNS: ReadonlySet<string> = new Set([
+  'status',
+  'status_description_abbr',
+  'depth_chart_position',
+  'jersey_number',
+  'position'
+])
+
 /** Columns that describe the player rather than his week; the latest roster row supplies them. */
 const BIO_COLUMNS = [
   'full_name',
@@ -60,5 +69,9 @@ export function parseRosters(
     }
     return { source: ROSTERS_SOURCE, playerKey: r.playerKey, keyType: 'gsis', data }
   })
-  return { weeks, bios }
+  const slim = weeks.rows.map((r) => ({
+    ...r,
+    data: Object.fromEntries(Object.entries(r.data).filter(([column]) => WEEK_COLUMNS.has(column)))
+  }))
+  return { weeks: { rows: slim, skipped: weeks.skipped }, bios }
 }
