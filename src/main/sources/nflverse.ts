@@ -1,5 +1,5 @@
-import { gunzipSync } from 'node:zlib'
 import { numOrNull, parseCsv, strOrNull } from './csv'
+import { fetchText } from './http'
 import type {
   CrosswalkRecord,
   GameRecord,
@@ -204,10 +204,6 @@ export const NFLVERSE_RELEASES_URL = 'https://github.com/nflverse/nflverse-data/
 export const CROSSWALK_URL =
   'https://raw.githubusercontent.com/dynastyprocess/data/master/files/db_playerids.csv'
 
-function isRetryable(status: number): boolean {
-  return status === 429 || status >= 500
-}
-
 export function createNflverseClient(options: NflverseClientOptions = {}): NflverseClient {
   const fetchImpl = options.fetchImpl ?? fetch
   const releasesUrl = options.releasesUrl ?? NFLVERSE_RELEASES_URL
@@ -215,23 +211,13 @@ export function createNflverseClient(options: NflverseClientOptions = {}): Nflve
   const timeoutMs = options.timeoutMs ?? 30_000
   const retryDelayMs = options.retryDelayMs ?? 1_000
 
-  /** Follows GitHub's redirect (fetch default), gunzips `.gz` bodies (detected by magic bytes). */
-  async function getText(url: string): Promise<string | null> {
-    for (let attempt = 0; ; attempt++) {
-      const res = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs) })
-      if (res.status === 404) return null
-      if (res.ok) {
-        const bytes = new Uint8Array(await res.arrayBuffer())
-        const gzipped = bytes[0] === 0x1f && bytes[1] === 0x8b
-        return new TextDecoder().decode(gzipped ? gunzipSync(bytes) : bytes)
-      }
-      if (attempt === 0 && isRetryable(res.status)) {
-        await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
-        continue
-      }
-      throw new NflverseHttpError(res.status, url)
-    }
-  }
+  /** Follows GitHub's redirect, gunzips `.gz` bodies; see `fetchText`. */
+  const getText = (url: string): Promise<string | null> =>
+    fetchText(
+      url,
+      { fetchImpl, timeoutMs, retryDelayMs },
+      (status, u) => new NflverseHttpError(status, u)
+    )
 
   const release = (tag: string, file: string): string => `${releasesUrl}/${tag}/${file}`
 
