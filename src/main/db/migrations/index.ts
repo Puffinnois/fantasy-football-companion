@@ -7,7 +7,6 @@ import matchupsSql from './006_matchups.sql?raw'
 import injurySql from './007_injury.sql?raw'
 import rosSnapshotsSql from './008_ros_snapshots.sql?raw'
 import waiversSql from './009_waivers.sql?raw'
-import warehouseSql from './010_warehouse.sql?raw'
 
 export interface Migration {
   version: number
@@ -24,6 +23,5 @@ export const migrations: Migration[] = [
   { version: 6, name: 'matchups', sql: matchupsSql },
   { version: 7, name: 'injury', sql: injurySql },
   { version: 8, name: 'ros_snapshots', sql: rosSnapshotsSql },
-  { version: 9, name: 'waivers', sql: waiversSql },
-  { version: 10, name: 'warehouse', sql: warehouseSql }
+  { version: 9, name: 'waivers', sql: waiversSql }
 ]

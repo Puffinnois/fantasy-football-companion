@@ -1,6 +1,5 @@
 import { withTransaction, type Db } from '@main/db/connection'
-import { getNflState } from '@main/db/repos/state'
-import { getLastFinishedSync, WAREHOUSE_LOG_PREFIX } from '@main/db/repos/syncLog'
+import { getLastFinishedSync } from '@main/db/repos/syncLog'
 import {
   getWhSourceState,
   replaceWhGames,
@@ -12,7 +11,7 @@ import {
   type WhSourceState
 } from '@main/db/repos/warehouse'
 import type { WarehouseClient } from '@main/sources/warehouse/client'
-import type { SyncLogEntry, SyncResult } from '@shared/types'
+import type { NflState, SyncLogEntry, SyncResult } from '@shared/types'
 import {
   nowOf,
   runStep,
@@ -35,9 +34,15 @@ export const ATTEMPT_INTERVAL_MS = DAY
 /** The prior season is re-fetched weekly. */
 export const PRIOR_SEASON_FRESHNESS_MS = 7 * DAY
 
+/** `db` is `warehouse.db` (spec §10); its steps log to that file's own `sync_log`. */
 export interface WarehouseSyncDeps extends StepDeps {
   warehouse: WarehouseClient
+  /** The Sleeper NFL state from the app database; null before the first Sleeper sync. */
+  state: NflState | null
 }
+
+/** Prefix of every warehouse step in sync_log. */
+export const WAREHOUSE_LOG_PREFIX = 'wh:'
 
 export function stepLogName(step: WarehouseStep, season: number): string {
   return step.allSeasons
@@ -145,7 +150,7 @@ export async function refreshWarehouse(
   steps: WarehouseStep[] = WAREHOUSE_STEPS
 ): Promise<SyncResult> {
   const log: SyncLogEntry[] = []
-  const state = getNflState(deps.db)
+  const state = deps.state
   if (!state) return { steps: log }
   const current = Number(state.season)
   const ctx: StepContext = {

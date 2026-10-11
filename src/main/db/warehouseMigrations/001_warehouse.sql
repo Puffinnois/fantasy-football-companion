@@ -1,4 +1,16 @@
--- Stats warehouse (spec 2026-10-09 §3). Nothing in the app reads these tables yet.
+-- Stats warehouse (spec 2026-10-09 §3, §10): its own file, warehouse.db. Nothing in the app reads it yet.
+-- The warehouse sync logs here, with the app database's sync_log schema.
+CREATE TABLE sync_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  finished_at TEXT,
+  status TEXT NOT NULL CHECK (status IN ('running', 'ok', 'error', 'skipped')),
+  message TEXT,
+  rows_written INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_sync_log_source ON sync_log(source, id);
+
 -- One row per source × player × week. data_json: every column the source publishes for that row;
 -- numbers as numbers, text as strings, arrays where a source lists several entries; empty / NA dropped.
 CREATE TABLE wh_player_week (

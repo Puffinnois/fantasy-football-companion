@@ -116,12 +116,9 @@ describe('repos', () => {
     expect(getLastError(db)).toMatchObject({ id: b, message: 'boom' })
   })
 
-  it('getLastError ignores warehouse steps; getLastFinishedSync ignores running rows', () => {
-    const a = startSync(db, 'sleeper:league', T)
-    finishSync(db, a, 'error', T, 'core', 0)
+  it('getLastFinishedSync ignores running rows', () => {
     const b = startSync(db, 'wh:sleeper:2025', T)
     finishSync(db, b, 'error', T, 'warehouse', 0)
-    expect(getLastError(db)).toMatchObject({ id: a, message: 'core' })
     startSync(db, 'wh:sleeper:2025', '2099-01-01T00:00:00.000Z')
     expect(getLastFinishedSync(db, 'wh:sleeper:2025')).toMatchObject({ id: b, status: 'error' })
     expect(getLastFinishedSync(db, 'wh:nothing')).toBeNull()

@@ -69,8 +69,10 @@ export interface AppContext {
   nflverse: NflverseClient
   fantasypros: FantasyProsClient
   fantasycalc: FantasyCalcClient
-  /** Stats-warehouse downloads (spec 2026-10-09); written to `wh_*`, read by nothing yet. */
+  /** Stats-warehouse downloads (spec 2026-10-09), written to `warehouseDb`; read by nothing yet. */
   warehouse: WarehouseClient
+  /** `warehouse.db` (spec §10); null when it could not be opened — the app then runs without it. */
+  warehouseDb: Db | null
   news: NewsCache
   getWindow: () => BrowserWindow | null
   update: UpdateController
@@ -176,8 +178,13 @@ let inFlight: Promise<SyncResult> | null = null
  * No onStep: nothing reads the warehouse, so its steps neither invalidate caches nor report progress.
  */
 const startWarehouse = singleFlight(
-  (ctx: AppContext, options: RefreshOptions): Promise<SyncResult> =>
-    refreshWarehouse({ db: ctx.db, warehouse: ctx.warehouse }, options)
+  async (ctx: AppContext, options: RefreshOptions): Promise<SyncResult> =>
+    ctx.warehouseDb
+      ? refreshWarehouse(
+          { db: ctx.warehouseDb, warehouse: ctx.warehouse, state: getNflState(ctx.db) },
+          options
+        )
+      : { steps: [] }
 )
 
 function logWarehouseError(err: unknown): void {

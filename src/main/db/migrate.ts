@@ -1,7 +1,8 @@
 import { withTransaction, type Db } from './connection'
-import { migrations } from './migrations'
+import { migrations as appMigrations, type Migration } from './migrations'
 
-export function migrate(db: Db): number {
+/** Applies `migrations` (default: the app database's) that `db` has not seen yet. */
+export function migrate(db: Db, migrations: Migration[] = appMigrations): number {
   db.exec(`CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER PRIMARY KEY,
     name TEXT NOT NULL,

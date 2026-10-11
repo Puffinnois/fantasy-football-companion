@@ -69,15 +69,10 @@ export function getLastFinishedSync(db: Db, source: string): SyncLogEntry | null
   return row ? toEntry(row) : null
 }
 
-/** Prefix of every stats-warehouse step in sync_log; their failures stay out of the status bar (spec §4.3). */
-export const WAREHOUSE_LOG_PREFIX = 'wh:'
-
 export function getLastError(db: Db): SyncLogEntry | null {
   const row = db
-    .prepare(
-      "SELECT * FROM sync_log WHERE status = 'error' AND source NOT LIKE ? ORDER BY id DESC LIMIT 1"
-    )
-    .get(`${WAREHOUSE_LOG_PREFIX}%`) as Row | undefined
+    .prepare("SELECT * FROM sync_log WHERE status = 'error' ORDER BY id DESC LIMIT 1")
+    .get() as Row | undefined
   return row ? toEntry(row) : null
 }
 

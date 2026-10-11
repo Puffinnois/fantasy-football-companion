@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { openDatabase, type Db } from '@main/db/connection'
-import { migrate } from '@main/db/migrate'
+import type { Db } from '@main/db/connection'
+import { openWarehouseDatabase } from '@main/db/warehouseDb'
 import {
   getWhSourceState,
   listWhGames,
@@ -47,8 +47,7 @@ describe('warehouse repo', () => {
   let db: Db
 
   beforeEach(() => {
-    db = openDatabase(':memory:')
-    migrate(db)
+    db = openWarehouseDatabase(':memory:')
   })
 
   it('replaces player weeks of one source in the given seasons only', () => {

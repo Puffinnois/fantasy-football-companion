@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { openDatabase, type Db } from '@main/db/connection'
-import { migrate } from '@main/db/migrate'
+import type { Db } from '@main/db/connection'
+import { openWarehouseDatabase } from '@main/db/warehouseDb'
 import { replaceWhGames, type WhKeyType } from '@main/db/repos/warehouse'
 import type { WarehouseClient } from '@main/sources/warehouse/client'
 import { parseGamesCsv } from '@main/sources/warehouse/parse'
@@ -37,8 +37,7 @@ describe('warehouse steps', () => {
   let db: Db
 
   beforeEach(() => {
-    db = openDatabase(':memory:')
-    migrate(db)
+    db = openWarehouseDatabase(':memory:')
   })
 
   const ctx = (client: WarehouseClient, over: Partial<StepContext> = {}): StepContext => ({

@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { openDatabase, type Db } from '@main/db/connection'
-import { migrate } from '@main/db/migrate'
-import { setNflState } from '@main/db/repos/state'
-import { getLastError, getLastSync, startSync } from '@main/db/repos/syncLog'
+import type { Db } from '@main/db/connection'
+import { openWarehouseDatabase } from '@main/db/warehouseDb'
+import { getLastSync, startSync } from '@main/db/repos/syncLog'
 import {
   getWhSourceState,
   listWhGames,
@@ -13,7 +12,7 @@ import {
 } from '@main/db/repos/warehouse'
 import { stepRows, type StepRows, type WarehouseStep } from '@main/sync/warehouseSteps'
 import { refreshWarehouse, type WarehouseSyncDeps } from '@main/sync/warehouseSync'
-import type { SyncResult } from '@shared/types'
+import type { NflState, SyncResult } from '@shared/types'
 import { capturedFiles, capturedSleeper, fakeWarehouse } from '../../fixtures/warehouse'
 
 const HOUR = 3_600_000
@@ -65,21 +64,21 @@ describe('refreshWarehouse', () => {
   let clock: Date
 
   beforeEach(() => {
-    db = openDatabase(':memory:')
-    migrate(db)
+    db = openWarehouseDatabase(':memory:')
     clock = new Date('2026-10-09T12:00:00.000Z')
-    setNflState(db, {
-      season: '2026',
-      week: 6,
-      displayWeek: 6,
-      seasonType: 'regular',
-      fetchedAt: clock.toISOString()
-    })
   })
 
+  const STATE: NflState = {
+    season: '2026',
+    week: 6,
+    displayWeek: 6,
+    seasonType: 'regular',
+    fetchedAt: '2026-10-09T12:00:00.000Z'
+  }
   const deps = (warehouse = fakeWarehouse()): WarehouseSyncDeps => ({
     db,
     warehouse,
+    state: STATE,
     now: () => clock
   })
   const run = (steps: WarehouseStep[], force = false): Promise<SyncResult> =>
@@ -89,12 +88,8 @@ describe('refreshWarehouse', () => {
   }
 
   it('does nothing without an NFL state', async () => {
-    const empty = openDatabase(':memory:')
-    migrate(empty)
     const a = fakeStep('a')
-    expect(await refreshWarehouse({ db: empty, warehouse: fakeWarehouse() }, {}, [a])).toEqual({
-      steps: []
-    })
+    expect(await refreshWarehouse({ ...deps(), state: null }, {}, [a])).toEqual({ steps: [] })
     expect(a.calls).toEqual([])
   })
 
@@ -160,7 +155,7 @@ describe('refreshWarehouse', () => {
     expect(ran(await run([missing]))).toEqual(['wh:m:2026=skipped'])
   })
 
-  it('a failing step is logged, kept out of the status bar, and the others continue', async () => {
+  it('a failing step is logged and the others continue', async () => {
     const bad = fakeStep('bad', {
       firstSeason: 2026,
       fetch: async () => {
@@ -169,7 +164,6 @@ describe('refreshWarehouse', () => {
     })
     const good = fakeStep('good', { firstSeason: 2026 })
     expect(ran(await run([bad, good]))).toEqual(['wh:bad:2026=error', 'wh:good:2026=ok'])
-    expect(getLastError(db)).toBeNull()
     expect(getLastSync(db, 'wh:bad:2026')?.message).toBe('boom')
   })
 
