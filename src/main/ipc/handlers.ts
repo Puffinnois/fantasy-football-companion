@@ -30,6 +30,7 @@ import { STATS_SOURCE_PREFIX } from '@main/sync/nflverseSync'
 import { importAll, refreshAll, type AppSyncDeps } from '@main/sync/refresh'
 import { reimportRules, SOURCE_LEAGUE } from '@main/sync/sleeperSync'
 import { refreshWarehouse } from '@main/sync/warehouseSync'
+import { runPbpWorker } from '@main/warehouse/runWorker'
 import { buildValueSeason, detailFor, type ValueBuild } from '@main/value/build'
 import type { RefreshOptions } from '@main/sync/step'
 import type { UpdateController } from '@main/updater'
@@ -181,7 +182,12 @@ const startWarehouse = singleFlight(
   async (ctx: AppContext, options: RefreshOptions): Promise<SyncResult> =>
     ctx.warehouseDb
       ? refreshWarehouse(
-          { db: ctx.warehouseDb, warehouse: ctx.warehouse, state: getNflState(ctx.db) },
+          {
+            db: ctx.warehouseDb,
+            warehouse: ctx.warehouse,
+            state: getNflState(ctx.db),
+            aggregatePbp: runPbpWorker
+          },
           options
         )
       : { steps: [] }

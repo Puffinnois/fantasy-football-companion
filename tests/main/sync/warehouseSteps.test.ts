@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Db } from '@main/db/connection'
 import { openWarehouseDatabase } from '@main/db/warehouseDb'
 import { replaceWhGames, type WhKeyType } from '@main/db/repos/warehouse'
 import type { WarehouseClient } from '@main/sources/warehouse/client'
 import { parseGamesCsv } from '@main/sources/warehouse/parse'
+import type { PbpResult } from '@main/warehouse/aggregate'
+import { aggregateInProcess, type AggregatePbp } from '@main/warehouse/job'
 import { SkipStep } from '@main/sync/step'
 import {
   sleeperWeeks,
@@ -46,6 +48,7 @@ describe('warehouse steps', () => {
     current: 2026,
     stateWeek: 3,
     stateSeasonType: 'regular',
+    aggregatePbp: aggregateInProcess,
     ...over
   })
 
@@ -75,7 +78,8 @@ describe('warehouse steps', () => {
     ['depth_charts', 2024],
     ['rosters', 2025],
     ['combine', 0],
-    ['sleeper', 2025]
+    ['sleeper', 2025],
+    ['pbp', 2025]
   ])('%s reads its captured file', async (id, season) => {
     const s = step(id)
     const out = await s.fetch(ctx(fakeWarehouse(capturedFiles(), capturedSleeper())), season)
@@ -95,6 +99,17 @@ describe('warehouse steps', () => {
   it('returns null for a file that is not published', async () => {
     expect(await step('nflverse_player').fetch(ctx(fakeWarehouse()), 2025)).toBeNull()
     expect(await step('qbr').fetch(ctx(fakeWarehouse()), 0)).toBeNull()
+    expect(await step('pbp').fetch(ctx(fakeWarehouse()), 2026)).toBeNull()
+  })
+
+  it('hands the downloaded play-by-play file to the aggregator and keeps its rows', async () => {
+    const result: PbpResult = { playerWeeks: [], teamWeeks: [], skipped: 3 }
+    const aggregatePbp = vi.fn<AggregatePbp>(async () => result)
+    const client = fakeWarehouse({ 'pbp/play_by_play_2024': 'play_id\n1\n' })
+    const out = await step('pbp').fetch(ctx(client, { aggregatePbp }), 2024)
+    expect(client.calls).toEqual(['pbp/play_by_play_2024'])
+    expect(new TextDecoder().decode(aggregatePbp.mock.calls[0][0])).toBe('play_id\n1\n')
+    expect(out).toMatchObject({ playerWeeks: [], teamWeeks: [], skipped: 3 })
   })
 
   it('reads injuries before 2025, which have no season_type column', async () => {
