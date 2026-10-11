@@ -18,6 +18,11 @@ describe('runStep', () => {
     deps = { db, sleeper: {} as SleeperClient, now: () => clock }
   })
 
+  it('runs with only a database (the warehouse sync has no Sleeper client)', async () => {
+    const entry = await runStep({ db, now: () => clock }, 'wh:x', 0, true, async () => 1)
+    expect(entry).toMatchObject({ source: 'wh:x', status: 'ok', rowsWritten: 1 })
+  })
+
   it('records ok with the returned row count', async () => {
     const entry = await runStep(deps, 'x', HOUR, false, async () => 7)
     expect(entry).toMatchObject({ source: 'x', status: 'ok', rowsWritten: 7, message: null })

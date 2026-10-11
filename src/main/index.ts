@@ -5,6 +5,7 @@ import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { openDatabase, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
+import { openWarehouseDatabase } from '@main/db/warehouseDb'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
 import { registerIpcHandlers, startRefresh, type AppContext } from '@main/ipc/handlers'
 import { createNewsCache } from '@main/news/newsCache'
@@ -12,6 +13,7 @@ import { createFantasyCalcClient } from '@main/sources/fantasycalc'
 import { createFantasyProsClient } from '@main/sources/fantasypros'
 import { createNflverseClient } from '@main/sources/nflverse'
 import { createSleeperClient } from '@main/sources/sleeper'
+import { createWarehouseClient } from '@main/sources/warehouse/client'
 import { createSleeperNewsClient } from '@main/sources/sleeperNews'
 import { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
@@ -70,6 +72,17 @@ function openAppDatabase(): Db {
   }
 }
 
+/** Stats-warehouse spec §10: a failure here only disables the warehouse, never the app. */
+function openWarehouse(): Db | null {
+  const path = join(app.getPath('userData'), 'warehouse.db')
+  try {
+    return openWarehouseDatabase(path)
+  } catch (err) {
+    console.error(`could not open ${path}; the stats warehouse is off`, err)
+    return null
+  }
+}
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.yhabie.fantasycompanion')
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
@@ -81,6 +94,8 @@ app.whenReady().then(() => {
     nflverse: createNflverseClient(),
     fantasypros: createFantasyProsClient(),
     fantasycalc: createFantasyCalcClient(),
+    warehouse: createWarehouseClient(),
+    warehouseDb: openWarehouse(),
     news: createNewsCache(createSleeperNewsClient()),
     getWindow: () => mainWindow,
     update: installAutoUpdater({

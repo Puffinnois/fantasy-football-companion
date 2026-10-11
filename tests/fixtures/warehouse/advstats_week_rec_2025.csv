@@ -1,0 +1,21 @@
+game_id,pfr_game_id,season,week,game_type,team,opponent,pfr_player_name,pfr_player_id,rushing_broken_tackles,receiving_broken_tackles,passing_drops,passing_drop_pct,receiving_drop,receiving_drop_pct,receiving_int,receiving_rat
+2025_01_DAL_PHI,202509040phi,2025,1,REG,PHI,DAL,Dallas Goedert,GoedDa00,,0,,,0,0,0,92.9
+2025_01_DAL_PHI,202509040phi,2025,1,REG,PHI,DAL,Saquon Barkley,BarkSa00,,1,,,1,0.2,0,86.7
+2025_01_DAL_PHI,202509040phi,2025,1,REG,PHI,DAL,Jahan Dotson,DotsJa00,,0,,,0,0,0,118.7
+2025_01_DAL_PHI,202509040phi,2025,1,REG,PHI,DAL,DeVonta Smith,SmitDe07,,0,,,0,0,0,88.9
+2025_01_DAL_PHI,202509040phi,2025,1,REG,PHI,DAL,A.J. Brown,BrowAJ00,,0,,,0,0,0,100
+2025_01_DAL_PHI,202509040phi,2025,1,REG,PHI,DAL,Kylen Granson,GranKy00,,0,,,0,0,0,79.2
+2025_01_DAL_PHI,202509040phi,2025,1,REG,DAL,PHI,CeeDee Lamb,LambCe00,,0,,,3,0.231,0,82.2
+2025_01_DAL_PHI,202509040phi,2025,1,REG,DAL,PHI,Jake Ferguson,FergJa00,,0,,,0,0,0,82.6
+2025_01_DAL_PHI,202509040phi,2025,1,REG,DAL,PHI,George Pickens,PickGe00,,0,,,0,0,0,95.8
+2025_01_DAL_PHI,202509040phi,2025,1,REG,DAL,PHI,KaVontae Turpin,TurpKa00,,0,,,0,0,0,104.2
+2025_01_DAL_PHI,202509040phi,2025,1,REG,DAL,PHI,Javonte Williams,WillJa10,,0,,,0,0,0,71.5
+2025_01_DAL_PHI,202509040phi,2025,1,REG,DAL,PHI,Miles Sanders,SandMi01,,0,,,0,0,0,79.2
+2025_01_DAL_PHI,202509040phi,2025,1,REG,DAL,PHI,Jalen Tolbert,TolbJa00,,0,,,0,0,0,56.2
+2025_01_DAL_PHI,202509040phi,2025,1,REG,DAL,PHI,Luke Schoonmaker,SchoLu00,,0,,,0,0,0,39.6
+2025_01_DAL_PHI,202509040phi,2025,1,REG,DAL,PHI,Brevyn Spann-Ford,SpanBr00,,0,,,0,0,0,39.6
+2025_01_KC_LAC,202509050sdg,2025,1,REG,LAC,KC,Keenan Allen,AlleKe00,,0,,,0,0,0,122.1
+2025_01_KC_LAC,202509050sdg,2025,1,REG,LAC,KC,Ladd McConkey,McCoLa00,,0,,,0,0,0,91.9
+2025_01_KC_LAC,202509050sdg,2025,1,REG,LAC,KC,Quentin Johnston,JohnQu02,,0,,,0,0,0,148.2
+2025_01_KC_LAC,202509050sdg,2025,1,REG,LAC,KC,Omarion Hampton,HampOm00,,0,,,0,0,0,93.7
+2025_01_KC_LAC,202509050sdg,2025,1,REG,LAC,KC,Tyler Conklin,ConkTy00,,0,,,0,0,0,118.7

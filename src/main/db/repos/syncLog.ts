@@ -59,6 +59,16 @@ export function getLastSync(db: Db, source: string, status?: SyncStatusKind): Sy
   return row ? toEntry(row) : null
 }
 
+/** Latest finished entry (any status) for `source`; a `running` row left by a quit app does not count. */
+export function getLastFinishedSync(db: Db, source: string): SyncLogEntry | null {
+  const row = db
+    .prepare(
+      'SELECT * FROM sync_log WHERE source = ? AND finished_at IS NOT NULL ORDER BY id DESC LIMIT 1'
+    )
+    .get(source) as Row | undefined
+  return row ? toEntry(row) : null
+}
+
 export function getLastError(db: Db): SyncLogEntry | null {
   const row = db
     .prepare("SELECT * FROM sync_log WHERE status = 'error' ORDER BY id DESC LIMIT 1")

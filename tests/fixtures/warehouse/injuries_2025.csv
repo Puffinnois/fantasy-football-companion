@@ -1,0 +1,21 @@
+season,season_type,game_type,team,week,gsis_id,position,full_name,first_name,last_name,report_primary_injury,report_secondary_injury,report_status,practice_primary_injury,practice_secondary_injury,practice_status
+2025,REG,REG,ARI,1,00-0026190,DE,Calais Campbell,Calais,Campbell,,,,Not injury related - resting player,,Did Not Participate In Practice
+2025,REG,REG,ARI,1,00-0034346,G,Will Hernandez,William,Hernandez,Knee,,Out,Knee,,Limited Participation in Practice
+2025,REG,REG,ARI,1,00-0035228,QB,Kyler Murray,Kyler,Murray,Illness,,,,,
+2025,REG,REG,ARI,1,00-0038571,G,Jon Gaines II,Jon,Gaines,,,,Thumb,,Full Participation in Practice
+2025,REG,REG,ARI,1,00-0038600,LB,Owen Pappoe,Owen,Pappoe,Quadricep,,Questionable,Quadricep,,Limited Participation in Practice
+2025,REG,REG,ARI,1,00-0038623,DT,Dante Stills,Dante,Stills,Heel,,Questionable,Heel,,Limited Participation in Practice
+2025,REG,REG,ATL,1,00-0031279,T,Jake Matthews,Jacob,Matthews,,,,Not injury related - resting player,,Limited Participation in Practice
+2025,REG,REG,ATL,1,00-0033051,DT,David Onyemata,Ebuka,Onyemata,,,,Not injury related - resting player,,Did Not Participate In Practice
+2025,REG,REG,ATL,1,00-0033072,DE,Leonard Floyd,Leonard,Floyd,,,,Not injury related - resting player,,Did Not Participate In Practice
+2025,REG,REG,ATL,1,00-0034407,WR,Ray-Ray McCloud,Raymond,McCloud,,,,Not injury related - resting player,,Limited Participation in Practice
+2025,REG,REG,ATL,1,00-0036285,CB,A.J. Terrell,Aundell,Terrell,,,,Not injury related - resting player,,Limited Participation in Practice
+2025,REG,REG,ATL,1,00-0036309,WR,Darnell Mooney,Darnell,Mooney,Shoulder,,Questionable,Shoulder,,Limited Participation in Practice
+2025,REG,REG,ATL,1,00-0038568,CB,Clark Phillips III,Clark,Phillips,,,,Rib,,Full Participation in Practice
+2025,REG,REG,ATL,1,00-0038628,S,DeMarcco Hellams,DeMarcco,Hellams,Hamstring,,Out,Hamstring,,Did Not Participate In Practice
+2025,REG,REG,ATL,1,00-0040224,T,Jack Nelson,Jack,Nelson,Calf,,Out,Calf,,Did Not Participate In Practice
+2025,REG,REG,BAL,1,00-0033376,FB,Patrick Ricard,Patrick,Ricard,Calf,,Out,Calf,,Did Not Participate In Practice
+2025,REG,REG,BAL,1,00-0034728,CB,Jaire Alexander,Jaire,Alexander,,,,Knee,,Full Participation in Practice
+2025,REG,REG,BAL,1,00-0037838,TE,Isaiah Likely,Isaiah,Likely,Foot,,Out,Foot,,Did Not Participate In Practice
+2025,REG,REG,BAL,1,00-0038118,G,Daniel Faalele,Daniel,Faalele,,,,Illness,,Full Participation in Practice
+2025,REG,REG,BUF,1,00-0033884,CB,Tre'Davious White,Tre'Davious,White,Groin,,Doubtful,Groin,,Did Not Participate In Practice

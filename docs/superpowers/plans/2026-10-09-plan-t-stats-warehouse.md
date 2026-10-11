@@ -32,7 +32,7 @@
 - Team codes are nflverse codes. Sleeper codes go through `toNflverseTeam`; QBR maps `LAR` → `LA` and `WSH` → `WAS`.
 - HTTP timeout is 30 s, with one retry on 429 / 5xx and 404 → `null`. Older nflverse seasons exist only as `.csv`: try `<name>.csv.gz`, then `<name>.csv`.
 - No test touches the network. Only the throwaway live check in Task 10 does, and it is never committed.
-- **Size gate (Task 10):** if the Plan T backfill alone makes the database larger than **300 MB**, stop and report before releasing. 300 MB is the spec's upper estimate for all three plans.
+- **Size gate (Task 10):** ~~300 MB~~ → **600 MB for `warehouse.db`** (amended 2026-10-11, spec §10; see the Amendment section).
 - Release `v0.20.0` (`npm version minor`). **Ask the user before pushing.**
 - Not GUI-verifiable here (WSLg). Say so in the Status block rather than claiming a click-through.
 
@@ -3885,6 +3885,16 @@ git commit -m "docs(plan): mark plan T complete"
 ```
 
 ---
+
+## Amendment 2026-10-11 (spec §10)
+
+The Task 10 live backfill wrote **1.46 GB** (`nflverse_player` 371 MB, `rosters` 260 MB, `ff_opportunity` 188 MB of JSON), so execution stopped at the gate. The user chose to slim the rows and give the warehouse its own file. Done on the branch, test-first, in three commits:
+
+- **A1 `warehouse.db`** (`feat(db): move the warehouse to warehouse.db`): `migrate(db, migrations)` takes a list. The app migration `010` became `src/main/db/warehouseMigrations/001_warehouse.sql` (adding a `sync_log` with the core schema). `openWarehouseDatabase(path)` opens and migrates it. `refreshWarehouse` takes `state: NflState | null` (read from the app database by the handler). `ctx.warehouseDb` is null when the file cannot be opened, and the warehouse then does nothing. The `getLastError` filter was removed, since warehouse errors no longer reach the app's `sync_log`; `getLastFinishedSync` stays.
+- **A2 slimming** (`feat(warehouse): slim the stored rows`): `rowData` drops zeros and the parser's key columns. Sleeper keeps non-zero numbers only. Weekly roster rows keep status, status abbreviation, depth position, jersey and position. `parseFfOpportunity` moves `*_team` columns to one team-week row per team and week.
+- **A3 injuries** (`fix(warehouse): read injuries by game type`): the re-run showed 2019–2024 injury files have no `season_type`. The step now reads `game_type`, which every season has.
+
+Re-measured: 102/102 steps ok, 145 s, **537 MB** (309 MB of JSON) → under 600 MB.
 
 ## Self-review against the spec
 

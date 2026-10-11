@@ -14,6 +14,9 @@ export interface RefreshOptions {
   force?: boolean
 }
 
+/** What `runStep` needs; the warehouse sync has no Sleeper client. */
+export type StepDeps = Pick<SyncDeps, 'db' | 'now' | 'onStep'>
+
 /** Thrown by a step body to record `skipped` (e.g. upstream file not published yet) instead of `error`. */
 export class SkipStep extends Error {
   constructor(message: string) {
@@ -25,7 +28,7 @@ export class SkipStep extends Error {
 /** A step returns the rows it wrote, optionally with a message shown in the status bar / sync log. */
 export type StepOutcome = number | { rows: number; message: string | null }
 
-export function nowOf(deps: SyncDeps): Date {
+export function nowOf(deps: StepDeps): Date {
   return (deps.now ?? (() => new Date()))()
 }
 
@@ -41,7 +44,7 @@ export function isFresh(db: Db, source: string, freshnessMs: number, now: Date):
  * recorded here as `error` (or `skipped` for `SkipStep`). Never throws.
  */
 export async function runStep(
-  deps: SyncDeps,
+  deps: StepDeps,
   source: string,
   freshnessMs: number,
   force: boolean,

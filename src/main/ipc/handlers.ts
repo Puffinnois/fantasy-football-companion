@@ -23,10 +23,13 @@ import type { FantasyCalcClient } from '@main/sources/fantasycalc'
 import type { FantasyProsClient } from '@main/sources/fantasypros'
 import type { NflverseClient } from '@main/sources/nflverse'
 import type { SleeperClient } from '@main/sources/sleeper'
+import type { WarehouseClient } from '@main/sources/warehouse/client'
+import { singleFlight, thenInBackground } from '@main/sync/background'
 import { mapLeagueSummary } from '@main/sync/mappers'
 import { STATS_SOURCE_PREFIX } from '@main/sync/nflverseSync'
 import { importAll, refreshAll, type AppSyncDeps } from '@main/sync/refresh'
 import { reimportRules, SOURCE_LEAGUE } from '@main/sync/sleeperSync'
+import { refreshWarehouse } from '@main/sync/warehouseSync'
 import { buildValueSeason, detailFor, type ValueBuild } from '@main/value/build'
 import type { RefreshOptions } from '@main/sync/step'
 import type { UpdateController } from '@main/updater'
@@ -66,6 +69,10 @@ export interface AppContext {
   nflverse: NflverseClient
   fantasypros: FantasyProsClient
   fantasycalc: FantasyCalcClient
+  /** Stats-warehouse downloads (spec 2026-10-09), written to `warehouseDb`; read by nothing yet. */
+  warehouse: WarehouseClient
+  /** `warehouse.db` (spec §10); null when it could not be opened — the app then runs without it. */
+  warehouseDb: Db | null
   news: NewsCache
   getWindow: () => BrowserWindow | null
   update: UpdateController
@@ -166,12 +173,37 @@ export function syncDeps(ctx: AppContext): AppSyncDeps {
 
 let inFlight: Promise<SyncResult> | null = null
 
-/** One refresh at a time: the on-launch refresh and the Refresh button share the same promise. */
+/**
+ * Stats-warehouse spec §4.1: one warehouse run at a time, started after a refresh or import settles.
+ * No onStep: nothing reads the warehouse, so its steps neither invalidate caches nor report progress.
+ */
+const startWarehouse = singleFlight(
+  async (ctx: AppContext, options: RefreshOptions): Promise<SyncResult> =>
+    ctx.warehouseDb
+      ? refreshWarehouse(
+          { db: ctx.warehouseDb, warehouse: ctx.warehouse, state: getNflState(ctx.db) },
+          options
+        )
+      : { steps: [] }
+)
+
+function logWarehouseError(err: unknown): void {
+  console.error('warehouse refresh failed', err)
+}
+
+/**
+ * One refresh at a time: the on-launch refresh and the Refresh button share the same promise. The
+ * warehouse starts once it settles; the caller does not wait for the warehouse.
+ */
 export function startRefresh(ctx: AppContext, options: RefreshOptions = {}): Promise<SyncResult> {
   if (!inFlight) {
-    inFlight = refreshAll(syncDeps(ctx), options).finally(() => {
-      inFlight = null
-    })
+    inFlight = thenInBackground(
+      refreshAll(syncDeps(ctx), options).finally(() => {
+        inFlight = null
+      }),
+      () => startWarehouse(ctx, options),
+      logWarehouseError
+    )
   }
   return inFlight
 }
@@ -203,7 +235,11 @@ export function registerIpcHandlers(ctx: AppContext): void {
   ipcMain.handle(
     IPC.setupImportLeague,
     (_event, leagueId: string, userId: string | null): Promise<SyncResult> =>
-      importAll(syncDeps(ctx), leagueId, userId)
+      thenInBackground(
+        importAll(syncDeps(ctx), leagueId, userId),
+        () => startWarehouse(ctx, {}),
+        logWarehouseError
+      )
   )
 
   ipcMain.handle(IPC.leagueGet, (): League | null => {
