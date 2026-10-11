@@ -1,6 +1,6 @@
 # Stats warehouse — design
 
-**Date:** 2026-10-09 · **Status:** approved 2026-10-09 · **Plans:** T (warehouse + light sources), U (play-by-play worker), V (FTN + participation joins)
+**Date:** 2026-10-09 · **Status:** approved 2026-10-09, amended 2026-10-11 (§10: size) · **Plans:** T (warehouse + light sources), U (play-by-play worker), V (FTN + participation joins)
 
 **Source:** the stats catalog (`docs/research/2026-10-09-nfl-stats-catalog.md`). Every free source below was checked live on 2026-10-09 (file names, columns, 2026 availability, sizes).
 
@@ -25,11 +25,11 @@ Two seasons (current and prior), regular season only. `recomputePoints` scores e
 ## 2. Isolation
 
 - The core two-season pipeline (`player_week_stats`, `team_week_stats`, `player_week_snaps`, `games`, `recomputePoints`, values, signals, UI) does not change. Extending the core tables to 8 seasons would make every `recomputePoints` run score about 4× the rows.
-- The warehouse has its own tables, its own sync entry point and its own in-flight guard. Its sources duplicate the core's current and prior seasons (a few MB) so a query has one place to look.
+- The warehouse has its own database file (`warehouse.db` beside `companion.db`, §10), its own tables, its own sync entry point and its own in-flight guard. Its sources duplicate the core's current and prior seasons (a few MB) so a query has one place to look.
 
 ## 3. Storage
 
-Migration `010_warehouse.sql`:
+Warehouse migration `001_warehouse.sql` (in `warehouse.db`, §10; it also creates a `sync_log` with the core's schema):
 
 ```sql
 -- One row per source × player × week. data_json: every column the source publishes for that row;
@@ -97,7 +97,7 @@ CREATE TABLE wh_source_state (
 - **Ids.** Rows keep the source's own id. Joins to Sleeper players go through `player_ids` / `crosswalk` at read time. No identity change.
 - **Replace granularity.** A step replaces all rows of its (source, season) in one transaction, as the core does per season. All-seasons files replace only the seasons ≥ 2019 they contain.
 - **Season types.** REG and POST are both kept. nflverse POST weeks are stored as numbered in the file (19–22); Sleeper POST weeks as Sleeper numbers them (1–4).
-- **Size.** Estimate 200–300 MB for 8 seasons (Sleeper stats ≈ 70 MB, the play-by-play and participation aggregates most of the rest). Each plan's manual check records the real figure.
+- **Size.** Measured in Plan T: 1.46 GB as first built; about 400 MB after the §10 rules. Each plan's manual check records the real figure.
 
 ## 4. Sync
 
@@ -129,7 +129,7 @@ Each source has a first season (2019 unless the table says otherwise). Earlier s
 ### 4.3 Logging and errors
 
 - Steps log to `sync_log` as `wh:<source>:<season>` (`wh:<source>` for all-seasons files).
-- `getLastError` (the status bar's last error) ignores `wh:` sources. Warehouse failures stay visible in `sync_log` only, so an optional source cannot make the app look broken.
+- Warehouse steps log to `warehouse.db`'s own `sync_log` (§10), so the status bar's last error never sees them and an optional source cannot make the app look broken.
 - HTTP 404 → `SkipStep('<file> not published yet')`, as today.
 - Rows missing a key field (id, season, week) are skipped and counted in the step message.
 - New or renamed columns land in `data_json`; only a missing key column fails the step, naming the column.
@@ -152,13 +152,13 @@ Each source is an adapter in `src/main/sources/warehouse/` that fetches, parses 
 | `nflverse_player` | `stats_player/stats_player_week_{yr}` | gsis | player-week | Text dimension columns kept in `data_json` too |
 | `nflverse_team` | `stats_team/stats_team_week_{yr}` | team | team-week | |
 | `snaps` | `snap_counts/snap_counts_{yr}` | pfr | player-week | |
-| `ff_opportunity` | `https://github.com/ffverse/ffopportunity/releases/download/latest-data/ep_weekly_{yr}.csv` | gsis | player-week | Expected fantasy points per category and in total, with the `_team` columns |
+| `ff_opportunity` | `https://github.com/ffverse/ffopportunity/releases/download/latest-data/ep_weekly_{yr}.csv` | gsis | player-week | Expected fantasy points per category and in total. The `*_team` columns go to one team-week row per team (same source, §10) |
 | `ngs_pass`, `ngs_rush`, `ngs_rec` | `nextgen_stats/ngs_{passing,rushing,receiving}.csv.gz` | gsis | player-week | One all-seasons file each; week 0 = season row |
 | `pfr_pass`, `pfr_rush`, `pfr_rec`, `pfr_def` | `pfr_advstats/advstats_week_{pass,rush,rec,def}_{yr}` | pfr | player-week | |
 | `qbr` | `espn_data/qbr_week_level.csv.gz` and `qbr_season_level.csv.gz` | espn | player-week | All-seasons files; the season file is week 0. `season_type` `Regular` / `Playoffs` → REG / POST. |
 | `injuries` | `injuries/injuries_{yr}` | gsis | player-week | Report and practice status, primary and secondary injury |
 | `depth_charts` | `depth_charts/depth_charts_{yr}` | gsis | player-week | `data_json.entries`: one `{ formation, position, rank }` per slot. ≤ 2024 the file has `week`. From 2025 it holds timestamped snapshots (`dt`); week _w_ takes the last snapshot before that week's first kickoff in `wh_game`, and the current season adds the latest snapshot as the current state week. |
-| `rosters` | `weekly_rosters/roster_weekly_{yr}` | gsis | player-week, plus `wh_player` | Player-week: status, team, depth-chart position, `sleeper_id`. `wh_player` (source `rosters`): the latest bio (height, weight, birth date, college, draft club / number, entry year). |
+| `rosters` | `weekly_rosters/roster_weekly_{yr}` | gsis | player-week, plus `wh_player` | Player-week: only what changes week to week — status, status abbreviation, depth-chart position, jersey number, position (§10). `wh_player` (source `rosters`): the latest bio (height, weight, birth date, college, draft club / number, entry year). |
 | `combine` | `combine/combine.csv.gz` | pfr, else cfb | `wh_player` | Every year since 2000 (current veterans were drafted before 2019). Rows with neither id are skipped and counted. One all-seasons step. |
 
 nflverse files are under `https://github.com/nflverse/nflverse-data/releases/download/<tag>/`.
@@ -247,7 +247,7 @@ No test touches the network.
   - no step re-runs within 24 h of its last attempt, whatever the outcome (forced current / prior excepted);
   - seasons before a source's first season are never attempted;
   - 404 → skipped;
-  - a `wh:` error is absent from `getLastError`;
+  - warehouse steps log to `warehouse.db`, not the app database;
   - a partial backfill resumes;
   - the `startRefresh` result does not wait for the warehouse;
   - a second refresh during a warehouse run does not start another one.
@@ -255,7 +255,7 @@ No test touches the network.
 
 ## 8. Plans
 
-- **T: warehouse and light sources.** Migration, `wh_source_state` and sealing, `refreshWarehouse` and its wiring, the `.csv` fallback, the `getLastError` filter, every §5 adapter.
+- **T: warehouse and light sources.** Migration, `wh_source_state` and sealing, `refreshWarehouse` and its wiring, the `.csv` fallback, `warehouse.db`, the §10 rules, every §5 adapter.
 - **U: play-by-play.** `forEachCsvRow`, the worker entry, the play index, the §6.2–6.3 `pbp` metrics.
 - **V: FTN and participation.** The §6.4–6.5 joins and metrics.
 
@@ -267,3 +267,14 @@ Each plan ends with a release, as before.
 - Changing scoring to use Sleeper's stats (would make the 14 unsupported keys score). It is a natural next spec once `sleeper` rows exist.
 - Identity changes (e.g. using `rosters.sleeper_id` to resolve players).
 - Seasons before 2019, play-level storage, paid sources.
+
+## 10. Amendment 2026-10-11: size
+
+Plan T's live backfill (2019–2026, every §5 source) wrote **1.46 GB**: `nflverse_player` 371 MB, `rosters` 260 MB, `ff_opportunity` 188 MB of JSON. The user chose to slim the rows and move the warehouse to its own file.
+
+- **Own file.** The warehouse lives in `warehouse.db` beside `companion.db` (Electron `userData`), with its own migrations, `schema_version` and `sync_log`. The app database keeps its size, and the warehouse can be deleted and rebuilt without touching anything else. If `warehouse.db` cannot be opened, the app runs without the warehouse (logged, no dialog).
+- **No zeros.** `data_json` drops numeric zeros as well as empty / `NA`. A missing key reads as 0 or not published; for counting stats the two are the same.
+- **No key columns.** `data_json` drops the columns a row already stores in its own fields: the season, week, season-type, team, opponent and id columns its parser read (`game_id`, `season`, `week` for `wh_game`).
+- **Rosters.** A weekly roster row keeps only `status`, `status_description_abbr`, `depth_chart_position`, `jersey_number` and `position`; the bio lives once per player in `wh_player`.
+- **ffopportunity team totals.** The `*_team` columns leave the player rows and become one `wh_team_week` row per team and week (source `ff_opportunity`, keyed by `posteam`).
+- **Gate.** Measured on the same data: about 284 MB of JSON, about 400 MB on disk. Plan T's gate becomes 600 MB for `warehouse.db`, to leave room for Plans U and V.
