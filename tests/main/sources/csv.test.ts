@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { numOrNull, parseCsv, strOrNull } from '@main/sources/csv'
+import { describe, expect, it, vi } from 'vitest'
+import { forEachCsvRow, numOrNull, parseCsv, strOrNull } from '@main/sources/csv'
 
 describe('parseCsv', () => {
   it('parses header + rows into objects', () => {
@@ -28,6 +28,28 @@ describe('parseCsv', () => {
 
   it('returns [] for empty input', () => {
     expect(parseCsv('')).toEqual([])
+  })
+})
+
+describe('forEachCsvRow', () => {
+  it('passes each data row with the header and returns the header', () => {
+    const seen: [string[], string[]][] = []
+    const header = forEachCsvRow('a,b\n1,"x,y"\n\n3\n', (fields, h) => seen.push([fields, h]))
+    expect(header).toEqual(['a', 'b'])
+    expect(seen).toEqual([
+      [
+        ['1', 'x,y'],
+        ['a', 'b']
+      ],
+      [['3'], ['a', 'b']]
+    ])
+  })
+
+  it('returns [] for empty input and the header alone for a header-only file', () => {
+    const onRow = vi.fn()
+    expect(forEachCsvRow('', onRow)).toEqual([])
+    expect(forEachCsvRow('a,b\r\n', onRow)).toEqual(['a', 'b'])
+    expect(onRow).not.toHaveBeenCalled()
   })
 })
 

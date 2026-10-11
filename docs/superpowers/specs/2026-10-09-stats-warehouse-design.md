@@ -1,6 +1,6 @@
 # Stats warehouse — design
 
-**Date:** 2026-10-09 · **Status:** approved 2026-10-09, amended 2026-10-11 (§10: size) · **Plans:** T (warehouse + light sources), U (play-by-play worker), V (FTN + participation joins)
+**Date:** 2026-10-09 · **Status:** approved 2026-10-09, amended 2026-10-11 (§10: size; §11: play-by-play counting) · **Plans:** T (warehouse + light sources), U (play-by-play worker), V (FTN + participation joins)
 
 **Source:** the stats catalog (`docs/research/2026-10-09-nfl-stats-catalog.md`). Every free source below was checked live on 2026-10-09 (file names, columns, 2026 availability, sizes).
 
@@ -182,7 +182,7 @@ nflverse files are under `https://github.com/nflverse/nflverse-data/releases/dow
 - The worker gunzips, reads rows one at a time and aggregates. It posts back `{ playerWeeks, teamWeeks, skipped }` per source. The main process writes one transaction per source.
 - `src/main/sources/csv.ts` gains `forEachCsvRow(text, onRow)`; `parseCsv` is rebuilt on it (one parser, existing tests unchanged).
 - FTN and participation have no player ids. During the play-by-play pass the worker builds a compact play index keyed by `game_id` + `play_id` (posteam, defteam, passer / rusher / receiver ids, play kind, EPA, yards, air yards, complete). FTN joins on (`nflverse_game_id`, `nflverse_play_id`); participation on (`nflverse_game_id`, `play_id`). Rows that find no play are counted in the step message.
-- Plays with `play_deleted = 1` or `aborted_play = 1` are dropped. Only `season_type` REG and POST are aggregated.
+- Plays with `play_deleted = 1` are dropped (aborted plays are kept, §11). Only `season_type` REG and POST are aggregated.
 - **Sums and counts only, never rates.** A rate (EPA per dropback, success rate, catch rate) is computed when read; sums add across weeks and seasons. An average is stored as a sum and a count (`*_sum`, `*_n`).
 - **Versions.** Each of `pbp`, `ftn`, `part` has an aggregator version. Bumping it re-aggregates every season, sealed or not, once.
 
@@ -278,3 +278,21 @@ Plan T's live backfill (2019–2026, every §5 source) wrote **1.46 GB**: `nflve
 - **Rosters.** A weekly roster row keeps only `status`, `status_description_abbr`, `depth_chart_position`, `jersey_number` and `position`; the bio lives once per player in `wh_player`.
 - **ffopportunity team totals.** The `*_team` columns leave the player rows and become one `wh_team_week` row per team and week (source `ff_opportunity`, keyed by `posteam`).
 - **Gate.** Measured on the same data: about 284 MB of JSON, about 400 MB on disk. Plan T's gate becomes 600 MB for `warehouse.db`, to leave room for Plans U and V.
+
+## 11. Amendment 2026-10-11: play-by-play counting (Plan U)
+
+Plan U was planned against the real 2019 and 2025 files and nflverse's own `stats_player_week`. That changed §6.1–§6.3 as follows. With these rules, a 2019–2026 backfill matches nflverse's targets (`rec_targets`) on 100 % of player-weeks in every season, and its carries (`rush_carries` + `pass_kneels`) on 100 % in every season but 2024 (99.96 %).
+
+- **Aborted plays are kept.** They are real snaps (mostly fumbled snaps), and official stats count them. Dropping them, as §6.1 said, left 3.6 % of 2025 player-weeks short on carries. Only `play_deleted = 1` is dropped.
+- **Penalty-wiped snaps and two-point tries count only where named.** A `play_type = no_play` row counts only for penalties; a `two_point_attempt = 1` row only for the two-point counts and drive points. Counting two-point tries broke passing attempts (88 % agreement instead of 99.9 %). As a result, team EPA sums leave out penalty-wiped snaps.
+- **The passer is `passer_id`** (nflverse's dropback QB): `passer_player_id` is empty on every scramble. Kneels are credited through `rusher_player_id`, spikes through `passer_player_id`.
+- **Kickoffs belong to the receiving team** in nflverse (`posteam`), so kickers count for `defteam`.
+- **Every team metric is mirrored.** The `def_*`-only metrics of §6.3 are stored under neutral names on both sides: `def_punts` = forced punts, `def_fourth_failed` = fourth-down stops, `def_havoc`. Penalties are split by who committed them (`pen_offense_*`, `pen_defense_*`).
+- **The play index moves to Plan V**, where the FTN and participation joins read it.
+- **Storage:**
+  - Sums are rounded to 4 decimals.
+  - `cpoe` and `pass_oe` stay in percentage points.
+  - `*_long` values are maxima.
+  - `pen_types` is a `{ type: count }` map.
+  - `forEachCsvRow` hands rows over as arrays (1.4 s a season, against 2.3 s as objects).
+- **Size:** 2019–2026 adds about 50 MB to `warehouse.db` (27 MB of JSON, measured 2026-10-11).

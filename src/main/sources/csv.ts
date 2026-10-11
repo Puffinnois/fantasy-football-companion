@@ -1,13 +1,25 @@
 /**
  * Minimal RFC 4180 parser: quoted fields (nflverse quotes `headshot_url`, which contains commas),
- * doubled quotes inside quoted fields, LF or CRLF line ends, optional BOM. Returns one object per
- * data row keyed by the header. Blank lines are ignored; short rows are padded with ''.
+ * doubled quotes inside quoted fields, LF or CRLF line ends, optional BOM. Calls `onRow` with each
+ * data row's fields (a short row is passed as it is) and the header, one row at a time, so a large
+ * file never becomes one object per row. Blank lines are ignored. Returns the header ([] for empty
+ * input).
  */
-export function parseCsv(text: string): Record<string, string>[] {
-  const rows: string[][] = []
+export function forEachCsvRow(
+  text: string,
+  onRow: (fields: string[], header: string[]) => void
+): string[] {
+  let header = null as string[] | null
   let row: string[] = []
   let field = ''
   let quoted = false
+  const endRow = (): void => {
+    if (row.length > 1 || row[0] !== '') {
+      if (header === null) header = row
+      else onRow(row, header)
+    }
+    row = []
+  }
   for (let i = text.charCodeAt(0) === 0xfeff ? 1 : 0; i < text.length; i++) {
     const c = text[i]
     if (quoted) {
@@ -24,23 +36,27 @@ export function parseCsv(text: string): Record<string, string>[] {
       if (c === '\r' && text[i + 1] === '\n') i++
       row.push(field)
       field = ''
-      if (row.length > 1 || row[0] !== '') rows.push(row)
-      row = []
+      endRow()
     } else field += c
   }
   if (field !== '' || row.length > 0) {
     row.push(field)
-    rows.push(row)
+    endRow()
   }
-  const [header, ...body] = rows
-  if (!header) return []
-  return body.map((r) => {
+  return header ?? []
+}
+
+/** Every data row as an object keyed by the header; short rows are padded with ''. */
+export function parseCsv(text: string): Record<string, string>[] {
+  const rows: Record<string, string>[] = []
+  forEachCsvRow(text, (fields, header) => {
     const obj: Record<string, string> = {}
     header.forEach((h, idx) => {
-      obj[h] = r[idx] ?? ''
+      obj[h] = fields[idx] ?? ''
     })
-    return obj
+    rows.push(obj)
   })
+  return rows
 }
 
 /** R exports write missing values as the literal "NA" or an empty field. */

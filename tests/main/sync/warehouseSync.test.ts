@@ -12,6 +12,7 @@ import {
 } from '@main/db/repos/warehouse'
 import { stepRows, type StepRows, type WarehouseStep } from '@main/sync/warehouseSteps'
 import { refreshWarehouse, type WarehouseSyncDeps } from '@main/sync/warehouseSync'
+import { aggregateInProcess } from '@main/warehouse/job'
 import type { NflState, SyncResult } from '@shared/types'
 import { capturedFiles, capturedSleeper, fakeWarehouse } from '../../fixtures/warehouse'
 
@@ -79,6 +80,7 @@ describe('refreshWarehouse', () => {
     db,
     warehouse,
     state: STATE,
+    aggregatePbp: aggregateInProcess,
     now: () => clock
   })
   const run = (steps: WarehouseStep[], force = false): Promise<SyncResult> =>
@@ -243,6 +245,7 @@ describe('refreshWarehouse', () => {
       'ngs_pass',
       'ngs_rec',
       'ngs_rush',
+      'pbp',
       'pfr_def',
       'pfr_pass',
       'pfr_rec',

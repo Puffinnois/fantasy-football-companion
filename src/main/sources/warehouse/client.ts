@@ -1,4 +1,4 @@
-import { fetchText } from '../http'
+import { fetchBytes, fetchText } from '../http'
 import { NFLVERSE_RELEASES_URL } from '../nflverse'
 
 /** Sleeper's un-versioned weekly stats; unlike /v1 it gives each row its team and opponent. */
@@ -10,6 +10,11 @@ export type SleeperSeasonType = 'regular' | 'post'
 export interface WarehouseClient {
   /** An nflverse release file: `<tag>/<name>.csv.gz`, else `<tag>/<name>.csv` (older seasons); null when neither exists. */
   nflverseCsv(tag: string, name: string): Promise<string | null>
+  /**
+   * The same file as downloaded, gzip not undone, with the longer play-by-play timeout (spec §4.3);
+   * the warehouse worker decodes it off the main thread. Null when neither file exists.
+   */
+  nflverseFile(tag: string, name: string): Promise<Uint8Array | null>
   /** Any other file (ffverse); null on 404. */
   text(url: string): Promise<string | null>
   /** One week of Sleeper's stats rows; [] when Sleeper has none. */
@@ -31,6 +36,8 @@ export interface WarehouseClientOptions {
   releasesUrl?: string
   sleeperStatsUrl?: string
   timeoutMs?: number
+  /** For `nflverseFile` (play-by-play, ~19 MB a season). */
+  largeTimeoutMs?: number
   retryDelayMs?: number
 }
 
@@ -42,13 +49,19 @@ export function createWarehouseClient(options: WarehouseClientOptions = {}): War
     timeoutMs: options.timeoutMs ?? 30_000,
     retryDelayMs: options.retryDelayMs ?? 1_000
   }
-  const get = (url: string): Promise<string | null> =>
-    fetchText(url, http, (status, u) => new WarehouseHttpError(status, u))
+  const httpError = (status: number, url: string): Error => new WarehouseHttpError(status, url)
+  const get = (url: string): Promise<string | null> => fetchText(url, http, httpError)
+  const large = { ...http, timeoutMs: options.largeTimeoutMs ?? 120_000 }
+  const getBytes = (url: string): Promise<Uint8Array | null> => fetchBytes(url, large, httpError)
 
   return {
     async nflverseCsv(tag, name) {
       const base = `${releasesUrl}/${tag}/${name}`
       return (await get(`${base}.csv.gz`)) ?? (await get(`${base}.csv`))
+    },
+    async nflverseFile(tag, name) {
+      const base = `${releasesUrl}/${tag}/${name}`
+      return (await getBytes(`${base}.csv.gz`)) ?? (await getBytes(`${base}.csv`))
     },
     text: get,
     async sleeperStats(season, week, seasonType) {

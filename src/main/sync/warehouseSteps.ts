@@ -23,6 +23,7 @@ import {
 } from '@main/sources/warehouse/parse'
 import { parseRosters } from '@main/sources/warehouse/rosters'
 import { parseSleeperStats } from '@main/sources/warehouse/sleeperStats'
+import type { AggregatePbp } from '@main/warehouse/job'
 import { SkipStep } from './step'
 
 /** Stats-warehouse spec: seasons 2019 through the Sleeper state season. */
@@ -65,6 +66,8 @@ export interface StepContext {
   /** Sleeper state week and season type (`pre` / `regular` / `post` / `off`), for the current season. */
   stateWeek: number
   stateSeasonType: string
+  /** Aggregates a downloaded play-by-play file; the warehouse worker in the app. */
+  aggregatePbp: AggregatePbp
 }
 
 export interface WarehouseStep {
@@ -314,7 +317,20 @@ const combineStep: WarehouseStep = {
   }
 }
 
-/** Spec §5, in sync order (the schedule before depth charts, which map snapshots to its kickoffs). */
+/** Spec §6.1–§6.3: one season of play-by-play, aggregated off the main thread. */
+const pbpStep: WarehouseStep = {
+  id: 'pbp',
+  sources: v1('pbp'),
+  firstSeason: WAREHOUSE_FIRST_SEASON,
+  allSeasons: false,
+  async fetch(ctx, season) {
+    const bytes = await ctx.client.nflverseFile('pbp', `play_by_play_${season}`)
+    if (bytes === null) return null
+    return stepRows(await ctx.aggregatePbp(bytes))
+  }
+}
+
+/** Spec §5 and §6, in sync order (the schedule before depth charts, which map snapshots to its kickoffs). */
 export const WAREHOUSE_STEPS: WarehouseStep[] = [
   sleeperStep,
   schedulesStep,
@@ -366,5 +382,6 @@ export const WAREHOUSE_STEPS: WarehouseStep[] = [
   ),
   depthChartsStep,
   rostersStep,
-  combineStep
+  combineStep,
+  pbpStep
 ]

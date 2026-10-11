@@ -23,6 +23,7 @@ get "$base/injuries/injuries_2025.csv.gz" injuries_2025.csv
 get "$base/depth_charts/depth_charts_2024.csv.gz" depth_charts_2024.csv
 get "$base/weekly_rosters/roster_weekly_2025.csv.gz" roster_weekly_2025.csv
 get "$base/combine/combine.csv.gz" combine.csv
+get "$base/pbp/play_by_play_2025.csv.gz" pbp_2025_game.csv 400 '$2 == "2025_01_DAL_PHI"'
 get "$ff/ep_weekly_2025.csv" ep_weekly_2025.csv 20 '$5 != "NA"'
 # Sleeper 2025 week 5: the first 20 player rows plus two DEF and two TEAM rows, without the embedded player object.
 curl -s --compressed "https://api.sleeper.com/stats/nfl/2025/5?season_type=regular" | node -e '

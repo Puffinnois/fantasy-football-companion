@@ -11,6 +11,7 @@ import {
   type WhSourceState
 } from '@main/db/repos/warehouse'
 import type { WarehouseClient } from '@main/sources/warehouse/client'
+import type { AggregatePbp } from '@main/warehouse/job'
 import type { NflState, SyncLogEntry, SyncResult } from '@shared/types'
 import {
   nowOf,
@@ -39,6 +40,8 @@ export interface WarehouseSyncDeps extends StepDeps {
   warehouse: WarehouseClient
   /** The Sleeper NFL state from the app database; null before the first Sleeper sync. */
   state: NflState | null
+  /** The warehouse worker in the app (spec §6.1); `aggregateInProcess` in tests. */
+  aggregatePbp: AggregatePbp
 }
 
 /** Prefix of every warehouse step in sync_log. */
@@ -158,7 +161,8 @@ export async function refreshWarehouse(
     client: deps.warehouse,
     current,
     stateWeek: state.week,
-    stateSeasonType: state.seasonType
+    stateSeasonType: state.seasonType,
+    aggregatePbp: deps.aggregatePbp
   }
   const force = options.force ?? false
   for (const step of steps) {
