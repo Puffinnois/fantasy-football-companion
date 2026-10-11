@@ -11,27 +11,39 @@ function isRetryable(status: number): boolean {
 }
 
 /**
- * GETs `url` as text: follows redirects (fetch default), gunzips gzip bodies (detected by magic bytes)
- * and retries once on 429 / 5xx. Returns null on 404; any other failure status throws `httpError`.
+ * GETs `url` as raw bytes: follows redirects (fetch default) and retries once on 429 / 5xx.
+ * Returns null on 404; any other failure status throws `httpError`.
  */
-export async function fetchText(
+export async function fetchBytes(
   url: string,
   options: FetchTextOptions,
   httpError: (status: number, url: string) => Error
-): Promise<string | null> {
+): Promise<Uint8Array | null> {
   const { fetchImpl, timeoutMs, retryDelayMs } = options
   for (let attempt = 0; ; attempt++) {
     const res = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs) })
     if (res.status === 404) return null
-    if (res.ok) {
-      const bytes = new Uint8Array(await res.arrayBuffer())
-      const gzipped = bytes[0] === 0x1f && bytes[1] === 0x8b
-      return new TextDecoder().decode(gzipped ? gunzipSync(bytes) : bytes)
-    }
+    if (res.ok) return new Uint8Array(await res.arrayBuffer())
     if (attempt === 0 && isRetryable(res.status)) {
       await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
       continue
     }
     throw httpError(res.status, url)
   }
+}
+
+/** UTF-8 text of `bytes`, gunzipped first when they are gzip (detected by magic bytes). */
+export function decodeText(bytes: Uint8Array): string {
+  const gzipped = bytes[0] === 0x1f && bytes[1] === 0x8b
+  return new TextDecoder().decode(gzipped ? gunzipSync(bytes) : bytes)
+}
+
+/** `fetchBytes` as text: gzip bodies are gunzipped (see `decodeText`). */
+export async function fetchText(
+  url: string,
+  options: FetchTextOptions,
+  httpError: (status: number, url: string) => Error
+): Promise<string | null> {
+  const bytes = await fetchBytes(url, options, httpError)
+  return bytes === null ? null : decodeText(bytes)
 }

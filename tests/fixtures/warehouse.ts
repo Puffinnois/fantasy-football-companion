@@ -30,6 +30,11 @@ export function fakeWarehouse(
       calls.push(`${tag}/${name}`)
       return files[`${tag}/${name}`] ?? null
     },
+    async nflverseFile(tag, name) {
+      calls.push(`${tag}/${name}`)
+      const file = files[`${tag}/${name}`]
+      return file === undefined ? null : new TextEncoder().encode(file)
+    },
     async text(url) {
       calls.push(url)
       return files[url] ?? null

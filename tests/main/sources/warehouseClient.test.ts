@@ -46,6 +46,24 @@ describe('createWarehouseClient', () => {
     ])
   })
 
+  it('downloads a file as bytes, gzip kept, with the same .csv fallback', async () => {
+    const gz = gzipSync(Buffer.from('a\n1\n'))
+    const { urls, client } = setup({
+      [`${REL}/pbp/play_by_play_2025.csv.gz`]: () => new Response(gz),
+      [`${REL}/pbp/play_by_play_2019.csv`]: () => new Response('a\n2\n')
+    })
+    const gzipped = await client.nflverseFile('pbp', 'play_by_play_2025')
+    expect(gzipped && Buffer.from(gzipped)).toEqual(gz)
+    const plain = await client.nflverseFile('pbp', 'play_by_play_2019')
+    expect(plain && new TextDecoder().decode(plain)).toBe('a\n2\n')
+    expect(await client.nflverseFile('pbp', 'play_by_play_2030')).toBeNull()
+    expect(urls.slice(0, 3)).toEqual([
+      `${REL}/pbp/play_by_play_2025.csv.gz`,
+      `${REL}/pbp/play_by_play_2019.csv.gz`,
+      `${REL}/pbp/play_by_play_2019.csv`
+    ])
+  })
+
   it('returns null when neither file exists', async () => {
     const { client } = setup({})
     expect(await client.nflverseCsv('ftn_charting', 'ftn_charting_2019')).toBeNull()
