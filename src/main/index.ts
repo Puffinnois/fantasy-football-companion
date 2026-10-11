@@ -12,6 +12,7 @@ import { createFantasyCalcClient } from '@main/sources/fantasycalc'
 import { createFantasyProsClient } from '@main/sources/fantasypros'
 import { createNflverseClient } from '@main/sources/nflverse'
 import { createSleeperClient } from '@main/sources/sleeper'
+import { createWarehouseClient } from '@main/sources/warehouse/client'
 import { createSleeperNewsClient } from '@main/sources/sleeperNews'
 import { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
@@ -81,6 +82,7 @@ app.whenReady().then(() => {
     nflverse: createNflverseClient(),
     fantasypros: createFantasyProsClient(),
     fantasycalc: createFantasyCalcClient(),
+    warehouse: createWarehouseClient(),
     news: createNewsCache(createSleeperNewsClient()),
     getWindow: () => mainWindow,
     update: installAutoUpdater({
