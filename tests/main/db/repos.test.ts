@@ -3,7 +3,13 @@ import { openDatabase, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
 import { getSetting, setSetting } from '@main/db/repos/settings'
 import { getNflState, setNflState } from '@main/db/repos/state'
-import { finishSync, getLastError, getLastSync, startSync } from '@main/db/repos/syncLog'
+import {
+  finishSync,
+  getLastError,
+  getLastFinishedSync,
+  getLastSync,
+  startSync
+} from '@main/db/repos/syncLog'
 import { getLeague, upsertLeague } from '@main/db/repos/leagues'
 import { listRoster, listTeams, replaceRosterPlayers, replaceTeams } from '@main/db/repos/teams'
 import { countPlayers, upsertPlayers, type PlayerRecord } from '@main/db/repos/players'
@@ -108,6 +114,17 @@ describe('repos', () => {
     expect(getLastSync(db, 'sleeper:league')).toMatchObject({ id: a, status: 'ok', rowsWritten: 5 })
     expect(getLastSync(db, 'sleeper:players', 'ok')).toBeNull()
     expect(getLastError(db)).toMatchObject({ id: b, message: 'boom' })
+  })
+
+  it('getLastError ignores warehouse steps; getLastFinishedSync ignores running rows', () => {
+    const a = startSync(db, 'sleeper:league', T)
+    finishSync(db, a, 'error', T, 'core', 0)
+    const b = startSync(db, 'wh:sleeper:2025', T)
+    finishSync(db, b, 'error', T, 'warehouse', 0)
+    expect(getLastError(db)).toMatchObject({ id: a, message: 'core' })
+    startSync(db, 'wh:sleeper:2025', '2099-01-01T00:00:00.000Z')
+    expect(getLastFinishedSync(db, 'wh:sleeper:2025')).toMatchObject({ id: b, status: 'error' })
+    expect(getLastFinishedSync(db, 'wh:nothing')).toBeNull()
   })
 
   it('league upsert updates in place', () => {
