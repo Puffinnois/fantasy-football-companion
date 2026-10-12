@@ -1,17 +1,11 @@
 import type { WhPlayerWeek } from '@main/db/repos/warehouse'
-import { Bag } from './bag'
-import { counts, opponentOf, type Play } from './play'
+import type { Bag } from './bag'
+import { counts, type Play } from './play'
+import { PlayerBags } from './weekBags'
 
 /** Red-zone depths (yards to the end zone) the rusher and receiver counts split by. */
 const ZONES = [20, 10, 5]
 const DEEP = 20
-
-interface Entry {
-  play: Play
-  playerKey: string
-  team: string | null
-  bag: Bag
-}
 
 const inside = (p: Play, yards: number): boolean => p.yardline !== null && p.yardline <= yards
 const earlyDown = (p: Play): boolean => p.down === 1 || p.down === 2
@@ -114,19 +108,11 @@ function returner(b: Bag, p: Play, prefix: 'kr' | 'pr', id: string, fairCatch: b
 
 /** Spec §6.2: `pbp` player-weeks, keyed by gsis id. */
 export class PlayerWeeks {
-  private readonly entries = new Map<string, Entry>()
+  private readonly bags = new PlayerBags('pbp')
 
   /** The bag of `id` in this play's week; `team` is the side the player was on. */
   private bag(p: Play, id: string, team: string | null): Bag {
-    const key = `${p.season}|${p.seasonType}|${p.week}|${id}`
-    const entry = this.entries.get(key)
-    if (entry) {
-      entry.team ??= team
-      return entry.bag
-    }
-    const bag = new Bag()
-    this.entries.set(key, { play: p, playerKey: id, team, bag })
-    return bag
+    return this.bags.bag(p, id, team)
   }
 
   add(p: Play): void {
@@ -187,22 +173,6 @@ export class PlayerWeeks {
   }
 
   finish(): WhPlayerWeek[] {
-    const rows: WhPlayerWeek[] = []
-    for (const { play, playerKey, team, bag } of this.entries.values()) {
-      const data = bag.data()
-      if (Object.keys(data).length === 0) continue
-      rows.push({
-        source: 'pbp',
-        season: play.season,
-        seasonType: play.seasonType,
-        week: play.week,
-        playerKey,
-        keyType: 'gsis',
-        team,
-        opponent: opponentOf(play, team),
-        data
-      })
-    }
-    return rows
+    return this.bags.finish()
   }
 }

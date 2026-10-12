@@ -1,6 +1,7 @@
 import type { WhTeamWeek } from '@main/db/repos/warehouse'
-import { Bag } from './bag'
-import { counts, isScrimmage, opponentOf, type Play } from './play'
+import type { Bag } from './bag'
+import { counts, isScrimmage, type Play } from './play'
+import { TeamBags } from './weekBags'
 
 /** Spec §6.3: neutral script = win probability 20–80 % in quarters 1–3. */
 const neutral = (p: Play): boolean =>
@@ -138,33 +139,16 @@ function recordDrive(b: Bag, d: DriveSummary): void {
   b.addIf('gtg_tds', d.goalToGo && d.touchdown)
 }
 
-interface Side {
-  play: Play
-  team: string
-  off: Bag
-  def: Bag
-}
-
 /** Spec §6.3: `pbp` team-weeks; every metric as `off_*` (the team had the ball) and `def_*`. */
 export class TeamWeeks {
-  private readonly sides = new Map<string, Side>()
+  private readonly bags = new TeamBags('pbp')
   private readonly drives = new Map<string, Play[]>()
   /** The previous snap, for the seconds between neutral snaps (pace). */
   private last: Play | null = null
 
-  private side(p: Play, team: string): Side {
-    const key = `${p.season}|${p.seasonType}|${p.week}|${team}`
-    let side = this.sides.get(key)
-    if (!side) {
-      side = { play: p, team, off: new Bag(), def: new Bag() }
-      this.sides.set(key, side)
-    }
-    return side
-  }
-
   /** The offense's `off_` bag and the defense's `def_` bag for a play between `team` and `opponent`. */
   private both(p: Play, team: string, opponent: string): Bag[] {
-    return [this.side(p, team).off, this.side(p, opponent).def]
+    return this.bags.both(p, team, opponent)
   }
 
   add(p: Play): void {
@@ -203,20 +187,6 @@ export class TeamWeeks {
       const d = summarizeDrive(rows)
       if (d) for (const b of this.both(d.first, d.team, d.opponent)) recordDrive(b, d)
     }
-    const rows: WhTeamWeek[] = []
-    for (const { play, team, off, def } of this.sides.values()) {
-      const data = { ...off.data('off_'), ...def.data('def_') }
-      if (Object.keys(data).length === 0) continue
-      rows.push({
-        source: 'pbp',
-        season: play.season,
-        seasonType: play.seasonType,
-        week: play.week,
-        team,
-        opponent: opponentOf(play, team),
-        data
-      })
-    }
-    return rows
+    return this.bags.finish()
   }
 }

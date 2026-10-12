@@ -279,8 +279,11 @@ export function playReader(header: string[]): (fields: string[]) => Play | null 
   }
 }
 
+/** What a warehouse row needs of a play: its week and the game's two teams. */
+export type GameWeek = Pick<Play, 'season' | 'seasonType' | 'week' | 'home' | 'away'>
+
 /** The other team of the play's game; null when `team` is neither side. */
-export function opponentOf(p: Play, team: string | null): string | null {
+export function opponentOf(p: GameWeek, team: string | null): string | null {
   if (team === null) return null
   return team === p.home ? p.away : team === p.away ? p.home : null
 }
