@@ -349,8 +349,9 @@ const PBP_SOURCES: StepSource[] = [
 
 /**
  * Spec §6.1–§6.5: one season of play-by-play, with FTN and participation joined to it, aggregated off
- * the main thread. Play-by-play is downloaded whenever any of the three is due (the joins need its
- * play index) but replaces its rows only when it is due itself.
+ * the main thread. Play-by-play replaces its rows only when it is due itself. When it is not, the due
+ * joins are downloaded first, and play-by-play (needed for their play index) only if one is found,
+ * so a join that is never published does not cost a play-by-play download every day.
  */
 const pbpStep: WarehouseStep = {
   id: 'pbp',
@@ -358,12 +359,20 @@ const pbpStep: WarehouseStep = {
   firstSeason: WAREHOUSE_FIRST_SEASON,
   allSeasons: false,
   async fetch(ctx, season, due = PBP_SOURCES.map((s) => s.source)) {
-    const pbp = await ctx.client.nflverseFile('pbp', `play_by_play_${season}`)
-    if (pbp === null) return null
+    const playByPlay = (): Promise<Uint8Array | null> =>
+      ctx.client.nflverseFile('pbp', `play_by_play_${season}`)
     const joined = async (source: string): Promise<Uint8Array | null> =>
       due.includes(source) ? ctx.client.nflverseFile(...JOINED_FILES[source](season)) : null
+    const pbpDue = due.includes('pbp')
+    const first = pbpDue ? await playByPlay() : null
+    if (pbpDue && first === null) return null
     const ftn = await joined('ftn')
     const part = await joined('part')
+    if (!pbpDue && ftn === null && part === null) {
+      return stepRows({ sources: [], notes: due.map((s) => `${s} ${season} not published yet`) })
+    }
+    const pbp = first ?? (await playByPlay())
+    if (pbp === null) return null
     const result = await ctx.aggregatePbp({ pbp, ftn, part })
     const out = stepRows({ sources: due.filter((s) => s === 'pbp') })
     if (due.includes('pbp')) {

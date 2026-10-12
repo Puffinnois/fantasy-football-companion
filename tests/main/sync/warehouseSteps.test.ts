@@ -134,9 +134,9 @@ describe('warehouse steps', () => {
     })
     const out = await step('pbp').fetch(ctx(client, { aggregatePbp }), 2024, ['ftn', 'part'])
     expect(client.calls).toEqual([
-      'pbp/play_by_play_2024',
       'ftn_charting/ftn_charting_2024',
-      'pbp_participation/pbp_participation_2024'
+      'pbp_participation/pbp_participation_2024',
+      'pbp/play_by_play_2024'
     ])
     const job = aggregatePbp.mock.calls[0][0]
     const text = (b: Uint8Array | null): string | null => b && new TextDecoder().decode(b)
@@ -147,6 +147,15 @@ describe('warehouse steps', () => {
       skipped: 0,
       notes: ['ftn 2024 not published yet', 'part: 2 rows matched no play']
     })
+  })
+
+  it('does not download play-by-play when only unpublished joins are due', async () => {
+    const aggregatePbp = vi.fn<AggregatePbp>()
+    const client = fakeWarehouse({ 'pbp/play_by_play_2024': captured('pbp_2025_game.csv') })
+    const out = await step('pbp').fetch(ctx(client, { aggregatePbp }), 2024, ['part'])
+    expect(client.calls).toEqual(['pbp_participation/pbp_participation_2024'])
+    expect(aggregatePbp).not.toHaveBeenCalled()
+    expect(out).toMatchObject({ sources: [], notes: ['part 2024 not published yet'] })
   })
 
   it('fetches every join by default and does not download one that is not due', async () => {
