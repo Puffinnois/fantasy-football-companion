@@ -1,3 +1,4 @@
+import { FTN_COLUMNS } from '@main/warehouse/ftn'
 import { PBP_COLUMNS, playReader, type Play } from '@main/warehouse/play'
 import { PlayIndex } from '@main/warehouse/playIndex'
 
@@ -23,11 +24,29 @@ function cells(row: PbpRow): string[] {
   return COLUMNS.map((c) => (full[c] === undefined ? '' : String(full[c])))
 }
 
+const quote = (s: string): string => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
+
+/** A CSV of `columns`; a row's unset columns are empty. */
+function csv(columns: string[], rows: PbpRow[]): string {
+  const line = (r: PbpRow): string =>
+    columns.map((c) => quote(r[c] === undefined ? '' : String(r[c]))).join(',')
+  return [columns.join(','), ...rows.map(line)].join('\n') + '\n'
+}
+
 /** A CSV with every column the aggregation reads. */
 export function pbpCsv(rows: PbpRow[]): string {
-  const quote = (s: string): string => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
-  const lines = rows.map((r) => cells(r).map(quote).join(','))
-  return [COLUMNS.join(','), ...lines].join('\n') + '\n'
+  return csv(
+    COLUMNS,
+    rows.map((r) => ({ ...BASE, ...r }))
+  )
+}
+
+/** An FTN CSV for BASE's game: give each row the `nflverse_play_id` of its play. */
+export function ftnCsv(rows: PbpRow[]): string {
+  return csv(
+    FTN_COLUMNS,
+    rows.map((r) => ({ nflverse_game_id: BASE.game_id, ...r }))
+  )
 }
 
 /** One row, read as the aggregation reads it. */
