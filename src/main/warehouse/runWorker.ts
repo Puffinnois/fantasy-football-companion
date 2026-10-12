@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
-import type { PbpResult } from './aggregate'
+import type { SeasonResult } from './aggregate'
 import type { AggregatePbp, WarehouseJob, WarehouseOutput } from './job'
 
 /** Bundled beside the main entry by `electron.vite.config.ts`. */
@@ -12,15 +12,16 @@ export const PBP_UNREADABLE = 'Play-by-play aggregation sent an unreadable answe
 export const PBP_OUT_OF_MEMORY = 'Play-by-play aggregation ran out of memory'
 
 /**
- * Spec §6.1: a season is ~100 MB of CSV and takes seconds to aggregate, so it runs off the main
- * thread. The bytes are transferred to the worker, not copied; one worker per season.
+ * Spec §6.1: a season is ~100 MB of CSV (plus FTN and participation) and takes seconds to
+ * aggregate, so it runs off the main thread. The files are transferred to the worker, not copied;
+ * one worker per season.
  */
-export const runPbpWorker: AggregatePbp = (bytes) =>
-  new Promise<PbpResult>((resolve, reject) => {
-    const workerData: WarehouseJob = { pbp: bytes }
+export const runPbpWorker: AggregatePbp = (job) =>
+  new Promise<SeasonResult>((resolve, reject) => {
+    const files = [job.pbp, job.ftn, job.part].filter((b): b is Uint8Array => b !== null)
     const worker = new Worker(workerPath(), {
-      workerData,
-      transferList: [bytes.buffer as ArrayBuffer]
+      workerData: job satisfies WarehouseJob,
+      transferList: files.map((b) => b.buffer as ArrayBuffer)
     })
     let answered = false
     const settle = (fn: () => void): void => {

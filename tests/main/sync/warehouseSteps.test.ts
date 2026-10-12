@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Db } from '@main/db/connection'
 import { openWarehouseDatabase } from '@main/db/warehouseDb'
-import { replaceWhGames, type WhKeyType } from '@main/db/repos/warehouse'
+import { replaceWhGames, type WhKeyType, type WhPlayerWeek } from '@main/db/repos/warehouse'
 import type { WarehouseClient } from '@main/sources/warehouse/client'
 import { parseGamesCsv } from '@main/sources/warehouse/parse'
-import type { PbpResult } from '@main/warehouse/aggregate'
+import type { SeasonResult } from '@main/warehouse/aggregate'
+import type { JoinResult } from '@main/warehouse/join'
 import { aggregateInProcess, type AggregatePbp } from '@main/warehouse/job'
 import { SkipStep } from '@main/sync/step'
 import {
@@ -15,6 +16,7 @@ import {
   type WarehouseStep
 } from '@main/sync/warehouseSteps'
 import {
+  captured,
   capturedFiles,
   capturedNflverse,
   capturedSleeper,
@@ -102,14 +104,68 @@ describe('warehouse steps', () => {
     expect(await step('pbp').fetch(ctx(fakeWarehouse()), 2026)).toBeNull()
   })
 
-  it('hands the downloaded play-by-play file to the aggregator and keeps its rows', async () => {
-    const result: PbpResult = { playerWeeks: [], teamWeeks: [], skipped: 3 }
+  it('downloads play-by-play and each due join, and keeps the rows of due sources', async () => {
+    const row = (source: string): WhPlayerWeek => ({
+      source,
+      season: 2024,
+      seasonType: 'REG',
+      week: 1,
+      playerKey: '00-0034844',
+      keyType: 'gsis',
+      team: 'PHI',
+      opponent: 'DAL',
+      data: { n: 1 }
+    })
+    const joined = (source: string): JoinResult => ({
+      playerWeeks: [row(source)],
+      teamWeeks: [],
+      skipped: 0,
+      unmatched: 2
+    })
+    const result: SeasonResult = {
+      pbp: { playerWeeks: [row('pbp')], teamWeeks: [], skipped: 3 },
+      ftn: null,
+      part: joined('part')
+    }
     const aggregatePbp = vi.fn<AggregatePbp>(async () => result)
-    const client = fakeWarehouse({ 'pbp/play_by_play_2024': 'play_id\n1\n' })
-    const out = await step('pbp').fetch(ctx(client, { aggregatePbp }), 2024)
+    const client = fakeWarehouse({
+      'pbp/play_by_play_2024': 'pbp',
+      'pbp_participation/pbp_participation_2024': 'part'
+    })
+    const out = await step('pbp').fetch(ctx(client, { aggregatePbp }), 2024, ['ftn', 'part'])
+    expect(client.calls).toEqual([
+      'ftn_charting/ftn_charting_2024',
+      'pbp_participation/pbp_participation_2024',
+      'pbp/play_by_play_2024'
+    ])
+    const job = aggregatePbp.mock.calls[0][0]
+    const text = (b: Uint8Array | null): string | null => b && new TextDecoder().decode(b)
+    expect([text(job.pbp), job.ftn, text(job.part)]).toEqual(['pbp', null, 'part'])
+    expect(out).toMatchObject({
+      sources: ['part'],
+      playerWeeks: [row('part')],
+      skipped: 0,
+      notes: ['ftn 2024 not published yet', 'part: 2 rows matched no play']
+    })
+  })
+
+  it('does not download play-by-play when only unpublished joins are due', async () => {
+    const aggregatePbp = vi.fn<AggregatePbp>()
+    const client = fakeWarehouse({ 'pbp/play_by_play_2024': captured('pbp_2025_game.csv') })
+    const out = await step('pbp').fetch(ctx(client, { aggregatePbp }), 2024, ['part'])
+    expect(client.calls).toEqual(['pbp_participation/pbp_participation_2024'])
+    expect(aggregatePbp).not.toHaveBeenCalled()
+    expect(out).toMatchObject({ sources: [], notes: ['part 2024 not published yet'] })
+  })
+
+  it('fetches every join by default and does not download one that is not due', async () => {
+    const client = fakeWarehouse({ 'pbp/play_by_play_2024': captured('pbp_2025_game.csv') })
+    const all = await step('pbp').fetch(ctx(client), 2024)
+    expect(all?.sources).toEqual(['pbp'])
+    expect(all?.notes).toEqual(['ftn 2024 not published yet', 'part 2024 not published yet'])
+    client.calls.length = 0
+    await step('pbp').fetch(ctx(client), 2024, ['pbp'])
     expect(client.calls).toEqual(['pbp/play_by_play_2024'])
-    expect(new TextDecoder().decode(aggregatePbp.mock.calls[0][0])).toBe('play_id\n1\n')
-    expect(out).toMatchObject({ playerWeeks: [], teamWeeks: [], skipped: 3 })
   })
 
   it('reads injuries before 2025, which have no season_type column', async () => {

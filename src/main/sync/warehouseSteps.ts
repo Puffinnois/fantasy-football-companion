@@ -44,6 +44,10 @@ export interface StepRows {
   /** `replace`: the step's profiles replace the source's; `latest`: keep each player's newest. */
   playersMode: 'replace' | 'latest'
   skipped: number
+  /** The sources these rows replace, each recorded in `wh_source_state`; null = every due source. */
+  sources: string[] | null
+  /** Extra parts of the step message (join misses, a source not published yet). */
+  notes: string[]
 }
 
 export function stepRows(partial: Partial<StepRows>): StepRows {
@@ -54,6 +58,8 @@ export function stepRows(partial: Partial<StepRows>): StepRows {
     players: [],
     playersMode: 'replace',
     skipped: 0,
+    sources: null,
+    notes: [],
     ...partial
   }
 }
@@ -70,21 +76,30 @@ export interface StepContext {
   aggregatePbp: AggregatePbp
 }
 
+/** A source a step writes, with the adapter version that writes it. */
+export interface StepSource {
+  source: string
+  version: number
+  /** Seasons before it are never due for this source (FTN starts in 2022); default the step's. */
+  firstSeason?: number
+}
+
 export interface WarehouseStep {
   /** `wh:<id>` (all-seasons) or `wh:<id>:<season>` in sync_log. */
   id: string
-  /** The sources this step writes, each with the adapter version that writes it. */
-  sources: { source: string; version: number }[]
+  sources: StepSource[]
   /** First season fetched (never before WAREHOUSE_FIRST_SEASON); unused for all-seasons steps. */
   firstSeason: number
   /** One file holding every season; fetched with season 0. */
   allSeasons: boolean
-  /** The rows for `season`, or null when the file is not published. May throw `SkipStep`. */
-  fetch(ctx: StepContext, season: number): Promise<StepRows | null>
+  /**
+   * The rows for `season`, or null when the file is not published. May throw `SkipStep`. `due` lists
+   * the step's sources due this run (default: all of them); a step may fetch only those.
+   */
+  fetch(ctx: StepContext, season: number, due?: string[]): Promise<StepRows | null>
 }
 
-const v1 = (...sources: string[]): { source: string; version: number }[] =>
-  sources.map((source) => ({ source, version: 1 }))
+const v1 = (...sources: string[]): StepSource[] => sources.map((source) => ({ source, version: 1 }))
 
 /** A per-season player-week CSV fetched by `get`. */
 function playerStep(
@@ -317,16 +332,70 @@ const combineStep: WarehouseStep = {
   }
 }
 
-/** Spec §6.1–§6.3: one season of play-by-play, aggregated off the main thread. */
+/** FTN charting starts in 2022 (spec §6.1). */
+export const FTN_FIRST_SEASON = 2022
+
+/** The files the play-by-play step joins to play-by-play: source → nflverse release tag and name. */
+const JOINED_FILES: Record<string, (season: number) => [string, string]> = {
+  ftn: (season) => ['ftn_charting', `ftn_charting_${season}`],
+  part: (season) => ['pbp_participation', `pbp_participation_${season}`]
+}
+
+const PBP_SOURCES: StepSource[] = [
+  { source: 'pbp', version: 1 },
+  { source: 'ftn', version: 1, firstSeason: FTN_FIRST_SEASON },
+  { source: 'part', version: 1 }
+]
+
+/**
+ * Spec §6.1–§6.5: one season of play-by-play, with FTN and participation joined to it, aggregated off
+ * the main thread. Play-by-play replaces its rows only when it is due itself. When it is not, the due
+ * joins are downloaded first, and play-by-play (needed for their play index) only if one is found,
+ * so a join that is never published does not cost a play-by-play download every day.
+ */
 const pbpStep: WarehouseStep = {
   id: 'pbp',
-  sources: v1('pbp'),
+  sources: PBP_SOURCES,
   firstSeason: WAREHOUSE_FIRST_SEASON,
   allSeasons: false,
-  async fetch(ctx, season) {
-    const bytes = await ctx.client.nflverseFile('pbp', `play_by_play_${season}`)
-    if (bytes === null) return null
-    return stepRows(await ctx.aggregatePbp(bytes))
+  async fetch(ctx, season, due = PBP_SOURCES.map((s) => s.source)) {
+    const playByPlay = (): Promise<Uint8Array | null> =>
+      ctx.client.nflverseFile('pbp', `play_by_play_${season}`)
+    const joined = async (source: string): Promise<Uint8Array | null> =>
+      due.includes(source) ? ctx.client.nflverseFile(...JOINED_FILES[source](season)) : null
+    const pbpDue = due.includes('pbp')
+    const first = pbpDue ? await playByPlay() : null
+    if (pbpDue && first === null) return null
+    const ftn = await joined('ftn')
+    const part = await joined('part')
+    if (!pbpDue && ftn === null && part === null) {
+      return stepRows({ sources: [], notes: due.map((s) => `${s} ${season} not published yet`) })
+    }
+    const pbp = first ?? (await playByPlay())
+    if (pbp === null) return null
+    const result = await ctx.aggregatePbp({ pbp, ftn, part })
+    const out = stepRows({ sources: due.filter((s) => s === 'pbp') })
+    if (due.includes('pbp')) {
+      out.playerWeeks.push(...result.pbp.playerWeeks)
+      out.teamWeeks.push(...result.pbp.teamWeeks)
+      out.skipped += result.pbp.skipped
+    }
+    for (const [source, rows] of [
+      ['ftn', result.ftn],
+      ['part', result.part]
+    ] as const) {
+      if (!due.includes(source)) continue
+      if (rows === null) {
+        out.notes.push(`${source} ${season} not published yet`)
+        continue
+      }
+      out.sources?.push(source)
+      out.playerWeeks.push(...rows.playerWeeks)
+      out.teamWeeks.push(...rows.teamWeeks)
+      out.skipped += rows.skipped
+      if (rows.unmatched > 0) out.notes.push(`${source}: ${rows.unmatched} rows matched no play`)
+    }
+    return out
   }
 }
 

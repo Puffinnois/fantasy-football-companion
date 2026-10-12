@@ -8,6 +8,8 @@ export const PBP_KEY_COLUMNS = ['game_id', 'season', 'week', 'season_type', 'pla
 /** One play-by-play row, reduced to what the aggregation reads. nflverse names in the comments. */
 export interface Play {
   gameId: string
+  /** `play_id`: with `gameId`, the key FTN and participation join on. */
+  playId: number | null
   season: number
   seasonType: WhSeasonType
   week: number
@@ -142,7 +144,7 @@ const TACKLER_COLUMNS = [
 export const PBP_COLUMNS = [
   ...PBP_KEY_COLUMNS,
   ...TACKLER_COLUMNS,
-  ...'home_team away_team posteam defteam two_point_attempt two_point_conv_result yardline_100 down goal_to_go qtr game_seconds_remaining wp epa qb_epa air_epa yac_epa wpa success cpoe air_yards yards_gained passing_yards rushing_yards receiving_yards yards_after_catch xyac_mean_yardage xpass pass_oe pass rush qb_dropback qb_kneel qb_spike qb_scramble pass_attempt sack complete_pass interception fumble_lost fumble_forced tackled_for_loss pass_touchdown rush_touchdown return_touchdown touchback first_down_rush first_down_pass third_down_converted fourth_down_converted fourth_down_failed shotgun no_huddle special penalty punt_attempt punt_inside_twenty punt_fair_catch punt_blocked kickoff_attempt kickoff_fair_catch own_kickoff_recovery desc field_goal_attempt extra_point_attempt pass_defense_1_player_id passer_id passer_player_id rusher_player_id receiver_player_id kicker_player_id punter_player_id kickoff_returner_player_id punt_returner_player_id penalty_player_id td_player_id run_location run_gap return_team return_yards penalty_team penalty_yards penalty_type fixed_drive fixed_drive_result drive_time_of_possession drive_first_downs drive_ended_with_score ydsnet posteam_score posteam_score_post play_deleted'.split(
+  ...'play_id home_team away_team posteam defteam two_point_attempt two_point_conv_result yardline_100 down goal_to_go qtr game_seconds_remaining wp epa qb_epa air_epa yac_epa wpa success cpoe air_yards yards_gained passing_yards rushing_yards receiving_yards yards_after_catch xyac_mean_yardage xpass pass_oe pass rush qb_dropback qb_kneel qb_spike qb_scramble pass_attempt sack complete_pass interception fumble_lost fumble_forced tackled_for_loss pass_touchdown rush_touchdown return_touchdown touchback first_down_rush first_down_pass third_down_converted fourth_down_converted fourth_down_failed shotgun no_huddle special penalty punt_attempt punt_inside_twenty punt_fair_catch punt_blocked kickoff_attempt kickoff_fair_catch own_kickoff_recovery desc field_goal_attempt extra_point_attempt pass_defense_1_player_id passer_id passer_player_id rusher_player_id receiver_player_id kicker_player_id punter_player_id kickoff_returner_player_id punt_returner_player_id penalty_player_id td_player_id run_location run_gap return_team return_yards penalty_team penalty_yards penalty_type fixed_drive fixed_drive_result drive_time_of_possession drive_first_downs drive_ended_with_score ydsnet posteam_score posteam_score_post play_deleted'.split(
     ' '
   )
 ]
@@ -179,6 +181,7 @@ export function playReader(header: string[]): (fields: string[]) => Play | null 
     const kickoff = flag('kickoff_attempt')
     return {
       gameId,
+      playId: num('play_id'),
       season,
       seasonType,
       week,
@@ -279,8 +282,11 @@ export function playReader(header: string[]): (fields: string[]) => Play | null 
   }
 }
 
+/** What a warehouse row needs of a play: its week and the game's two teams. */
+export type GameWeek = Pick<Play, 'season' | 'seasonType' | 'week' | 'home' | 'away'>
+
 /** The other team of the play's game; null when `team` is neither side. */
-export function opponentOf(p: Play, team: string | null): string | null {
+export function opponentOf(p: GameWeek, team: string | null): string | null {
   if (team === null) return null
   return team === p.home ? p.away : team === p.away ? p.home : null
 }
@@ -293,4 +299,12 @@ export function isScrimmage(play: Play): boolean {
 /** Any play a family counts: not wiped out by a penalty, not a two-point try. */
 export function counts(play: Play): boolean {
   return !play.noPlay && !play.twoPoint
+}
+
+/**
+ * A snap the players on the field are credited with, as nflverse's snap counts count them: a pass,
+ * run, kneel or spike, penalty-wiped snaps and two-point tries included (spec §12).
+ */
+export function isSnap(play: Play): boolean {
+  return play.pass || play.rush || play.kneel || play.spike
 }

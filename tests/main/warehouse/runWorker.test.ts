@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EventEmitter } from 'node:events'
+import type { WarehouseJob } from '@main/warehouse/job'
 import { PBP_OUT_OF_MEMORY, PBP_UNREADABLE, runPbpWorker } from '@main/warehouse/runWorker'
 
 type FakeWorker = EventEmitter & {
@@ -33,13 +34,19 @@ beforeEach(() => {
   workers.length = 0
 })
 
-const RESULT = { playerWeeks: [], teamWeeks: [], skipped: 2 }
+const RESULT = { pbp: { playerWeeks: [], teamWeeks: [], skipped: 2 }, ftn: null, part: null }
+
+const job = (): WarehouseJob => ({ pbp: new Uint8Array([1]), ftn: null, part: null })
 
 describe('runPbpWorker (spec §6.1)', () => {
-  it('transfers the bytes and resolves with the answer', async () => {
-    const bytes = new Uint8Array([1, 2, 3])
-    const done = runPbpWorker(bytes)
-    expect(workers[0].options).toEqual({ workerData: { pbp: bytes }, transferList: [bytes.buffer] })
+  it('transfers the files and resolves with the answer', async () => {
+    const pbp = new Uint8Array([1, 2, 3])
+    const part = new Uint8Array([4, 5])
+    const done = runPbpWorker({ pbp, ftn: null, part })
+    expect(workers[0].options).toEqual({
+      workerData: { pbp, ftn: null, part },
+      transferList: [pbp.buffer, part.buffer]
+    })
     workers[0].emit('message', { result: RESULT })
     await expect(done).resolves.toEqual(RESULT)
     expect(workers[0].terminated).toBe(true)
@@ -54,7 +61,7 @@ describe('runPbpWorker (spec §6.1)', () => {
     ] as const
     const messages: string[] = []
     for (const [event, payload] of answers) {
-      const done = runPbpWorker(new Uint8Array([1]))
+      const done = runPbpWorker(job())
       workers[workers.length - 1].emit(event, payload)
       messages.push(
         await done.then(
