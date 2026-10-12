@@ -1,4 +1,5 @@
 import { PBP_COLUMNS, playReader, type Play } from '@main/warehouse/play'
+import { PlayIndex } from '@main/warehouse/playIndex'
 
 /** A play-by-play row: nflverse column → value; unset columns are empty, as nflverse writes them. */
 export type PbpRow = Record<string, string | number>
@@ -34,6 +35,13 @@ export function play(row: PbpRow): Play {
   const p = playReader(COLUMNS)(cells(row))
   if (p === null || p === 'skip') throw new Error('not a play')
   return p
+}
+
+/** The play index of `rows`; each row's `play_id` is its position, from 1, unless it sets one. */
+export function playIndex(rows: PbpRow[]): PlayIndex {
+  const index = new PlayIndex()
+  rows.forEach((r, i) => index.add(play({ play_id: i + 1, ...r })))
+  return index
 }
 
 export const QB = '00-0036389'

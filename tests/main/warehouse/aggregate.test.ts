@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { WhValue } from '@main/db/repos/warehouse'
 import { aggregatePbp } from '@main/warehouse/aggregate'
+import { PlayIndex } from '@main/warehouse/playIndex'
 import { captured } from '../../fixtures/warehouse'
 import { dropback, pbpCsv, QB, RB, run, WR } from '../../fixtures/pbp'
 
@@ -64,6 +65,13 @@ describe('aggregatePbp (spec §6.1)', () => {
       ['DAL', 19, 1]
     ])
     expect(out.playerWeeks.every((r) => r.source === 'pbp' && r.keyType === 'gsis')).toBe(true)
+  })
+
+  it('adds every play it reads to the play index', () => {
+    const index = new PlayIndex()
+    aggregatePbp(captured('pbp_2025_game.csv'), index)
+    expect(index.size).toBe(163)
+    expect(index.get('2025_01_DAL_PHI', 71)).toMatchObject({ posteam: 'DAL', snap: true })
   })
 
   it('accepts a header-only file and fails on a missing key column', () => {
