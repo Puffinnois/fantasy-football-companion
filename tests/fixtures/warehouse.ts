@@ -64,7 +64,9 @@ export function capturedFiles(): Record<string, string> {
     'depth_charts/depth_charts_2024': captured('depth_charts_2024.csv'),
     'weekly_rosters/roster_weekly_2025': captured('roster_weekly_2025.csv'),
     'combine/combine': captured('combine.csv'),
-    'pbp/play_by_play_2025': captured('pbp_2025_game.csv')
+    'pbp/play_by_play_2025': captured('pbp_2025_game.csv'),
+    'ftn_charting/ftn_charting_2025': captured('ftn_2025_game.csv'),
+    'pbp_participation/pbp_participation_2025': captured('part_2025_game.csv')
   }
   for (const kind of ['pass', 'rush', 'rec', 'def']) {
     files[`pfr_advstats/advstats_week_${kind}_2025`] = captured(`advstats_week_${kind}_2025.csv`)

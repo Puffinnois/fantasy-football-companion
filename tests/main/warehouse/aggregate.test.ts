@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { WhValue } from '@main/db/repos/warehouse'
-import { aggregatePbp } from '@main/warehouse/aggregate'
+import { aggregatePbp, aggregateSeason } from '@main/warehouse/aggregate'
 import { PlayIndex } from '@main/warehouse/playIndex'
 import { captured } from '../../fixtures/warehouse'
-import { dropback, pbpCsv, QB, RB, run, WR } from '../../fixtures/pbp'
+import { dropback, ftnCsv, partCsv, pbpCsv, QB, RB, run, WR } from '../../fixtures/pbp'
 
 /** nflverse `stats_player_week` 2025 for this game: [gsis id, carries, targets]. */
 const OFFICIAL: [string, number, number][] = [
@@ -103,5 +103,28 @@ describe('aggregatePbp (spec §6.1)', () => {
     for (const r of [...out.playerWeeks, ...out.teamWeeks]) {
       expect(Object.values(r.data).every(finite)).toBe(true)
     }
+  })
+})
+
+describe('aggregateSeason (spec §6.1)', () => {
+  const pbp = pbpCsv([run({ play_id: 10 }), dropback({ play_id: 20 })])
+
+  it('joins FTN and participation to the plays play-by-play indexed', () => {
+    const out = aggregateSeason({
+      pbp,
+      ftn: ftnCsv([{ nflverse_play_id: 10, n_defense_box: 7 }]),
+      part: partCsv([{ play_id: 20, offense_players: WR }])
+    })
+    expect(out.pbp).toEqual(aggregatePbp(pbp))
+    expect(out.ftn?.playerWeeks.map((r) => [r.source, r.playerKey, r.data])).toEqual([
+      ['ftn', RB, { rush_box_sum: 7, rush_box_n: 1 }]
+    ])
+    expect(out.part?.playerWeeks.map((r) => [r.source, r.playerKey, r.data])).toEqual([
+      ['part', WR, { off_snaps: 1, off_dropbacks: 1 }]
+    ])
+  })
+
+  it('leaves out a join it was not given', () => {
+    expect(aggregateSeason({ pbp, ftn: null, part: null })).toMatchObject({ ftn: null, part: null })
   })
 })

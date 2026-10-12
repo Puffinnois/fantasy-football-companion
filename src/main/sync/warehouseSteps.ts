@@ -332,16 +332,61 @@ const combineStep: WarehouseStep = {
   }
 }
 
-/** Spec §6.1–§6.3: one season of play-by-play, aggregated off the main thread. */
+/** FTN charting starts in 2022 (spec §6.1). */
+export const FTN_FIRST_SEASON = 2022
+
+/** The files the play-by-play step joins to play-by-play: source → nflverse release tag and name. */
+const JOINED_FILES: Record<string, (season: number) => [string, string]> = {
+  ftn: (season) => ['ftn_charting', `ftn_charting_${season}`],
+  part: (season) => ['pbp_participation', `pbp_participation_${season}`]
+}
+
+const PBP_SOURCES: StepSource[] = [
+  { source: 'pbp', version: 1 },
+  { source: 'ftn', version: 1, firstSeason: FTN_FIRST_SEASON },
+  { source: 'part', version: 1 }
+]
+
+/**
+ * Spec §6.1–§6.5: one season of play-by-play, with FTN and participation joined to it, aggregated off
+ * the main thread. Play-by-play is downloaded whenever any of the three is due (the joins need its
+ * play index) but replaces its rows only when it is due itself.
+ */
 const pbpStep: WarehouseStep = {
   id: 'pbp',
-  sources: v1('pbp'),
+  sources: PBP_SOURCES,
   firstSeason: WAREHOUSE_FIRST_SEASON,
   allSeasons: false,
-  async fetch(ctx, season) {
-    const bytes = await ctx.client.nflverseFile('pbp', `play_by_play_${season}`)
-    if (bytes === null) return null
-    return stepRows(await ctx.aggregatePbp(bytes))
+  async fetch(ctx, season, due = PBP_SOURCES.map((s) => s.source)) {
+    const pbp = await ctx.client.nflverseFile('pbp', `play_by_play_${season}`)
+    if (pbp === null) return null
+    const joined = async (source: string): Promise<Uint8Array | null> =>
+      due.includes(source) ? ctx.client.nflverseFile(...JOINED_FILES[source](season)) : null
+    const ftn = await joined('ftn')
+    const part = await joined('part')
+    const result = await ctx.aggregatePbp({ pbp, ftn, part })
+    const out = stepRows({ sources: due.filter((s) => s === 'pbp') })
+    if (due.includes('pbp')) {
+      out.playerWeeks.push(...result.pbp.playerWeeks)
+      out.teamWeeks.push(...result.pbp.teamWeeks)
+      out.skipped += result.pbp.skipped
+    }
+    for (const [source, rows] of [
+      ['ftn', result.ftn],
+      ['part', result.part]
+    ] as const) {
+      if (!due.includes(source)) continue
+      if (rows === null) {
+        out.notes.push(`${source} ${season} not published yet`)
+        continue
+      }
+      out.sources?.push(source)
+      out.playerWeeks.push(...rows.playerWeeks)
+      out.teamWeeks.push(...rows.teamWeeks)
+      out.skipped += rows.skipped
+      if (rows.unmatched > 0) out.notes.push(`${source}: ${rows.unmatched} rows matched no play`)
+    }
+    return out
   }
 }
 
