@@ -1,6 +1,6 @@
 # Stats warehouse — design
 
-**Date:** 2026-10-09 · **Status:** approved 2026-10-09, amended 2026-10-11 (§10: size; §11: play-by-play counting) · **Plans:** T (warehouse + light sources), U (play-by-play worker), V (FTN + participation joins)
+**Date:** 2026-10-09 · **Status:** approved 2026-10-09, amended 2026-10-11 (§10: size; §11: play-by-play counting) and 2026-10-12 (§12: FTN and participation) · **Plans:** T (warehouse + light sources), U (play-by-play worker), V (FTN + participation joins)
 
 **Source:** the stats catalog (`docs/research/2026-10-09-nfl-stats-catalog.md`). Every free source below was checked live on 2026-10-09 (file names, columns, 2026 availability, sizes).
 
@@ -177,7 +177,7 @@ nflverse files are under `https://github.com/nflverse/nflverse-data/releases/dow
 
 ### 6.1 Mechanics
 
-- One step per season, `wh:pbp:<season>`, producing three sources: `pbp`, `ftn` (first season 2022) and `part` (participation, published for 2016–2025 today). It runs when any of the three is due under §4.2; `wh_source_state` is kept per source. When it runs, it downloads play-by-play plus each due source's file (the joins need play-by-play). A 404 for FTN or participation (participation for 2026 today) is a per-source skip; the 24 h attempt rule retries it daily, and the source is picked up once it is published.
+- One step per season, `wh:pbp:<season>`, producing three sources: `pbp`, `ftn` (first season 2022) and `part` (participation, published for 2016–2025 today; each due on its own, §12). It runs when any of the three is due under §4.2; `wh_source_state` is kept per source. When it runs, it downloads play-by-play plus each due source's file (the joins need play-by-play). A 404 for FTN or participation (participation for 2026 today) is a per-source skip; the 24 h attempt rule retries it daily, and the source is picked up once it is published.
 - The main process downloads `pbp/play_by_play_{yr}.csv.gz` (~19 MB for a season), `ftn_charting/ftn_charting_{yr}.csv` (~8 MB) and `pbp_participation/pbp_participation_{yr}.csv` (~21–49 MB). It transfers the bytes to a new worker entry, `src/main/warehouse/worker.ts` (bundled to `out/main/warehouseWorker.js`, like `engineWorker`).
 - The worker gunzips, reads rows one at a time and aggregates. It posts back `{ playerWeeks, teamWeeks, skipped }` per source. The main process writes one transaction per source.
 - `src/main/sources/csv.ts` gains `forEachCsvRow(text, onRow)`; `parseCsv` is rebuilt on it (one parser, existing tests unchanged).
@@ -296,3 +296,15 @@ Plan U was planned against the real 2019 and 2025 files and nflverse's own `stat
   - `pen_types` is a `{ type: count }` map.
   - `forEachCsvRow` hands rows over as arrays (1.4 s a season, against 2.3 s as objects).
 - **Size:** 2019–2026 adds about 50 MB to `warehouse.db` (27 MB of JSON, measured 2026-10-11).
+
+## 12. Amendment 2026-10-12: FTN and participation (Plan V)
+
+Plan V was planned against the real 2019–2026 files and nflverse's own `snap_counts`. That changed §4.2 and §6.1, §6.4–§6.5 as follows. With these rules, FTN rows find their play 100 % in every season, participation rows 100 % from 2023 (through 2022, the 716–809 a season that miss are deleted plays), and participation snaps are within one of nflverse's snap counts on 98.98–99.98 % of player-weeks in every season.
+
+- **Snaps follow nflverse's snap counts.** A player gets a snap on every play with a `pass` or `rush` flag, a kneel or a spike, penalty-wiped snaps and two-point tries included (94–96 % exact; the `pbp` rule of §11 gave 30 %). Snaps blown dead with no pass or run flag ("too many men on the field") are not counted: counting them helps 2022–2025 and hurts 2019. Everything else in the joins follows §11, so dropbacks on the field line up with `pbp` dropbacks and targets, and team counts with `off_plays`.
+- **Roles come from the play index:** the dropback passer, the rusher and the target exactly where the `pbp` families count them. Team sides always come from play-by-play (participation's `possession_team` flips on kickoffs before 2023 and disagrees on ~1,100 plays of 2019). QB sneaks are a rusher count (`rush_qb_sneaks`).
+- **Personnel is normalised.** From 2023 participation lists every position ("1 C, 2 G, 1 QB, 1 RB, 2 T, 1 TE, 3 WR") instead of "1 RB, 1 TE, 3 WR". The offense is stored as backs then tight ends (`11`), the defense as its number of defensive backs (`dbs`). Formation, route and coverage are stored as published; their names changed in 2023. `ngs_air_yards` (empty from 2023), the name / number / position lists and `players_on_play` are not stored.
+- **Each source of a step is due on its own** under §4.2, from its own first season (FTN: 2022), and a step writes and records only the sources it returns, by default the due ones. Play-by-play is downloaded whenever one of the three is due, but its rows are rewritten only when `pbp` is due. A join file that is not published is noted in the message, not recorded, and retried after 24 h; a run with nothing to write is `skipped`.
+- **Additions:** dropbacks on the field split by man and zone (`off_dropbacks_man`, `off_dropbacks_zone`).
+- **Storage:** a box or pass-rusher count of 0 means not charted and is left out of the sums; FTN booleans are `TRUE` / `FALSE` and cells are trimmed; `read_thrown` 0 is not tallied.
+- **Size:** 2019–2026 adds about 32 MB to `warehouse.db` (18.5 MB of JSON, measured 2026-10-12). The first run after the upgrade downloads play-by-play again for every season, once (~460 MB in all, in the background).
