@@ -38,21 +38,34 @@ interface FakeStepOptions {
   firstSeason?: number
   allSeasons?: boolean
   sources?: string[]
-  fetch?: (season: number) => Promise<StepRows | null>
+  /** Per-source first seasons and versions, over `firstSeason` / `version`. */
+  sourceFirstSeason?: Record<string, number>
+  sourceVersion?: Record<string, number>
+  fetch?: (season: number, due: string[]) => Promise<StepRows | null>
 }
 
-function fakeStep(id: string, options: FakeStepOptions = {}): WarehouseStep & { calls: number[] } {
+function fakeStep(
+  id: string,
+  options: FakeStepOptions = {}
+): WarehouseStep & { calls: number[]; due: string[][] } {
   const calls: number[] = []
+  const due: string[][] = []
   const sources = options.sources ?? [id]
   return {
     id,
     calls,
-    sources: sources.map((source) => ({ source, version: options.version ?? 1 })),
+    due,
+    sources: sources.map((source) => ({
+      source,
+      version: options.sourceVersion?.[source] ?? options.version ?? 1,
+      firstSeason: options.sourceFirstSeason?.[source]
+    })),
     firstSeason: options.firstSeason ?? 2024,
     allSeasons: options.allSeasons ?? false,
-    async fetch(_ctx, season) {
+    async fetch(_ctx, season, dueSources = sources) {
       calls.push(season)
-      if (options.fetch) return options.fetch(season)
+      due.push(dueSources)
+      if (options.fetch) return options.fetch(season, dueSources)
       return stepRows({ playerWeeks: sources.map((s) => rowFor(s, season === 0 ? 2025 : season)) })
     }
   }
@@ -224,6 +237,57 @@ describe('refreshWarehouse', () => {
     expect(listWhGames(db, 2025)).toHaveLength(1)
     expect(getWhSourceState(db, 'schedules', 0)?.rows).toBe(1)
     expect(listWhPlayers(db, 'rosters')).toHaveLength(1)
+  })
+
+  it('never makes a source due before its own first season', async () => {
+    const multi = fakeStep('multi', { sources: ['x', 'late'], sourceFirstSeason: { late: 2025 } })
+    await run([multi])
+    expect(multi.due).toEqual([['x'], ['x', 'late'], ['x', 'late']])
+    expect(getWhSourceState(db, 'late', 2024)).toBeNull()
+    later(DAY)
+    expect(ran(await run([multi]))).toEqual(['wh:multi:2026=ok'])
+  })
+
+  it('writes only the sources a step returns; the others keep their rows and state', async () => {
+    const write = (sources: string[]) => async (season: number) =>
+      stepRows({ playerWeeks: sources.map((s) => rowFor(s, season)), sources })
+    await run([
+      fakeStep('multi', { sources: ['x', 'y'], firstSeason: 2024, fetch: write(['x', 'y']) })
+    ])
+    const before = getWhSourceState(db, 'x', 2024)
+    later(DAY)
+    const bumped = fakeStep('multi', {
+      sources: ['x', 'y'],
+      sourceVersion: { y: 2 },
+      fetch: async (season, due) => write(due)(season)
+    })
+    expect(ran(await run([bumped]))).toEqual([
+      'wh:multi:2024=ok',
+      'wh:multi:2025=ok',
+      'wh:multi:2026=ok'
+    ])
+    expect(bumped.due.slice(0, 2)).toEqual([['y'], ['y']])
+    expect(getWhSourceState(db, 'x', 2024)).toEqual(before)
+    expect(getWhSourceState(db, 'y', 2024)).toMatchObject({ version: 2, sealed: true })
+  })
+
+  it('a source not published yet is noted and retried; nothing to write is a skip', async () => {
+    const pending = fakeStep('multi', {
+      sources: ['x', 'y'],
+      firstSeason: 2025,
+      fetch: async (season, due) =>
+        stepRows({
+          playerWeeks: due.includes('x') ? [rowFor('x', season)] : [],
+          sources: due.filter((s) => s === 'x'),
+          notes: due.includes('y') ? [`y ${season} not published yet`] : []
+        })
+    })
+    expect(ran(await run([pending]))).toEqual(['wh:multi:2025=ok', 'wh:multi:2026=ok'])
+    expect(getLastSync(db, 'wh:multi:2025')?.message).toBe('y 2025 not published yet')
+    expect(getWhSourceState(db, 'y', 2025)).toBeNull()
+    later(DAY)
+    expect(ran(await run([pending]))).toEqual(['wh:multi:2025=skipped', 'wh:multi:2026=ok'])
+    expect(getLastSync(db, 'wh:multi:2025')?.message).toBe('y 2025 not published yet')
   })
 
   it('runs every registered step against the captured files without an error', async () => {

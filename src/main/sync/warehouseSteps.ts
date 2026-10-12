@@ -44,6 +44,10 @@ export interface StepRows {
   /** `replace`: the step's profiles replace the source's; `latest`: keep each player's newest. */
   playersMode: 'replace' | 'latest'
   skipped: number
+  /** The sources these rows replace, each recorded in `wh_source_state`; null = every due source. */
+  sources: string[] | null
+  /** Extra parts of the step message (join misses, a source not published yet). */
+  notes: string[]
 }
 
 export function stepRows(partial: Partial<StepRows>): StepRows {
@@ -54,6 +58,8 @@ export function stepRows(partial: Partial<StepRows>): StepRows {
     players: [],
     playersMode: 'replace',
     skipped: 0,
+    sources: null,
+    notes: [],
     ...partial
   }
 }
@@ -70,21 +76,30 @@ export interface StepContext {
   aggregatePbp: AggregatePbp
 }
 
+/** A source a step writes, with the adapter version that writes it. */
+export interface StepSource {
+  source: string
+  version: number
+  /** Seasons before it are never due for this source (FTN starts in 2022); default the step's. */
+  firstSeason?: number
+}
+
 export interface WarehouseStep {
   /** `wh:<id>` (all-seasons) or `wh:<id>:<season>` in sync_log. */
   id: string
-  /** The sources this step writes, each with the adapter version that writes it. */
-  sources: { source: string; version: number }[]
+  sources: StepSource[]
   /** First season fetched (never before WAREHOUSE_FIRST_SEASON); unused for all-seasons steps. */
   firstSeason: number
   /** One file holding every season; fetched with season 0. */
   allSeasons: boolean
-  /** The rows for `season`, or null when the file is not published. May throw `SkipStep`. */
-  fetch(ctx: StepContext, season: number): Promise<StepRows | null>
+  /**
+   * The rows for `season`, or null when the file is not published. May throw `SkipStep`. `due` lists
+   * the step's sources due this run (default: all of them); a step may fetch only those.
+   */
+  fetch(ctx: StepContext, season: number, due?: string[]): Promise<StepRows | null>
 }
 
-const v1 = (...sources: string[]): { source: string; version: number }[] =>
-  sources.map((source) => ({ source, version: 1 }))
+const v1 = (...sources: string[]): StepSource[] => sources.map((source) => ({ source, version: 1 }))
 
 /** A per-season player-week CSV fetched by `get`. */
 function playerStep(

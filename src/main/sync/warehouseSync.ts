@@ -67,31 +67,35 @@ interface DueInput {
   force: boolean
   now: number
   lastAttemptAt: string | null
-  states: { version: number; state: WhSourceState | null }[]
+  states: { source: string; version: number; firstSeason: number; state: WhSourceState | null }[]
 }
 
-/** Spec §4.2. */
-function isDue(input: DueInput): boolean {
+/** Spec §4.2: the step's sources due for `season`; none within a day of the step's last attempt. */
+function dueSources(input: DueInput): string[] {
   const { season, current, now } = input
   const recent = season === 0 || season >= current - 1
   const attemptedRecently =
     input.lastAttemptAt !== null && now - Date.parse(input.lastAttemptAt) < ATTEMPT_INTERVAL_MS
-  if (attemptedRecently && !(input.force && recent)) return false
-  return input.states.some(({ version, state }) => {
+  if (attemptedRecently && !(input.force && recent)) return []
+  const due = ({ version, state }: DueInput['states'][number]): boolean => {
     if (!state || state.version < version) return true
     if (season === 0 || season === current) return true
     if (season === current - 1) {
       return now - Date.parse(state.fetchedAt) >= PRIOR_SEASON_FRESHNESS_MS
     }
     return !state.sealed
-  })
+  }
+  return input.states
+    .filter((s) => (season === 0 || season >= s.firstSeason) && due(s))
+    .map((s) => s.source)
 }
 
-/** Writes one step's rows per source and records each source's state. Returns the rows written. */
+/** Writes the rows of each source the step returned (default: the due ones) and records its state. */
 function writeStepRows(
   db: Db,
   step: WarehouseStep,
   season: number,
+  due: string[],
   rows: StepRows,
   updatedAt: string,
   sealed: boolean
@@ -100,6 +104,7 @@ function writeStepRows(
     season === 0 ? [...new Set(list.map((r) => r.season))] : [season]
   let total = 0
   step.sources.forEach(({ source, version }, index) => {
+    if (!(rows.sources ?? due).includes(source)) return
     const playerWeeks = rows.playerWeeks.filter((r) => r.source === source)
     const teamWeeks = rows.teamWeeks.filter((r) => r.source === source)
     const players = rows.players.filter((r) => r.source === source)
@@ -124,23 +129,26 @@ async function runWarehouseStep(
   deps: WarehouseSyncDeps,
   ctx: StepContext,
   step: WarehouseStep,
-  season: number
+  season: number,
+  due: string[]
 ): Promise<StepOutcome> {
-  const rows = await step.fetch(ctx, season)
+  const rows = await step.fetch(ctx, season, due)
   if (rows === null) {
     throw new SkipStep(
       season === 0 ? `${step.id} not published yet` : `${step.id} ${season} not published yet`
     )
   }
+  const notes = [
+    ...(rows.skipped ? [`${rows.skipped} unparseable rows skipped`] : []),
+    ...rows.notes
+  ]
+  if (rows.sources?.length === 0) throw new SkipStep(notes.join('; '))
   const updatedAt = nowOf(deps).toISOString()
   const sealed = season !== 0 && season <= ctx.current - 2
   const written = withTransaction(deps.db, () =>
-    writeStepRows(deps.db, step, season, rows, updatedAt, sealed)
+    writeStepRows(deps.db, step, season, due, rows, updatedAt, sealed)
   )
-  return {
-    rows: written,
-    message: rows.skipped ? `${rows.skipped} unparseable rows skipped` : null
-  }
+  return { rows: written, message: notes.length > 0 ? notes.join('; ') : null }
 }
 
 /**
@@ -168,19 +176,23 @@ export async function refreshWarehouse(
   for (const step of steps) {
     for (const season of seasonsFor(step, current)) {
       const name = stepLogName(step, season)
-      const due = isDue({
+      const due = dueSources({
         season,
         current,
         force,
         now: nowOf(deps).getTime(),
         lastAttemptAt: getLastFinishedSync(deps.db, name)?.startedAt ?? null,
-        states: step.sources.map(({ source, version }) => ({
+        states: step.sources.map(({ source, version, firstSeason }) => ({
+          source,
           version,
+          firstSeason: firstSeason ?? step.firstSeason,
           state: getWhSourceState(deps.db, source, season)
         }))
       })
-      if (!due) continue
-      log.push(await runStep(deps, name, 0, true, () => runWarehouseStep(deps, ctx, step, season)))
+      if (due.length === 0) continue
+      log.push(
+        await runStep(deps, name, 0, true, () => runWarehouseStep(deps, ctx, step, season, due))
+      )
     }
   }
   return { steps: log }
