@@ -1,4 +1,5 @@
 import { FTN_COLUMNS } from '@main/warehouse/ftn'
+import { PART_COLUMNS } from '@main/warehouse/participation'
 import { PBP_COLUMNS, playReader, type Play } from '@main/warehouse/play'
 import { PlayIndex } from '@main/warehouse/playIndex'
 
@@ -45,6 +46,14 @@ export function pbpCsv(rows: PbpRow[]): string {
 export function ftnCsv(rows: PbpRow[]): string {
   return csv(
     FTN_COLUMNS,
+    rows.map((r) => ({ nflverse_game_id: BASE.game_id, ...r }))
+  )
+}
+
+/** A participation CSV for BASE's game: give each row the `play_id` of its play. */
+export function partCsv(rows: PbpRow[]): string {
+  return csv(
+    PART_COLUMNS,
     rows.map((r) => ({ nflverse_game_id: BASE.game_id, ...r }))
   )
 }
