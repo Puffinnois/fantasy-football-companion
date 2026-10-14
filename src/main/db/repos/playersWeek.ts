@@ -1,6 +1,7 @@
 import {
   offensiveYards,
   playerStatLine,
+  sleeperStatLine,
   teamStatLine,
   withDisplayStats,
   withKickingBuckets
@@ -26,6 +27,7 @@ import { getLeague } from './leagues'
 import { latestPointsWeek, listPointsByWeek, round2 } from './points'
 import { listProjections, listProjectionWeeks } from './projections'
 import { getRules } from './rules'
+import { listSleeperStatsByWeek } from './sleeperStats'
 import { getNflState } from './state'
 import {
   listGamesByWeek,
@@ -156,6 +158,9 @@ export function playersWeek(db: Db, leagueId: string, season: number, week: numb
     gameByTeam.set(g.awayTeam, { ...shared, opponent: toSleeperTeam(g.homeTeam), home: false })
   }
   const points = listPointsByWeek(db, leagueId, season, week)
+  const sleeperLines = new Map(
+    listSleeperStatsByWeek(db, season, week).map((s) => [s.playerId, s.stats])
+  )
   const projections = new Map(listProjections(db, season, week).map((p) => [p.playerId, p.stats]))
   const snaps = listSnapsByWeek(db, season, week)
   const byes = teamByeWeeks(db, season)
@@ -185,6 +190,9 @@ export function playersWeek(db: Db, leagueId: string, season: number, week: numb
       }
       if (r.pfr_id) snapPct = snaps.get(r.pfr_id) ?? null
     }
+    // Sleeper stats scoring spec §3.6: show the line that was scored; usage stays on nflverse.
+    const sleeperLine = sleeperLines.get(r.player_id)
+    if (sleeperLine) actual = sleeperStatLine(sleeperLine, position)
     const pts = points.get(r.player_id) ?? null
     const nflverseTeam = r.team ? toNflverseTeam(r.team) : null
     return {

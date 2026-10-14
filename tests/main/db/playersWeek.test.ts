@@ -5,6 +5,7 @@ import { replacePlayerIds } from '@main/db/repos/playerIds'
 import { playersOptions, playersWeek, tabsForSlots } from '@main/db/repos/playersWeek'
 import { replacePoints } from '@main/db/repos/points'
 import { replaceProjections } from '@main/db/repos/projections'
+import { replaceSleeperStats, type SleeperStatsRecord } from '@main/db/repos/sleeperStats'
 import { setNflState } from '@main/db/repos/state'
 import {
   replacePlayerWeekStats,
@@ -15,6 +16,7 @@ import {
 import { toggleWatch } from '@main/db/repos/watchlist'
 import { parsePlayerWeekStats, parseSnapCounts, parseTeamWeekStats } from '@main/sources/nflverse'
 import { mapProjections } from '@main/sync/mappers'
+import type { PlayerWeekRow } from '@shared/types'
 import { seedLeague, SEED_TS } from '../../fixtures/db'
 import * as nv from '../../fixtures/nflverse'
 import * as fx from '../../fixtures/sleeper'
@@ -243,6 +245,41 @@ describe('playersWeek', () => {
     expect(rows.find((r) => r.playerId === '6794')?.targetShare).toBeNull() // fixture has no target_share column
     toggleWatch(db, '7564', SEED_TS)
     expect(playersWeek(db, 'L1', S, 1).rows.find((r) => r.playerId === '7564')?.watched).toBe(true)
+  })
+
+  it('shows the Sleeper line that was scored; usage stays on nflverse (Sleeper stats scoring spec §3.6)', () => {
+    const line = (playerId: string, stats: Record<string, number>): SleeperStatsRecord => ({
+      playerId,
+      season: S,
+      week: 1,
+      team: null,
+      opponent: null,
+      stats
+    })
+    replaceSleeperStats(
+      db,
+      S,
+      1,
+      [
+        line('4866', { gp: 1, rush_att: 19, rush_yd: 61, rec_0_4: 2 }),
+        line('8259', { gp: 1, rush_yd: 40 }),
+        line('LAR', { gp: 1, sack: 5, pts_allow_0: 1 })
+      ],
+      SEED_TS
+    )
+    const { rows } = playersWeek(db, 'L1', S, 1)
+    const byId = (id: string): PlayerWeekRow => rows.find((r) => r.playerId === id)!
+    expect(byId('4866').actual).toEqual({ gp: 1, rush_att: 19, rush_yd: 61, rec_0_4: 2 })
+    expect(byId('4866').snapPct).toBe(0.83)
+    expect(byId('8259').actual).toEqual({ gp: 1, rush_yd: 40 })
+    expect(byId('LAR').actual).toEqual({
+      gp: 1,
+      sack: 5,
+      pts_allow_0: 1,
+      pts_allow: 0,
+      yds_allow: 0
+    })
+    expect(byId('6794').actual).toMatchObject({ rec: 4 }) // no Sleeper row: nflverse as before
   })
 
   it('a future week has no stats but keeps the upcoming game or bye', () => {

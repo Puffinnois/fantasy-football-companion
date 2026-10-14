@@ -1,6 +1,7 @@
 import {
   offensiveYards,
   playerStatLine,
+  sleeperStatLine,
   teamStatLine,
   withDisplayStats,
   withKickingBuckets
@@ -16,6 +17,7 @@ import { baseRow, listCandidates } from '../db/repos/playersWeek'
 import { listPointsBySeason } from '../db/repos/points'
 import { listProjectionsBySeason, type ProjectionRecord } from '../db/repos/projections'
 import { getRules } from '../db/repos/rules'
+import { listSleeperStatsBySeason, type SleeperStatsRecord } from '../db/repos/sleeperStats'
 import { getNflState } from '../db/repos/state'
 import { listTeams } from '../db/repos/teams'
 import {
@@ -141,6 +143,11 @@ export function loadSeries(db: Db, leagueId: string, season: number): SeriesBund
     (t) => t.team,
     (t) => t.week
   )
+  const sleeperLines = nested<SleeperStatsRecord>(
+    listSleeperStatsBySeason(db, season),
+    (s) => s.playerId,
+    (s) => s.week
+  )
   const snaps = nested(
     listSnapsBySeason(db, season),
     (s) => s.pfrId,
@@ -156,6 +163,7 @@ export function loadSeries(db: Db, leagueId: string, season: number): SeriesBund
     const playerProjections = projections.get(r.player_id)
     const playerStats = r.gsis_id ? stats.get(r.gsis_id) : undefined
     const playerSnaps = r.pfr_id ? snaps.get(r.pfr_id) : undefined
+    const playerSleeper = sleeperLines.get(r.player_id)
     const defenseWeeks = r.nflverse_team ? teamWeeks.get(r.nflverse_team) : undefined
 
     const weeks: SeriesWeek[] = []
@@ -199,6 +207,14 @@ export function loadSeries(db: Db, leagueId: string, season: number): SeriesBund
               ? 1.5 * targetShare + 0.7 * airYardsShare
               : null)
         }
+      }
+      // Sleeper stats scoring spec §3.6: show the line that was scored; usage stays on nflverse.
+      const sleeper = playerSleeper?.get(week)
+      if (sleeper) {
+        line = withKickingBuckets(sleeperStatLine(sleeper.stats, position)) as Record<
+          string,
+          number
+        >
       }
       weeks.push({
         week,
