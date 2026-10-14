@@ -82,7 +82,7 @@ describe('loadSeries', () => {
     const w1 = loadSeries(db, 'L1', SEASON)
       .players.find((p) => p.base.playerId === '4866')
       ?.weeks.find((w) => w.week === 1)
-    expect(w1?.line).toEqual({ gp: 1, rush_yd: 61, fgm_20_29: 1, fgm_0_39: 1 })
+    expect(w1?.line).toMatchObject({ gp: 1, rush_yd: 61, fgm_20_29: 1, fgm_0_39: 1, rec: 0 })
     expect(w1?.snapPct).toBe(0.83)
   })
 

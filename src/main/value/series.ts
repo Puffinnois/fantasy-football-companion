@@ -1,7 +1,7 @@
 import {
   offensiveYards,
   playerStatLine,
-  sleeperStatLine,
+  sleeperDisplayLine,
   teamStatLine,
   withDisplayStats,
   withKickingBuckets
@@ -211,7 +211,7 @@ export function loadSeries(db: Db, leagueId: string, season: number): SeriesBund
       // Sleeper stats scoring spec §3.6: show the line that was scored; usage stays on nflverse.
       const sleeper = playerSleeper?.get(week)
       if (sleeper) {
-        line = withKickingBuckets(sleeperStatLine(sleeper.stats, position)) as Record<
+        line = withKickingBuckets(sleeperDisplayLine(sleeper.stats, position)) as Record<
           string,
           number
         >

@@ -3,6 +3,7 @@ import {
   offensiveYards,
   PLAYER_STAT_MAP,
   playerStatLine,
+  sleeperDisplayLine,
   sleeperStatLine,
   TEAM_STAT_MAP,
   teamStatLine,
@@ -122,6 +123,27 @@ describe('sleeperStatLine (Sleeper stats scoring spec §3.4)', () => {
   it('restores nothing on a player line or a defense that did not play', () => {
     expect(sleeperStatLine({ gp: 1, rec: 2 }, 'RB')).toEqual({ gp: 1, rec: 2 })
     expect(sleeperStatLine({ sack: 1 }, 'DEF')).toEqual({ sack: 1 })
+  })
+})
+
+describe('sleeperDisplayLine (final review: zeros shown as 0)', () => {
+  it('shows 0 for every column an nflverse line carries when the player played', () => {
+    const line = sleeperDisplayLine({ gp: 1, rec: 3, rec_yd: 27, rec_0_4: 1 }, 'WR')
+    expect(line).toMatchObject({ gp: 1, rec: 3, rec_yd: 27, rec_0_4: 1 })
+    for (const key of [...Object.keys(PLAYER_STAT_MAP), 'pass_inc', 'fga', 'xpa']) {
+      expect(line[key], key).toBeTypeOf('number')
+    }
+    expect([line.pass_int, line.rush_att, line.fgm, line.fga]).toEqual([0, 0, 0, 0])
+  })
+
+  it('shows 0 for every team-defense column, with the restored points allowed', () => {
+    const line = sleeperDisplayLine({ gp: 1, sack: 2, pts_allow_0: 1 }, 'DEF')
+    expect(line).toMatchObject({ sack: 2, int: 0, safe: 0, pts_allow: 0, yds_allow: 0 })
+    for (const key of Object.keys(TEAM_STAT_MAP)) expect(line[key], key).toBeTypeOf('number')
+  })
+
+  it('fills nothing for a player who did not play', () => {
+    expect(sleeperDisplayLine({ rec: 1 }, 'WR')).toEqual({ rec: 1 })
   })
 })
 

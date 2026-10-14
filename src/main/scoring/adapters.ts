@@ -164,3 +164,19 @@ export function withKickingBuckets(line: StatLine): StatLine {
   if (!SHORT_FG.some((c) => c in line)) return line
   return { ...line, fgm_0_39: sum(line as Stats, SHORT_FG) }
 }
+
+/**
+ * A Sleeper line for display (Players week, value series). Sleeper leaves zeros out, but an
+ * nflverse line carries every mapped column, so the tables showed 0 where they would now show
+ * "—" and sort the row last. For a player who played, every column an nflverse line carries
+ * starts at 0. Scoring reads `sleeperStatLine`; this changes no points.
+ */
+export function sleeperDisplayLine(stats: Stats, position: Position | null): StatLine {
+  const line = sleeperStatLine(stats, position)
+  if ((stats.gp ?? 0) < 1) return line
+  const keys =
+    position === 'DEF'
+      ? [...Object.keys(TEAM_STAT_MAP), 'pts_allow', 'yds_allow']
+      : [...Object.keys(PLAYER_STAT_MAP), 'pass_inc', ...Object.keys(DISPLAY_STAT_MAP)]
+  return { ...Object.fromEntries(keys.map((k) => [k, 0])), ...line }
+}

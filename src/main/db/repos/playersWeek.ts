@@ -1,7 +1,7 @@
 import {
   offensiveYards,
   playerStatLine,
-  sleeperStatLine,
+  sleeperDisplayLine,
   teamStatLine,
   withDisplayStats,
   withKickingBuckets
@@ -192,7 +192,7 @@ export function playersWeek(db: Db, leagueId: string, season: number, week: numb
     }
     // Sleeper stats scoring spec §3.6: show the line that was scored; usage stays on nflverse.
     const sleeperLine = sleeperLines.get(r.player_id)
-    if (sleeperLine) actual = sleeperStatLine(sleeperLine, position)
+    if (sleeperLine) actual = sleeperDisplayLine(sleeperLine, position)
     const pts = points.get(r.player_id) ?? null
     const nflverseTeam = r.team ? toNflverseTeam(r.team) : null
     return {

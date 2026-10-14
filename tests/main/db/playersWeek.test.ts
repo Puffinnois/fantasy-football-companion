@@ -269,15 +269,23 @@ describe('playersWeek', () => {
     )
     const { rows } = playersWeek(db, 'L1', S, 1)
     const byId = (id: string): PlayerWeekRow => rows.find((r) => r.playerId === id)!
-    expect(byId('4866').actual).toEqual({ gp: 1, rush_att: 19, rush_yd: 61, rec_0_4: 2 })
+    expect(byId('4866').actual).toMatchObject({
+      gp: 1,
+      rush_att: 19,
+      rush_yd: 61,
+      rec_0_4: 2,
+      rec: 0, // Sleeper leaves zeros out; the table shows 0, not —
+      pass_int: 0
+    })
     expect(byId('4866').snapPct).toBe(0.83)
-    expect(byId('8259').actual).toEqual({ gp: 1, rush_yd: 40 })
-    expect(byId('LAR').actual).toEqual({
+    expect(byId('8259').actual).toMatchObject({ gp: 1, rush_yd: 40, rec: 0 })
+    expect(byId('LAR').actual).toMatchObject({
       gp: 1,
       sack: 5,
       pts_allow_0: 1,
       pts_allow: 0,
-      yds_allow: 0
+      yds_allow: 0,
+      int: 0
     })
     expect(byId('6794').actual).toMatchObject({ rec: 4 }) // no Sleeper row: nflverse as before
   })
