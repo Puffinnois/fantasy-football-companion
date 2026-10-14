@@ -110,6 +110,30 @@ describe('createSleeperClient', () => {
     await expect(denied.getProjections('2026', 1)).rejects.toThrow(/403/)
   })
 
+  it('getStats hits the projections host with the same positions, plus IDP when asked', async () => {
+    const fetchImpl = fakeFetch([
+      { status: 200, body: fx.statsWeek4 },
+      { status: 200, body: [] }
+    ])
+    const client = createSleeperClient({ fetchImpl })
+    expect(await client.getStats('2026', 4, false)).toHaveLength(fx.statsWeek4.length)
+    await client.getStats('2026', 4, true)
+    const base =
+      'https://api.sleeper.app/stats/nfl/2026/4?season_type=regular&position[]=QB&position[]=RB&position[]=WR&position[]=TE&position[]=K&position[]=DEF'
+    expect(fetchImpl).toHaveBeenNthCalledWith(1, base, expect.anything())
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      `${base}&position[]=DL&position[]=LB&position[]=DB`,
+      expect.anything()
+    )
+  })
+
+  it('getStats returns null when the endpoint is gone (404/410)', async () => {
+    const gone = createSleeperClient({ fetchImpl: fakeFetch([{ status: 404 }, { status: 410 }]) })
+    expect(await gone.getStats('2026', 4, false)).toBeNull()
+    expect(await gone.getStats('2026', 4, false)).toBeNull()
+  })
+
   it('getMatchups hits /league/{id}/matchups/{week} and maps an empty week to []', async () => {
     const fetchImpl = fakeFetch([
       { status: 200, body: fx.matchups(3) },

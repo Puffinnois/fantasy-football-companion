@@ -22,6 +22,7 @@ describe('refreshAll / importAll', () => {
     getAllPlayers: vi.fn(async () => fx.players),
     getNflState: vi.fn(async () => fx.nflState),
     getProjections: vi.fn(async () => []),
+    getStats: vi.fn(async () => []),
     getMatchups: vi.fn(async () => []),
     getTrendingAdds: vi.fn(async () => [{ player_id: '4866', count: 12 }])
   }
