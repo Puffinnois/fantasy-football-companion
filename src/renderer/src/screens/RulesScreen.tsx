@@ -252,7 +252,7 @@ export function RulesScreen({ onSaved }: RulesScreenProps = {}): React.JSX.Eleme
 
       {unsupported.length > 0 && (
         <p className="text-sm text-muted-foreground">
-          Not computable from nflverse data (scored as 0):{' '}
+          Not known to this app (scored as 0):{' '}
           <span className="font-mono text-xs">{unsupported.join(', ')}</span>
         </p>
       )}

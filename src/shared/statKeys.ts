@@ -7,8 +7,10 @@ export interface StatKeyInfo {
   key: StatKey
   label: string
   category: StatCategory
-  /** true = computable from nflverse data (Plan C adapters). false = scores 0, listed as "unsupported". */
+  /** Scored: every catalogue key, from Sleeper's stat lines (or from nflverse when Sleeper has none). */
   supported: boolean
+  /** Computable from nflverse data (Plan C adapters), the fallback when Sleeper has no line. */
+  nflverse: boolean
 }
 
 export const STAT_CATEGORIES: { id: StatCategory; label: string }[] = [
@@ -23,8 +25,8 @@ export const STAT_CATEGORIES: { id: StatCategory; label: string }[] = [
   { id: 'other', label: 'Other (unknown to this app)' }
 ]
 
-function s(key: StatKey, label: string, category: StatCategory, supported = true): StatKeyInfo {
-  return { key, label, category, supported }
+function s(key: StatKey, label: string, category: StatCategory, nflverse = true): StatKeyInfo {
+  return { key, label, category, supported: true, nflverse }
 }
 
 export const STAT_KEYS: StatKeyInfo[] = [

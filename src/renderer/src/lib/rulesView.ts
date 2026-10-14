@@ -61,7 +61,7 @@ export function scoringGroups(scoring: Record<StatKey, number>): ScoringGroup[] 
   })).filter((g) => g.rows.length > 0)
 }
 
-/** Keys that carry points but cannot be computed from nflverse data. */
+/** Keys that carry points but are unknown to this app (scored as 0). */
 export function unsupportedKeys(scoring: Record<StatKey, number>): StatKey[] {
   return Object.entries(scoring)
     .filter(([key, points]) => points !== 0 && !(STAT_KEY_INFO.get(key)?.supported ?? false))

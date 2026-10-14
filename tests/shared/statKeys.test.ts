@@ -12,10 +12,12 @@ describe('stat key catalogue', () => {
     for (const k of STAT_KEYS) expect(ids.has(k.category), k.key).toBe(true)
   })
 
-  it('reports support', () => {
+  it('reports support: every catalogue key, and which ones nflverse can compute', () => {
     expect(STAT_KEY_INFO.get('rec')?.label).toBe('Reception')
     expect(isSupported('rec')).toBe(true)
-    expect(isSupported('pass_td_40p')).toBe(false)
+    expect(isSupported('pass_td_40p')).toBe(true)
+    expect(STAT_KEY_INFO.get('pass_td_40p')?.nflverse).toBe(false)
+    expect(STAT_KEY_INFO.get('rec')?.nflverse).toBe(true)
     expect(isSupported('totally_unknown')).toBe(false)
   })
 })

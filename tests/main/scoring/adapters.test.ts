@@ -143,7 +143,7 @@ describe('teamStatLine', () => {
 })
 
 describe('adapter contract with the stat-key catalogue', () => {
-  it('emits every supported, non-derived catalogue key from a full row', () => {
+  it('emits every nflverse, non-derived catalogue key from a full row', () => {
     const one = (cols: string[]): Record<string, number> =>
       Object.fromEntries(cols.map((c) => [c, 1]))
     const playerRow = one([...Object.values(PLAYER_STAT_MAP).flat(), 'attempts', 'completions'])
@@ -152,15 +152,15 @@ describe('adapter contract with the stat-key catalogue', () => {
       ...Object.keys(playerStatLine(playerRow)),
       ...Object.keys(teamStatLine(teamRow, { pointsAllowed: 0, yardsAllowed: 0 }))
     ])
-    const expected = STAT_KEYS.filter((k) => k.supported && !(k.key in DERIVED_STATS)).map(
+    const expected = STAT_KEYS.filter((k) => k.nflverse && !(k.key in DERIVED_STATS)).map(
       (k) => k.key
     )
     const missing = expected.filter((k) => !emitted.has(k))
     expect(missing).toEqual([])
   })
 
-  it('never emits a key the catalogue marks unsupported', () => {
-    const unsupported = new Set(STAT_KEYS.filter((k) => !k.supported).map((k) => k.key))
+  it('never emits a key the catalogue marks as not from nflverse', () => {
+    const unsupported = new Set(STAT_KEYS.filter((k) => !k.nflverse).map((k) => k.key))
     for (const key of [
       ...Object.keys(PLAYER_STAT_MAP),
       ...Object.keys(TEAM_STAT_MAP),
