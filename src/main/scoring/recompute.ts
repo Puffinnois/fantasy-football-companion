@@ -1,10 +1,12 @@
 import type { Db } from '@main/db/connection'
 import { listScoringIdentities } from '@main/db/repos/playerIds'
+import { listPlayerPositions } from '@main/db/repos/players'
 import { replacePoints, type PointsRecord } from '@main/db/repos/points'
 import { getRules } from '@main/db/repos/rules'
+import { listSleeperStats } from '@main/db/repos/sleeperStats'
 import { listAllPlayerWeeks, listGames, listTeamWeeks, type GameRow } from '@main/db/repos/stats'
 import { POSITIONS, type Position } from '@shared/rules'
-import { offensiveYards, playerStatLine, teamStatLine } from './adapters'
+import { offensiveYards, playerStatLine, sleeperStatLine, teamStatLine } from './adapters'
 import { scoreStatLine } from './engine'
 
 function asPosition(value: string | null): Position | null {
@@ -27,9 +29,11 @@ export function pointsAllowedIndex(
 }
 
 /**
- * Rebuilds `player_week_points` for the league from every stored stats row (spec §7): players
- * via `player_ids.gsis_id`, team defenses via `player_ids.nflverse_team` with points/yards allowed
- * from `games` / the opponent's team row. Returns the number of rows written. Wrap in `withTransaction`.
+ * Rebuilds `player_week_points` for the league from every stored stats row. Sleeper's own stat
+ * lines come first (Sleeper stats scoring spec §3.5), keyed by Sleeper id. A player-week without
+ * one falls back to nflverse (spec §7): players via `player_ids.gsis_id`, team defenses via
+ * `player_ids.nflverse_team` with points/yards allowed from `games` / the opponent's team row.
+ * Returns the number of rows written. Wrap in `withTransaction`.
  */
 export function recomputePoints(db: Db, leagueId: string, updatedAt: string): number {
   const rules = getRules(db, leagueId)
@@ -48,11 +52,26 @@ export function recomputePoints(db: Db, leagueId: string, updatedAt: string): nu
   }
 
   const out: PointsRecord[] = []
+  const scored = new Set<string>()
+  const positions = listPlayerPositions(db)
+  for (const s of listSleeperStats(db)) {
+    if (!positions.has(s.playerId)) continue
+    const position = asPosition(positions.get(s.playerId) ?? null)
+    out.push({
+      playerId: s.playerId,
+      season: s.season,
+      week: s.week,
+      points: scoreStatLine(sleeperStatLine(s.stats, position), rules, position)
+    })
+    scored.add(key(s.playerId, s.season, s.week))
+  }
+
   for (const row of listAllPlayerWeeks(db)) {
     const owners = byGsis.get(row.gsisId)
     if (!owners) continue
     const line = playerStatLine(row.stats)
     for (const o of owners) {
+      if (scored.has(key(o.playerId, row.season, row.week))) continue
       out.push({
         playerId: o.playerId,
         season: row.season,
@@ -74,6 +93,7 @@ export function recomputePoints(db: Db, leagueId: string, updatedAt: string): nu
       yardsAllowed: opponent ? offensiveYards(opponent.stats) : null
     })
     for (const playerId of owners) {
+      if (scored.has(key(playerId, t.season, t.week))) continue
       out.push({
         playerId,
         season: t.season,

@@ -3,6 +3,7 @@ import {
   offensiveYards,
   PLAYER_STAT_MAP,
   playerStatLine,
+  sleeperStatLine,
   TEAM_STAT_MAP,
   teamStatLine,
   withDisplayStats,
@@ -95,6 +96,32 @@ describe('playerStatLine', () => {
       idp_blk_kick: 1
     })
     expect(line).not.toHaveProperty('sack') // team-DEF keys never come from a player row
+  })
+})
+
+describe('sleeperStatLine (Sleeper stats scoring spec §3.4)', () => {
+  it('copies the keys as Sleeper publishes them', () => {
+    const stats = { gp: 1, rec: 3, rec_yd: 27, rec_0_4: 1 }
+    expect(sleeperStatLine(stats, 'WR')).toEqual(stats)
+  })
+
+  it('restores the zeros Sleeper leaves out of a defense that played', () => {
+    expect(sleeperStatLine({ gp: 1, sack: 1, pts_allow_0: 1 }, 'DEF')).toEqual({
+      gp: 1,
+      sack: 1,
+      pts_allow_0: 1,
+      pts_allow: 0,
+      yds_allow: 0
+    })
+    expect(sleeperStatLine({ gp: 1, pts_allow: 20, yds_allow: 172 }, 'DEF')).toMatchObject({
+      pts_allow: 20,
+      yds_allow: 172
+    })
+  })
+
+  it('restores nothing on a player line or a defense that did not play', () => {
+    expect(sleeperStatLine({ gp: 1, rec: 2 }, 'RB')).toEqual({ gp: 1, rec: 2 })
+    expect(sleeperStatLine({ sack: 1 }, 'DEF')).toEqual({ sack: 1 })
   })
 })
 

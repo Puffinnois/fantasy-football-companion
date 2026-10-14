@@ -1,4 +1,4 @@
-import type { StatKey } from '@shared/rules'
+import type { Position, StatKey } from '@shared/rules'
 import type { StatLine } from './engine'
 
 type Stats = Record<string, number>
@@ -109,6 +109,20 @@ export function playerStatLine(stats: Stats): StatLine {
   const line = mapColumns(stats, PLAYER_STAT_MAP)
   if ('attempts' in stats || 'completions' in stats) {
     line.pass_inc = sum(stats, ['attempts']) - sum(stats, ['completions'])
+  }
+  return line
+}
+
+/**
+ * Sleeper stats scoring spec §3.4: a stored Sleeper row as a stat line. Sleeper's keys are the
+ * app's keys, so they are copied. Sleeper leaves zeros out, so a defense that played and has no
+ * `pts_allow` / `yds_allow` allowed 0: restoring them lets the derived tiers fire on a shutout.
+ */
+export function sleeperStatLine(stats: Stats, position: Position | null): StatLine {
+  const line: StatLine = { ...stats }
+  if (position === 'DEF' && (stats.gp ?? 0) >= 1) {
+    line.pts_allow ??= 0
+    line.yds_allow ??= 0
   }
   return line
 }
