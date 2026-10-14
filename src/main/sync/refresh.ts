@@ -4,6 +4,7 @@ import { refreshExperts, type ExpertSyncDeps } from './expertSync'
 import { refreshNflverse, type NflverseSyncDeps } from './nflverseSync'
 import { snapshotRos } from './snapshotSync'
 import { importLeague, refreshSleeper, SOURCE_PLAYERS } from './sleeperSync'
+import { refreshSleeperStats } from './sleeperStatsSync'
 import { nowOf, type RefreshOptions } from './step'
 import { refreshTrending } from './trendingSync'
 
@@ -13,8 +14,9 @@ export type AppSyncDeps = NflverseSyncDeps & ExpertSyncDeps
 const SYNC_LOG_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
 /**
- * Refresh button / on-launch: Sleeper first (it sets the NFL season), then nflverse, then the
- * expert layer (it needs the crosswalk), then trending adds and the weekly snapshot that records them.
+ * Refresh button / on-launch: Sleeper first (it sets the NFL season), then Sleeper's weekly stats,
+ * then nflverse (which recomputes points when either stats source changed), then the expert layer
+ * (it needs the crosswalk), then trending adds and the weekly snapshot that records them.
  */
 export async function refreshAll(
   deps: AppSyncDeps,
@@ -23,13 +25,16 @@ export async function refreshAll(
   pruneSyncLog(deps.db, new Date(nowOf(deps).getTime() - SYNC_LOG_RETENTION_MS).toISOString())
   const sleeper = await refreshSleeper(deps, options)
   const playersChanged = sleeper.steps.some((s) => s.source === SOURCE_PLAYERS && s.status === 'ok')
-  const nflverse = await refreshNflverse(deps, { ...options, playersChanged })
+  const stats = await refreshSleeperStats(deps, options)
+  const sleeperStatsChanged = stats.steps.some((s) => s.status === 'ok')
+  const nflverse = await refreshNflverse(deps, { ...options, playersChanged, sleeperStatsChanged })
   const experts = await refreshExperts(deps, options)
   const trending = await refreshTrending(deps)
   const snapshot = await snapshotRos(deps)
   return {
     steps: [
       ...sleeper.steps,
+      ...stats.steps,
       ...nflverse.steps,
       ...experts.steps,
       ...trending.steps,
@@ -45,6 +50,7 @@ export async function importAll(
   myUserId: string | null
 ): Promise<SyncResult> {
   const sleeper = await importLeague(deps, leagueId, myUserId)
+  const stats = await refreshSleeperStats(deps)
   const nflverse = await refreshNflverse(deps, { playersChanged: true })
   const experts = await refreshExperts(deps)
   const trending = await refreshTrending(deps)
@@ -52,6 +58,7 @@ export async function importAll(
   return {
     steps: [
       ...sleeper.steps,
+      ...stats.steps,
       ...nflverse.steps,
       ...experts.steps,
       ...trending.steps,

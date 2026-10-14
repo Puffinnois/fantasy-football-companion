@@ -27,6 +27,12 @@ describe('rulesView', () => {
     expect(unsupportedKeys(scoring)).toEqual(['weird_key'])
   })
 
+  it('scores the keys nflverse lacks, so only unknown keys are unsupported', () => {
+    expect(unsupportedKeys({ pass_td_40p: 2, st_ff: 1, def_3_and_out: 1, weird_key: 1 })).toEqual([
+      'weird_key'
+    ])
+  })
+
   it('offers catalogue keys not yet in scoring', () => {
     const keys = addableKeys(scoring).map((k) => k.key)
     expect(keys).toContain('bonus_rec_te')

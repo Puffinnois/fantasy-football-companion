@@ -3,6 +3,8 @@ import {
   offensiveYards,
   PLAYER_STAT_MAP,
   playerStatLine,
+  sleeperDisplayLine,
+  sleeperStatLine,
   TEAM_STAT_MAP,
   teamStatLine,
   withDisplayStats,
@@ -98,6 +100,53 @@ describe('playerStatLine', () => {
   })
 })
 
+describe('sleeperStatLine (Sleeper stats scoring spec §3.4)', () => {
+  it('copies the keys as Sleeper publishes them', () => {
+    const stats = { gp: 1, rec: 3, rec_yd: 27, rec_0_4: 1 }
+    expect(sleeperStatLine(stats, 'WR')).toEqual(stats)
+  })
+
+  it('restores the zeros Sleeper leaves out of a defense that played', () => {
+    expect(sleeperStatLine({ gp: 1, sack: 1, pts_allow_0: 1 }, 'DEF')).toEqual({
+      gp: 1,
+      sack: 1,
+      pts_allow_0: 1,
+      pts_allow: 0,
+      yds_allow: 0
+    })
+    expect(sleeperStatLine({ gp: 1, pts_allow: 20, yds_allow: 172 }, 'DEF')).toMatchObject({
+      pts_allow: 20,
+      yds_allow: 172
+    })
+  })
+
+  it('restores nothing on a player line or a defense that did not play', () => {
+    expect(sleeperStatLine({ gp: 1, rec: 2 }, 'RB')).toEqual({ gp: 1, rec: 2 })
+    expect(sleeperStatLine({ sack: 1 }, 'DEF')).toEqual({ sack: 1 })
+  })
+})
+
+describe('sleeperDisplayLine (final review: zeros shown as 0)', () => {
+  it('shows 0 for every column an nflverse line carries when the player played', () => {
+    const line = sleeperDisplayLine({ gp: 1, rec: 3, rec_yd: 27, rec_0_4: 1 }, 'WR')
+    expect(line).toMatchObject({ gp: 1, rec: 3, rec_yd: 27, rec_0_4: 1 })
+    for (const key of [...Object.keys(PLAYER_STAT_MAP), 'pass_inc', 'fga', 'xpa']) {
+      expect(line[key], key).toBeTypeOf('number')
+    }
+    expect([line.pass_int, line.rush_att, line.fgm, line.fga]).toEqual([0, 0, 0, 0])
+  })
+
+  it('shows 0 for every team-defense column, with the restored points allowed', () => {
+    const line = sleeperDisplayLine({ gp: 1, sack: 2, pts_allow_0: 1 }, 'DEF')
+    expect(line).toMatchObject({ sack: 2, int: 0, safe: 0, pts_allow: 0, yds_allow: 0 })
+    for (const key of Object.keys(TEAM_STAT_MAP)) expect(line[key], key).toBeTypeOf('number')
+  })
+
+  it('fills nothing for a player who did not play', () => {
+    expect(sleeperDisplayLine({ rec: 1 }, 'WR')).toEqual({ rec: 1 })
+  })
+})
+
 describe('teamStatLine', () => {
   it('maps the team row plus points/yards allowed from context', () => {
     const line = teamStatLine(
@@ -143,7 +192,7 @@ describe('teamStatLine', () => {
 })
 
 describe('adapter contract with the stat-key catalogue', () => {
-  it('emits every supported, non-derived catalogue key from a full row', () => {
+  it('emits every nflverse, non-derived catalogue key from a full row', () => {
     const one = (cols: string[]): Record<string, number> =>
       Object.fromEntries(cols.map((c) => [c, 1]))
     const playerRow = one([...Object.values(PLAYER_STAT_MAP).flat(), 'attempts', 'completions'])
@@ -152,15 +201,15 @@ describe('adapter contract with the stat-key catalogue', () => {
       ...Object.keys(playerStatLine(playerRow)),
       ...Object.keys(teamStatLine(teamRow, { pointsAllowed: 0, yardsAllowed: 0 }))
     ])
-    const expected = STAT_KEYS.filter((k) => k.supported && !(k.key in DERIVED_STATS)).map(
+    const expected = STAT_KEYS.filter((k) => k.nflverse && !(k.key in DERIVED_STATS)).map(
       (k) => k.key
     )
     const missing = expected.filter((k) => !emitted.has(k))
     expect(missing).toEqual([])
   })
 
-  it('never emits a key the catalogue marks unsupported', () => {
-    const unsupported = new Set(STAT_KEYS.filter((k) => !k.supported).map((k) => k.key))
+  it('never emits a key the catalogue marks as not from nflverse', () => {
+    const unsupported = new Set(STAT_KEYS.filter((k) => !k.nflverse).map((k) => k.key))
     for (const key of [
       ...Object.keys(PLAYER_STAT_MAP),
       ...Object.keys(TEAM_STAT_MAP),

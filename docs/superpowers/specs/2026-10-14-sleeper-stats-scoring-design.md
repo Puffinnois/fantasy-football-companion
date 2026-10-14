@@ -1,6 +1,6 @@
 # Scoring from Sleeper's stats — design
 
-**Date:** 2026-10-14 · **Status:** draft for review · **Release:** `v0.23.0` (Plan W)
+**Date:** 2026-10-14 · **Status:** approved 2026-10-14, amended 2026-10-14 (§7: Plan W) · **Release:** `v0.23.0` (Plan W)
 
 **Goal.** Make the app's actual fantasy points equal Sleeper's own for every player and team defense and every scoring key. To do that, the app scores Sleeper's weekly stat lines with the league's rules. nflverse stays as the fallback and as the source of usage signals.
 
@@ -168,3 +168,20 @@ No test touches the network.
 - Removing the nflverse stats sync, which signals and the fallback need.
 - The warehouse, whose `sleeper` source is unchanged and not read.
 - Sleeper's `pts_*` fields; the league's rules decide.
+
+## 7. Amendment 2026-10-14: Plan W
+
+Plan W was built against Sleeper's live stats for the user's league. With these changes, the app's points equal Sleeper's matchup points for every rostered player in every completed 2026 week (1,066 of 1,066 player-weeks, weeks 1–4), measured 2026-10-14.
+
+- **The stats sync is its own function** (§3.3).
+  - `refreshSleeperStats` runs in `refreshAll` and `importAll`, after the Sleeper sync and before nflverse.
+  - A stored week sets `refreshNflverse`'s `sleeperStatsChanged`, which re-runs `app:points`.
+  - nflverse's own steps keep their order.
+- **Rows kept: `gp ≥ 1`** (§3.2). A row without `gp` carries only ranks, `gms_active` and team snap counts (304 of 780 rows in 2026 week 4).
+- **Fields dropped: exactly `pts_std`, `pts_ppr`, `pts_half_ppr`, `pts_idp` and `pos_rank_*`** (§3.2). `pts_allow` and its tiers are defense stats; dropping every `pts_*` key scored every defense as a shutout.
+- **The catalogue** (§3.7).
+  - Every catalogue key is `supported`.
+  - A new `nflverse` flag marks the keys the nflverse fallback computes; the adapter contract tests check it.
+  - The Rules screen's note lists only keys outside the catalogue: "Not known to this app (scored as 0)".
+- **`statsAvailable` keeps its meaning** (§3.6). It still means "has an nflverse identity" and still gates the usage signals. A player scored only from Sleeper gets points and a stat line but no usage signals.
+- **First sync:** 23 requests in 5.6 s; the app database grows by about 4.4 MB.

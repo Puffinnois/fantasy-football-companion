@@ -194,6 +194,13 @@ describe('refreshNflverse', () => {
     expect(again.steps).toHaveLength(8)
   })
 
+  it('recomputes points when Sleeper stats changed, even with fresh nflverse sources', async () => {
+    await refreshNflverse(deps())
+    clock = new Date(clock.getTime() + HOUR)
+    const again = await refreshNflverse(deps(), { sleeperStatsChanged: true })
+    expect(again.steps.find((s) => s.source === SOURCE_POINTS)?.status).toBe('ok')
+  })
+
   it('skips points when no league is active', async () => {
     db.prepare("DELETE FROM app_settings WHERE key = 'active_league_id'").run()
     const result = await refreshNflverse(deps())

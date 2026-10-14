@@ -66,3 +66,12 @@ export function upsertPlayers(db: Db, players: PlayerRecord[], updatedAt: string
 export function countPlayers(db: Db): number {
   return (db.prepare('SELECT COUNT(*) AS n FROM players').get() as { n: number }).n
 }
+
+/** Every player's Sleeper position (null when Sleeper has none), for scoring Sleeper stat lines. */
+export function listPlayerPositions(db: Db): Map<string, string | null> {
+  const rows = db.prepare('SELECT player_id, position FROM players').all() as unknown as {
+    player_id: string
+    position: string | null
+  }[]
+  return new Map(rows.map((r) => [r.player_id, r.position]))
+}

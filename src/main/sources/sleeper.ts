@@ -6,6 +6,7 @@ import type {
   SleeperPlayer,
   SleeperProjection,
   SleeperRoster,
+  SleeperStatRow,
   SleeperTrendingPlayer,
   SleeperUser
 } from './sleeper-types'
@@ -20,6 +21,11 @@ export interface SleeperClient {
   getNflState(): Promise<SleeperNflState>
   /** Unofficial weekly projections; `null` when the endpoint is gone (404/410). */
   getProjections(season: string, week: number): Promise<SleeperProjection[] | null>
+  /**
+   * Unofficial weekly actual stats (Sleeper stats scoring spec §3.1), same host and positions as
+   * projections, plus DL / LB / DB when `idp`; `null` when the endpoint is gone (404/410).
+   */
+  getStats(season: string, week: number, idp: boolean): Promise<SleeperStatRow[] | null>
   /** Weekly matchups (documented endpoint); `[]` for a week Sleeper has none for yet (playoffs before the bracket). */
   getMatchups(leagueId: string, week: number): Promise<SleeperMatchup[]>
   /** Most-added players across all Sleeper leagues over the last 24 h (slice 6c spec §5.1). */
@@ -46,9 +52,10 @@ export interface SleeperClientOptions {
   retryDelayMs?: number
 }
 
-const PROJECTION_POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF']
-  .map((p) => `&position[]=${p}`)
-  .join('')
+const positionFilter = (positions: string[]): string =>
+  positions.map((p) => `&position[]=${p}`).join('')
+const PROJECTION_POSITIONS = positionFilter(['QB', 'RB', 'WR', 'TE', 'K', 'DEF'])
+const IDP_POSITIONS = positionFilter(['DL', 'LB', 'DB'])
 
 const TRENDING_LOOKBACK_HOURS = 24
 const TRENDING_LIMIT = 100
@@ -101,6 +108,11 @@ export function createSleeperClient(options: SleeperClientOptions = {}): Sleeper
     getProjections: (season, week) =>
       getJson<SleeperProjection[]>(
         `/projections/nfl/${encodeURIComponent(season)}/${week}?season_type=regular${PROJECTION_POSITIONS}`,
+        projectionsBaseUrl
+      ),
+    getStats: (season, week, idp) =>
+      getJson<SleeperStatRow[]>(
+        `/stats/nfl/${encodeURIComponent(season)}/${week}?season_type=regular${PROJECTION_POSITIONS}${idp ? IDP_POSITIONS : ''}`,
         projectionsBaseUrl
       ),
     getMatchups: async (leagueId, week) =>

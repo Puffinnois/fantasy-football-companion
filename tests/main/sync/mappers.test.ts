@@ -5,6 +5,7 @@ import {
   mapNflState,
   mapPlayers,
   mapProjections,
+  mapSleeperStats,
   mapRosterPlayers,
   mapRules,
   mapTeams
@@ -235,6 +236,53 @@ describe('mapProjections', () => {
       sack: 2.65,
       pts_allow: 24.5
     })
+  })
+})
+
+describe('mapSleeperStats (Sleeper stats scoring spec §3.2)', () => {
+  it('keeps players who played, without Sleeper points or ranks', () => {
+    const { records, skipped } = mapSleeperStats(fx.statsWeek4, 2026, 4)
+    expect(skipped).toBe(0)
+    // 6794 (did not play) and 7865 (no stats) have no `gp`
+    expect(records.map((r) => r.playerId)).toEqual([
+      '4866',
+      '7564',
+      '9509',
+      'LAR',
+      'KC',
+      '11261',
+      '96',
+      '5012'
+    ])
+    const barkley = records[0]
+    expect(barkley).toMatchObject({ season: 2026, week: 4, team: 'PHI', opponent: 'LAR' })
+    expect(barkley.stats).toMatchObject({ gp: 1, rush_att: 2, rush_yd: 8, rec: 1, rec_0_4: 1 })
+    const dropped = /^(pts_(std|ppr|half_ppr|idp)|pos_rank_)/
+    for (const r of records) expect(Object.keys(r.stats).filter((k) => dropped.test(k))).toEqual([])
+    // points allowed is a real stat, not one of Sleeper's point totals
+    expect(records.find((r) => r.playerId === 'LAR')?.stats).toMatchObject({
+      pts_allow: 20,
+      pts_allow_14_20: 1
+    })
+    expect(records.find((r) => r.playerId === 'KC')?.stats).toMatchObject({
+      def_st_ff: 1,
+      def_st_fum_rec: 1
+    })
+  })
+
+  it('skips rows of another week, season or season type', () => {
+    const row = fx.statsWeek4[0]
+    const { records, skipped } = mapSleeperStats(
+      [
+        { ...row, week: 3 },
+        { ...row, season: '2025' },
+        { ...row, season_type: 'post' },
+        { ...row, stats: null }
+      ],
+      2026,
+      4
+    )
+    expect([records, skipped]).toEqual([[], 4])
   })
 })
 

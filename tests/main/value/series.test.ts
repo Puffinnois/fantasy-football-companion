@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Db } from '@main/db/connection'
+import { replaceSleeperStats } from '@main/db/repos/sleeperStats'
 import { currentWeekFor, loadSeries, type PlayerSeries } from '@main/value/series'
 import { seedLeague } from '../../fixtures/db'
 import { seedSeason, SEASON } from '../../fixtures/season'
@@ -59,6 +60,30 @@ describe('loadSeries', () => {
     expect(w1.line.rush_att).toBeGreaterThan(0)
     expect(w3).toMatchObject({ opponent: 'NYG', played: true, points: 30, projected: 10, line: {} })
     expect(w4).toMatchObject({ opponent: 'WAS', played: false, points: null, projected: 8 })
+  })
+
+  it('shows the Sleeper line that was scored; usage stays on nflverse (Sleeper stats scoring spec §3.6)', () => {
+    replaceSleeperStats(
+      db,
+      SEASON,
+      1,
+      [
+        {
+          playerId: '4866',
+          season: SEASON,
+          week: 1,
+          team: 'PHI',
+          opponent: 'DAL',
+          stats: { gp: 1, rush_yd: 61, fgm_20_29: 1 }
+        }
+      ],
+      'x'
+    )
+    const w1 = loadSeries(db, 'L1', SEASON)
+      .players.find((p) => p.base.playerId === '4866')
+      ?.weeks.find((w) => w.week === 1)
+    expect(w1?.line).toMatchObject({ gp: 1, rush_yd: 61, fgm_20_29: 1, fgm_0_39: 1, rec: 0 })
+    expect(w1?.snapPct).toBe(0.83)
   })
 
   it('skips weeks with nothing (bye, no projection) and keeps projection-only weeks', () => {

@@ -1,4 +1,4 @@
-import type { StatKey } from '@shared/rules'
+import type { Position, StatKey } from '@shared/rules'
 import type { StatLine } from './engine'
 
 type Stats = Record<string, number>
@@ -113,6 +113,20 @@ export function playerStatLine(stats: Stats): StatLine {
   return line
 }
 
+/**
+ * Sleeper stats scoring spec §3.4: a stored Sleeper row as a stat line. Sleeper's keys are the
+ * app's keys, so they are copied. Sleeper leaves zeros out, so a defense that played and has no
+ * `pts_allow` / `yds_allow` allowed 0: restoring them lets the derived tiers fire on a shutout.
+ */
+export function sleeperStatLine(stats: Stats, position: Position | null): StatLine {
+  const line: StatLine = { ...stats }
+  if (position === 'DEF' && (stats.gp ?? 0) >= 1) {
+    line.pts_allow ??= 0
+    line.yds_allow ??= 0
+  }
+  return line
+}
+
 export interface TeamContext {
   /** Opponent's score from `games`; null when the game is not in the table yet. */
   pointsAllowed: number | null
@@ -149,4 +163,20 @@ const SHORT_FG = ['fgm_0_19', 'fgm_20_29', 'fgm_30_39']
 export function withKickingBuckets(line: StatLine): StatLine {
   if (!SHORT_FG.some((c) => c in line)) return line
   return { ...line, fgm_0_39: sum(line as Stats, SHORT_FG) }
+}
+
+/**
+ * A Sleeper line for display (Players week, value series). Sleeper leaves zeros out, but an
+ * nflverse line carries every mapped column, so the tables showed 0 where they would now show
+ * "—" and sort the row last. For a player who played, every column an nflverse line carries
+ * starts at 0. Scoring reads `sleeperStatLine`; this changes no points.
+ */
+export function sleeperDisplayLine(stats: Stats, position: Position | null): StatLine {
+  const line = sleeperStatLine(stats, position)
+  if ((stats.gp ?? 0) < 1) return line
+  const keys =
+    position === 'DEF'
+      ? [...Object.keys(TEAM_STAT_MAP), 'pts_allow', 'yds_allow']
+      : [...Object.keys(PLAYER_STAT_MAP), 'pass_inc', ...Object.keys(DISPLAY_STAT_MAP)]
+  return { ...Object.fromEntries(keys.map((k) => [k, 0])), ...line }
 }

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import type {
   SleeperLeague,
   SleeperLeagueUser,
@@ -6,6 +7,7 @@ import type {
   SleeperPlayer,
   SleeperProjection,
   SleeperRoster,
+  SleeperStatRow,
   SleeperUser
 } from '@main/sources/sleeper-types'
 
@@ -315,3 +317,18 @@ export const matchups = (week: number): SleeperMatchup[] => [
     points: week < 3 ? 90 + week : 0
   }
 ]
+
+const statsFile = (name: string): SleeperStatRow[] =>
+  JSON.parse(
+    readFileSync(new URL(`./sleeper/${name}`, import.meta.url), 'utf8')
+  ) as SleeperStatRow[]
+
+/**
+ * Real 2026 week-4 stat rows (see sleeper/capture-stats.sh): 4866, 7564, 9509 and LAR are fixture
+ * players; 6794 did not play (no `gp`); KC has a special-teams forced fumble and recovery; 11261 is
+ * a kicker, 96 a QB, 5012 a TE, 7865 a row with no stats.
+ */
+export const statsWeek4: SleeperStatRow[] = statsFile('stats_2026_4.json')
+
+/** KC's 2025 week-7 shutout: no `pts_allow` key (Sleeper drops zeros), `pts_allow_0: 1`. */
+export const statsKcShutout: SleeperStatRow[] = statsFile('stats_2025_7_kc.json')
