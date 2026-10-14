@@ -19,9 +19,9 @@ Both read a per-(league, season) build cached in the main process (`valueCache` 
 
 ### Conventions used throughout
 
-- **Game** = a week with a `player_week_points` row for the player (the team played and the player was matched to nflverse). A played week scoring 0 counts; byes and weeks before the player's first appearance do not.
+- **Game** = a week with a `player_week_points` row for the player (Sleeper has a stat line for the player that week or, failing that, the player was matched to nflverse). A played week scoring 0 counts; byes and weeks before the player's first appearance do not.
 - **Current week** = Sleeper's `nfl_state.week`, clamped to 1–18; a past season is fully played (19), a future one untouched (1).
-- **Shares and rates are 0–1 fractions** (`0.24` = 24 %). Points are league points under the league's own scoring rules.
+- **Shares and rates are 0–1 fractions** (`0.24` = 24 %). Points are league points under the league's own scoring rules, scored from Sleeper's own weekly stat lines (`sleeper_week_stats`, synced by `refreshSleeperStats`), so they equal Sleeper's. A player-week Sleeper has no line for falls back to nflverse. Usage shares (target share, snaps, WOPR) always come from nflverse.
 - **`null` = not computable** (gate not met, no data, no projections). The UI renders `—`.
 - Points-like values are rounded to 2 decimals in the payload and shown with 2 (as Sleeper does); other one-decimal stats (SOS, expert spread, TD delta, yards per opportunity) keep 1.
 - Team codes are Sleeper's (`LAR`, `WAS`, …).
