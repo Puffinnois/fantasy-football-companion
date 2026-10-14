@@ -1,6 +1,7 @@
 import type { LeagueRecord } from '@main/db/repos/leagues'
 import type { PlayerRecord } from '@main/db/repos/players'
 import type { ProjectionRecord } from '@main/db/repos/projections'
+import type { SleeperStatsRecord } from '@main/db/repos/sleeperStats'
 import type { RosterPlayerRecord } from '@main/db/repos/teams'
 import type {
   SleeperLeague,
@@ -8,7 +9,8 @@ import type {
   SleeperNflState,
   SleeperPlayer,
   SleeperProjection,
-  SleeperRoster
+  SleeperRoster,
+  SleeperStatRow
 } from '@main/sources/sleeper-types'
 import {
   canonicalIrStatuses,
@@ -204,6 +206,54 @@ export function mapProjections(
       season,
       week,
       company: it.company ?? null,
+      team: it.team ?? null,
+      opponent: it.opponent ?? null,
+      stats
+    })
+  }
+  return { records, skipped }
+}
+
+/**
+ * Sleeper's own fantasy points and ranks: the league's rules decide, so they are not stored.
+ * Exact names: `pts_allow` and its tiers are real stats.
+ */
+const SLEEPER_POINT_FIELDS = new Set(['pts_std', 'pts_ppr', 'pts_half_ppr', 'pts_idp'])
+const isDerivedFromScoring = (key: string): boolean =>
+  SLEEPER_POINT_FIELDS.has(key) || key.startsWith('pos_rank_')
+
+/**
+ * Sleeper stats scoring spec §3.2: keeps regular-season rows of exactly (season, week) for players
+ * who played (`gp` ≥ 1; a row without `gp` carries only ranks and team snap counts). Drops
+ * Sleeper's own points and ranks and anything that is not a number.
+ */
+export function mapSleeperStats(
+  items: SleeperStatRow[],
+  season: number,
+  week: number
+): { records: SleeperStatsRecord[]; skipped: number } {
+  const records: SleeperStatsRecord[] = []
+  let skipped = 0
+  for (const it of items) {
+    if (
+      !it.player_id ||
+      !it.stats ||
+      it.season_type !== 'regular' ||
+      Number(it.season) !== season ||
+      it.week !== week
+    ) {
+      skipped++
+      continue
+    }
+    if (!((it.stats.gp ?? 0) >= 1)) continue
+    const stats: Record<string, number> = {}
+    for (const [key, value] of Object.entries(it.stats)) {
+      if (typeof value === 'number' && !isDerivedFromScoring(key)) stats[key] = value
+    }
+    records.push({
+      playerId: it.player_id,
+      season,
+      week,
       team: it.team ?? null,
       opponent: it.opponent ?? null,
       stats
