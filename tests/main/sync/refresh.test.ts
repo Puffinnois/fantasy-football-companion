@@ -62,5 +62,14 @@ describe('refreshAll / importAll', () => {
 
     const refreshed = await refreshAll(deps())
     expect(refreshed.steps.map((s) => s.source).slice(-6)).toEqual(sources.slice(-6))
+    // Sleeper stats run after the Sleeper steps (they need the NFL state) and before nflverse
+    const refreshedSources = refreshed.steps.map((s) => s.source)
+    expect(refreshedSources.indexOf('sleeper:stats:2025:1')).toBeGreaterThan(
+      refreshedSources.indexOf('sleeper:state')
+    )
+    expect(refreshedSources.indexOf('sleeper:stats:2026:2')).toBeLessThan(
+      refreshedSources.indexOf('nflverse:crosswalk')
+    )
+    expect(sources).toContain('sleeper:stats:2026:2')
   })
 })

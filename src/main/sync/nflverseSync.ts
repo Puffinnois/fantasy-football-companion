@@ -44,6 +44,8 @@ export interface NflverseSyncDeps extends SyncDeps {
 export interface NflverseRefreshOptions extends RefreshOptions {
   /** The Sleeper players DB was re-fetched this run: re-resolve identities even if the crosswalk is fresh. */
   playersChanged?: boolean
+  /** A Sleeper stats week was stored this run (Sleeper stats scoring spec §3.3): recompute points. */
+  sleeperStatsChanged?: boolean
 }
 
 const ok = (entry: SyncLogEntry): boolean => entry.status === 'ok'
@@ -142,7 +144,12 @@ export async function refreshNflverse(
 
   if (
     leagueId &&
-    (force || identityChanged || statsChanged || ok(games) || countPoints(deps.db, leagueId) === 0)
+    (force ||
+      identityChanged ||
+      statsChanged ||
+      options.sleeperStatsChanged ||
+      ok(games) ||
+      countPoints(deps.db, leagueId) === 0)
   ) {
     steps.push(
       await runStep(deps, SOURCE_POINTS, 0, true, async () =>
