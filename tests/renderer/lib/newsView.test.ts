@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { NEWS_PAGE_SIZE, newsAge, sourceBadge } from '@/lib/newsView'
 
 describe('sourceBadge', () => {
-  it('abbreviates the three known outlets and passes others through', () => {
-    expect(sourceBadge('fantasy_pros')).toBe('FP')
-    expect(sourceBadge('rotowire')).toBe('RW')
-    expect(sourceBadge('rotoballer')).toBe('RB')
+  it('names the three known outlets and passes others through', () => {
+    expect(sourceBadge('fantasy_pros')).toBe('FantasyPros')
+    expect(sourceBadge('rotowire')).toBe('RotoWire')
+    expect(sourceBadge('rotoballer')).toBe('RotoBaller')
     expect(sourceBadge('espn')).toBe('espn')
   })
 })
@@ -39,6 +39,6 @@ describe('newsAge', () => {
   })
 
   it('pages eight items', () => {
-    expect(NEWS_PAGE_SIZE).toBe(8)
+    expect(NEWS_PAGE_SIZE).toBe(3)
   })
 })

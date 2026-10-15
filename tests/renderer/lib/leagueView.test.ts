@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { rosLine, sortTeams, STRENGTH_NOTE, teamLabel, TEAM_SORTS } from '@/lib/leagueView'
+import {
+  initials,
+  lastWeekTrend,
+  ordinal,
+  recordText,
+  rosTier,
+  rosTierLine,
+  signedOne,
+  sortTeams,
+  standLine,
+  STRENGTH_NOTE,
+  teamLabel,
+  TEAM_SORTS
+} from '@/lib/leagueView'
 import { team } from '../../fixtures/league'
 import { teamStrength } from '../../fixtures/lineup'
 
@@ -9,12 +22,6 @@ describe('leagueView', () => {
   it('labels a team by its team name, else by its owner', () => {
     expect(teamLabel(team({ teamName: 'Cook Book', displayName: 'puffinn' }))).toBe('Cook Book')
     expect(teamLabel(team({ teamName: null, displayName: 'puffinn' }))).toBe('puffinn')
-  })
-
-  it('writes the ROS line with two decimals and the rank, or a dash', () => {
-    expect(rosLine(teamStrength({ rosTotal: 1234.5, rank: 3 }))).toBe('ROS 1234.50 · #3')
-    expect(rosLine(teamStrength(unranked))).toBe('ROS —')
-    expect(rosLine(undefined)).toBe('ROS —')
   })
 
   it('sorts by record: wins, then ties, then points for, whoever is me', () => {
@@ -55,11 +62,69 @@ describe('leagueView', () => {
 
   it('exposes the two sorts and the basis note', () => {
     expect(TEAM_SORTS).toEqual([
-      { key: 'record', label: 'Record' },
-      { key: 'strength', label: 'ROS strength' }
+      { key: 'record', label: 'By record' },
+      { key: 'strength', label: 'Rest of season' }
     ])
     expect(STRENGTH_NOTE).toBe(
       'Optimal lineup on Sleeper projections under your scoring, summed over the remaining weeks'
     )
+  })
+
+  it('tiers ROS ranks by thirds of the league', () => {
+    expect([1, 4, 5, 8, 9, 12].map((r) => rosTier(r, 12))).toEqual([
+      'good',
+      'good',
+      'mid',
+      'mid',
+      'bad',
+      'bad'
+    ])
+    expect(rosTier(null, 12)).toBe('none')
+    expect(rosTier(1, 2)).toBe('good')
+    expect(rosTierLine('good', 12)).toBe('Top-4 roster for the rest of the season')
+    expect(rosTierLine('bad', 10)).toBe('Bottom-3 roster for the rest of the season')
+    expect(rosTierLine('none', 10)).toBe('No rest-of-season outlook yet')
+  })
+
+  it('writes ordinals, initials, records and signed one-decimal numbers', () => {
+    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 101].map(ordinal)).toEqual([
+      '1st',
+      '2nd',
+      '3rd',
+      '4th',
+      '11th',
+      '12th',
+      '13th',
+      '21st',
+      '22nd',
+      '101st'
+    ])
+    expect(initials('Cook Book Club')).toBe('CB')
+    expect(initials('  ')).toBe('?')
+    expect(recordText(team({ wins: 4, losses: 2 }))).toBe('4-2')
+    expect(recordText(team({ wins: 4, losses: 1, ties: 1 }))).toBe('4-1-1')
+    expect([12.34, -3, 0].map(signedOne)).toEqual(['+12.3', '−3.0', '±0.0'])
+  })
+
+  it('states where the team stands against the playoff line', () => {
+    const standings = [
+      team({ rosterId: 1, wins: 5, losses: 0 }),
+      team({ rosterId: 2, wins: 4, losses: 1 }),
+      team({ rosterId: 3, wins: 2, losses: 3 }),
+      team({ rosterId: 4, wins: 2, losses: 3 }),
+      team({ rosterId: 5, wins: 0, losses: 5 })
+    ]
+    expect(standLine(standings, 1, 2)).toBe('Leading the league at 1st of 5')
+    expect(standLine(standings, 2, 2)).toBe('In a playoff spot, 2nd of 5')
+    expect(standLine(standings, 3, 2)).toBe('2 games out of the last playoff spot')
+    expect(standLine(standings, 4, 3)).toBe('Tied with the last playoff spot, 4th of 5')
+  })
+
+  it('compares last week with the season average, ±3 points', () => {
+    expect(lastWeekTrend(60, 15, 5)).toBe('up')
+    expect(lastWeekTrend(60, 9, 5)).toBe('down')
+    expect(lastWeekTrend(60, 12, 5)).toBe('flat')
+    expect(lastWeekTrend(null, 12, 5)).toBeNull()
+    expect(lastWeekTrend(60, null, 5)).toBeNull()
   })
 })

@@ -61,8 +61,8 @@ export const SELECT_CLASS =
 
 /** Text colour per `deltaTone`. */
 export const TONE_CLASS: Record<ReturnType<typeof deltaTone>, string> = {
-  green: 'text-emerald-400',
-  red: 'text-red-400',
+  green: 'text-good',
+  red: 'text-bad',
   muted: 'text-muted-foreground'
 }
 

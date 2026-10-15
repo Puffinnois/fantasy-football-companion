@@ -175,7 +175,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
       {pool && season !== null && (
         <>
           {pool.tradeDeadlinePassed && (
-            <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-400">
+            <p className="rounded-md border border-warn/40 bg-warn-s px-3 py-2 text-sm text-warn">
               {DEADLINE_NOTE}
             </p>
           )}

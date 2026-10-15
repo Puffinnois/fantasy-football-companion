@@ -56,7 +56,7 @@ export function UpdateDialog({
           <div className="h-1.5 w-full overflow-hidden rounded bg-muted">
             <div
               data-testid="update-progress"
-              className="h-full bg-emerald-500 transition-[width]"
+              className="h-full bg-good transition-[width]"
               style={{ width: `${percent}%` }}
             />
           </div>

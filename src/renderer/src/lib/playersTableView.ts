@@ -276,6 +276,8 @@ export function columnGroups(tabId: string, mode: TableMode, mine = false): Colu
       return [fantasy, ...experts, FIELD_GOALS, XP]
     case 'DEF':
       return [fantasy, ...experts, DEFENSE, ALLOWED]
+    case 'FLEX':
+      return [fantasy, ...experts, RUSHING, RECEIVING, ...usage(SNAP, TGT)]
     default:
       return [fantasy, ...experts, RUSHING, RECEIVING, PASSING, ...usage(SNAP, TGT)]
   }
@@ -354,7 +356,8 @@ export function subLabel(row: TableRow, timeZone?: string): string {
   return isWeekRow(row) ? `${team} · ${gameLabel(row.game, timeZone)}` : team
 }
 
-export const TABLE_LIMIT = 250
+/** Players board pages 25 rows at a time ("Show 25 more"). */
+export const PAGE_SIZE = 25
 
 export interface TableFilters {
   search: string
@@ -659,4 +662,137 @@ export function rosAdjustLine(row: PlayerValueRow): string | null {
   const ranks = `projection ${pos}${adj.projPosRank} → consensus ${pos}${adj.expertPosRank}`
   if (adj.factor === null) return ranks
   return `${ranks} · scaled ×${adj.factor.toFixed(2)}${adj.capped ? ' (capped)' : ''}`
+}
+
+// ---------- Edition board (design handoff "Players board") ----------
+
+/** Column groups hidden until toggled on, keyed `v:<group>` in value mode, `w:<tab>:<group>` otherwise. */
+export const DEFAULT_HIDDEN: Record<string, boolean> = {
+  'v:Signals': true,
+  'v:Experts': true,
+  'w:ALL:Passing': true
+}
+
+/** The group that is always shown (and has no toggle): Fantasy by week, Rest of season in value mode. */
+export function lockedGroup(mode: TableMode): string {
+  return mode === 'value' ? 'Rest of season' : 'Fantasy'
+}
+
+export function hiddenKey(mode: TableMode, tabId: string, group: string): string {
+  return mode === 'value' ? `v:${group}` : `w:${tabId}:${group}`
+}
+
+export type CellTone = 'good' | 'bad' | 'warn' | 'dim' | null
+
+export interface BoardCell {
+  text: string
+  tone: CellTone
+  /** Rendered as a solid tone chip (ranks, grades, SOS, DROP). */
+  chip: boolean
+  /** The headline number of the mode (PTS / ROS), Barlow 22px. */
+  primary: boolean
+  title?: string
+}
+
+/** Starter slots per position in a 12-team league: top half of them reads good, past them bad. */
+const RANK_SLOTS: Record<string, number> = { QB: 12, RB: 24, WR: 30, TE: 12, K: 12, DEF: 12 }
+
+export function posRankTone(rank: number, position: string | null): CellTone {
+  const slots = RANK_SLOTS[position ?? ''] ?? 12
+  return rank <= Math.ceil(slots / 2) ? 'good' : rank > slots ? 'bad' : null
+}
+
+const bySign = (v: number, threshold = 0): CellTone =>
+  v > threshold ? 'good' : v < -threshold ? 'bad' : null
+
+/** Text, tone and chip-ness of one board cell (README tone rules; "—" dims). */
+export function boardCell(row: TableRow, col: Column, mode: TableMode): BoardCell {
+  const cell = (text: string, tone: CellTone, chip = false): BoardCell => ({
+    text,
+    tone,
+    chip,
+    primary: false
+  })
+  if (col.kind === 'droppable') {
+    const d = isValueRow(row) ? row.droppable : null
+    return d
+      ? {
+          ...cell('DROP', 'warn', true),
+          title: `Free agent ${d.fullName}: ${fmtSigned(d.delta)} ROS VAL`
+        }
+      : cell('', null)
+  }
+  if (col.kind === 'signal') {
+    if (!col.signal || !isValueRow(row) || !row.signals) return cell('—', 'dim')
+    const v = signalValue(row, col.signal)
+    if (v === null) return cell('—', 'dim')
+    switch (col.signal) {
+      case 'rosSos': {
+        const t = sosTone(v)
+        return cell(v.toFixed(1), t === 'hard' ? 'bad' : t === 'easy' ? 'good' : null, true)
+      }
+      case 'byesRemaining':
+        return cell(String(v), v === 0 ? 'dim' : null)
+      case 'startRate':
+        return cell(fmtPct(v), v >= 0.6 ? 'good' : v <= 0.3 ? 'bad' : null)
+      case 'usage': {
+        const u = primaryUsage(row)
+        const arrow = u?.trend === 'rising' ? ' ▲' : u?.trend === 'falling' ? ' ▼' : ''
+        return cell(
+          fmtPct(v) + arrow,
+          u?.trend === 'rising' ? 'good' : u?.trend === 'falling' ? 'bad' : null
+        )
+      }
+      case 'tdDelta': {
+        const flag = row.signals.tdFlag
+        return cell(fmtSigned(v, 1), flag === 'down' ? 'bad' : flag === 'up' ? 'good' : null)
+      }
+      case 'vsProjPct':
+        return cell(fmtSignedPct(v), bySign(v, 0.1))
+      default:
+        return cell(cellText(v, col, 'value'), null)
+    }
+  }
+  if (col.kind === 'expert') {
+    if (!col.expert) return cell('—', 'dim')
+    const v = expertValue(row, col.expert)
+    if (v === null) return cell('—', 'dim')
+    switch (col.expert) {
+      case 'ecrPosRank':
+      case 'weekPosRank':
+        return cell(String(v), posRankTone(v, row.position), true)
+      case 'weekGrade':
+        return cell(expertText(row, col), v >= 8 ? 'good' : v <= 3 ? 'bad' : null, true)
+      case 'ecrDelta':
+        return cell(cellText(v, col, 'value'), bySign(v, ECR_DELTA_TONE))
+      case 'marketTrend':
+        return cell(cellText(v, col, 'value'), bySign(v))
+      default:
+        return cell(cellText(v, col, 'value'), null)
+    }
+  }
+  const v = row.statsAvailable || mode !== 'stats' ? cellValue(row, col, mode) : null
+  if (v === null) return cell('—', 'dim')
+  const text = cellText(v, col, mode)
+  if (col.kind === 'points' || (col.kind === 'value' && col.field === 'rosPoints'))
+    return { ...cell(text, null), primary: true }
+  if (col.kind === 'delta') return cell(text, bySign(v, 0.5))
+  if (col.kind === 'value') {
+    switch (col.field) {
+      case 'stdValue':
+      case 'rosValue':
+      case 'vsMine':
+        return cell(text, bySign(v))
+      case 'stdRank':
+      case 'rosRank':
+        return cell(text, posRankTone(v, row.position), true)
+      default:
+        return cell(text, null)
+    }
+  }
+  if (col.kind === 'stat') {
+    if (v === 0) return cell(text, 'dim')
+    if (col.statKey === 'pass_int' && v >= 2) return cell(text, 'bad')
+  }
+  return cell(text, null)
 }

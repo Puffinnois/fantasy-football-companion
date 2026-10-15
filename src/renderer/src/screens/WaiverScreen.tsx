@@ -45,8 +45,8 @@ const selectClass =
   'h-8 max-w-64 rounded-md border border-input bg-transparent px-2 text-sm text-foreground dark:bg-input/30'
 
 const TONE: Record<ReturnType<typeof deltaTone>, string> = {
-  green: 'text-emerald-400',
-  red: 'text-red-400',
+  green: 'text-good',
+  red: 'text-bad',
   muted: 'text-muted-foreground'
 }
 
@@ -67,7 +67,7 @@ function PlayerCell({
       </button>
       <span className="text-muted-foreground">{player.team ?? ''}</span>
       {player.injuryStatus && (
-        <span className="text-xs font-semibold text-red-400">{player.injuryStatus}</span>
+        <span className="text-xs font-semibold text-bad">{player.injuryStatus}</span>
       )}
     </div>
   )
@@ -248,7 +248,7 @@ function StashCard({
                     <TableCell className="text-right">{rosRankLabel(row.player)}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {isFree(o) ? (
-                        <span className="rounded bg-emerald-500/15 px-1 text-xs font-semibold text-emerald-400">
+                        <span className="rounded bg-good-s px-1 text-xs font-semibold text-good">
                           free
                         </span>
                       ) : (

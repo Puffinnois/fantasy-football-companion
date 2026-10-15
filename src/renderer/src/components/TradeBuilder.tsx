@@ -190,8 +190,8 @@ function SideVerdict({
       </div>
       <div className="text-muted-foreground">{rangeLine(side)}</div>
       {gets && <div className="text-muted-foreground">{gets}</div>}
-      {drop && <div className="text-amber-400">{drop}</div>}
-      {spot && <div className="text-sky-400">{openSpotLine(spot)}</div>}
+      {drop && <div className="text-warn">{drop}</div>}
+      {spot && <div className="text-pos-wr">{openSpotLine(spot)}</div>}
       <div className="text-muted-foreground">{marketLine(side)}</div>
     </div>
   )
@@ -231,7 +231,7 @@ function VerdictCard({
               key={b.label}
               className={cn(
                 'rounded px-2 py-0.5 text-xs font-bold',
-                b.on ? 'bg-emerald-500/15 text-emerald-400' : 'bg-muted text-muted-foreground'
+                b.on ? 'bg-good-s text-good' : 'bg-muted text-muted-foreground'
               )}
             >
               {b.label}
