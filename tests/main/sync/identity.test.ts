@@ -156,6 +156,32 @@ describe('resolvePlayer', () => {
     ).toMatchObject({ gsisId: '00-0039913', resolution: 'name' })
   })
 
+  it('never takes a name match that belongs to another Sleeper player (review of Plan X)', () => {
+    const owned = {
+      sleeperId: '7000',
+      fantasyprosId: null,
+      gsisId: '00-0036001',
+      pfrId: 'JoneTo01',
+      sportradarId: null,
+      espnId: null,
+      name: 'Tony Jones Jr.',
+      position: 'RB'
+    }
+    const nflverse = [{ gsisId: '00-0036001', name: 'Tony Jones', position: 'RB' }]
+    const withOwner = indexCrosswalk([owned], nflverse)
+    // "Anthony Jones" canonicalises like "Tony Jones", but that row and gsis are Sleeper 7000's.
+    expect(
+      resolvePlayer(src({ playerId: '7424', fullName: 'Anthony Jones', position: 'RB' }), withOwner)
+        .resolution
+    ).toBe('unresolved')
+    expect(
+      resolvePlayer(
+        src({ playerId: '7000', fullName: 'Tony Jones Jr.', position: 'RB' }),
+        withOwner
+      )
+    ).toMatchObject({ gsisId: '00-0036001', resolution: 'crosswalk' })
+  })
+
   it('ignores malformed Sleeper gsis ids', () => {
     const r = resolvePlayer(
       src({ playerId: '9', fullName: 'Nobody Here', position: 'QB', gsisId: 'WAS123456' }),

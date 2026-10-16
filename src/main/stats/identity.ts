@@ -73,7 +73,8 @@ const SLEEPER_ID_PRIORITY = ['crosswalk', 'rosters', 'name']
 /**
  * `sleeper_ids` (Sleeper id → gsis id): the DynastyProcess crosswalk, then nflverse weekly rosters
  * (which carry `sleeper_id`), then a name + position match (`nameKey`) against nflverse players
- * active that season, only when exactly one matches. Team ids (DEF, `TEAM_*`) are not players.
+ * active that season and not linked to another Sleeper id, only when exactly one matches. Team ids
+ * (DEF, `TEAM_*`) are not players.
  */
 async function buildSleeperIds(db: StatsDb, players: NflversePlayer[]): Promise<number> {
   const pairs = new Map<string, [string, string]>()
@@ -112,10 +113,12 @@ async function buildSleeperIds(db: StatsDb, players: NflversePlayer[]): Promise<
        FROM src_sleeper_players WHERE ${SLEEPER_PLAYER_ID}
        GROUP BY player_id`
     )
+    const claimed = new Set([...pairs.values()].map(([gsis]) => gsis))
     for (const s of sleeper) {
       if (pairs.has(s.player_id) || !s.position || s.position === 'DEF') continue
+      // Only players active that season and not already another Sleeper id's (review of Plan X).
       const active = (byKey.get(nameKey(s.name, s.position)) ?? []).filter(
-        (p) => p.last_season === null || p.last_season >= s.season - 1
+        (p) => (p.last_season === null || p.last_season >= s.season - 1) && !claimed.has(p.gsis_id)
       )
       if (active.length === 1) add(s.player_id, active[0].gsis_id, 'name')
     }

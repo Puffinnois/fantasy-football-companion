@@ -155,6 +155,9 @@ export function resolvePlayer(p: PlayerIdentitySource, index: CrosswalkIndex): P
     gsisId = sleeperGsis
     row ??= index.byGsis.get(sleeperGsis)
   } else {
+    // A name match never takes a crosswalk row (or its gsis) that belongs to another Sleeper id.
+    const ownedByOther = (r: CrosswalkRecord | undefined): boolean =>
+      r?.sleeperId != null && r.sleeperId !== p.playerId
     const bySr = p.sportradarId ? index.bySportradar.get(p.sportradarId) : undefined
     const key = p.position ? nameKey(p.fullName, p.position) : null
     const byName = key ? index.byName.get(key) : undefined
@@ -163,11 +166,11 @@ export function resolvePlayer(p: PlayerIdentitySource, index: CrosswalkIndex): P
       resolution = 'sportradar'
       gsisId = bySr.gsisId
       row = bySr
-    } else if (byName?.gsisId) {
+    } else if (byName?.gsisId && !ownedByOther(byName)) {
       resolution = 'name'
       gsisId = byName.gsisId
       row = byName
-    } else if (byNflverse) {
+    } else if (byNflverse && !ownedByOther(index.byGsis.get(byNflverse))) {
       resolution = 'name'
       gsisId = byNflverse
       row = row?.pfrId ? row : index.byGsis.get(byNflverse)
