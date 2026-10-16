@@ -18,7 +18,7 @@ function label(state: UpdateState): string | null {
   }
 }
 
-/** Sidebar button shown while an update is known; the dialog does the rest. */
+/** Nav pill shown while an update is known; the dialog does the rest. */
 export function UpdatePill({ state, onOpen }: UpdatePillProps): React.JSX.Element | null {
   const text = label(state)
   if (text === null) return null
@@ -26,9 +26,9 @@ export function UpdatePill({ state, onOpen }: UpdatePillProps): React.JSX.Elemen
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500"
+      className="flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full bg-good pr-3 pl-2.5 font-cond text-[13px] leading-none font-bold tracking-[0.08em] text-on-pos uppercase hover:brightness-105"
     >
-      <CircleArrowUp className="size-4" />
+      <CircleArrowUp className="size-3.5" />
       {text}
     </button>
   )

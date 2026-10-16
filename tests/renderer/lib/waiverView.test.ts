@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { fmtMarket } from '@/lib/tradeView'
 import {
   ALL_POSITIONS,
+  bestAddLine,
+  claimPosition,
+  splitOpponent,
   STREAM_CHIPS,
   STREAM_SHOWN,
   filterStream,
   isFree,
   noStreamers,
   optionLabel,
-  priorityLine,
   releaseLabel,
   rosRankLabel,
   sortStash,
@@ -16,7 +18,7 @@ import {
   streamOptionLabel,
   trendingNote,
   trendingText,
-  weekOptionLabel
+  weekCardSub
 } from '@/lib/waiverView'
 import {
   addOption,
@@ -34,8 +36,11 @@ describe('waiverView', () => {
     expect(releaseLabel(streamOption({ release: { kind: 'open' }, releasePlayer: null }))).toBe(
       'Open spot'
     )
-    expect(weekOptionLabel(3, 3)).toBe('Week 3 (this week)')
-    expect(weekOptionLabel(5, 3)).toBe('Week 5')
+    expect(weekCardSub(3, 3)).toBe('This week')
+    expect(weekCardSub(5, 3)).toBe('In 2')
+    expect(splitOpponent('@ CAR')).toEqual({ where: '@', team: 'CAR' })
+    expect(splitOpponent('CAR')).toEqual({ where: '', team: 'CAR' })
+    expect(splitOpponent(null)).toEqual({ where: '', team: '—' })
     expect(noStreamers(5, ALL_POSITIONS)).toBe('No streamer beats your lineup in week 5.')
     expect(noStreamers(5, 'TE')).toBe('No TE streamer beats your lineup in week 5.')
     expect(STREAM_CHIPS).toEqual(['All', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF'])
@@ -63,21 +68,25 @@ describe('waiverView', () => {
       'Open spot'
     )
     expect(releaseLabel(addOption({ release: { kind: 'ir', playerId: '7002' } }))).toBe(
-      'IR: Kendre Miller'
+      'Move Kendre Miller to IR'
     )
     expect(optionLabel(addOption({ delta: -1.5 }))).toBe('Drop Kendre Miller · -1.50')
   })
 
   it('shows up to three start weeks, then a count', () => {
-    expect(startsText([], 15)).toBe('—')
-    expect(startsText([7, 9], 15)).toBe('wk 7, 9')
-    expect(startsText([3, 4, 5, 6], 15)).toBe('4 of 15 wks')
+    expect(startsText([], 15)).toBe('Never starts')
+    expect(startsText([7, 9], 15)).toBe('Starts wk 7, 9')
+    expect(startsText([3, 4, 5, 6], 15)).toBe('Starts 4 of 15 wks')
   })
 
-  it('shows my waiver priority in priority leagues only', () => {
-    expect(priorityLine(waiverAdds())).toBe('Waiver priority 12 of 16')
-    expect(priorityLine(waiverAdds({ waiverType: 'faab' }))).toBeNull()
-    expect(priorityLine(waiverAdds({ myWaiverPosition: null }))).toBeNull()
+  it('shows my waiver claim in priority leagues only, and the best add', () => {
+    expect(claimPosition(waiverAdds())).toBe(12)
+    expect(claimPosition(waiverAdds({ waiverType: 'faab' }))).toBeNull()
+    expect(claimPosition(waiverAdds({ myWaiverPosition: null }))).toBeNull()
+    expect(bestAddLine(waiverAdds())).toMatch(/ is the best add: \+\d+\.\d\d points a week\.$/)
+    expect(bestAddLine(waiverAdds({ lineup: [] }))).toBe(
+      'No free agent improves your lineup over the rest of the season.'
+    )
   })
 
   it('formats the stash signals', () => {
@@ -91,8 +100,10 @@ describe('waiverView', () => {
 
   it('says when trending adds were fetched', () => {
     const now = Date.parse('2026-09-22T12:00:00.000Z')
-    expect(trendingNote('2026-09-22T10:00:00.000Z', now)).toBe('Trending adds fetched 2 h ago')
-    expect(trendingNote(null, now)).toBe('Trending adds unavailable — refresh to fetch them')
+    expect(trendingNote('2026-09-22T10:00:00.000Z', now)).toBe(
+      'Trending = Sleeper adds in the last 24 h, fetched 2 h ago.'
+    )
+    expect(trendingNote(null, now)).toBe('Trending adds unavailable. Refresh to fetch them.')
   })
 
   it('sorts the stash by a signal, players without it last', () => {

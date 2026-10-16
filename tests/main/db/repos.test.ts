@@ -6,6 +6,7 @@ import { getNflState, setNflState } from '@main/db/repos/state'
 import {
   finishSync,
   getLastError,
+  getLastFinishedLike,
   getLastFinishedSync,
   getLastSync,
   startSync
@@ -122,6 +123,21 @@ describe('repos', () => {
     startSync(db, 'wh:sleeper:2025', '2099-01-01T00:00:00.000Z')
     expect(getLastFinishedSync(db, 'wh:sleeper:2025')).toMatchObject({ id: b, status: 'error' })
     expect(getLastFinishedSync(db, 'wh:nothing')).toBeNull()
+  })
+
+  it('getLastFinishedLike takes the latest finished row over several prefixes', () => {
+    const a = startSync(db, 'sleeper:league', T)
+    finishSync(db, a, 'ok', T, null, 3)
+    const b = startSync(db, 'sleeper:matchups:2026:5', T)
+    finishSync(db, b, 'error', T, 'boom', 0)
+    startSync(db, 'sleeper:league', '2099-01-01T00:00:00.000Z')
+    expect(getLastFinishedLike(db, ['sleeper:league', 'sleeper:matchups:'])).toMatchObject({
+      id: b,
+      status: 'error'
+    })
+    expect(getLastFinishedLike(db, ['sleeper:league'])).toMatchObject({ id: a })
+    expect(getLastFinishedLike(db, ['fantasycalc:'])).toBeNull()
+    expect(getLastFinishedLike(db, [])).toBeNull()
   })
 
   it('league upsert updates in place', () => {

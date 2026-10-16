@@ -1,13 +1,13 @@
-/** Spec §5.3: 8 items shown, "Show more" reveals the rest. */
-export const NEWS_PAGE_SIZE = 8
+/** Player file "Latest": 3 items shown, "Show more" reveals the rest. */
+export const NEWS_PAGE_SIZE = 3
 
 const BADGES: Record<string, string> = {
-  fantasy_pros: 'FP',
-  rotowire: 'RW',
-  rotoballer: 'RB'
+  fantasy_pros: 'FantasyPros',
+  rotowire: 'RotoWire',
+  rotoballer: 'RotoBaller'
 }
 
-/** `FP` / `RW` / `RB`, else the raw source. */
+/** `FantasyPros` / `RotoWire` / `RotoBaller`, else the raw source. */
 export function sourceBadge(source: string): string {
   return BADGES[source] ?? source
 }

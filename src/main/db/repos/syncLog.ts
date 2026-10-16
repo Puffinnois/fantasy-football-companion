@@ -102,3 +102,15 @@ export function pruneSyncLog(db: Db, before: string): number {
       .run(before).changes
   )
 }
+
+/** Latest finished entry (any status) whose source starts with one of `prefixes`. */
+export function getLastFinishedLike(db: Db, prefixes: string[]): SyncLogEntry | null {
+  if (prefixes.length === 0) return null
+  const where = prefixes.map(() => 'source LIKE ?').join(' OR ')
+  const row = db
+    .prepare(
+      `SELECT * FROM sync_log WHERE finished_at IS NOT NULL AND (${where}) ORDER BY id DESC LIMIT 1`
+    )
+    .get(...prefixes.map((p) => `${p}%`)) as Row | undefined
+  return row ? toEntry(row) : null
+}

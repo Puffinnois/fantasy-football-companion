@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Section } from '@/components/Section'
+import { SectionHead } from '@/components/edition'
 import { api } from '@/lib/api'
 import { errorMessage, relativeTime } from '@/lib/format'
 import { NEWS_PAGE_SIZE, newsAge, sourceBadge } from '@/lib/newsView'
@@ -23,30 +23,44 @@ function NewsRow({
   onToggleAnalysis: () => void
 }): React.JSX.Element {
   return (
-    <li className="text-sm">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="rounded bg-muted px-1 font-medium">{sourceBadge(item.source)}</span>
-        <span className="tabular-nums">{newsAge(item.publishedAt)}</span>
+    <li className="flex flex-col gap-1.5 border-b border-line py-[13px]">
+      <div className="flex items-center gap-2 font-mono text-[11px] leading-none font-medium tracking-[0.04em] text-fg-3 uppercase">
+        <span className="font-semibold text-brand-fg">{sourceBadge(item.source)}</span>
+        <span>·</span>
+        <span>{newsAge(item.publishedAt)}</span>
       </div>
       {item.url ? (
-        <a href={item.url} target="_blank" rel="noreferrer" className="font-medium hover:underline">
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[14.5px] leading-[1.3] font-semibold tracking-[-0.01em] text-pretty hover:underline"
+        >
           {item.title}
         </a>
       ) : (
-        <span className="font-medium">{item.title}</span>
+        <span className="text-[14.5px] leading-[1.3] font-semibold tracking-[-0.01em] text-pretty">
+          {item.title}
+        </span>
       )}
-      {item.description && <p className="mt-0.5 text-muted-foreground">{item.description}</p>}
+      {item.description && (
+        <p className="text-[13px] leading-[1.45] text-pretty text-fg-2">{item.description}</p>
+      )}
       {item.analysis && (
         <>
           <button
             type="button"
             aria-expanded={analysisOpen}
             onClick={onToggleAnalysis}
-            className="mt-0.5 text-xs text-muted-foreground underline"
+            className="self-start font-cond text-[12px] font-bold tracking-[0.1em] text-fg-3 uppercase hover:text-fg"
           >
             Analysis
           </button>
-          {analysisOpen && <p className="mt-1 whitespace-pre-line">{item.analysis}</p>}
+          {analysisOpen && (
+            <p className="text-[13px] leading-[1.45] whitespace-pre-line text-fg-2">
+              {item.analysis}
+            </p>
+          )}
         </>
       )}
     </li>
@@ -92,21 +106,24 @@ export function NewsSection({ playerId, position }: NewsSectionProps): React.JSX
   const isOpen = (item: NewsItem, index: number): boolean => analysisOpen[item.id] ?? index === 0
 
   return (
-    <Section
-      title="News"
-      note={
-        current?.status === 'ready' ? `fetched ${relativeTime(current.news.fetchedAt)}` : undefined
-      }
-    >
+    <section className="flex flex-col">
+      <SectionHead
+        title="Latest"
+        note={
+          current?.status === 'ready'
+            ? `fetched ${relativeTime(current.news.fetchedAt)}`
+            : undefined
+        }
+      />
       {current === null && (
-        <div role="status" aria-label="Loading news" className="space-y-2">
-          <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-5/6 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+        <div role="status" aria-label="Loading news" className="space-y-2 pt-3">
+          <div className="h-3 w-1/3 animate-pulse rounded bg-panel-2" />
+          <div className="h-3 w-5/6 animate-pulse rounded bg-panel-2" />
+          <div className="h-3 w-2/3 animate-pulse rounded bg-panel-2" />
         </div>
       )}
       {current?.status === 'error' && (
-        <p className="text-sm text-muted-foreground" title={current.message}>
+        <p className="pt-3 text-fg-3" title={current.message}>
           Couldn&apos;t load news.{' '}
           <button
             type="button"
@@ -120,10 +137,10 @@ export function NewsSection({ playerId, position }: NewsSectionProps): React.JSX
         </p>
       )}
       {current?.status === 'ready' && items.length === 0 && (
-        <p className="text-sm text-muted-foreground">No news.</p>
+        <p className="pt-3 text-fg-3">No news.</p>
       )}
       {shown.length > 0 && (
-        <ul className="space-y-3">
+        <ul>
           {shown.map((item, index) => (
             <NewsRow
               key={item.id}
@@ -139,12 +156,12 @@ export function NewsSection({ playerId, position }: NewsSectionProps): React.JSX
       {!expanded && items.length > NEWS_PAGE_SIZE && (
         <button
           type="button"
-          className="mt-2 text-sm text-muted-foreground underline"
+          className="mt-3 self-start font-cond text-[13px] font-bold tracking-[0.1em] text-fg-2 uppercase hover:text-fg"
           onClick={() => setExpandedFor(playerId)}
         >
           Show more ({items.length - NEWS_PAGE_SIZE})
         </button>
       )}
-    </Section>
+    </section>
   )
 }

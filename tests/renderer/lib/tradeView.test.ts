@@ -1,43 +1,48 @@
 import { describe, expect, it } from 'vitest'
 import {
-  DEADLINE_NOTE,
-  STANCE_OPTIONS,
   acceptanceTags,
+  alternativeLine,
+  controlsOf,
+  DEADLINE_NOTE,
+  DEFAULT_CONTROLS,
   deltaLine,
+  deltaTone,
+  dropLine,
+  fmtElapsed,
+  fmtMarket,
   focusMarketLine,
+  groupByPosition,
+  marketFairSide,
+  marketLine,
+  marketRatio,
   meLine,
   noOffersHint,
   offerLine,
   openSpotLine,
-  sideNames,
-  spotFor,
-  stanceHint,
-  themLine,
-  deltaTone,
-  dropLine,
-  fmtMarket,
-  groupByPosition,
-  marketLine,
-  playerOption,
-  playerStats,
-  rangeLine,
-  startsLabel,
-  verdictBadges,
-  verdictGetsLine,
-  windowLabel,
-  queryOf,
-  controlsOf,
-  sameQuery,
-  teamCountOptions,
-  fmtElapsed,
-  suggestStatusLine,
-  teamsChip,
-  pathLine,
   otherSideLine,
   otherWaysLabel,
-  alternativeLine,
-  DEFAULT_CONTROLS,
-  pruneControls
+  pathLine,
+  playerOption,
+  playerStats,
+  pruneControls,
+  queryOf,
+  rangeLine,
+  rankMove,
+  rankWithDeal,
+  sameQuery,
+  sideNames,
+  spotFor,
+  STANCE_OPTIONS,
+  stanceHint,
+  startsLabel,
+  suggestStatusLine,
+  swapText,
+  teamCountOptions,
+  teamsChip,
+  themLine,
+  verdictBadges,
+  verdictGetsLine,
+  windowLabel
 } from '@/lib/tradeView'
 import {
   barkley,
@@ -121,8 +126,8 @@ describe('tradeView', () => {
 
   it('describes a player row and a picker option', () => {
     expect(startsLabel(barkley, 15)).toBe('starts 15/15')
-    expect(playerStats(barkley, 15)).toBe('ROS 118.4 · ECR 1 · MKT 9 340 · starts 15/15')
-    expect(playerStats(cook, 15)).toBe('ROS — · ECR — · MKT — · starts 0/15')
+    expect(playerStats(barkley, 15)).toBe('ROS 118.4 · RB1 · MKT 9 340 · Starts 15/15')
+    expect(playerStats(cook, 15)).toBe('ROS — · Starts 0/15')
     expect(playerOption(jefferson)).toBe('Justin Jefferson · MIN · ROS 128.0')
     expect(playerOption(cook)).toBe('James Cook · BUF · IR · ROS —')
   })
@@ -180,15 +185,15 @@ describe('tradeView', () => {
     expect(STANCE_OPTIONS.map((o) => o.value)).toEqual(['premium', 'fair', 'overpay'])
     expect(STANCE_OPTIONS.map((o) => o.label)).toEqual(['Premium', 'Fair', 'Overpay'])
     expect(stanceHint('premium')).toBe(
-      'I gain ≥ 1 pt/week and get ≥ 100 % of the market value I give'
+      'I gain at least 1 pt/week and get 100 % or more of the market value I give'
     )
-    expect(stanceHint('fair')).toBe('I gain and get ≥ 85 % of the market value I give')
+    expect(stanceHint('fair')).toBe('I gain and get at least 85 % of the market value I give')
     expect(stanceHint('overpay')).toBe(
-      'I lose ≤ 1 pt/week and get ≥ 70 % of the market value I give'
+      'I lose at most 1 pt/week and get at least 70 % of the market value I give'
     )
-    expect(noOffersHint('premium')).toBe('No offers at this stance — try fair or overpay')
-    expect(noOffersHint('fair')).toBe('No offers at this stance — try overpay')
-    expect(noOffersHint('overpay')).toBe('No offers — widen the focus or pick another team')
+    expect(noOffersHint('premium')).toBe('No offers at this stance. Try Fair or Overpay.')
+    expect(noOffersHint('fair')).toBe('No offers at this stance. Try Overpay.')
+    expect(noOffersHint('overpay')).toBe('No offers. Widen the focus or pick another team.')
   })
 
   it('shows the sell-high check for the focus player', () => {
@@ -283,21 +288,21 @@ describe('suggestion status line (multi-team spec §5.2)', () => {
       'Searching 3-team deals · 412 of 18 900 ideas checked · 12 found · 0:37'
     )
     expect(suggestStatusLine(snap({ status: 'full', cards: twelve }))).toBe(
-      'Done: best 12 found — nothing left could rank higher'
+      'Done. Best 12 found, nothing left could rank higher.'
     )
     expect(suggestStatusLine(snap({ status: 'complete', cards: twelve }))).toBe(
-      'Done: 12 found, every idea checked'
+      'Done. 12 found, every idea checked.'
     )
     expect(suggestStatusLine(snap({ status: 'complete' }))).toBe(
-      'No offers at this stance — try overpay'
+      'No offers at this stance. Try Overpay.'
     )
     expect(suggestStatusLine(snap({ status: 'stopped', cards: twelve }))).toBe(
-      'Stopped: 12 found so far'
+      'Stopped. 12 found so far.'
     )
-    expect(suggestStatusLine(snap({ status: 'stale' }))).toBe('League data changed — run again')
+    expect(suggestStatusLine(snap({ status: 'stale' }))).toBe('League data changed. Run again.')
     // an errored run that went stale keeps its error
     expect(suggestStatusLine(snap({ status: 'stale', message: 'boom' }))).toBe(
-      'Search failed: boom · League data changed — run again'
+      'Search failed: boom · League data changed. Run again.'
     )
     expect(suggestStatusLine(snap({ status: 'error', message: 'boom' }))).toBe(
       'Search failed: boom'
@@ -328,5 +333,35 @@ describe('suggestion rows (multi-team spec §5.2)', () => {
     expect(alternativeLine(threeTeamSuggestion().alternatives[0])).toBe(
       'via Rival: Bijan Robinson · worst side -0.30/wk'
     )
+  })
+})
+
+describe('Edition trade desk helpers', () => {
+  const strengths = [
+    { rosterId: 1, rosTotal: 100 },
+    { rosterId: 2, rosTotal: 120 },
+    { rosterId: 3, rosTotal: 90 }
+  ]
+
+  it('ranks me among every team now and after the deal', () => {
+    expect(rankWithDeal(strengths, 1, null)).toEqual({ now: 2, after: 2, teams: 3 })
+    const ev = tradeEvaluation({
+      sides: [tradeSide({ rosterId: 1, after: 130 }), rivalSide({ rosterId: 2, after: 110 })]
+    })
+    expect(rankWithDeal(strengths, 1, ev)).toEqual({ now: 2, after: 1, teams: 3 })
+    expect(rankWithDeal([], 1, null)).toBeNull()
+    expect(rankMove(2, 1)).toEqual({ text: '▲ 1 spot', tone: 'good' })
+    expect(rankMove(1, 4)).toEqual({ text: '▼ 3 spots', tone: 'bad' })
+    expect(rankMove(2, 2)).toEqual({ text: 'No change', tone: 'neutral' })
+  })
+
+  it('reads the market ratio and the fair cut', () => {
+    expect(marketRatio(tradeSide({ marketGive: 10512, marketGet: 8000 }))).toBe('76 %')
+    expect(marketRatio(tradeSide({ marketGive: 0, marketGet: 0 }))).toBe('—')
+    expect(marketRatio(tradeSide({ marketGive: 0, marketGet: 5 }))).toBe('∞')
+    expect(marketFairSide(tradeSide({ marketGive: 1000, marketGet: 900 }))).toBe(true)
+    expect(marketFairSide(tradeSide({ marketGive: 1000, marketGet: 899 }))).toBe(false)
+    expect(swapText({ in: { fullName: 'A' }, out: { fullName: 'B' } })).toBe('Start A over B')
+    expect(swapText({ in: { fullName: 'A' }, out: null })).toBe('Start A')
   })
 })

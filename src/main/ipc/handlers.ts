@@ -9,7 +9,12 @@ import { latestPointsWeek, NO_POINTS_CONTEXT } from '@main/db/repos/points'
 import { getRules, saveRules } from '@main/db/repos/rules'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
 import { getNflState } from '@main/db/repos/state'
-import { getLastError, getLastSync, getLastSyncLike } from '@main/db/repos/syncLog'
+import {
+  getLastError,
+  getLastFinishedLike,
+  getLastSync,
+  getLastSyncLike
+} from '@main/db/repos/syncLog'
 import { listRoster, listStarterIndexes, listTeams } from '@main/db/repos/teams'
 import { listWatched, toggleWatch } from '@main/db/repos/watchlist'
 import { buildLineups, lineupWeek, teamStrengths, type LineupBuild } from '@main/lineup/build'
@@ -36,6 +41,7 @@ import type { RefreshOptions } from '@main/sync/step'
 import type { UpdateController } from '@main/updater'
 import { IPC, type FindLeaguesResult } from '@shared/ipc'
 import type { Rules } from '@shared/rules'
+import { SYNC_SOURCE_GROUPS } from '@shared/syncSources'
 import type {
   League,
   LineupWeek,
@@ -419,7 +425,10 @@ export function registerIpcHandlers(ctx: AppContext): void {
     lastSleeperSync: getLastSync(ctx.db, SOURCE_LEAGUE, 'ok'),
     lastNflverseSync: getLastSyncLike(ctx.db, STATS_SOURCE_PREFIX, 'ok'),
     lastError: getLastError(ctx.db),
-    activeLeagueId: activeLeagueId()
+    activeLeagueId: activeLeagueId(),
+    sources: Object.fromEntries(
+      SYNC_SOURCE_GROUPS.map((g) => [g.key, getLastFinishedLike(ctx.db, g.prefixes)])
+    )
   }))
 
   ipcMain.handle(IPC.updateState, (): UpdateState => ctx.update.state())

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { EditionFooter, Masthead, ScoreLabel, Swatch, ToneChip } from '@/components/edition'
 import { PlayerDetailPanel } from '@/components/PlayerDetailPanel'
 import { TradeBuilder } from '@/components/TradeBuilder'
 import { TradeSuggestions } from '@/components/TradeSuggestions'
@@ -13,16 +14,21 @@ import {
   pruneDeal,
   type BuilderDeal
 } from '@/lib/tradeBuilder'
-import { DEADLINE_NOTE, windowLabel } from '@/lib/tradeView'
+import { ordinalSuffix } from '@/lib/leagueView'
+import { DEADLINE_NOTE, rankMove, rankWithDeal } from '@/lib/tradeView'
+import { cn } from '@/lib/utils'
 import { useSuggestRun } from '@/lib/useSuggestRun'
 import { proposalOf, type DealMove } from '@shared/deal'
 import type {
   DetailTarget,
   TradeEvaluation,
   TradeOpenSpots,
+  TeamStrength,
   TradePool,
   TradeSuggestion
 } from '@shared/types'
+
+type Tab = 'build' | 'find'
 
 interface TradeScreenProps {
   dataVersion: number
@@ -43,7 +49,9 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
   const [selected, setSelected] = useState<DetailTarget | null>(null)
   const suggest = useSuggestRun(season)
   const { prune } = suggest
-  const builderRef = useRef<HTMLDivElement>(null)
+  const [tab, setTab] = useState<Tab>('build')
+  const [league, setLeague] = useState<string | null>(null)
+  const [strengths, setStrengths] = useState<TeamStrength[]>([])
   /** Bumped on every deal change: an evaluate answer for an older deal is dropped. */
   const dealSeq = useRef(0)
 
@@ -52,6 +60,10 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
       .options()
       .then((o) => setSeason((s) => s ?? o.seasons[0] ?? null))
       .catch((err) => setFailed({ key: 'options', message: errorMessage(err) }))
+    void api.league
+      .get()
+      .then((l) => setLeague(l?.name ?? null))
+      .catch(() => undefined)
   }, [dataVersion])
 
   const key = season !== null ? `${season}|${dataVersion}` : null
@@ -83,6 +95,21 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
       cancelled = true
     }
   }, [season, key, prune])
+
+  // The masthead's ROS rank: every team's strength, my side replaced by the verdict's.
+  useEffect(() => {
+    if (key === null || season === null) return
+    let cancelled = false
+    void api.lineup
+      .strength(season)
+      .then((list) => {
+        if (!cancelled) setStrengths(list)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [season, key])
 
   // Slice 6c spec §7: the open-spot line follows the verdict; the verdict never waits for it.
   useEffect(() => {
@@ -127,8 +154,7 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
     }
   }
 
-  const scrollToBuilder = (): void =>
-    builderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const scrollToBuilder = (): void => setTab('build')
 
   /** Spec 6b §5.2: the builder shows the suggestion's own evaluation — no second trade:evaluate call. */
   const openSuggestion = (s: TradeSuggestion): void => {
@@ -156,55 +182,128 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
     scrollToBuilder()
   }
 
+  const rank = pool ? rankWithDeal(strengths, pool.me.rosterId, verdict) : null
+  const move = rank && verdict ? rankMove(rank.now, rank.after) : null
+  const found = suggest.run?.cards.length ?? 0
+  const tabs: { key: Tab; label: string; count: number }[] = [
+    { key: 'build', label: 'Build a deal', count: 0 },
+    { key: 'find', label: 'Find deals', count: found }
+  ]
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Trade</h1>
-          <p className="text-sm text-muted-foreground">
-            Every team&apos;s rest-of-season strength before and after, on Sleeper projections under
-            your scoring.
-          </p>
-        </div>
-        {pool && <span className="text-sm text-muted-foreground">{windowLabel(pool)}</span>}
-      </div>
-
-      {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
-      {!pool && !notice && <p className="text-sm text-muted-foreground">Loading…</p>}
-
-      {pool && season !== null && (
-        <>
-          {pool.tradeDeadlinePassed && (
-            <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-400">
-              {DEADLINE_NOTE}
-            </p>
-          )}
-          <div ref={builderRef}>
-            <TradeBuilder
-              pool={pool}
-              deal={deal}
-              onDealChange={changeDeal}
-              verdict={verdict}
-              spots={spots}
-              evaluating={evaluating}
-              evalError={evalError}
-              onEvaluate={() => void evaluate()}
-              onOpenPlayer={setSelected}
-              finding={suggest.running}
-              onSuggestWith={(rosterId) => suggest.find({ mustInclude: rosterId })}
-            />
+    <>
+      <Masthead
+        kicker={
+          pool
+            ? [league, `Weeks ${pool.currentWeek}–${pool.lastWeek}`, `${pool.weeks} weeks to play`]
+                .filter(Boolean)
+                .join(' · ')
+            : 'Trade'
+        }
+        title="The Trade Desk"
+        below={
+          <div role="tablist" className="mt-1.5 flex gap-5">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.key}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  'flex cursor-pointer items-center gap-[7px] border-b-[3px] pb-[5px] font-cond text-[18px] leading-none font-bold tracking-[0.06em] uppercase',
+                  tab === t.key
+                    ? 'border-brand text-fg'
+                    : 'border-transparent text-fg-3 hover:text-fg'
+                )}
+              >
+                {t.label}
+                {t.count > 0 && (
+                  <span
+                    className={cn(
+                      'rounded-[2px] px-[5px] py-0.5 font-cond text-[12px] leading-none font-extrabold tracking-[0.04em]',
+                      tab === t.key ? 'bg-ink text-paper' : 'shadow-[inset_0_0_0_1px_var(--line)]'
+                    )}
+                  >
+                    {t.count}
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
-          <TradeSuggestions
-            pool={pool}
-            season={season}
-            suggest={suggest}
-            onOpen={openSuggestion}
-            onOpenAlternative={openAlternative}
-          />
-        </>
+        }
+        right={
+          rank && (
+            <div className="flex items-end gap-3">
+              <div className="flex flex-col items-end gap-1.5 pb-1">
+                {move && (
+                  <ToneChip tone={move.tone} className="text-[12px] tracking-[0.1em] uppercase">
+                    {move.text}
+                  </ToneChip>
+                )}
+                <ScoreLabel top="ROS rank" bottom={verdict ? 'after deal' : 'right now'} />
+              </div>
+              <div className="flex items-start">
+                <span className="ed-numeral">{rank.after}</span>
+                <span className="font-cond text-[26px] leading-none font-extrabold text-brand-fg uppercase">
+                  {ordinalSuffix(rank.after)}
+                </span>
+              </div>
+              <span className="pb-1 font-cond text-[13px] leading-none font-bold tracking-[0.14em] text-fg-3 uppercase">
+                of {rank.teams}
+              </span>
+            </div>
+          )
+        }
+      />
+      {pool?.tradeDeadlinePassed && (
+        <div className="flex h-10 shrink-0 items-center border-b border-line bg-warn-s px-8 text-[13px] leading-[1.3] font-medium">
+          {DEADLINE_NOTE}
+        </div>
       )}
-
+      {notice && <div className="flex flex-1 items-center justify-center text-bad">{notice}</div>}
+      {!pool && !notice && <div className="ed-loading flex-1">Opening the trade desk…</div>}
+      {pool && season !== null && tab === 'build' && (
+        <TradeBuilder
+          pool={pool}
+          deal={deal}
+          onDealChange={changeDeal}
+          verdict={verdict}
+          spots={spots}
+          evaluating={evaluating}
+          evalError={evalError}
+          onEvaluate={() => void evaluate()}
+          onOpenPlayer={setSelected}
+          finding={suggest.running}
+          onSuggestWith={(rosterId) => {
+            suggest.find({ mustInclude: rosterId, maxTeams: 2 })
+            setTab('find')
+          }}
+        />
+      )}
+      {pool && season !== null && tab === 'find' && (
+        <TradeSuggestions
+          pool={pool}
+          season={season}
+          suggest={suggest}
+          onOpen={openSuggestion}
+          onOpenAlternative={openAlternative}
+          onOpenPlayer={setSelected}
+        />
+      )}
+      <EditionFooter
+        legend={[
+          { swatch: <Swatch className="bg-good" />, label: 'Stronger' },
+          { swatch: <Swatch className="bg-bad" />, label: 'Weaker' },
+          { swatch: <Swatch className="bg-warn" />, label: 'Roster move needed' }
+        ]}
+      >
+        <span className="truncate">
+          Strength is each team&apos;s best lineup on Sleeper projections under your scoring, summed
+          over the weeks left.
+        </span>
+      </EditionFooter>
       <PlayerDetailPanel season={season ?? 0} player={selected} onClose={() => setSelected(null)} />
-    </div>
+    </>
   )
 }

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   ARROW_PCT,
+  boardCell,
+  hiddenKey,
+  lockedGroup,
+  posRankTone,
   cellText,
   cellValue,
   columnGroups,
@@ -101,8 +105,7 @@ describe('columnGroups', () => {
       'Fantasy',
       'Experts',
       'Rushing',
-      'Receiving',
-      'Passing'
+      'Receiving'
     ])
     expect(columnGroups('QB', 'stats').map((g) => g.label)).toEqual([
       'Fantasy',
@@ -854,5 +857,87 @@ describe('rest-of-season adjustment (realism spec §6)', () => {
     )
     expect(rosAdjustMark(nothingAhead)).toBeNull()
     expect(rosAdjustLine(nothingAhead)).toBeNull()
+  })
+})
+
+describe('boardCell', () => {
+  const col = (mode: 'proj' | 'stats' | 'value', key: string, tab = 'ALL'): Column => {
+    const c = columnGroups(tab, mode, true)
+      .flatMap((g) => g.columns)
+      .find((x) => x.key === key)
+    if (!c) throw new Error(key)
+    return c
+  }
+
+  it('marks the headline number and tones Δ beyond half a point', () => {
+    expect(boardCell(row(), col('stats', 'points'), 'stats')).toMatchObject({
+      text: '18.40',
+      primary: true
+    })
+    expect(boardCell(row(), col('stats', 'delta'), 'stats').tone).toBeNull()
+    expect(boardCell(row({ delta: 3.2 }), col('stats', 'delta'), 'stats').tone).toBe('good')
+    expect(boardCell(row({ delta: -1 }), col('stats', 'delta'), 'stats').tone).toBe('bad')
+    expect(boardCell(row({ points: null }), col('stats', 'points'), 'stats')).toMatchObject({
+      text: '—',
+      tone: 'dim'
+    })
+  })
+
+  it('dims zero stats and flags two interceptions', () => {
+    const r = row({ actual: { rush_yd: 0, pass_int: 2 } })
+    expect(boardCell(r, col('stats', 'stat:rush_yd'), 'stats').tone).toBe('dim')
+    expect(boardCell(r, col('stats', 'stat:pass_int', 'QB'), 'stats').tone).toBe('bad')
+  })
+
+  it('chips position ranks against the starter slots', () => {
+    expect(posRankTone(12, 'RB')).toBe('good')
+    expect(posRankTone(13, 'RB')).toBeNull()
+    expect(posRankTone(25, 'RB')).toBe('bad')
+    expect(posRankTone(7, 'QB')).toBeNull()
+    const rk = boardCell(valueRow({ rosRank: 30 }), col('value', 'value:rosRank'), 'value')
+    expect(rk).toMatchObject({ text: '30', tone: 'bad', chip: true })
+  })
+
+  it('tones the signals: SOS chip, start rate, usage trend, TD regression, vs projection', () => {
+    const v = valueRow({ signals: signalsFixture({ rosSos: 8 }) })
+    expect(boardCell(v, col('value', 'signal:rosSos'), 'value')).toMatchObject({
+      text: '8.0',
+      tone: 'bad',
+      chip: true
+    })
+    expect(boardCell(v, col('value', 'signal:startRate'), 'value')).toMatchObject({
+      text: '63%',
+      tone: 'good'
+    })
+    expect(boardCell(v, col('value', 'signal:usage'), 'value')).toMatchObject({
+      text: '80% ▲',
+      tone: 'good'
+    })
+    expect(boardCell(v, col('value', 'signal:tdDelta'), 'value')).toMatchObject({
+      text: '+1.8',
+      tone: 'bad'
+    })
+    expect(boardCell(v, col('value', 'signal:vsProjPct'), 'value').tone).toBeNull()
+    expect(boardCell(valueRow({ signals: null }), col('value', 'signal:floor'), 'value').text).toBe(
+      '—'
+    )
+  })
+
+  it('shows DROP as a warn chip with the free agent in the title', () => {
+    const v = valueRow({ droppable: { playerId: 'x', fullName: 'Free Guy', delta: 2.5 } })
+    expect(boardCell(v, col('value', 'droppable'), 'value')).toMatchObject({
+      text: 'DROP',
+      tone: 'warn',
+      chip: true,
+      title: 'Free agent Free Guy: +2.50 ROS VAL'
+    })
+    expect(boardCell(valueRow(), col('value', 'droppable'), 'value').text).toBe('')
+  })
+
+  it('keys hidden column groups per mode and tab', () => {
+    expect(hiddenKey('value', 'QB', 'Signals')).toBe('v:Signals')
+    expect(hiddenKey('stats', 'ALL', 'Passing')).toBe('w:ALL:Passing')
+    expect(lockedGroup('value')).toBe('Rest of season')
+    expect(lockedGroup('proj')).toBe('Fantasy')
   })
 })

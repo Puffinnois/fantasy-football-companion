@@ -112,16 +112,16 @@ export function builderProblem(deal: BuilderDeal, pool: TradePool): string | nul
   )
 }
 
-/** "gets: Ja'Marr Chase" — with 3+ teams each source follows in brackets; "gets: nobody" when empty. */
+/** "Ja'Marr Chase" — with 3+ teams each source follows in brackets; "Nobody yet" when empty. */
 export function getsLine(deal: BuilderDeal, rosterId: number, pool: TradePool): string {
   const incoming = dealMoves(deal, pool.me.rosterId).filter((m) => m.to === rosterId)
-  if (incoming.length === 0) return 'gets: nobody'
+  if (incoming.length === 0) return 'Nobody yet'
   const multi = deal.teams.length >= 2
   const names = incoming.map((m) => {
     const name = playerName(pool, m.playerId)
     return multi ? `${name} (${teamLabel(pool, m.from)})` : name
   })
-  return `gets: ${names.join(', ')}`
+  return names.join(', ')
 }
 
 /** Verdict columns in the builder's card order — me, then the teams row; anything else last. */

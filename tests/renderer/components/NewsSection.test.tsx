@@ -34,8 +34,8 @@ describe('NewsSection', () => {
       'Headline 2'
     ])
     expect(screen.getByText('Description 1')).toBeTruthy()
-    expect(screen.getAllByText('FP')).toHaveLength(3)
-    expect(screen.getByText('News')).toBeTruthy()
+    expect(screen.getAllByText('FantasyPros')).toHaveLength(3)
+    expect(screen.getByText('Latest')).toBeTruthy()
   })
 
   it('renders nothing and requests nothing for a team defense', () => {
@@ -59,11 +59,11 @@ describe('NewsSection', () => {
     expect(await screen.findByText('No news.')).toBeTruthy()
   })
 
-  it('shows 8 items, reveals the rest on "Show more", and opens analysis on the newest only', async () => {
+  it('shows 3 items, reveals the rest on "Show more", and opens analysis on the newest only', async () => {
     newsMock.mockResolvedValueOnce(ready(newsList(10)))
     render(<NewsSection playerId="4046" position="QB" />)
     await screen.findByText('Headline 0')
-    expect(screen.getAllByRole('link')).toHaveLength(8)
+    expect(screen.getAllByRole('link')).toHaveLength(3)
     expect(screen.getByText('Analysis 0')).toBeTruthy()
     expect(screen.queryByText('Analysis 1')).toBeNull()
 
@@ -74,7 +74,7 @@ describe('NewsSection', () => {
     fireEvent.click(toggles[0])
     expect(screen.queryByText('Analysis 0')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show more (2)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show more (7)' }))
     expect(screen.getAllByRole('link')).toHaveLength(10)
     expect(screen.queryByRole('button', { name: /Show more/ })).toBeNull()
   })

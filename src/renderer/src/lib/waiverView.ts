@@ -18,7 +18,7 @@ export const STASH_SHOWN = 30
 export type StashSort = 'market' | 'trending' | 'rank'
 export const STASH_SORTS: { key: StashSort; label: string }[] = [
   { key: 'market', label: 'Market' },
-  { key: 'trending', label: 'Trending 24 h' },
+  { key: 'trending', label: 'Trending' },
   { key: 'rank', label: 'ROS rank' }
 ]
 
@@ -36,14 +36,14 @@ export const STREAM_SHOWN = 30
 /** What every release option carries — `AddOption` and `StreamOption` alike. */
 export type ReleaseChoice = Pick<AddOption, 'release' | 'releasePlayer'>
 
-/** Spec §8: "Drop Kendre Miller", "Open spot", "IR: Caleb Williams". */
+/** "Drop Kendre Miller", "Open spot", "Move Caleb Williams to IR". */
 export function releaseLabel(o: ReleaseChoice): string {
   const name = o.releasePlayer?.fullName ?? ''
   switch (o.release.kind) {
     case 'open':
       return 'Open spot'
     case 'ir':
-      return `IR: ${name}`
+      return `Move ${name} to IR`
     case 'drop':
       return `Drop ${name}`
   }
@@ -59,10 +59,6 @@ export function streamOptionLabel(o: StreamOption): string {
   return `${releaseLabel(o)} · ${fmtSigned(o.net)}`
 }
 
-export function weekOptionLabel(week: number, currentWeek: number): string {
-  return week === currentWeek ? `Week ${week} (this week)` : `Week ${week}`
-}
-
 /** Spec §4 / §8: the chip's streamers in engine order, `STREAM_SHOWN` at most. */
 export function filterStream(rows: StreamRow[], chip: string): StreamRow[] {
   return rows
@@ -76,17 +72,36 @@ export function noStreamers(week: number, chip: string): string {
   return `No ${who} beats your lineup in week ${week}.`
 }
 
-/** Spec §8: "wk 7, 9" up to three weeks, then "12 of 15 wks"; "—" when he never starts. */
+/** "Starts wk 7, 9" up to three weeks, then "Starts 12 of 15 wks"; "Never starts". */
 export function startsText(weeks: number[], windowWeeks: number): string {
-  if (weeks.length === 0) return '—'
-  if (weeks.length <= 3) return `wk ${weeks.join(', ')}`
-  return `${weeks.length} of ${windowWeeks} wks`
+  if (weeks.length === 0) return 'Never starts'
+  if (weeks.length <= 3) return `Starts wk ${weeks.join(', ')}`
+  return `Starts ${weeks.length} of ${windowWeeks} wks`
 }
 
-export function priorityLine(a: WaiverAdds): string | null {
-  return a.waiverType === 'priority' && a.myWaiverPosition !== null
-    ? `Waiver priority ${a.myWaiverPosition} of ${a.teamCount}`
-    : null
+/** My waiver claim position in a priority league; null with FAAB or when unknown. */
+export function claimPosition(a: WaiverAdds): number | null {
+  return a.waiverType === 'priority' ? a.myWaiverPosition : null
+}
+
+/** Lead strip of the rest-of-season view. */
+export function bestAddLine(a: WaiverAdds): string {
+  const top = a.lineup[0]
+  return top
+    ? `${top.player.fullName} is the best add: ${fmtSigned(top.options[0].deltaPerWeek)} points a week.`
+    : NO_LINEUP_ADDS
+}
+
+/** Week card subtitle: "This week" / "In 2". */
+export function weekCardSub(week: number, currentWeek: number): string {
+  return week === currentWeek ? 'This week' : `In ${week - currentWeek}`
+}
+
+/** "@ CAR" → { where: '@', team: 'CAR' }; a bare code has no where. */
+export function splitOpponent(opponent: string | null): { where: string; team: string } {
+  if (!opponent) return { where: '', team: '—' }
+  const [a, b] = opponent.split(' ')
+  return b ? { where: a, team: b } : { where: '', team: a }
 }
 
 /** FantasyPros ROS positional rank: "RB34". */
@@ -105,8 +120,8 @@ export function isFree(o: AddOption): boolean {
 
 export function trendingNote(fetchedAt: string | null, now: number = Date.now()): string {
   return fetchedAt === null
-    ? 'Trending adds unavailable — refresh to fetch them'
-    : `Trending adds fetched ${relativeTime(fetchedAt, now)}`
+    ? 'Trending adds unavailable. Refresh to fetch them.'
+    : `Trending = Sleeper adds in the last 24 h, fetched ${relativeTime(fetchedAt, now)}.`
 }
 
 function signal(row: StashRow, by: StashSort): number | null {

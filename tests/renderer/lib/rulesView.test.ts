@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   addableKeys,
   addableSlots,
+  categoryTabs,
   irStatusesOf,
   isOverridable,
+  lineupShape,
+  rosterSummary,
   scoringGroups,
+  seasonStrip,
   toggleIrStatus,
   unsupportedKeys
 } from '@/lib/rulesView'
@@ -71,5 +75,68 @@ describe('IR statuses (slice 6c spec §5.4)', () => {
     expect(toggleIrStatus(['IR', 'Out'], 'Out')).toEqual(['IR'])
     expect(toggleIrStatus(['IR'], 'IR')).toEqual(['IR'])
     expect(toggleIrStatus(undefined, 'PUP')).toEqual(['IR', 'PUP'])
+  })
+})
+
+describe('Edition rulebook helpers', () => {
+  const slots = [
+    { slot: 'QB', count: 1 },
+    { slot: 'BN', count: 6 },
+    { slot: 'FLEX', count: 2 },
+    { slot: 'RB', count: 2 },
+    { slot: 'IR', count: 1 }
+  ]
+
+  it('lays out the starting lineup and sums the roster', () => {
+    expect(lineupShape(slots)).toEqual(['QB', 'RB', 'RB', 'FLEX', 'FLEX'])
+    expect(rosterSummary(slots)).toBe('5 starters · Bench 6 · IR 1 · 11-man roster')
+    expect(rosterSummary([...slots, { slot: 'TAXI', count: 3 }])).toBe(
+      '5 starters · Bench 6 · IR 1 · Taxi 3 · 11-man roster'
+    )
+  })
+
+  it('draws the season with playoff rounds and the deadline', () => {
+    const base = { numTeams: 12, waiverType: 'faab' as const }
+    const strip = seasonStrip(
+      {
+        ...base,
+        playoffStartWeek: 15,
+        playoffTeams: 6,
+        playoffRoundType: 0,
+        tradeDeadlineWeek: 11
+      },
+      6
+    )
+    expect(strip).toHaveLength(18)
+    expect(strip[4].kind).toBe('past')
+    expect(strip[5].kind).toBe('now')
+    expect(strip[6].kind).toBe('next')
+    expect(strip[10].deadline).toBe(true)
+    expect(strip.slice(14).map((w) => [w.kind, w.round])).toEqual([
+      ['playoff', 'Round 1'],
+      ['playoff', 'Semis'],
+      ['playoff', 'Final'],
+      ['next', null]
+    ])
+    const twoWeekFinal = seasonStrip(
+      { ...base, playoffStartWeek: 15, playoffTeams: 4, playoffRoundType: 1 },
+      1
+    )
+    expect(twoWeekFinal.slice(14).map((w) => w.round)).toEqual(['Semis', 'Final', null, null])
+    expect(twoWeekFinal[16].kind).toBe('playoff')
+    expect(twoWeekFinal[17].kind).toBe('next')
+  })
+
+  it('counts stats, overrides and unsaved changes per category', () => {
+    const saved = { scoring: { pass_yd: 0.04, pass_td: 4, rec: 1 }, positionOverrides: {} }
+    const draft = {
+      scoring: { pass_yd: 0.04, pass_td: 6, rec: 1 },
+      positionOverrides: { TE: { rec: 1.5 } }
+    }
+    const tabs = categoryTabs(draft, saved)
+    expect(tabs.map((t) => [t.category, t.count, t.overrides, t.changed])).toEqual([
+      ['passing', 2, 0, true],
+      ['receiving', 1, 1, true]
+    ])
   })
 })

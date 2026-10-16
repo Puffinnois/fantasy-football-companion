@@ -92,3 +92,157 @@ export function toggleIrStatus(current: string[] | undefined, status: string): s
   }
   return canonicalIrStatuses([...set])
 }
+
+// ---------- Edition Rulebook (design handoff "Rules") ----------
+
+export const SLOT_NAME: Record<string, string> = {
+  QB: 'Quarterback',
+  RB: 'Running back',
+  WR: 'Wide receiver',
+  TE: 'Tight end',
+  FLEX: 'Flex · RB / WR / TE',
+  SUPER_FLEX: 'Superflex · QB / RB / WR / TE',
+  REC_FLEX: 'Receiver flex · WR / TE',
+  WRRB_FLEX: 'Flex · WR / RB',
+  K: 'Kicker',
+  DEF: 'Team defense',
+  DL: 'Defensive line',
+  LB: 'Linebacker',
+  DB: 'Defensive back',
+  IDP_FLEX: 'IDP flex',
+  BN: 'Bench',
+  IR: 'Injured reserve',
+  TAXI: 'Taxi squad'
+}
+
+/** Slots that hold players without scoring. */
+export const RESERVE_SLOTS: ReadonlySet<string> = new Set(['BN', 'IR', 'TAXI'])
+
+export const IR_TIP: Record<string, string> = {
+  IR: 'Injured reserve (always allowed)',
+  PUP: 'Physically unable to perform',
+  Out: 'Ruled out',
+  Doubtful: 'Doubtful',
+  Sus: 'Suspended',
+  NA: 'Not active',
+  DNR: 'Did not report',
+  COV: 'COVID list'
+}
+
+export const PLAYOFF_FORMATS: { value: number; label: string }[] = [
+  { value: 0, label: 'One-week rounds' },
+  { value: 1, label: 'Two-week final' },
+  { value: 2, label: 'Two-week rounds' }
+]
+
+/** One starter chip per starting spot, in KNOWN_SLOTS order. */
+export function lineupShape(slots: RosterSlotCount[]): string[] {
+  const order: readonly string[] = KNOWN_SLOTS
+  return slots
+    .filter((s) => !RESERVE_SLOTS.has(s.slot))
+    .sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot))
+    .flatMap((s) => Array.from({ length: s.count }, () => s.slot))
+}
+
+/** "9 starters · Bench 6 · IR 1 · 15-man roster" (IR and taxi stay outside the roster size). */
+export function rosterSummary(slots: RosterSlotCount[]): string {
+  const count = (slot: string): number => slots.find((s) => s.slot === slot)?.count ?? 0
+  const size = slots
+    .filter((s) => s.slot !== 'IR' && s.slot !== 'TAXI')
+    .reduce((a, s) => a + s.count, 0)
+  return [
+    `${lineupShape(slots).length} starters`,
+    `Bench ${count('BN')}`,
+    `IR ${count('IR')}`,
+    count('TAXI') ? `Taxi ${count('TAXI')}` : null,
+    `${size}-man roster`
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+export interface SeasonWeek {
+  week: number
+  kind: 'past' | 'now' | 'next' | 'playoff'
+  /** Round name under the first week of a playoff round. */
+  round: string | null
+  deadline: boolean
+}
+
+/**
+ * The 18-week strip of the League tab: playoff rounds = ceil(log2(playoff teams)) from the start
+ * week, two weeks each for format 2 and for the final with format 1.
+ */
+export function seasonStrip(
+  settings: LeagueSettings,
+  currentWeek: number,
+  last = 18
+): SeasonWeek[] {
+  const start = settings.playoffStartWeek ?? 15
+  const teams = settings.playoffTeams ?? 0
+  const type = settings.playoffRoundType ?? 0
+  const rounds = teams > 1 ? Math.ceil(Math.log2(teams)) : 0
+  const names = Array.from({ length: rounds }, (_, i) =>
+    i === rounds - 1 ? 'Final' : i === rounds - 2 ? 'Semis' : `Round ${i + 1}`
+  )
+  const roundOf = new Map<number, { name: string; first: boolean }>()
+  let w = start
+  names.forEach((name, i) => {
+    const len = type === 2 || (type === 1 && i === rounds - 1) ? 2 : 1
+    for (let k = 0; k < len; k++) roundOf.set(w++, { name, first: k === 0 })
+  })
+  return Array.from({ length: last }, (_, i) => {
+    const week = i + 1
+    const po = roundOf.get(week)
+    return {
+      week,
+      kind: po ? 'playoff' : week < currentWeek ? 'past' : week === currentWeek ? 'now' : 'next',
+      round: po?.first ? po.name : null,
+      deadline: settings.tradeDeadlineWeek === week
+    }
+  })
+}
+
+export interface CategoryTab {
+  category: StatCategory
+  label: string
+  count: number
+  overrides: number
+  /** Some stat of the category differs from the saved rules. */
+  changed: boolean
+}
+
+/** Scoring rail: categories with stats, their override counts and unsaved marks. */
+export function categoryTabs(
+  draft: {
+    scoring: Record<StatKey, number>
+    positionOverrides: Partial<Record<Position, Record<StatKey, number>>>
+  },
+  saved: {
+    scoring: Record<StatKey, number>
+    positionOverrides: Partial<Record<Position, Record<StatKey, number>>>
+  }
+): CategoryTab[] {
+  return scoringGroups(draft.scoring).map((g) => {
+    const keys = g.rows.map((r) => r.key)
+    const overrides = keys.reduce(
+      (n, k) =>
+        n + OVERRIDE_POSITIONS.filter((p) => draft.positionOverrides[p]?.[k] !== undefined).length,
+      0
+    )
+    const changed = keys.some(
+      (k) =>
+        draft.scoring[k] !== saved.scoring[k] ||
+        OVERRIDE_POSITIONS.some(
+          (p) => draft.positionOverrides[p]?.[k] !== saved.positionOverrides[p]?.[k]
+        )
+    )
+    return {
+      category: g.category,
+      label: g.category === 'other' ? 'Unknown to the app' : g.label,
+      count: g.rows.length,
+      overrides,
+      changed
+    }
+  })
+}
