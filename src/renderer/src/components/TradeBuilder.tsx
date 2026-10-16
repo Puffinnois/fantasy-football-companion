@@ -1,8 +1,6 @@
-import { X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { PositionBadge } from '@/components/PositionBadge'
-import { swapLine } from '@/lib/lineupView'
+import { Check, Search, X } from 'lucide-react'
+import { InjuryTag, MeChip, PosChip, ToneChip } from '@/components/edition'
+import { fmtSigned } from '@/lib/format'
 import {
   addPick,
   addTeam,
@@ -19,20 +17,15 @@ import {
 } from '@/lib/tradeBuilder'
 import {
   NO_VERDICT_HINT,
-  deltaLine,
-  deltaTone,
-  dropLine,
+  fmtMarket,
   groupByPosition,
-  marketLine,
-  openSpotLine,
+  marketFairSide,
+  marketRatio,
   playerOption,
   playerStats,
-  rangeLine,
-  SELECT_CLASS,
   spotFor,
-  TONE_CLASS,
-  verdictBadges,
-  verdictGetsLine
+  swapText,
+  verdictBadges
 } from '@/lib/tradeView'
 import { cn } from '@/lib/utils'
 import type {
@@ -44,6 +37,14 @@ import type {
   TradePool,
   TradeSideResult
 } from '@shared/types'
+
+const pillSelect =
+  'h-[26px] cursor-pointer self-start rounded-full border border-line bg-panel px-2 text-[12.5px] font-medium text-fg outline-none'
+const toneText = (n: number): string => (n > 0 ? 'text-good' : n < 0 ? 'text-bad' : 'text-fg-2')
+const BADGE_TIP: Record<string, string> = {
+  'Everyone gains': 'Every team in the deal is stronger over the rest of the season',
+  'Market-fair': 'Every team gets at least 90 % of the market value it gives'
+}
 
 function PlayerRow({
   player,
@@ -60,34 +61,45 @@ function PlayerRow({
   onRemove: () => void
 }): React.JSX.Element {
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <PositionBadge position={player.position} />
-      <button type="button" className="font-medium hover:underline" onClick={() => onOpen(player)}>
-        {player.fullName}
-      </button>
-      <span className="text-muted-foreground">{player.team ?? ''}</span>
-      {player.reserve && (
-        <span className="rounded bg-muted px-1 text-xs font-semibold uppercase text-muted-foreground">
-          {player.reserve}
+    <div className="grid grid-cols-[34px_minmax(0,1fr)_24px] items-start gap-x-2.5 border-b border-line py-[11px]">
+      <PosChip position={player.position} size="sm" />
+      <div className="flex min-w-0 flex-col gap-[5px]">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => onOpen(player)}
+            className="cursor-pointer truncate text-left text-[14.5px] leading-[1.1] font-semibold tracking-[-0.01em] hover:underline"
+          >
+            {player.fullName}
+          </button>
+          <span className="shrink-0 text-[12px] leading-none text-fg-3">{player.team ?? ''}</span>
+          <InjuryTag status={player.injuryStatus} />
+          {player.reserve && (
+            <span className="shrink-0 rounded-[2px] px-1 py-0.5 font-cond text-[11px] leading-none font-extrabold text-fg-2 uppercase shadow-[inset_0_0_0_1px_var(--line)]">
+              {player.reserve}
+            </span>
+          )}
+        </div>
+        <span className="font-mono text-[11.5px] leading-[1.2] text-fg-3">
+          {playerStats(player, weeks)}
         </span>
-      )}
-      <span className="ml-auto text-xs text-muted-foreground">{playerStats(player, weeks)}</span>
-      {destination}
-      <Button
+        {destination}
+      </div>
+      <button
         type="button"
-        variant="ghost"
-        size="icon-xs"
         aria-label={`Remove ${player.fullName}`}
+        title="Remove from the deal"
         onClick={onRemove}
+        className="flex size-6 cursor-pointer items-center justify-center rounded-full text-fg-3 hover:bg-hover hover:text-bad"
       >
-        <X />
-      </Button>
+        <X className="size-3.5" />
+      </button>
     </div>
   )
 }
 
-/** Multi-team spec §5.1: one team's card — what it sends and where to, a picker, what it gets. */
-function TeamCard({
+/** One team's column: what it sends and where to, a picker, what it gets. */
+function TeamColumn({
   pool,
   deal,
   rosterId,
@@ -101,9 +113,10 @@ function TeamCard({
   onOpen: (p: DetailTarget) => void
 }): React.JSX.Element {
   const me = pool.me.rosterId
-  const team = rosterId === me ? pool.me : pool.teams.find((t) => t.rosterId === rosterId)
+  const isMe = rosterId === me
+  const team = isMe ? pool.me : pool.teams.find((t) => t.rosterId === rosterId)
   const roster = team?.players ?? []
-  const title = rosterId === me ? 'I send' : `${teamLabel(pool, rosterId)} sends`
+  const name = isMe ? pool.me.name : teamLabel(pool, rosterId)
   const picks = deal.picks.filter((p) => p.from === rosterId)
   const rows = picks.flatMap((pick) => {
     const player = roster.find((p) => p.playerId === pick.playerId)
@@ -115,7 +128,7 @@ function TeamCard({
     deal.teams.length < 2 ? null : (
       <select
         aria-label={`Destination of ${player.fullName}`}
-        className={SELECT_CLASS}
+        className={cn(pillSelect, 'mt-0.5')}
         value={destinationOf(deal, pick, me) ?? ''}
         onChange={(e) => onChange(setDestination(deal, pick.playerId, Number(e.target.value)))}
       >
@@ -127,43 +140,94 @@ function TeamCard({
       </select>
     )
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {rows.map(({ pick, player }) => (
-          <PlayerRow
-            key={player.playerId}
-            player={player}
-            weeks={pool.weeks}
-            destination={destination(pick, player)}
-            onOpen={onOpen}
-            onRemove={() => onChange(removePick(deal, player.playerId))}
-          />
+    <div className="flex min-w-[250px] flex-[1_1_0] flex-col">
+      <div className="flex shrink-0 items-end justify-between gap-2.5 border-b-2 border-ink pb-2">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <div className="flex items-center gap-[7px]">
+            <span className="ed-section">{isMe ? 'You send' : 'They send'}</span>
+            {isMe && <MeChip className="px-[5px] py-0.5 text-[11px]">YOU</MeChip>}
+          </div>
+          <span className="truncate text-[12.5px] leading-[1.1] font-medium text-fg-3">{name}</span>
+        </div>
+        {!isMe && (
+          <button
+            type="button"
+            aria-label={`Remove team ${name}`}
+            title="Take this team out of the deal"
+            onClick={() => onChange(removeTeam(deal, rosterId))}
+            className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line text-fg-3 hover:border-ink hover:text-fg"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
+      </div>
+      {rows.map(({ pick, player }) => (
+        <PlayerRow
+          key={player.playerId}
+          player={player}
+          weeks={pool.weeks}
+          destination={destination(pick, player)}
+          onOpen={onOpen}
+          onRemove={() => onChange(removePick(deal, player.playerId))}
+        />
+      ))}
+      {rows.length === 0 && (
+        <div className="pt-4 pb-1 text-[13px] leading-[1.35] text-fg-3">
+          Nobody in the deal yet.
+        </div>
+      )}
+      <select
+        aria-label={isMe ? 'Add to You send' : `Add to ${name} sends`}
+        value=""
+        onChange={(e) => {
+          if (e.target.value) onChange(addPick(deal, e.target.value, rosterId))
+        }}
+        className="mt-3 h-[34px] cursor-pointer rounded-full border-[1.5px] border-dashed border-line bg-transparent px-3.5 font-cond text-[14px] leading-none font-bold tracking-[0.06em] text-fg-2 uppercase outline-none hover:border-ink"
+      >
+        <option value="">{isMe ? '+ Add one of your players' : `+ Add from ${name}`}</option>
+        {groupByPosition(available).map(([pos, players]) => (
+          <optgroup key={pos} label={pos}>
+            {players.map((p) => (
+              <option key={p.playerId} value={p.playerId}>
+                {playerOption(p)}
+              </option>
+            ))}
+          </optgroup>
         ))}
-        <select
-          aria-label={`Add to ${title}`}
-          className={SELECT_CLASS}
-          value=""
-          onChange={(e) => {
-            if (e.target.value) onChange(addPick(deal, e.target.value, rosterId))
-          }}
-        >
-          <option value="">+ add player</option>
-          {groupByPosition(available).map(([pos, players]) => (
-            <optgroup key={pos} label={pos}>
-              {players.map((p) => (
-                <option key={p.playerId} value={p.playerId}>
-                  {playerOption(p)}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-        <p className="text-xs text-muted-foreground">{getsLine(deal, rosterId, pool)}</p>
-      </CardContent>
-    </Card>
+      </select>
+      <div className="mt-3.5 flex gap-1.5 text-[12.5px] leading-[1.4] text-fg-2">
+        <span className="shrink-0 font-cond text-[12.5px] leading-[1.4] font-extrabold tracking-[0.1em] text-fg-3 uppercase">
+          Gets
+        </span>
+        <span>{getsLine(deal, rosterId, pool)}</span>
+      </div>
+    </div>
+  )
+}
+
+function MarketBars({ side }: { side: TradeSideResult }): React.JSX.Element {
+  const mx = Math.max(side.marketGive, side.marketGet, 1)
+  const bar = (label: string, v: number, color: string): React.JSX.Element => (
+    <div className="grid h-4 grid-cols-[40px_minmax(0,1fr)_52px] items-center gap-2.5">
+      <span className="font-cond text-[12px] leading-none font-bold tracking-[0.1em] text-fg-3 uppercase">
+        {label}
+      </span>
+      <div className="relative h-2 rounded-[2px] bg-panel-2">
+        <div
+          className={cn('absolute inset-y-0 left-0 rounded-[2px]', color)}
+          style={{ width: `${Math.max(1.5, (v / mx) * 100)}%` }}
+        />
+      </div>
+      <span className="text-right font-mono text-[12px] leading-none font-medium text-fg-2">
+        {fmtMarket(v)}
+      </span>
+    </div>
+  )
+  return (
+    <div className="flex flex-col gap-[5px]">
+      {bar('Gives', side.marketGive, 'bg-fg-3')}
+      {bar('Gets', side.marketGet, marketFairSide(side) ? 'bg-good' : 'bg-bad')}
+    </div>
   )
 }
 
@@ -174,84 +238,78 @@ function SideVerdict({
 }: {
   side: TradeSideResult
   spot: OpenSpot | null
-  /** "gets X from Y", only with 3+ teams. */
+  /** "Gets X from Y", only with 3+ teams. */
   gets: string | null
 }): React.JSX.Element {
-  const drop = dropLine(side)
+  const unvalued = side.unvaluedGive + side.unvaluedGet
   return (
     <div
       role="group"
       aria-label={side.isMe ? 'Verdict for me' : `Verdict for ${side.name}`}
-      className="space-y-1 text-sm"
+      className="flex flex-col gap-2 border-b border-line pt-4 pb-[18px]"
     >
-      <div className="font-semibold">{side.isMe ? `Me · ${side.name}` : side.name}</div>
-      <div className={cn('text-2xl font-semibold', TONE_CLASS[deltaTone(side.delta)])}>
-        {deltaLine(side)}
+      <div className="flex min-w-0 items-center gap-[7px]">
+        <span className="truncate font-cond text-[17px] leading-none font-extrabold tracking-[0.06em] uppercase">
+          {side.name}
+        </span>
+        {side.isMe && <MeChip className="px-[5px] py-0.5 text-[11px]">YOU</MeChip>}
       </div>
-      <div className="text-muted-foreground">{rangeLine(side)}</div>
-      {gets && <div className="text-muted-foreground">{gets}</div>}
-      {drop && <div className="text-warn">{drop}</div>}
-      {spot && <div className="text-pos-wr">{openSpotLine(spot)}</div>}
-      <div className="text-muted-foreground">{marketLine(side)}</div>
+      <div className="flex items-end justify-between gap-3">
+        <div className="flex items-baseline gap-1.5">
+          <span
+            className={cn(
+              'font-cond text-[48px] leading-[0.82] font-extrabold',
+              toneText(side.delta)
+            )}
+          >
+            {fmtSigned(side.deltaPerWeek)}
+          </span>
+          <span className="font-cond text-[14px] leading-none font-bold tracking-[0.1em] text-fg-3 uppercase">
+            / week
+          </span>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <span className="font-cond text-[18px] leading-none font-extrabold">
+            {fmtSigned(side.delta, 1)}
+          </span>
+          <span className="text-[11.5px] leading-none text-fg-3">season total</span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-[3px] text-[12.5px] leading-[1.35] text-fg-2">
+        <span className="font-mono text-[12px]">
+          ROS {side.before.toFixed(1)} → {side.after.toFixed(1)}
+        </span>
+        <span>
+          This week {fmtSigned(side.thisWeekDelta, 1)} ·{' '}
+          {side.weeksChanged === 1 ? '1 week changes' : `${side.weeksChanged} weeks change`}
+        </span>
+        {gets && <span>{gets}</span>}
+        {side.drops.length > 0 && (
+          <span className="font-medium text-warn">
+            Has to drop {side.drops.map((p) => p.fullName).join(', ')}
+          </span>
+        )}
+        {spot && (
+          <span className="text-brand-fg">
+            {spot.add
+              ? `Open spot after the deal: best add ${spot.add.fullName}, ${fmtSigned(spot.deltaPerWeek)}/wk`
+              : 'Open spot after the deal: no free agent helps'}
+          </span>
+        )}
+      </div>
+      <div className="mt-1 flex flex-col gap-1.5">
+        <div className="flex justify-between font-cond text-[12.5px] leading-none font-extrabold tracking-[0.12em] uppercase">
+          <span className="text-fg-2">Market value</span>
+          <span>{marketRatio(side)}</span>
+        </div>
+        <MarketBars side={side} />
+        {unvalued > 0 && (
+          <span className="text-[11.5px] leading-none text-fg-3">
+            {unvalued} player{unvalued === 1 ? '' : 's'} without a market value
+          </span>
+        )}
+      </div>
     </div>
-  )
-}
-
-/** Multi-team spec §5.1: one column per team, the badges, this week's swaps on my side. */
-function VerdictCard({
-  ev,
-  sides,
-  spots
-}: {
-  ev: TradeEvaluation
-  sides: TradeSideResult[]
-  spots: TradeOpenSpots | null
-}): React.JSX.Element {
-  const multi = ev.sides.length > 2
-  const swaps = ev.sides[0].thisWeekSwaps
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Verdict</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {sides.map((side) => (
-            <SideVerdict
-              key={side.rosterId}
-              side={side}
-              spot={spotFor(spots, side.rosterId)}
-              gets={multi ? verdictGetsLine(side, ev) : null}
-            />
-          ))}
-        </div>
-        <div className="flex gap-2">
-          {verdictBadges(ev).map((b) => (
-            <span
-              key={b.label}
-              className={cn(
-                'rounded px-2 py-0.5 text-xs font-bold',
-                b.on ? 'bg-good-s text-good' : 'bg-muted text-muted-foreground'
-              )}
-            >
-              {b.label}
-            </span>
-          ))}
-        </div>
-        <div>
-          <div className="mb-1 text-sm font-medium">This week</div>
-          {swaps.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Your lineup this week does not change.</p>
-          ) : (
-            <ul className="space-y-1 text-sm">
-              {swaps.map((s) => (
-                <li key={`${s.slot}:${s.in.playerId}`}>{swapLine(s)}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   )
 }
 
@@ -267,11 +325,11 @@ export interface TradeBuilderProps {
   onOpenPlayer: (p: DetailTarget) => void
   /** A search is running: the shortcut below waits. */
   finding: boolean
-  /** 6b's shortcut into the suggestions, offered for a 2-team deal. */
+  /** "Find deals with {team}", offered for a 2-team deal. */
   onSuggestWith: (rosterId: number) => void
 }
 
-/** Multi-team spec §5.1: the teams row, one card per team, Evaluate behind the inline rule, the verdict. */
+/** The Build tab: toolbar, one column per team, and the verdict aside. */
 export function TradeBuilder({
   pool,
   deal,
@@ -289,83 +347,167 @@ export function TradeBuilder({
   const addable = pool.teams.filter((t) => !deal.teams.includes(t.rosterId))
   const problem = builderProblem(deal, pool)
   const hint = deal.picks.length === 0 ? NO_VERDICT_HINT : problem
+  const canEval = problem === null && !evaluating
+  const teamCount = deal.teams.length + 1
+  const sides = verdict ? sidesInOrder(verdict, deal, me) : []
+  const multi = verdict !== null && verdict.sides.length > 2
+  const source = (rosterId: number): string => {
+    const s = verdict?.sides.find((x) => x.rosterId === rosterId)
+    return !s ? `team ${rosterId}` : s.isMe ? 'me' : s.name
+  }
+  const mine = verdict?.sides.find((s) => s.isMe) ?? null
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-muted-foreground">Teams in deal</span>
-        <span className="rounded-md border px-2 py-1">Me · {pool.me.name}</span>
-        {deal.teams.map((t) => (
-          <span key={t} className="flex items-center gap-1 rounded-md border py-0.5 pl-2 pr-0.5">
-            {teamLabel(pool, t)}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              aria-label={`Remove team ${teamLabel(pool, t)}`}
-              onClick={() => onDealChange(removeTeam(deal, t))}
+    <div className="flex min-h-0 flex-1 pl-8">
+      <div className="flex min-w-0 flex-1 flex-col pr-7">
+        <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-line">
+          {addable.length > 0 && (
+            <select
+              aria-label="Add team"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) onDealChange(addTeam(deal, Number(e.target.value)))
+              }}
+              className="h-8 cursor-pointer rounded-full border border-line bg-panel px-3 font-cond text-[14px] leading-none font-bold tracking-[0.06em] text-fg uppercase outline-none"
             >
-              <X />
-            </Button>
+              <option value="">+ Add a team</option>
+              {addable.map((t) => (
+                <option key={t.rosterId} value={t.rosterId}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {deal.teams.length === 1 && (
+            <button
+              type="button"
+              disabled={finding}
+              onClick={() => onSuggestWith(deal.teams[0])}
+              className="flex h-8 cursor-pointer items-center gap-1.5 rounded-full border border-line px-3.5 font-cond text-[14px] leading-none font-bold tracking-[0.06em] text-fg-2 uppercase hover:border-ink hover:text-fg disabled:cursor-default disabled:opacity-50"
+            >
+              <Search className="size-3.5" />
+              Find deals with {teamLabel(pool, deal.teams[0])}
+            </button>
+          )}
+          <span className="ml-auto text-[12.5px] leading-none text-fg-3">
+            {deal.picks.length > 0
+              ? `${deal.picks.length} player${deal.picks.length === 1 ? '' : 's'} moving · ${teamCount} teams`
+              : `${teamCount} teams in the deal`}
           </span>
-        ))}
-        {addable.length > 0 && (
-          <select
-            aria-label="Add team"
-            className={SELECT_CLASS}
-            value=""
-            onChange={(e) => {
-              if (e.target.value) onDealChange(addTeam(deal, Number(e.target.value)))
-            }}
-          >
-            <option value="">+ add team</option>
-            {addable.map((t) => (
-              <option key={t.rosterId} value={t.rosterId}>
-                {t.name}
-              </option>
+          {deal.picks.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onDealChange({ teams: deal.teams, picks: [] })}
+              className="h-7 cursor-pointer rounded-full px-2.5 font-cond text-[13px] leading-none font-bold tracking-[0.08em] text-fg-2 uppercase hover:text-fg"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="flex min-h-0 flex-1 gap-[22px] overflow-auto pt-4 pb-6">
+          {[me, ...deal.teams].map((rosterId) => (
+            <TeamColumn
+              key={rosterId}
+              pool={pool}
+              deal={deal}
+              rosterId={rosterId}
+              onChange={onDealChange}
+              onOpen={onOpenPlayer}
+            />
+          ))}
+        </div>
+      </div>
+      <aside className="w-[400px] shrink-0 overflow-auto border-l border-line pr-8 pb-6 pl-7">
+        <div className="sticky top-0 z-[2] flex h-[52px] items-end justify-between border-b-2 border-ink bg-paper pb-[9px]">
+          <span className="ed-section">The verdict</span>
+          <span className="ed-label text-fg-3">
+            Weeks {pool.currentWeek}–{pool.lastWeek}
+          </span>
+        </div>
+        {!verdict && (
+          <div className="flex flex-col items-start gap-3 py-7">
+            <span className="font-cond text-[30px] leading-[0.95] font-extrabold uppercase">
+              {deal.picks.length === 0
+                ? 'Build a deal.'
+                : problem
+                  ? 'Not a trade yet.'
+                  : 'Ready when you are.'}
+            </span>
+            <span className="text-[13.5px] leading-[1.45] text-pretty text-fg-2">
+              {hint ??
+                "Every team's rest-of-season strength, before and after, on Sleeper projections under your scoring."}
+            </span>
+            <button
+              type="button"
+              disabled={!canEval}
+              onClick={onEvaluate}
+              className={cn(
+                'mt-1.5 h-[38px] rounded-full px-5 font-cond text-[16px] leading-none font-extrabold tracking-[0.08em] uppercase',
+                canEval
+                  ? 'cursor-pointer bg-brand text-on-brand hover:brightness-105'
+                  : 'cursor-not-allowed border border-line text-fg-3'
+              )}
+            >
+              {evaluating ? 'Evaluating…' : 'Evaluate the deal'}
+            </button>
+            {evalError && <span className="text-bad">{evalError}</span>}
+          </div>
+        )}
+        {verdict && (
+          <>
+            {sides.map((side) => (
+              <SideVerdict
+                key={side.rosterId}
+                side={side}
+                spot={spotFor(spots, side.rosterId)}
+                gets={
+                  multi
+                    ? `Gets ${side.get.map((p) => `${p.fullName} from ${source(p.from)}`).join(' · ')}`
+                    : null
+                }
+              />
             ))}
-          </select>
+            <div className="flex flex-wrap gap-1.5 py-3.5">
+              {verdictBadges(verdict).map((b) => (
+                <span
+                  key={b.label}
+                  title={BADGE_TIP[b.label]}
+                  className={cn(
+                    'flex h-6 items-center rounded-[3px] font-cond text-[13px] leading-none font-extrabold tracking-[0.08em] uppercase',
+                    b.on
+                      ? 'gap-[5px] bg-good pr-[9px] pl-[7px] text-on-pos'
+                      : 'border border-dashed border-line px-[9px] text-fg-3 line-through'
+                  )}
+                >
+                  {b.on && <Check className="size-3" />}
+                  {b.label}
+                </span>
+              ))}
+            </div>
+            <div className="flex h-[30px] items-end border-b-2 border-ink pb-[7px] font-cond text-[14px] leading-none font-extrabold tracking-[0.12em] uppercase">
+              Your lineup this week
+            </div>
+            {(mine?.thisWeekSwaps ?? []).length === 0 ? (
+              <div className="py-3 text-[13px] leading-[1.35] text-fg-3">Doesn&apos;t change.</div>
+            ) : (
+              (mine?.thisWeekSwaps ?? []).map((w) => (
+                <div
+                  key={`${w.slot}:${w.in.playerId}`}
+                  className="grid min-h-10 grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-line py-1.5"
+                >
+                  <PosChip position={w.slot} size="fill" className="h-[22px] w-10" />
+                  <span className="text-[13px] leading-[1.3] font-medium">{swapText(w)}</span>
+                  <ToneChip
+                    tone={w.delta > 0 ? 'good' : w.delta < 0 ? 'bad' : 'neutral'}
+                    className="text-[13px]"
+                  >
+                    {fmtSigned(w.delta, 1)}
+                  </ToneChip>
+                </div>
+              ))
+            )}
+          </>
         )}
-        {deal.teams.length === 1 && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="ml-auto"
-            disabled={finding}
-            onClick={() => onSuggestWith(deal.teams[0])}
-          >
-            Suggest with this team
-          </Button>
-        )}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        {[me, ...deal.teams].map((rosterId) => (
-          <TeamCard
-            key={rosterId}
-            pool={pool}
-            deal={deal}
-            rosterId={rosterId}
-            onChange={onDealChange}
-            onOpen={onOpenPlayer}
-          />
-        ))}
-      </div>
-
-      <div className="flex items-center gap-4">
-        <Button type="button" disabled={problem !== null || evaluating} onClick={onEvaluate}>
-          Evaluate
-        </Button>
-        {evaluating && <span className="text-sm text-muted-foreground">Evaluating…</span>}
-        {evalError && <span className="text-destructive text-sm">{evalError}</span>}
-        {!verdict && !evaluating && !evalError && hint && (
-          <span className="text-sm text-muted-foreground">{hint}</span>
-        )}
-      </div>
-
-      {verdict && (
-        <VerdictCard ev={verdict} sides={sidesInOrder(verdict, deal, me)} spots={spots} />
-      )}
+      </aside>
     </div>
   )
 }

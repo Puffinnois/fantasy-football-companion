@@ -16,8 +16,8 @@ import type {
 } from '@shared/types'
 
 export const DEADLINE_NOTE =
-  'The trade deadline has passed — Sleeper no longer accepts trades; evaluation still works.'
-export const NO_VERDICT_HINT = 'Add players to every team in the deal and evaluate.'
+  'The trade deadline has passed. Sleeper no longer accepts trades, but evaluation still works.'
+export const NO_VERDICT_HINT = 'Add players to every team in the deal, then evaluate.'
 
 /** "weeks 3–17 · 15 weeks" */
 export function windowLabel(p: { currentWeek: number; lastWeek: number; weeks: number }): string {
@@ -91,11 +91,16 @@ export function startsLabel(p: TradePlayer, weeks: number): string {
 
 const ros = (p: TradePlayer): string => (p.rosPoints === null ? '—' : p.rosPoints.toFixed(1))
 
-/** "ROS 118.4 · ECR 1 · MKT 9 340 · starts 15/15" */
+/** "ROS 118.4 · WR12 · MKT 9 340 · Starts 15/15"; the expert rank and market only when known. */
 export function playerStats(p: TradePlayer, weeks: number): string {
-  const ecr = p.expert ? String(p.expert.ecrPosRank) : '—'
-  const mkt = p.market ? fmtMarket(p.market.value) : '—'
-  return `ROS ${ros(p)} · ECR ${ecr} · MKT ${mkt} · ${startsLabel(p, weeks)}`
+  return [
+    `ROS ${ros(p)}`,
+    p.expert && p.position ? `${p.position}${p.expert.ecrPosRank}` : null,
+    p.market ? `MKT ${fmtMarket(p.market.value)}` : null,
+    `Starts ${p.starterWeeks}/${weeks}`
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 /** Picker option text: "Justin Jefferson · MIN · ROS 128.0" (IR / TAXI tag when reserved). */
@@ -135,9 +140,9 @@ export const STANCE_OPTIONS: { value: TradeStance; label: string }[] = [
 
 /** Display of spec §3.3's stance table — the numbers live in `src/main/trade/suggest.ts`. */
 const STANCE_HINTS: Record<TradeStance, string> = {
-  premium: 'I gain ≥ 1 pt/week and get ≥ 100 % of the market value I give',
-  fair: 'I gain and get ≥ 85 % of the market value I give',
-  overpay: 'I lose ≤ 1 pt/week and get ≥ 70 % of the market value I give'
+  premium: 'I gain at least 1 pt/week and get 100 % or more of the market value I give',
+  fair: 'I gain and get at least 85 % of the market value I give',
+  overpay: 'I lose at most 1 pt/week and get at least 70 % of the market value I give'
 }
 
 export function stanceHint(stance: TradeStance): string {
@@ -145,9 +150,9 @@ export function stanceHint(stance: TradeStance): string {
 }
 
 const NO_OFFERS: Record<TradeStance, string> = {
-  premium: 'No offers at this stance — try fair or overpay',
-  fair: 'No offers at this stance — try overpay',
-  overpay: 'No offers — widen the focus or pick another team'
+  premium: 'No offers at this stance. Try Fair or Overpay.',
+  fair: 'No offers at this stance. Try Overpay.',
+  overpay: 'No offers. Widen the focus or pick another team.'
 }
 
 export function noOffersHint(stance: TradeStance): string {
@@ -277,7 +282,7 @@ export function teamCountOptions(leagueSize: number): number[] {
   return Array.from({ length: Math.max(leagueSize - 1, 1) }, (_, i) => i + 2)
 }
 
-export const CONTROLS_CHANGED = 'Controls changed — Find to rerun'
+export const CONTROLS_CHANGED = 'Controls changed. Find deals to rerun.'
 
 /** "0:37", "12:05" */
 export function fmtElapsed(ms: number): string {
@@ -294,15 +299,15 @@ export function suggestStatusLine(snap: SuggestSnapshot): string {
       return `Searching ${p.size}-team deals · ${fmtMarket(p.checked)} of ${fmtMarket(p.total)} ideas checked · ${n} found · ${fmtElapsed(p.elapsedMs)}`
     }
     case 'full':
-      return `Done: best ${n} found — nothing left could rank higher`
+      return `Done. Best ${n} found, nothing left could rank higher.`
     case 'complete':
-      return n === 0 ? noOffersHint(snap.query.stance) : `Done: ${n} found, every idea checked`
+      return n === 0 ? noOffersHint(snap.query.stance) : `Done. ${n} found, every idea checked.`
     case 'stopped':
-      return `Stopped: ${n} found so far`
+      return `Stopped. ${n} found so far.`
     case 'stale':
       return snap.message === null
-        ? 'League data changed — run again'
-        : `Search failed: ${snap.message} · League data changed — run again`
+        ? 'League data changed. Run again.'
+        : `Search failed: ${snap.message} · League data changed. Run again.`
     case 'error':
       return `Search failed: ${snap.message ?? 'unknown error'}`
   }
@@ -342,4 +347,56 @@ export function otherWaysLabel(n: number): string {
 /** "via Rival: Bijan Robinson · worst side -0.30/wk" */
 export function alternativeLine(a: TradeAlternative): string {
   return `${a.label} · worst side ${fmtSigned(a.worstDeltaPerWeek)}/wk`
+}
+
+// ---------- Edition trade desk (design handoff "Trade") ----------
+
+/** "93 %" market ratio of what a side gets over what it gives; "—" / "∞" without a give side. */
+export function marketRatio(s: TradeSideResult): string {
+  if (s.marketGive === 0) return s.marketGet === 0 ? '—' : '∞'
+  return `${Math.round((s.marketGet / s.marketGive) * 100)} %`
+}
+
+/** The design's market-fair cut for the Gets bar: at least 90 % of what is given. */
+export function marketFairSide(s: TradeSideResult): boolean {
+  return s.marketGet >= 0.9 * s.marketGive
+}
+
+/** My ROS rank among every team now and with the deal's sides at their `after` totals. */
+export function rankWithDeal(
+  strengths: { rosterId: number; rosTotal: number | null }[],
+  me: number,
+  ev: TradeEvaluation | null
+): { now: number; after: number; teams: number } | null {
+  if (strengths.length === 0 || !strengths.some((s) => s.rosterId === me)) return null
+  const rankIn = (m: Map<number, number>): number =>
+    [...m.entries()].sort((a, b) => b[1] - a[1]).findIndex(([id]) => id === me) + 1
+  const totals = new Map(strengths.map((s) => [s.rosterId, s.rosTotal ?? 0]))
+  const now = rankIn(totals)
+  if (!ev) return { now, after: now, teams: totals.size }
+  const after = new Map(totals)
+  for (const side of ev.sides) after.set(side.rosterId, side.after)
+  return { now, after: rankIn(after), teams: totals.size }
+}
+
+/** "▲ 2 spots" / "▼ 1 spot" / "No change" for a rank that moved from `now` to `after`. */
+export function rankMove(
+  now: number,
+  after: number
+): { text: string; tone: 'good' | 'bad' | 'neutral' } {
+  const moved = now - after
+  if (moved === 0) return { text: 'No change', tone: 'neutral' }
+  const n = Math.abs(moved)
+  return {
+    text: `${moved > 0 ? '▲' : '▼'} ${n} spot${n === 1 ? '' : 's'}`,
+    tone: moved > 0 ? 'good' : 'bad'
+  }
+}
+
+/** "Start Ja'Marr Chase over Justin Jefferson" / "Start Ja'Marr Chase". */
+export function swapText(s: {
+  in: { fullName: string }
+  out: { fullName: string } | null
+}): string {
+  return s.out ? `Start ${s.in.fullName} over ${s.out.fullName}` : `Start ${s.in.fullName}`
 }

@@ -13,7 +13,7 @@ import { useTheme } from '@/lib/theme'
 import { useUpdateState } from '@/lib/useUpdateState'
 
 /** Screens with an Edition masthead lay out their own scroll regions; the rest scroll as a page. */
-const FULL_BLEED: Screen[] = ['league', 'players', 'lineup', 'waivers', 'rules', 'setup']
+const FULL_BLEED: Screen[] = ['league', 'players', 'lineup', 'trade', 'waivers', 'rules', 'setup']
 
 export default function App(): React.JSX.Element {
   const [screen, setScreen] = useState<Screen>('league')

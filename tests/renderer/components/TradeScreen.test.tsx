@@ -21,6 +21,8 @@ import {
 vi.mock('@/lib/api', () => ({
   api: {
     players: { options: vi.fn(), detail: vi.fn() },
+    league: { get: vi.fn() },
+    lineup: { strength: vi.fn() },
     trade: {
       pool: vi.fn(),
       evaluate: vi.fn(),
@@ -40,6 +42,8 @@ const startMock = vi.mocked(api.trade.suggestStart)
 const stopMock = vi.mocked(api.trade.suggestStop)
 const snapshotMock = vi.mocked(api.trade.suggestSnapshot)
 const onEventMock = vi.mocked(api.trade.onSuggestEvent)
+const leagueMock = vi.mocked(api.league.get)
+const strengthMock = vi.mocked(api.lineup.strength)
 let emit: (event: SuggestEvent) => void = () => undefined
 const unsubscribe = vi.fn()
 
@@ -76,6 +80,8 @@ beforeEach(() => {
   openSpotMock.mockResolvedValue({ sides: [null, null] })
   optionsMock.mockResolvedValue(options)
   poolMock.mockResolvedValue(tradePool())
+  leagueMock.mockResolvedValue(null)
+  strengthMock.mockResolvedValue([])
   startMock.mockReset()
   startMock.mockResolvedValue(7)
   stopMock.mockReset()
@@ -90,6 +96,18 @@ beforeEach(() => {
   })
 })
 afterEach(cleanup)
+
+const evaluateButton = (): HTMLButtonElement =>
+  screen.getByRole('button', { name: /^(Evaluate the deal|Evaluating…)$/ }) as HTMLButtonElement
+const verdictFor = (name: string): HTMLElement => screen.getByRole('group', { name })
+const openFind = (): void => {
+  fireEvent.click(screen.getByRole('tab', { name: /^Find deals/ }))
+}
+const findDeals = (): void => {
+  if (!screen.queryByRole('button', { name: 'Find deals' })) openFind()
+  fireEvent.click(screen.getByRole('button', { name: 'Find deals' }))
+}
+const card = (): HTMLElement => screen.getByTestId('suggestion')
 
 describe('TradeScreen', () => {
   it('loads the pool, defaults the partner and builds a trade into a verdict', async () => {
@@ -116,42 +134,47 @@ describe('TradeScreen', () => {
       })
     )
     render(<TradeScreen dataVersion={0} />)
-    expect(await screen.findByText('weeks 3–17 · 15 weeks')).toBeTruthy()
+    expect(await screen.findByText('Weeks 3–17 · 15 weeks to play')).toBeTruthy()
     expect(poolMock).toHaveBeenCalledWith(2026)
     // the first team is the default partner; nobody else is left to add
     expect(screen.getByLabelText('Remove team Rival')).toBeTruthy()
     expect(screen.queryByLabelText('Add team')).toBeNull()
-    expect(screen.getByText('Add players to every team in the deal and evaluate.')).toBeTruthy()
-    expect((screen.getByText('Evaluate') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('Add players to every team in the deal, then evaluate.')).toBeTruthy()
+    expect(evaluateButton().disabled).toBe(true)
 
-    fireEvent.change(screen.getByLabelText('Add to I send'), { target: { value: '6794' } })
+    fireEvent.change(screen.getByLabelText('Add to You send'), { target: { value: '6794' } })
     expect(screen.getByText('Cook Book gets nobody')).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Add to Rival sends'), { target: { value: '7564' } })
-    expect(screen.getByText('Justin Jefferson')).toBeTruthy()
-    expect(screen.getByText("Ja'Marr Chase")).toBeTruthy()
-    expect(screen.getByText('ROS 128.0 · ECR — · MKT 10 512 · starts 15/15')).toBeTruthy()
+    expect(screen.getAllByText('Justin Jefferson').length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Ja'Marr Chase").length).toBeGreaterThan(0)
+    expect(screen.getByText('ROS 128.0 · MKT 10 512 · Starts 15/15')).toBeTruthy()
     // two teams: no destination picker, the gets line names no source
     expect(screen.queryByLabelText('Destination of Justin Jefferson')).toBeNull()
-    expect(screen.getByText("gets: Ja'Marr Chase")).toBeTruthy()
+    expect(screen.getAllByText("Ja'Marr Chase")).toHaveLength(2) // his row and my gets line
     // a chosen player leaves its picker
     expect(
-      [...(screen.getByLabelText('Add to I send') as HTMLSelectElement).options].map((o) => o.value)
+      [...(screen.getByLabelText('Add to You send') as HTMLSelectElement).options].map(
+        (o) => o.value
+      )
     ).not.toContain('6794')
 
-    fireEvent.click(screen.getByText('Evaluate'))
-    expect(await screen.findByText('-19.00 (-1.27/wk)')).toBeTruthy()
+    fireEvent.click(evaluateButton())
+    const mine = await screen.findByRole('group', { name: 'Verdict for me' })
     expect(evaluateMock).toHaveBeenCalledWith(2026, JEFFERSON_FOR_CHASE)
-    expect(screen.getByText('+19.00 (+1.27/wk)')).toBeTruthy()
-    expect(screen.getByText('gives 10 512 → gets 8 000 (76 %)')).toBeTruthy()
-    expect(screen.getByText('drop: Los Angeles Rams')).toBeTruthy()
+    expect(within(mine).getByText('-1.27')).toBeTruthy()
+    expect(within(mine).getByText('-19.0')).toBeTruthy()
+    expect(within(mine).getByText('76 %')).toBeTruthy()
+    expect(within(mine).getByText('Has to drop Los Angeles Rams')).toBeTruthy()
+    expect(within(verdictFor('Verdict for Rival')).getByText('+1.27')).toBeTruthy()
     expect(screen.getByText('Everyone gains')).toBeTruthy()
     expect(screen.getByText('Market-fair')).toBeTruthy()
-    expect(screen.getByText("Start Ja'Marr Chase over Justin Jefferson (WR, -4.00)")).toBeTruthy()
+    expect(screen.getByText("Start Ja'Marr Chase over Justin Jefferson")).toBeTruthy()
+    expect(screen.getByText('-4.0')).toBeTruthy()
 
     // removing a player clears the verdict and disables Evaluate again
     fireEvent.click(screen.getByLabelText('Remove Justin Jefferson'))
-    expect(screen.queryByText('-19.00 (-1.27/wk)')).toBeNull()
-    expect((screen.getByText('Evaluate') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.queryByRole('group', { name: 'Verdict for me' })).toBeNull()
+    expect(evaluateButton().disabled).toBe(true)
   })
 
   it('builds a three-team deal with destinations and inline validation', async () => {
@@ -159,7 +182,7 @@ describe('TradeScreen', () => {
     evaluateMock.mockResolvedValue(threeTeamEvaluation())
     openSpotMock.mockResolvedValue({ sides: [null, null, null] })
     render(<TradeScreen dataVersion={0} />)
-    fireEvent.change(await screen.findByLabelText('Add to I send'), { target: { value: '6794' } })
+    fireEvent.change(await screen.findByLabelText('Add to You send'), { target: { value: '6794' } })
     fireEvent.change(screen.getByLabelText('Add team'), { target: { value: '3' } })
     expect(screen.getByLabelText('Remove team Tank Mode')).toBeTruthy()
     expect(
@@ -171,18 +194,19 @@ describe('TradeScreen', () => {
       '1'
     )
     expect(screen.getByText('Tank Mode sends nobody')).toBeTruthy()
-    expect((screen.getByText('Evaluate') as HTMLButtonElement).disabled).toBe(true)
+    expect(evaluateButton().disabled).toBe(true)
     fireEvent.change(screen.getByLabelText('Add to Tank Mode sends'), { target: { value: '5859' } })
     expect(screen.getByText('Tank Mode gets nobody')).toBeTruthy()
     fireEvent.change(screen.getByLabelText("Destination of Ja'Marr Chase"), {
       target: { value: '3' }
     })
-    expect(screen.getByText('gets: Tee Higgins (Tank Mode)')).toBeTruthy()
-    expect(screen.getByText('gets: Justin Jefferson (Me)')).toBeTruthy()
-    expect(screen.getByText("gets: Ja'Marr Chase (Rival)")).toBeTruthy()
+    expect(screen.getByText('Tee Higgins (Tank Mode)')).toBeTruthy()
+    expect(screen.getByText('Justin Jefferson (Me)')).toBeTruthy()
+    expect(screen.getByText("Ja'Marr Chase (Rival)")).toBeTruthy()
 
-    fireEvent.click(screen.getByText('Evaluate'))
-    expect(await screen.findByText('+6.00 (+0.40/wk)')).toBeTruthy()
+    fireEvent.click(evaluateButton())
+    const mine = await screen.findByRole('group', { name: 'Verdict for me' })
+    expect(within(mine).getByText('+0.40')).toBeTruthy()
     expect(evaluateMock).toHaveBeenCalledWith(2026, {
       moves: [
         { playerId: '6794', to: 2 },
@@ -190,17 +214,17 @@ describe('TradeScreen', () => {
         { playerId: '5859', to: 1 }
       ]
     })
-    expect(screen.getByText('+3.00 (+0.20/wk)')).toBeTruthy()
-    expect(screen.getByText('-1.50 (-0.10/wk)')).toBeTruthy()
-    expect(screen.getByText('gets Tee Higgins from Tank Mode')).toBeTruthy()
-    expect(screen.getByText('gets Justin Jefferson from me')).toBeTruthy()
+    expect(within(verdictFor('Verdict for Rival')).getByText('+0.20')).toBeTruthy()
+    expect(within(verdictFor('Verdict for Tank Mode')).getByText('-0.10')).toBeTruthy()
+    expect(screen.getByText('Gets Tee Higgins from Tank Mode')).toBeTruthy()
+    expect(screen.getByText('Gets Justin Jefferson from me')).toBeTruthy()
 
     // removing Tank Mode drops Higgins; Chase heads back to me — a valid 2-team deal again
     fireEvent.click(screen.getByLabelText('Remove team Tank Mode'))
     expect(screen.queryByText('Tee Higgins')).toBeNull()
     expect(screen.queryByLabelText("Destination of Ja'Marr Chase")).toBeNull()
-    expect(screen.queryByText('+6.00 (+0.40/wk)')).toBeNull()
-    expect((screen.getByText('Evaluate') as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.queryByRole('group', { name: 'Verdict for me' })).toBeNull()
+    expect(evaluateButton().disabled).toBe(false)
   })
 
   it('adds the open-spot line under a side once the worker answers', async () => {
@@ -212,54 +236,59 @@ describe('TradeScreen', () => {
       ]
     })
     render(<TradeScreen dataVersion={0} />)
-    fireEvent.change(await screen.findByLabelText('Add to I send'), { target: { value: '6794' } })
+    fireEvent.change(await screen.findByLabelText('Add to You send'), { target: { value: '6794' } })
     fireEvent.change(screen.getByLabelText('Add to Rival sends'), { target: { value: '7564' } })
-    fireEvent.click(screen.getByText('Evaluate'))
+    fireEvent.click(evaluateButton())
 
-    expect(await screen.findByText(`Open spot: best add ${bijan.fullName}, +0.80/wk`)).toBeTruthy()
+    expect(
+      await screen.findByText(`Open spot after the deal: best add ${bijan.fullName}, +0.80/wk`)
+    ).toBeTruthy()
     expect(openSpotMock).toHaveBeenCalledWith(2026, JEFFERSON_FOR_CHASE)
-    expect(screen.getByText('Open spot: no free agent improves this lineup')).toBeTruthy()
+    expect(screen.getByText('Open spot after the deal: no free agent helps')).toBeTruthy()
 
     // A new trade drops the old line with the old verdict.
     fireEvent.click(screen.getByLabelText('Remove Justin Jefferson'))
-    expect(screen.queryByText(`Open spot: best add ${bijan.fullName}, +0.80/wk`)).toBeNull()
+    expect(
+      screen.queryByText(`Open spot after the deal: best add ${bijan.fullName}, +0.80/wk`)
+    ).toBeNull()
   })
 
   it('shows the pool failure as the notice and an evaluate failure under the builder', async () => {
     poolMock.mockRejectedValue(new Error('No projections stored for this season'))
     render(<TradeScreen dataVersion={0} />)
     expect(await screen.findByText('No projections stored for this season')).toBeTruthy()
-    expect(screen.queryByLabelText('Add to I send')).toBeNull()
+    expect(screen.queryByLabelText('Add to You send')).toBeNull()
     cleanup()
 
     poolMock.mockResolvedValue(tradePool())
     evaluateMock.mockRejectedValue(new Error('Justin Jefferson is not on a roster in this league'))
     render(<TradeScreen dataVersion={0} />)
-    fireEvent.change(await screen.findByLabelText('Add to I send'), { target: { value: '6794' } })
+    fireEvent.change(await screen.findByLabelText('Add to You send'), { target: { value: '6794' } })
     fireEvent.change(screen.getByLabelText('Add to Rival sends'), { target: { value: '7564' } })
-    fireEvent.click(screen.getByText('Evaluate'))
+    fireEvent.click(evaluateButton())
     expect(
       await screen.findByText('Justin Jefferson is not on a roster in this league')
     ).toBeTruthy()
     // the deal survives the error
-    expect(screen.getByText('Justin Jefferson')).toBeTruthy()
+    expect(screen.getAllByText('Justin Jefferson').length).toBeGreaterThan(0)
   })
 
   it('shows the deadline banner and keeps the builder usable', async () => {
     poolMock.mockResolvedValue(tradePool({ tradeDeadlinePassed: true }))
     render(<TradeScreen dataVersion={0} />)
     expect(await screen.findByText(/trade deadline has passed/)).toBeTruthy()
-    await waitFor(() => expect(screen.getByLabelText('Add to I send')).toBeTruthy())
+    await waitFor(() => expect(screen.getByLabelText('Add to You send')).toBeTruthy())
   })
 
   it('streams cards in live and opens one in the builder with its numbers', async () => {
-    const scrollIntoView = vi.fn()
-    window.HTMLElement.prototype.scrollIntoView = scrollIntoView
     render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    expect(screen.getByText('I gain and get ≥ 85 % of the market value I give')).toBeTruthy()
+    await screen.findByLabelText('Add to You send')
+    openFind()
+    expect(
+      screen.getByText('Fair: I gain and get at least 85 % of the market value I give')
+    ).toBeTruthy()
 
-    fireEvent.click(screen.getByText('Find'))
+    findDeals()
     // a two-team league caps "Up to" at 2
     expect(startMock).toHaveBeenCalledWith({
       season: 2026,
@@ -278,27 +307,32 @@ describe('TradeScreen', () => {
       screen.getByText('Searching 3-team deals · 412 of 18 900 ideas checked · 0 found · 0:37')
     ).toBeTruthy()
     send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
-    expect(screen.getByText('with Rival')).toBeTruthy()
-    expect(screen.getByText('Me +4.00 (+0.27/wk)')).toBeTruthy()
-    expect(screen.getByText('2-team')).toBeTruthy()
-    expect(screen.getByText('Them -4.00')).toBeTruthy()
-    expect(screen.getByText('market')).toBeTruthy()
-    expect(screen.getByText("give RB Saquon Barkley · get WR Ja'Marr Chase")).toBeTruthy()
+    const row = within(card())
+    expect(row.getByText('Rival')).toBeTruthy()
+    expect(row.getByText('+0.27')).toBeTruthy()
+    expect(row.getByText('+4.0 over 15 wks')).toBeTruthy()
+    expect(row.getByText('2-team')).toBeTruthy()
+    expect(row.getByText('-0.27')).toBeTruthy()
+    expect(row.getByText('market')).toBeTruthy()
+    expect(row.getByText('Saquon Barkley')).toBeTruthy()
+    expect(row.getByText("Ja'Marr Chase")).toBeTruthy()
     send({ runId: 7, type: 'done', reason: 'full', progress: { ...PROGRESS, found: 1 } })
-    expect(screen.getByText('Done: best 1 found — nothing left could rank higher')).toBeTruthy()
-    expect(screen.getByText('Find')).toBeTruthy()
+    expect(
+      screen.getAllByText('Done. Best 1 found, nothing left could rank higher.').length
+    ).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Find deals' })).toBeTruthy()
 
-    fireEvent.click(screen.getByText('Open in builder'))
+    fireEvent.click(within(card()).getByRole('button', { name: 'Open' }))
     expect(screen.getByLabelText('Remove team Rival')).toBeTruthy()
-    expect(screen.getByText('Saquon Barkley')).toBeTruthy()
-    expect(screen.getByText("Ja'Marr Chase")).toBeTruthy()
+    expect(screen.getAllByText('Saquon Barkley').length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Ja'Marr Chase").length).toBeGreaterThan(0)
     // the verdict is the suggestion's evaluation — no second trade:evaluate call
-    expect(screen.getByText('+4.00 (+0.27/wk)')).toBeTruthy()
-    expect(screen.getByText('gives 9 340 → gets 8 000 (86 %)')).toBeTruthy()
+    expect(within(verdictFor('Verdict for me')).getByText('+0.27')).toBeTruthy()
+    expect(within(verdictFor('Verdict for me')).getByText('86 %')).toBeTruthy()
     expect(evaluateMock).not.toHaveBeenCalled()
-    expect(scrollIntoView).toHaveBeenCalled()
+    expect(screen.getByRole('tab', { name: 'Build a deal', selected: true })).toBeTruthy()
     fireEvent.click(screen.getByLabelText('Remove Saquon Barkley'))
-    expect(screen.queryByText('+4.00 (+0.27/wk)')).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Verdict for me' })).toBeNull()
   })
 
   it('shows a 3-team card with its path, every other team and the other ways', async () => {
@@ -306,8 +340,8 @@ describe('TradeScreen', () => {
     evaluateMock.mockResolvedValue(threeTeamEvaluation())
     openSpotMock.mockResolvedValue({ sides: [null, null, null] })
     render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    fireEvent.click(screen.getByText('Find'))
+    await screen.findByLabelText('Add to You send')
+    findDeals()
     expect(startMock).toHaveBeenCalledWith({
       season: 2026,
       focus: null,
@@ -317,19 +351,18 @@ describe('TradeScreen', () => {
     })
     await flush()
     send({ runId: 7, type: 'cards', cards: [threeTeamSuggestion()] })
-    expect(screen.getByText('3-team')).toBeTruthy()
-    expect(
-      screen.getByText(
-        "I send WR Justin Jefferson → Rival · Rival sends WR Ja'Marr Chase → Tank Mode · Tank Mode sends WR Tee Higgins → me"
-      )
-    ).toBeTruthy()
-    expect(screen.getByText('Rival +0.20/wk')).toBeTruthy()
-    expect(screen.getByText('Tank Mode -0.10/wk')).toBeTruthy()
-    expect(screen.queryByText('with Rival')).toBeNull()
+    const row = within(card())
+    expect(row.getByText('3-team')).toBeTruthy()
+    expect(row.getByText('Rival + Tank Mode')).toBeTruthy()
+    expect(row.getByText('Justin Jefferson')).toBeTruthy()
+    expect(row.getByText('Tee Higgins')).toBeTruthy()
+    expect(row.getByText('+0.20')).toBeTruthy()
+    expect(row.getByText('-0.10')).toBeTruthy()
 
-    fireEvent.click(screen.getByText('+1 other way ▸'))
-    expect(screen.getByText('via Rival: Bijan Robinson · worst side -0.30/wk')).toBeTruthy()
-    fireEvent.click(screen.getAllByText('Open in builder')[1])
+    fireEvent.click(row.getByText('+1 other way ▸'))
+    expect(row.getByText('via Rival: Bijan Robinson')).toBeTruthy()
+    expect(row.getByText('worst side -0.30/wk')).toBeTruthy()
+    fireEvent.click(row.getAllByRole('button', { name: 'Open' })[1])
     // an alternative carries no evaluation: it is evaluated on opening
     await waitFor(() =>
       expect(evaluateMock).toHaveBeenCalledWith(2026, {
@@ -341,29 +374,29 @@ describe('TradeScreen', () => {
       })
     )
     expect(screen.getByLabelText('Remove team Tank Mode')).toBeTruthy()
-    expect(screen.getByText('Bijan Robinson')).toBeTruthy()
+    expect(screen.getAllByText('Bijan Robinson').length).toBeGreaterThan(0)
   })
 
   it('stops a run, ignores old runs and reports how each run ended', async () => {
     render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    fireEvent.click(screen.getByText('Find'))
+    await screen.findByLabelText('Add to You send')
+    findDeals()
     await flush()
     fireEvent.click(screen.getByText('Stop'))
     expect(stopMock).toHaveBeenCalled()
     send({ runId: 7, type: 'done', reason: 'stopped', progress: PROGRESS })
-    expect(screen.getByText('Stopped: 0 found so far')).toBeTruthy()
+    expect(screen.getAllByText('Stopped. 0 found so far.').length).toBeGreaterThan(0)
 
     startMock.mockResolvedValue(8)
-    fireEvent.click(screen.getByText('Find'))
+    findDeals()
     await flush()
     send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] }) // the old run: ignored
-    expect(screen.queryByText('with Rival')).toBeNull()
+    expect(screen.queryByTestId('suggestion')).toBeNull()
     send({ runId: 8, type: 'done', reason: 'stale', progress: PROGRESS })
-    expect(screen.getByText('League data changed — run again')).toBeTruthy()
+    expect(screen.getAllByText('League data changed. Run again.').length).toBeGreaterThan(0)
 
     startMock.mockResolvedValue(9)
-    fireEvent.click(screen.getByText('Find'))
+    findDeals()
     await flush()
     send({
       runId: 9,
@@ -371,14 +404,15 @@ describe('TradeScreen', () => {
       message: 'Background calculation stopped unexpectedly (exit 1)'
     })
     expect(
-      screen.getByText('Search failed: Background calculation stopped unexpectedly (exit 1)')
-    ).toBeTruthy()
+      screen.getAllByText('Search failed: Background calculation stopped unexpectedly (exit 1)')
+        .length
+    ).toBeGreaterThan(0)
 
     startMock.mockResolvedValue(10)
-    fireEvent.click(screen.getByText('Find'))
+    findDeals()
     await flush()
     send({ runId: 10, type: 'done', reason: 'complete', progress: PROGRESS })
-    expect(screen.getByText('No offers at this stance — try overpay')).toBeTruthy()
+    expect(screen.getAllByText('No offers at this stance. Try Overpay.').length).toBeGreaterThan(0)
   })
 
   it('re-attaches to the running search and leaves it running on unmount', async () => {
@@ -397,14 +431,16 @@ describe('TradeScreen', () => {
       message: null
     })
     const { unmount } = render(<TradeScreen dataVersion={0} />)
-    expect(await screen.findByText('with Rival')).toBeTruthy()
-    expect((screen.getByLabelText('Focus') as HTMLSelectElement).value).toBe('give')
+    await screen.findByLabelText('Add to You send')
+    openFind()
+    expect(await screen.findByTestId('suggestion')).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'I give', checked: true })).toBeTruthy()
     expect((screen.getByLabelText('Focus player') as HTMLSelectElement).value).toBe('4866')
-    expect((screen.getByLabelText('Stance') as HTMLSelectElement).value).toBe('overpay')
+    expect(screen.getByRole('radio', { name: 'Overpay', checked: true })).toBeTruthy()
     expect((screen.getByLabelText('Must include') as HTMLSelectElement).value).toBe('2')
     expect(screen.getByText('Stop')).toBeTruthy()
     send({ runId: 3, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
-    expect(screen.getByText('Done: 1 found, every idea checked')).toBeTruthy()
+    expect(screen.getByText('Done. 1 found, every idea checked.')).toBeTruthy()
     unmount()
     expect(unsubscribe).toHaveBeenCalled()
     expect(stopMock).not.toHaveBeenCalled()
@@ -418,7 +454,7 @@ describe('TradeScreen', () => {
       })
     )
     render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send') // the pool is in, and pruned what it could
+    await screen.findByLabelText('Add to You send') // the pool is in, and pruned what it could
     await act(async () =>
       answer({
         runId: 3,
@@ -435,8 +471,9 @@ describe('TradeScreen', () => {
         message: null
       })
     )
-    expect((screen.getByLabelText('Stance') as HTMLSelectElement).value).toBe('overpay')
-    fireEvent.click(screen.getByText('Find'))
+    openFind()
+    expect(screen.getByRole('radio', { name: 'Overpay', checked: true })).toBeTruthy()
+    findDeals()
     expect(startMock).toHaveBeenLastCalledWith({
       season: 2026,
       focus: null,
@@ -448,25 +485,26 @@ describe('TradeScreen', () => {
 
   it('notes changed controls and starts nothing until Find', async () => {
     render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    fireEvent.click(screen.getByText('Find'))
+    await screen.findByLabelText('Add to You send')
+    findDeals()
     await flush()
-    fireEvent.change(screen.getByLabelText('Stance'), { target: { value: 'premium' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Premium' }))
     expect(
-      screen.getByText(
-        'Searching 2-team deals · 0 of 0 ideas checked · 0 found · 0:00 · Controls changed — Find to rerun'
-      )
+      screen.getByText('Searching 2-team deals · 0 of 0 ideas checked · 0 found · 0:00')
     ).toBeTruthy()
+    expect(screen.getByText('Controls changed. Find deals to rerun.')).toBeTruthy()
     expect(startMock).toHaveBeenCalledTimes(1)
   })
 
   it('suggests with the builder’s team by making it the must-include team', async () => {
     render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    fireEvent.change(screen.getByLabelText('Focus'), { target: { value: 'give' } })
+    await screen.findByLabelText('Add to You send')
+    openFind()
+    fireEvent.click(screen.getByRole('radio', { name: 'I give' }))
     fireEvent.change(screen.getByLabelText('Focus player'), { target: { value: '4866' } })
     expect(screen.getByText('MKT 9 340 · 30d -310')).toBeTruthy()
-    fireEvent.click(screen.getByText('Suggest with this team'))
+    fireEvent.click(screen.getByRole('tab', { name: 'Build a deal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Find deals with Rival' }))
     expect(startMock).toHaveBeenCalledWith({
       season: 2026,
       focus: { give: '4866' },
@@ -480,24 +518,26 @@ describe('TradeScreen', () => {
   it('shows a failed start under the controls', async () => {
     startMock.mockRejectedValue(new Error('No league imported'))
     render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    fireEvent.click(screen.getByText('Find'))
-    expect(await screen.findByText('No league imported')).toBeTruthy()
-    expect(screen.getByText('Find')).toBeTruthy()
+    await screen.findByLabelText('Add to You send')
+    findDeals()
+    expect(
+      (await screen.findAllByText('Search failed: No league imported')).length
+    ).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Find deals' })).toBeTruthy()
   })
 
   it('marks a finished list stale when league data changes, keeping its cards', async () => {
     render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    fireEvent.click(screen.getByText('Find'))
+    await screen.findByLabelText('Add to You send')
+    findDeals()
     await flush()
     send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
     send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
-    expect(screen.getByText('Done: 1 found, every idea checked')).toBeTruthy()
+    expect(screen.getByText('Done. 1 found, every idea checked.')).toBeTruthy()
     send({ runId: 7, type: 'done', reason: 'stale', progress: { ...PROGRESS, found: 1 } })
-    expect(screen.getByText('League data changed — run again')).toBeTruthy()
-    expect(screen.getByText('with Rival')).toBeTruthy()
-    expect(screen.getByText('Find')).toBeTruthy()
+    expect(screen.getAllByText('League data changed. Run again.').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('suggestion')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Find deals' })).toBeTruthy()
   })
 
   it('evaluates a stale card fresh on opening, without its carried verdict', async () => {
@@ -508,14 +548,14 @@ describe('TradeScreen', () => {
       })
     )
     render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    fireEvent.click(screen.getByText('Find'))
+    await screen.findByLabelText('Add to You send')
+    findDeals()
     await flush()
     send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
     send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
     send({ runId: 7, type: 'done', reason: 'stale', progress: { ...PROGRESS, found: 1 } })
 
-    fireEvent.click(screen.getByText('Open in builder'))
+    fireEvent.click(within(card()).getByRole('button', { name: 'Open' }))
     expect(evaluateMock).toHaveBeenCalledWith(2026, {
       moves: [
         { playerId: '4866', to: 2 },
@@ -523,17 +563,17 @@ describe('TradeScreen', () => {
       ]
     })
     expect(screen.getByText('Evaluating…')).toBeTruthy()
-    expect(screen.getByText('Saquon Barkley')).toBeTruthy()
-    expect(screen.queryByText('+4.00 (+0.27/wk)')).toBeNull()
+    expect(screen.getAllByText('Saquon Barkley').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('group', { name: 'Verdict for me' })).toBeNull()
     await act(async () => answer(tradeSuggestion().evaluation))
-    expect(screen.getByText('+4.00 (+0.27/wk)')).toBeTruthy()
+    expect(within(verdictFor('Verdict for me')).getByText('+0.27')).toBeTruthy()
   })
 
   it('drops a stale card’s player who left the roster before evaluating it', async () => {
     evaluateMock.mockRejectedValue(new Error('Rival gets nobody'))
     const { rerender } = render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    fireEvent.click(screen.getByText('Find'))
+    await screen.findByLabelText('Add to You send')
+    findDeals()
     await flush()
     send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
     send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
@@ -546,10 +586,11 @@ describe('TradeScreen', () => {
       })
     )
     rerender(<TradeScreen dataVersion={1} />)
-    await screen.findByLabelText('Add to I send')
+    await waitFor(() => expect(poolMock).toHaveBeenCalledTimes(2))
+    await flush()
     send({ runId: 7, type: 'done', reason: 'stale', progress: { ...PROGRESS, found: 1 } })
 
-    fireEvent.click(screen.getByText('Open in builder'))
+    fireEvent.click(within(card()).getByRole('button', { name: 'Open' }))
     expect(evaluateMock).toHaveBeenCalledWith(2026, { moves: [{ playerId: '7564', to: 1 }] })
     expect(screen.queryByText('Saquon Barkley')).toBeNull()
     expect(await screen.findByText('Rival gets nobody')).toBeTruthy()
@@ -560,8 +601,8 @@ describe('TradeScreen', () => {
     evaluateMock.mockRejectedValue(new Error('Tank Mode gets nobody'))
     openSpotMock.mockResolvedValue({ sides: [null, null, null] })
     const { rerender } = render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    fireEvent.click(screen.getByText('Find'))
+    await screen.findByLabelText('Add to You send')
+    findDeals()
     await flush()
     send({ runId: 7, type: 'cards', cards: [threeTeamSuggestion()] })
     send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
@@ -580,11 +621,12 @@ describe('TradeScreen', () => {
       })
     )
     rerender(<TradeScreen dataVersion={1} />)
-    await screen.findByLabelText('Add to I send')
+    await waitFor(() => expect(poolMock).toHaveBeenCalledTimes(2))
+    await flush()
     send({ runId: 7, type: 'done', reason: 'stale', progress: { ...PROGRESS, found: 1 } })
 
     fireEvent.click(screen.getByText('+1 other way ▸'))
-    fireEvent.click(screen.getAllByText('Open in builder')[1])
+    fireEvent.click(within(card()).getAllByRole('button', { name: 'Open' })[1])
     // not re-homed onto Tank Mode (from = to): Bijan leaves the deal
     expect(evaluateMock).toHaveBeenLastCalledWith(2026, {
       moves: [
@@ -603,30 +645,29 @@ describe('TradeScreen', () => {
       })
     )
     render(<TradeScreen dataVersion={0} />)
-    fireEvent.change(await screen.findByLabelText('Add to I send'), { target: { value: '6794' } })
-    fireEvent.change(screen.getByLabelText('Add to I send'), { target: { value: '4866' } })
+    fireEvent.change(await screen.findByLabelText('Add to You send'), { target: { value: '6794' } })
+    fireEvent.change(screen.getByLabelText('Add to You send'), { target: { value: '4866' } })
     fireEvent.change(screen.getByLabelText('Add to Rival sends'), { target: { value: '7564' } })
-    fireEvent.click(screen.getByText('Evaluate'))
+    fireEvent.click(evaluateButton())
     // a still-valid deal after the edit, so the button is only held back by a pending answer
     fireEvent.click(screen.getByLabelText('Remove Saquon Barkley'))
     await act(async () => answer(tradeEvaluation()))
-    expect(screen.queryByText('Verdict')).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Verdict for me' })).toBeNull()
     expect(screen.queryByText('Evaluating…')).toBeNull()
-    expect((screen.getByText('Evaluate') as HTMLButtonElement).disabled).toBe(false)
+    expect(evaluateButton().disabled).toBe(false)
   })
 
   it('clears evaluating when the pool reloads under an unanswered evaluate', async () => {
     evaluateMock.mockReturnValue(new Promise<TradeEvaluation>(() => undefined))
     const { rerender } = render(<TradeScreen dataVersion={0} />)
-    fireEvent.change(await screen.findByLabelText('Add to I send'), { target: { value: '6794' } })
+    fireEvent.change(await screen.findByLabelText('Add to You send'), { target: { value: '6794' } })
     fireEvent.change(screen.getByLabelText('Add to Rival sends'), { target: { value: '7564' } })
-    fireEvent.click(screen.getByText('Evaluate'))
+    fireEvent.click(evaluateButton())
     expect(screen.getByText('Evaluating…')).toBeTruthy()
     rerender(<TradeScreen dataVersion={1} />)
-    const evaluate = await screen.findByText('Evaluate')
     await waitFor(() => expect(poolMock).toHaveBeenCalledTimes(2))
-    expect(screen.queryByText('Evaluating…')).toBeNull()
-    expect((evaluate as HTMLButtonElement).disabled).toBe(false)
+    await waitFor(() => expect(screen.queryByText('Evaluating…')).toBeNull())
+    expect(evaluateButton().disabled).toBe(false)
   })
 
   it('puts each open-spot line under its own side when the answer comes back reordered', async () => {
@@ -638,16 +679,18 @@ describe('TradeScreen', () => {
       ]
     })
     render(<TradeScreen dataVersion={0} />)
-    fireEvent.change(await screen.findByLabelText('Add to I send'), { target: { value: '6794' } })
+    fireEvent.change(await screen.findByLabelText('Add to You send'), { target: { value: '6794' } })
     fireEvent.change(screen.getByLabelText('Add to Rival sends'), { target: { value: '7564' } })
-    fireEvent.click(screen.getByText('Evaluate'))
+    fireEvent.click(evaluateButton())
     const mine = await screen.findByRole('group', { name: 'Verdict for me' })
     expect(
-      await within(mine).findByText(`Open spot: best add ${bijan.fullName}, +0.80/wk`)
+      await within(mine).findByText(
+        `Open spot after the deal: best add ${bijan.fullName}, +0.80/wk`
+      )
     ).toBeTruthy()
     expect(
       within(screen.getByRole('group', { name: 'Verdict for Rival' })).getByText(
-        'Open spot: no free agent improves this lineup'
+        'Open spot after the deal: no free agent helps'
       )
     ).toBeTruthy()
   })
@@ -658,15 +701,15 @@ describe('TradeScreen', () => {
     evaluateMock.mockResolvedValue({ ...threeTeamEvaluation(), sides: [me, tank, rival] })
     openSpotMock.mockResolvedValue({ sides: [null, null, null] })
     render(<TradeScreen dataVersion={0} />)
-    fireEvent.change(await screen.findByLabelText('Add to I send'), { target: { value: '6794' } })
+    fireEvent.change(await screen.findByLabelText('Add to You send'), { target: { value: '6794' } })
     fireEvent.change(screen.getByLabelText('Add team'), { target: { value: '3' } })
     fireEvent.change(screen.getByLabelText('Add to Rival sends'), { target: { value: '7564' } })
     fireEvent.change(screen.getByLabelText('Add to Tank Mode sends'), { target: { value: '5859' } })
     fireEvent.change(screen.getByLabelText("Destination of Ja'Marr Chase"), {
       target: { value: '3' }
     })
-    fireEvent.click(screen.getByText('Evaluate'))
-    await screen.findByText('+6.00 (+0.40/wk)')
+    fireEvent.click(evaluateButton())
+    await screen.findByRole('group', { name: 'Verdict for me' })
     expect(
       screen
         .getAllByRole('group', { name: /^Verdict for/ })
@@ -676,8 +719,8 @@ describe('TradeScreen', () => {
 
   it('keeps the shown list when a start is refused during a refresh', async () => {
     render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    fireEvent.click(screen.getByText('Find'))
+    await screen.findByLabelText('Add to You send')
+    findDeals()
     await flush()
     send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
     send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
@@ -696,18 +739,18 @@ describe('TradeScreen', () => {
       status: 'stale',
       message: null
     })
-    fireEvent.click(screen.getByText('Find'))
+    findDeals()
     expect(
       await screen.findByText('League data is refreshing — Find again when it finishes')
     ).toBeTruthy()
-    expect(await screen.findByText('with Rival')).toBeTruthy()
-    expect(screen.getByText('League data changed — run again')).toBeTruthy()
+    expect(await screen.findByTestId('suggestion')).toBeTruthy()
+    expect(screen.getAllByText('League data changed. Run again.').length).toBeGreaterThan(0)
   })
 
   it("follows main's run again after a refused start", async () => {
     render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    fireEvent.click(screen.getByText('Find'))
+    await screen.findByLabelText('Add to You send')
+    findDeals()
     await flush()
     send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
     send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
@@ -726,25 +769,25 @@ describe('TradeScreen', () => {
       status: 'running',
       message: null
     })
-    fireEvent.click(screen.getByText('Find'))
+    findDeals()
     expect(
       await screen.findByText('League data is refreshing — Find again when it finishes')
     ).toBeTruthy()
-    expect(await screen.findByText('with Rival')).toBeTruthy()
+    expect(await screen.findByTestId('suggestion')).toBeTruthy()
     expect(screen.getByText('Stop')).toBeTruthy()
 
     send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
-    expect(screen.getByText('Done: 1 found, every idea checked')).toBeTruthy()
+    expect(screen.getByText('Done. 1 found, every idea checked.')).toBeTruthy()
   })
 
   it("keeps the user's controls after a refused start", async () => {
     render(<TradeScreen dataVersion={0} />)
-    await screen.findByLabelText('Add to I send')
-    fireEvent.click(screen.getByText('Find'))
+    await screen.findByLabelText('Add to You send')
+    findDeals()
     await flush()
     send({ runId: 7, type: 'cards', cards: [tradeSuggestion()] })
     send({ runId: 7, type: 'done', reason: 'complete', progress: { ...PROGRESS, found: 1 } })
-    fireEvent.change(screen.getByLabelText('Stance'), { target: { value: 'overpay' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Overpay' }))
 
     startMock.mockRejectedValueOnce(
       new Error(
@@ -759,11 +802,11 @@ describe('TradeScreen', () => {
       status: 'stale',
       message: null
     })
-    fireEvent.click(screen.getByText('Find'))
+    findDeals()
     expect(
       await screen.findByText('League data is refreshing — Find again when it finishes')
     ).toBeTruthy()
-    expect((screen.getByLabelText('Stance') as HTMLSelectElement).value).toBe('overpay')
-    expect(screen.getByText(/Controls changed — Find to rerun/)).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'Overpay', checked: true })).toBeTruthy()
+    expect(screen.getByText('Controls changed. Find deals to rerun.')).toBeTruthy()
   })
 })

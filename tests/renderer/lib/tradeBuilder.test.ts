@@ -136,11 +136,11 @@ describe('trade builder deal (multi-team spec §5.1)', () => {
   })
 
   it('writes the gets line, naming sources only with three teams or more', () => {
-    expect(getsLine(cycle, 1, pool)).toBe('gets: Tee Higgins (Tank Mode)')
-    expect(getsLine(cycle, 2, pool)).toBe('gets: Justin Jefferson (Me)')
+    expect(getsLine(cycle, 1, pool)).toBe('Tee Higgins (Tank Mode)')
+    expect(getsLine(cycle, 2, pool)).toBe('Justin Jefferson (Me)')
     const two: BuilderDeal = { teams: [2], picks: [{ playerId: '6794', from: 1, to: null }] }
-    expect(getsLine(two, 2, pool)).toBe('gets: Justin Jefferson')
-    expect(getsLine(two, 1, pool)).toBe('gets: nobody')
+    expect(getsLine(two, 2, pool)).toBe('Justin Jefferson')
+    expect(getsLine(two, 1, pool)).toBe('Nobody yet')
     expect(teamLabel(pool, 1)).toBe('Me')
     expect(teamLabel(pool, 3)).toBe('Tank Mode')
   })
