@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { parseCrosswalk } from '@main/sources/nflverse'
-import { normalizeName, resolvePlayer, resolvePlayers, indexCrosswalk } from '@main/sync/identity'
+import {
+  canonicalName,
+  indexCrosswalk,
+  nameKey,
+  normalizeName,
+  positionGroup,
+  resolvePlayer,
+  resolvePlayers
+} from '@main/sync/identity'
 import type { PlayerIdentitySource } from '@main/db/repos/playerIds'
 import { toNflverseTeam } from '@shared/teams'
 import { crosswalkCsv } from '../../fixtures/nflverse'
@@ -27,6 +35,21 @@ describe('normalizeName', () => {
     expect(normalizeName('D.J. Moore')).toBe('dj moore')
     expect(normalizeName('Kenneth Walker III')).toBe('kenneth walker')
     expect(normalizeName('  Amon-Ra   St. Brown ')).toBe('amonra st brown')
+  })
+})
+
+describe('nameKey (coverage audit fix 4)', () => {
+  it('spells out nickname first names and groups line and defensive positions', () => {
+    expect(canonicalName('Matt Hibner')).toBe('matthew hibner')
+    expect(canonicalName('Matthew Hibner')).toBe('matthew hibner')
+    expect(canonicalName('Matt')).toBe('matt')
+    expect(positionGroup('G')).toBe('OL')
+    expect(positionGroup('OL')).toBe('OL')
+    expect(positionGroup('TE')).toBe('TE')
+    expect(positionGroup('DT')).toBe('DL')
+    expect(positionGroup('CB')).toBe('DB')
+    expect(positionGroup('OLB')).toBe('LB')
+    expect(nameKey('Brandon Coleman', 'OL')).toBe(nameKey('Brandon Coleman', 'G'))
   })
 })
 
@@ -114,6 +137,23 @@ describe('resolvePlayer', () => {
       resolvePlayer(src({ playerId: '13545', fullName: 'Trey Smack', position: 'K' }), index)
         .resolution
     ).toBe('unresolved')
+  })
+
+  it('6. matches a nickname and a line position against nflverse (coverage audit fix 4)', () => {
+    const nflverse = [
+      { gsisId: '00-0040879', name: 'Matthew Hibner', position: 'TE' },
+      { gsisId: '00-0039913', name: 'Brandon Coleman', position: 'G' }
+    ]
+    const withStats = indexCrosswalk(parseCrosswalk(crosswalkCsv).records, nflverse)
+    expect(
+      resolvePlayer(src({ playerId: '13324', fullName: 'Matt Hibner', position: 'TE' }), withStats)
+    ).toMatchObject({ gsisId: '00-0040879', resolution: 'name' })
+    expect(
+      resolvePlayer(
+        src({ playerId: '11702', fullName: 'Brandon Coleman', position: 'OL' }),
+        withStats
+      )
+    ).toMatchObject({ gsisId: '00-0039913', resolution: 'name' })
   })
 
   it('ignores malformed Sleeper gsis ids', () => {
