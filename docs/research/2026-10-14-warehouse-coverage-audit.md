@@ -1,5 +1,7 @@
 # Warehouse coverage audit — 2026-10-14
 
+**Status (2026-10-16):** fixes 1–4 are done in Plan X (v0.25.0, `stats.duckdb`). Fix 1: the `depth_chart_week` view (playoff weeks included). Fix 2: team codes are normalised on write. Fix 3: `combine_ids` (71 of the 95 rows resolve). Fix 4: `nameKey` in `src/main/sync/identity.ts`. Fix 5 is moot: snapshot rows keep `espn_id`. The orphan `running` row is now marked `interrupted` on open.
+
 What the local stats are missing and why, checked on the dev profile (`~/.config/FantasyCompanion`, refreshed 2026-10-14 16:23 EDT, v0.23.0). Method: every source × season × season type × week in `warehouse.db` against the played games in `wh_game`, every team-game against the team-week sources, each step's "unparseable rows skipped" message traced in the raw nflverse / ffverse files, and the app tables in `companion.db` (`player_week_stats`, `sleeper_week_stats`, `player_week_snaps`, `team_week_stats`, `player_week_points`).
 
 Coverage is otherwise complete: every source has every played week 2019 → 2026 week 5, and no step has ever failed.
