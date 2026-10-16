@@ -269,6 +269,7 @@ export const FILE_SOURCES: FileSource[] = [
       `src_ngs_${kind}`,
       nflverse('nextgen_stats', `ngs_${kind}`),
       {
+        team_abbr: team('team_abbr'),
         team: team('team_abbr')
       },
       { where: `season >= ${STATS_FIRST_SEASON}` }
@@ -293,9 +294,11 @@ export const FILE_SOURCES: FileSource[] = [
     nflverse('espn_data', 'qbr_week_level'),
     {
       team_name: 'team',
+      team_abb: team('team_abb'),
+      opp_abb: team('opp_abb'),
       team: team('team_abb'),
       opponent: team('opp_abb'),
-      week: 'game_week'
+      week: 'game_week::INTEGER'
     },
     { where: `season >= ${STATS_FIRST_SEASON}` }
   ),
@@ -305,6 +308,7 @@ export const FILE_SOURCES: FileSource[] = [
     nflverse('espn_data', 'qbr_season_level'),
     {
       team_name: 'team',
+      team_abb: team('team_abb'),
       team: team('team_abb')
     },
     { where: `season >= ${STATS_FIRST_SEASON}` }
@@ -323,10 +327,12 @@ export const FILE_SOURCES: FileSource[] = [
     'src_depth_charts',
     (s) => nflverse('depth_charts', `depth_charts_${s}`),
     () => ({
+      club_code: team('club_code'),
       team: team('club_code'),
       ...gameType
     }),
-    { lastSeason: DEPTH_SNAPSHOT_FIRST_SEASON - 1 }
+    // 2: `club_code` normalised in place (review of Plan X); re-fetches the sealed seasons.
+    { lastSeason: DEPTH_SNAPSHOT_FIRST_SEASON - 1, version: 2 }
   ),
   seasonFile(
     'depth_chart_snapshots',

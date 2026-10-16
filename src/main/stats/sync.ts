@@ -3,7 +3,7 @@ import type { Downloads } from './download'
 import type { RefreshOptions, StatsLogEntry, StatsStepStatus, StatsSyncResult } from './protocol'
 import { buildIdentity } from './identity'
 import { INTERRUPTED_MESSAGE } from './schema'
-import { describe, replaceRows, standardSelect } from './load'
+import { describe, replaceRows, standardSelect, type Columns } from './load'
 import { loadSleeperSeason, type StatsState } from './sleeper'
 import { FILE_SOURCES, STATS_FIRST_SEASON, type FileSource } from './sources'
 import { buildViews } from './views'
@@ -54,6 +54,16 @@ class SkipStep extends Error {}
 
 const nowOf = (deps: StatsSyncDeps): Date => (deps.now ?? (() => new Date()))()
 
+/** `season` and `week` as INTEGER in every table, whatever the file uses (VARCHAR, DOUBLE). */
+function integerDims(columns: Columns): Record<string, string> {
+  const dims: Record<string, string> = {}
+  for (const dim of ['season', 'week']) {
+    const type = columns.get(dim)
+    if (type !== undefined && type !== 'INTEGER') dims[dim] = `${dim}::INTEGER`
+  }
+  return dims
+}
+
 function fileStep(source: FileSource): Step {
   return {
     id: source.id,
@@ -66,7 +76,7 @@ function fileStep(source: FileSource): Step {
       return deps.downloads.withFile(source.url(season), async (path) => {
         const from = source.read(path)
         const columns = await describe(db, `SELECT * FROM ${from}`)
-        const standard = source.standard(season, columns)
+        const standard = { ...integerDims(columns), ...source.standard(season, columns) }
         const select = standardSelect(from, columns, standard, source.exclude, source.where)
         const scope = source.allSeasons ? null : season
         const main = await replaceRows(db, source.table, scope, select)

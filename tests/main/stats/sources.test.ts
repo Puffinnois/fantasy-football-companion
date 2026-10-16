@@ -72,8 +72,41 @@ describe('file sources (stats-analysis spec §4.1)', () => {
     )
     await runSync(db, { files: { [urlOf('qbr_week')]: file }, only: ['qbr_week'] })
     expect(
-      await db.all('SELECT season, week, team, team_name, opponent FROM src_qbr_week')
-    ).toEqual([{ season: 2025, week: 4, team: 'LA', team_name: 'Rams', opponent: 'WAS' }])
+      await db.all(
+        'SELECT season, week, team, team_name, opponent, team_abb, opp_abb FROM src_qbr_week'
+      )
+    ).toEqual([
+      {
+        season: 2025,
+        week: 4,
+        team: 'LA',
+        team_name: 'Rams',
+        opponent: 'WAS',
+        team_abb: 'LA',
+        opp_abb: 'WAS'
+      }
+    ])
+  })
+
+  it('stores season and week as integers whatever type the file uses', async () => {
+    const db = await openTestDb()
+    const file = await writeFixture(
+      db,
+      tempDir(),
+      'ep_weekly_2025.parquet',
+      "SELECT '2025' AS season, 3.0::DOUBLE AS week, 'g' AS player_id, 'BUF' AS posteam"
+    )
+    await runSync(db, {
+      files: { [urlOf('ff_opportunity', 2025)]: file },
+      only: ['ff_opportunity']
+    })
+    const types = await db.all<{ column_name: string; data_type: string }>(
+      "SELECT column_name, data_type FROM duckdb_columns() WHERE table_name = 'src_ff_opportunity' AND column_name IN ('season', 'week') ORDER BY 1"
+    )
+    expect(types).toEqual([
+      { column_name: 'season', data_type: 'INTEGER' },
+      { column_name: 'week', data_type: 'INTEGER' }
+    ])
   })
 
   it('reads the crosswalk CSV as text with NA as missing', async () => {

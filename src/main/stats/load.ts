@@ -33,11 +33,16 @@ export function standardSelect(
   return `${select} FROM ${from}${where ? ` WHERE ${where}` : ''}`
 }
 
+const INTEGER = /^(TINYINT|SMALLINT|INTEGER|BIGINT|UTINYINT|USMALLINT|UINTEGER)$/
 const NUMERIC =
   /^(TINYINT|SMALLINT|INTEGER|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT|FLOAT|DOUBLE|DECIMAL\(\d+,\d+\))$/
 
-/** The type a column takes when two seasons disagree: a number if both are numbers, else text. */
+/**
+ * The type a column takes when two seasons disagree: BIGINT for two integer types (an id stays
+ * whole), DOUBLE for other numbers, else text.
+ */
 export function widerType(a: string, b: string): string {
+  if (INTEGER.test(a) && INTEGER.test(b)) return 'BIGINT'
   return NUMERIC.test(a) && NUMERIC.test(b) ? 'DOUBLE' : 'VARCHAR'
 }
 

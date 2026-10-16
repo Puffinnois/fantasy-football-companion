@@ -32,6 +32,7 @@ group('standardSelect', () => {
 group('widerType', () => {
   it('keeps numbers numeric and falls back to text', () => {
     expect(widerType('INTEGER', 'DOUBLE')).toBe('DOUBLE')
+    expect(widerType('INTEGER', 'BIGINT')).toBe('BIGINT')
     expect(widerType('BIGINT', 'DECIMAL(18,3)')).toBe('DOUBLE')
     expect(widerType('INTEGER', 'VARCHAR')).toBe('VARCHAR')
     expect(widerType('BOOLEAN', 'INTEGER')).toBe('VARCHAR')
