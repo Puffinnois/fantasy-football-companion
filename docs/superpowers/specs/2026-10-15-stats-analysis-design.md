@@ -409,14 +409,15 @@ Measured on the live sources while Plan X was written (its Planning findings), a
   - There is no `src_ff_opportunity_team`: the team totals stay as `*_team` columns of `src_ff_opportunity`, and Plan Y derives team rows.
   - Added: `src_sleeper_players` (each Sleeper id's name and position, for identity) and `play_players`.
 - **C. Standard columns** are `season`, `season_type` and team codes normalised in place. Id columns keep their published names. ESPN's nickname column moves to `team_name`.
-- **D. Zeros are kept, and types widen** when a season disagrees: numbers to `DOUBLE`, anything else to `VARCHAR`. The step message names the column (`goal_to_go` in 2020).
+- **D. Zeros are kept, and types widen** when a season disagrees: two integer types to `BIGINT`, other numbers to `DOUBLE`, anything else to `VARCHAR`. The step message names the column (`goal_to_go` in 2020). `season` and `week` are `INTEGER` in every table.
 - **E. Play-by-play keeps 234 of its 372 columns** (§4.2 said about 120), including `desc`. Dropped by pattern: running home/away totals, win-probability copies, score-type probabilities, clock strings, names and jerseys, per-tackler team columns, and game-level copies already in `games`. That halves `src_pbp` (211 → 106 MB).
 - **F. `play_players`** holds about 2.9 rows per play (1.0 M rows for 2019–2026).
 - **G. Identity (§4.3).**
   - `sleeper_ids` resolves a Sleeper id by the crosswalk, then nflverse rosters' `sleeper_id`, then a name + position-group match among nflverse players active that season, only when exactly one matches.
   - `combine_ids` resolves by PFR id, then name + draft year, then name + rookie season.
   - The name key spells out nicknames and compares positions by group (OL, DL, LB, DB). The fantasy resolver uses the same key.
-  - Measured: 2,853 of 2,857 Sleeper players with points mapped, and 71 of the 95 id-less combine rows resolved.
+  - A name match never takes a gsis already linked to another Sleeper id (in `sleeper_ids` and in the fantasy resolver).
+  - Measured: 3,002 of 3,007 Sleeper players with points mapped, and 71 of the 95 id-less combine rows resolved.
 - **H. Engine settings.** `memory_limit` 512 MB (256 MB fails on play-by-play), 2 threads, insertion order not preserved.
   - The backfill: 135–140 s, 283–285 MB, peak process memory 1.8–2.0 GB.
   - A forced daily refresh: 12 s and 0.8 GB, and the file stays at 301–306 MB.
@@ -426,3 +427,8 @@ Measured on the live sources while Plan X was written (its Planning findings), a
   - `interrupted` marks steps a closed app left `running`.
 - **J. Retirement and launch.** `warehouse.db` is deleted on the first launch of v0.25.0 (nothing read it). Stats refresh at launch when no league exists, and after every refresh or league import otherwise.
 - **K. CI.** `--stats-self-test=<file>` runs in the Release workflow and in a `Package check` workflow (`workflow_dispatch`, or a push to `check/**`).
+- **L. From the final review.**
+  - Sleeper defenses are told apart by their letter ids: players with 1–3 digit ids (Rodgers, Brady, Stafford) had been filed as defenses. The Sleeper source is at version 2.
+  - Quitting closes the worker first (abort the download, interrupt the statement), because Electron aborts if the process exits mid-statement. Interrupted steps are retried on the next run.
+  - Team columns are normalised in place in every source (`depth_charts` version 2).
+  - Sleeper stat keys that are not plain identifiers are dropped. The self-test also checks `read_json` and ICU.
