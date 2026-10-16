@@ -18,7 +18,7 @@ describe('sleeperWeeks', () => {
 })
 
 describe('slimWeek', () => {
-  it('keeps the ids, the context and the numeric stats; counts rows without an id', () => {
+  it('keeps the ids, the context and the numeric stats under plain keys; counts rows without an id', () => {
     const out = slimWeek(
       [
         {
@@ -26,7 +26,7 @@ describe('slimWeek', () => {
           team: 'NYG',
           opponent: 'DAL',
           game_id: 'g1',
-          stats: { rush_yd: 80, pts_ppr: 14, note: 'x' },
+          stats: { rush_yd: 80, pts_ppr: 14, note: 'x', "bad'key": 1 },
           player: { first_name: 'Saquon', last_name: 'Barkley', position: 'RB' }
         },
         { stats: { rush_yd: 1 } }

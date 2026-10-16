@@ -40,6 +40,8 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
 const text = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null)
 
+const STAT_KEY = /^[A-Za-z0-9_]+$/
+
 /** One stats row as stored: the line's ids and context, and its numeric stats. */
 interface SlimRow {
   player_id: string
@@ -76,7 +78,8 @@ export function slimWeek(
     const stats: Record<string, number> = {}
     if (isRecord(row.stats)) {
       for (const [k, v] of Object.entries(row.stats)) {
-        if (typeof v === 'number' && Number.isFinite(v)) stats[k] = v
+        // Keys become column names inside SQL, so only plain identifiers are kept.
+        if (STAT_KEY.test(k) && typeof v === 'number' && Number.isFinite(v)) stats[k] = v
       }
     }
     out.rows.push({
