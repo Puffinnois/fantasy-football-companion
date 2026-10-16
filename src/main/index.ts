@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, shell } from 'electron'
-import { rmSync, writeFileSync } from 'node:fs'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
@@ -7,17 +7,15 @@ import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { openDatabase, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
-import { openWarehouseDatabase } from '@main/db/warehouseDb'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
-import { registerIpcHandlers, startRefresh, type AppContext } from '@main/ipc/handlers'
+import { registerIpcHandlers, startRefresh, startStats, type AppContext } from '@main/ipc/handlers'
 import { createNewsCache } from '@main/news/newsCache'
 import { createFantasyCalcClient } from '@main/sources/fantasycalc'
 import { createFantasyProsClient } from '@main/sources/fantasypros'
 import { createNflverseClient } from '@main/sources/nflverse'
 import { createSleeperClient } from '@main/sources/sleeper'
-import { createWarehouseClient } from '@main/sources/warehouse/client'
 import { createSleeperNewsClient } from '@main/sources/sleeperNews'
-import { startStatsWorker } from '@main/stats/client'
+import { startStatsWorker, type StatsClient } from '@main/stats/client'
 import { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
 
@@ -75,13 +73,25 @@ function openAppDatabase(): Db {
   }
 }
 
-/** Stats-warehouse spec §10: a failure here only disables the warehouse, never the app. */
-function openWarehouse(): Db | null {
-  const path = join(app.getPath('userData'), 'warehouse.db')
+/** The stats-warehouse files of v0.20–v0.24, replaced by `stats.duckdb` (stats-analysis spec §4). */
+const RETIRED_FILES = ['warehouse.db', 'warehouse.db-wal', 'warehouse.db-shm']
+
+function retireWarehouse(): void {
+  for (const name of RETIRED_FILES) {
+    const path = join(app.getPath('userData'), name)
+    if (existsSync(path)) rmSync(path, { force: true })
+  }
+}
+
+/** Stats-analysis spec §2: a failure here only disables the stats section, never the app. */
+function openStats(): StatsClient | null {
   try {
-    return openWarehouseDatabase(path)
+    return startStatsWorker({
+      path: join(app.getPath('userData'), 'stats.duckdb'),
+      tempDir: join(app.getPath('userData'), 'stats-tmp')
+    })
   } catch (err) {
-    console.error(`could not open ${path}; the stats warehouse is off`, err)
+    console.error('could not start the stats worker; the stats section is off', err)
     return null
   }
 }
@@ -127,8 +137,7 @@ app.whenReady().then(async () => {
     nflverse: createNflverseClient(),
     fantasypros: createFantasyProsClient(),
     fantasycalc: createFantasyCalcClient(),
-    warehouse: createWarehouseClient(),
-    warehouseDb: openWarehouse(),
+    stats: openStats(),
     news: createNewsCache(createSleeperNewsClient()),
     getWindow: () => mainWindow,
     update: installAutoUpdater({
@@ -140,9 +149,16 @@ app.whenReady().then(async () => {
   registerIpcHandlers(ctx)
   createWindow()
 
+  retireWarehouse()
   if (getSetting(ctx.db, SETTING_ACTIVE_LEAGUE)) {
     startRefresh(ctx).catch((err) => console.error('background refresh failed', err))
+  } else {
+    // Spec §4.4: the stats section works without a league, so its data syncs on its own.
+    startStats(ctx).catch((err) => console.error('stats refresh failed', err))
   }
+  app.on('will-quit', () => {
+    void ctx.stats?.close()
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

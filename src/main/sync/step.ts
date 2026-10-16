@@ -14,7 +14,7 @@ export interface RefreshOptions {
   force?: boolean
 }
 
-/** What `runStep` needs; the warehouse sync has no Sleeper client. */
+/** What `runStep` needs. */
 export type StepDeps = Pick<SyncDeps, 'db' | 'now' | 'onStep'>
 
 /** Thrown by a step body to record `skipped` (e.g. upstream file not published yet) instead of `error`. */

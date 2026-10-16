@@ -1,8 +1,18 @@
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { createSleeperClient } from '@main/sources/sleeper'
 import { sqlString, StatsDb } from './db'
-import type { RefreshOptions, SelfTestResult, StatsSyncResult, StatsWorkerInit } from './protocol'
+import { createDownloads } from './download'
+import type {
+  RefreshOptions,
+  SelfTestResult,
+  StatsLogEntry,
+  StatsSyncResult,
+  StatsWorkerInit
+} from './protocol'
 import { bootstrapStatsDb } from './schema'
+import type { StatsState } from './sleeper'
+import { refreshStats } from './sync'
 
 /** The worker's state: the open database and what a refresh needs. Runnable in-process for tests. */
 export interface StatsService {
@@ -11,13 +21,24 @@ export interface StatsService {
   close(): void
 }
 
-export async function openStatsService(init: StatsWorkerInit): Promise<StatsService> {
+/** The Sleeper NFL state, as the stats sync reads it. */
+export async function fetchStatsState(): Promise<StatsState> {
+  const s = await createSleeperClient().getNflState()
+  return { season: Number(s.season), week: s.week, seasonType: s.season_type }
+}
+
+export async function openStatsService(
+  init: StatsWorkerInit,
+  onStep: (entry: StatsLogEntry) => void,
+  nflState: () => Promise<StatsState> = fetchStatsState
+): Promise<StatsService> {
   mkdirSync(init.tempDir, { recursive: true })
   const db = await StatsDb.open(init.path, { tempDirectory: join(init.tempDir, 'duckdb') })
   await bootstrapStatsDb(db, new Date())
+  const downloads = createDownloads({ dir: init.tempDir })
   return {
-    // The sync is wired in Task 7; until then a refresh writes nothing.
-    refresh: async () => ({ steps: [] }),
+    refresh: (options) =>
+      refreshStats({ db, downloads, tempDir: init.tempDir, nflState, onStep }, options),
     /** Stats-analysis spec §3.3: write, read, and a Parquet round trip through the real file. */
     async selfTest() {
       await db.exec('CREATE OR REPLACE TABLE self_test AS SELECT range AS x FROM range(1000)')

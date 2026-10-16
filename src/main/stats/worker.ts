@@ -27,7 +27,7 @@ async function handle(request: StatsRequest): Promise<unknown> {
   }
 }
 
-openStatsService(workerData as StatsWorkerInit).then(
+openStatsService(workerData as StatsWorkerInit, (entry) => post({ kind: 'step', entry })).then(
   (opened) => {
     service = opened
     port.on('message', (request: StatsRequest) => {
