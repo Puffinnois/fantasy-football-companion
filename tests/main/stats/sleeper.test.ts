@@ -64,6 +64,8 @@ describe('Sleeper weekly lines (stats-analysis spec §4.1)', () => {
             player: { first_name: 'Saquon', last_name: 'Barkley', position: 'RB' }
           },
           { player_id: 'LAR', team: 'LAR', opponent: 'NYG', stats: { pts_allow: 24 } },
+          // Sleeper's oldest player ids are 1–3 digits; they are players, not defenses.
+          { player_id: '96', team: 'NYJ', opponent: 'BUF', stats: { pass_yd: 210 } },
           { player_id: 'TEAM_NYG', team: 'NYG', opponent: 'LAR', stats: { pass_att: 30 } }
         ],
         [week(2)]: [{ player_id: '4866', team: 'NYG', opponent: 'DAL', stats: { rec: 3 } }]
@@ -72,12 +74,15 @@ describe('Sleeper weekly lines (stats-analysis spec §4.1)', () => {
     expect(steps.find((s) => s.source === 'stats:sleeper:2026')).toMatchObject({ status: 'ok' })
     expect(
       await db.all(
-        'SELECT week, player_id, team, opponent, rush_yd, rec FROM src_sleeper ORDER BY week'
+        "SELECT week, player_id, team, opponent, rush_yd, rec FROM src_sleeper WHERE player_id = '4866' ORDER BY week"
       )
     ).toEqual([
       { week: 1, player_id: '4866', team: 'NYG', opponent: 'LA', rush_yd: 80, rec: null },
       { week: 2, player_id: '4866', team: 'NYG', opponent: 'DAL', rush_yd: null, rec: 3 }
     ])
+    expect(
+      await db.all("SELECT player_id, pass_yd FROM src_sleeper WHERE player_id = '96'")
+    ).toEqual([{ player_id: '96', pass_yd: 210 }])
     expect(await db.all('SELECT player_id, team, pts_allow FROM src_sleeper_def')).toEqual([
       { player_id: 'LAR', team: 'LA', pts_allow: 24 }
     ])

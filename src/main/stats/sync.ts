@@ -84,7 +84,8 @@ function fileStep(source: FileSource): Step {
 
 const sleeperStep: Step = {
   id: 'sleeper',
-  version: 1,
+  // 2: players with 1–3 digit ids were filed as defenses (review of Plan X).
+  version: 2,
   firstSeason: STATS_FIRST_SEASON,
   allSeasons: false,
   async run(season, { deps, state }) {

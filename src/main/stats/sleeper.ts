@@ -103,11 +103,20 @@ export function slimWeek(
   return out
 }
 
-/** Sleeper DEF ids are team codes; team-offense rows are `TEAM_<code>`; everything else is a player. */
+/**
+ * Sleeper's fantasy-defense ids are team codes ("LAR"). Its oldest player ids are 1–3 digits
+ * ("96"), so a defense is told apart by letters, not by length.
+ */
+export const SLEEPER_DEF_ID = "regexp_full_match(player_id, '[A-Z]{2,3}')"
+/** Team-offense rows are `TEAM_<code>`. */
+const SLEEPER_TEAM_ID = "player_id LIKE 'TEAM\\_%' ESCAPE '\\'"
+/** A Sleeper id that is a player: neither a defense nor a team-offense row. */
+export const SLEEPER_PLAYER_ID = `NOT ${SLEEPER_DEF_ID} AND NOT ${SLEEPER_TEAM_ID}`
+
 const KIND_FILTERS = {
-  src_sleeper: "player_id NOT LIKE 'TEAM\\_%' ESCAPE '\\' AND length(player_id) > 3",
-  src_sleeper_def: 'length(player_id) <= 3',
-  src_sleeper_team: "player_id LIKE 'TEAM\\_%' ESCAPE '\\'"
+  src_sleeper: SLEEPER_PLAYER_ID,
+  src_sleeper_def: SLEEPER_DEF_ID,
+  src_sleeper_team: SLEEPER_TEAM_ID
 } as const
 
 export interface SleeperLoad {

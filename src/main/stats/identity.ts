@@ -1,6 +1,7 @@
 import { canonicalName, nameKey } from '@main/sync/identity'
 import { sqlIdent, type Params, type StatsDb } from './db'
 import { describe } from './load'
+import { SLEEPER_PLAYER_ID } from './sleeper'
 
 /** Inserts `rows` into a new `table` (replacing it) in chunks of bound VALUES. */
 export async function writeTable(
@@ -108,7 +109,7 @@ async function buildSleeperIds(db: StatsDb, players: NflversePlayer[]): Promise<
     }>(
       `SELECT player_id, arg_max(concat_ws(' ', first_name, last_name), season) AS name,
               arg_max(position, season) AS position, max(season) AS season
-       FROM src_sleeper_players WHERE length(player_id) > 3 AND player_id NOT LIKE 'TEAM%'
+       FROM src_sleeper_players WHERE ${SLEEPER_PLAYER_ID}
        GROUP BY player_id`
     )
     for (const s of sleeper) {

@@ -10,7 +10,8 @@ async function seed(db: Awaited<ReturnType<typeof openTestDb>>): Promise<void> {
       ('00-0011111', 'Chris Jones', 'DT', 2016, 2016, 2026, 'JoneCh09'),
       ('00-0022222', 'Chris Jones', 'DT', 2016, 2016, 2026, 'JoneCh10'),
       ('00-0039000', 'Isaiah Davis', 'RB', 2024, 2024, 2026, NULL),
-      ('00-0039001', 'Jalen Coker', 'WR', NULL, 2024, 2026, NULL)
+      ('00-0039001', 'Jalen Coker', 'WR', NULL, 2024, 2026, NULL),
+      ('00-0023459', 'Aaron Rodgers', 'QB', 2005, 2005, 2026, 'RodgAa00')
     ) t(gsis_id, display_name, position, draft_year, rookie_season, last_season, pfr_id)`)
   await db.exec(`CREATE TABLE src_crosswalk AS SELECT '4866' AS sleeper_id, '00-0034844' AS gsis_id,
       'sr-1' AS sportradar_id, 'fp-1' AS fantasypros_id, NULL AS yahoo_id`)
@@ -22,6 +23,7 @@ async function seed(db: Awaited<ReturnType<typeof openTestDb>>): Promise<void> {
       (2026, '13545', 'Trey', 'Smack', 'K'),
       (2026, '13324', 'Matt', 'Hibner', 'TE'),
       (2026, '9999', 'Chris', 'Jones', 'DT'),
+      (2026, '96', 'Aaron', 'Rodgers', 'QB'),
       (2026, 'LAR', NULL, NULL, 'DEF')
     ) t(season, player_id, first_name, last_name, position)`)
   await db.exec(`CREATE TABLE src_combine AS SELECT * FROM (VALUES
@@ -36,13 +38,14 @@ describe('buildIdentity (stats-analysis spec §4.3)', () => {
   it('maps Sleeper ids by crosswalk, then rosters, then a unique name match', async () => {
     const db = await openTestDb()
     await seed(db)
-    expect(await buildIdentity(db)).toBe(7)
+    expect(await buildIdentity(db)).toBe(8)
     expect(
       await db.all('SELECT sleeper_id, gsis_id, resolution FROM sleeper_ids ORDER BY sleeper_id')
     ).toEqual([
       { sleeper_id: '13324', gsis_id: '00-0040879', resolution: 'name' },
       { sleeper_id: '13545', gsis_id: '00-0041000', resolution: 'rosters' },
-      { sleeper_id: '4866', gsis_id: '00-0034844', resolution: 'crosswalk' }
+      { sleeper_id: '4866', gsis_id: '00-0034844', resolution: 'crosswalk' },
+      { sleeper_id: '96', gsis_id: '00-0023459', resolution: 'name' }
     ])
     expect(
       await db.get(
