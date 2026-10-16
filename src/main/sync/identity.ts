@@ -17,18 +17,80 @@ export function normalizeName(name: string): string {
   return words.join(' ')
 }
 
+/** Common first-name nicknames and the name they shorten; both sides of a match are canonicalised. */
+const NICKNAMES: Record<string, string> = {
+  matt: 'matthew',
+  mike: 'michael',
+  chris: 'christopher',
+  nick: 'nicholas',
+  josh: 'joshua',
+  will: 'william',
+  bill: 'william',
+  rob: 'robert',
+  bob: 'robert',
+  tom: 'thomas',
+  dan: 'daniel',
+  danny: 'daniel',
+  jim: 'james',
+  jimmy: 'james',
+  joe: 'joseph',
+  tony: 'anthony',
+  alex: 'alexander',
+  sam: 'samuel',
+  ben: 'benjamin',
+  jon: 'jonathan',
+  zach: 'zachary',
+  zack: 'zachary',
+  jake: 'jacob',
+  nate: 'nathan',
+  greg: 'gregory',
+  jeff: 'jeffrey',
+  steve: 'steven',
+  andy: 'andrew',
+  pat: 'patrick',
+  ken: 'kenneth',
+  tim: 'timothy',
+  dave: 'david',
+  ed: 'edward',
+  rick: 'richard',
+  dick: 'richard'
+}
+
+/** `normalizeName` with a nickname first name spelled out: "Matt Hibner" -> "matthew hibner". */
+export function canonicalName(name: string): string {
+  const words = normalizeName(name).split(' ')
+  if (words.length > 1) words[0] = NICKNAMES[words[0]] ?? words[0]
+  return words.join(' ')
+}
+
+/**
+ * Sources disagree on line and defensive positions (Sleeper OL / DL / DB, nflverse G / DT / CB), so
+ * they compare by group.
+ */
+const POSITION_GROUPS: Record<string, string> = {
+  ...Object.fromEntries(['OL', 'G', 'OG', 'T', 'OT', 'C'].map((p) => [p, 'OL'])),
+  ...Object.fromEntries(['DL', 'DE', 'DT', 'NT'].map((p) => [p, 'DL'])),
+  ...Object.fromEntries(['LB', 'ILB', 'OLB', 'MLB'].map((p) => [p, 'LB'])),
+  ...Object.fromEntries(['DB', 'CB', 'S', 'FS', 'SS', 'SAF'].map((p) => [p, 'DB']))
+}
+
+export function positionGroup(position: string): string {
+  return POSITION_GROUPS[position] ?? position
+}
+
+/** The name-match key of the identity rule (coverage audit fix 4: nicknames and line positions). */
+export function nameKey(name: string, position: string): string {
+  return `${canonicalName(name)}|${positionGroup(position)}`
+}
+
 export interface CrosswalkIndex {
   bySleeper: Map<string, CrosswalkRecord>
   byGsis: Map<string, CrosswalkRecord>
   bySportradar: Map<string, CrosswalkRecord>
-  /** key = `${normalizeName(name)}|${position}` */
+  /** key = `nameKey(name, position)` */
   byName: Map<string, CrosswalkRecord>
   /** Same key, but from the nflverse stats file itself (rookies the crosswalk has not caught up with). */
   byNflverseName: Map<string, string>
-}
-
-function nameKey(name: string, position: string): string {
-  return `${normalizeName(name)}|${position}`
 }
 
 /** First row wins per key, so duplicate crosswalk rows never flip a resolution between runs. */
@@ -93,6 +155,9 @@ export function resolvePlayer(p: PlayerIdentitySource, index: CrosswalkIndex): P
     gsisId = sleeperGsis
     row ??= index.byGsis.get(sleeperGsis)
   } else {
+    // A name match never takes a crosswalk row (or its gsis) that belongs to another Sleeper id.
+    const ownedByOther = (r: CrosswalkRecord | undefined): boolean =>
+      r?.sleeperId != null && r.sleeperId !== p.playerId
     const bySr = p.sportradarId ? index.bySportradar.get(p.sportradarId) : undefined
     const key = p.position ? nameKey(p.fullName, p.position) : null
     const byName = key ? index.byName.get(key) : undefined
@@ -101,11 +166,11 @@ export function resolvePlayer(p: PlayerIdentitySource, index: CrosswalkIndex): P
       resolution = 'sportradar'
       gsisId = bySr.gsisId
       row = bySr
-    } else if (byName?.gsisId) {
+    } else if (byName?.gsisId && !ownedByOther(byName)) {
       resolution = 'name'
       gsisId = byName.gsisId
       row = byName
-    } else if (byNflverse) {
+    } else if (byNflverse && !ownedByOther(index.byGsis.get(byNflverse))) {
       resolution = 'name'
       gsisId = byNflverse
       row = row?.pfrId ? row : index.byGsis.get(byNflverse)

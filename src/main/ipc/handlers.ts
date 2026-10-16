@@ -23,19 +23,17 @@ import { evaluateTrade } from '@main/trade/evaluate'
 import { tradePool } from '@main/trade/pool'
 import { suggestRuns, type SuggestRuns } from '@main/trade/suggestRun'
 import { normalizeRules } from '@main/scoring/normalize'
+import type { StatsClient } from '@main/stats/client'
 import { recomputePoints } from '@main/scoring/recompute'
 import type { FantasyCalcClient } from '@main/sources/fantasycalc'
 import type { FantasyProsClient } from '@main/sources/fantasypros'
 import type { NflverseClient } from '@main/sources/nflverse'
 import type { SleeperClient } from '@main/sources/sleeper'
-import type { WarehouseClient } from '@main/sources/warehouse/client'
-import { singleFlight, thenInBackground } from '@main/sync/background'
+import { thenInBackground } from '@main/sync/background'
 import { mapLeagueSummary } from '@main/sync/mappers'
 import { STATS_SOURCE_PREFIX } from '@main/sync/nflverseSync'
 import { importAll, refreshAll, type AppSyncDeps } from '@main/sync/refresh'
 import { reimportRules, SOURCE_LEAGUE } from '@main/sync/sleeperSync'
-import { refreshWarehouse } from '@main/sync/warehouseSync'
-import { runPbpWorker } from '@main/warehouse/runWorker'
 import { buildValueSeason, detailFor, type ValueBuild } from '@main/value/build'
 import type { RefreshOptions } from '@main/sync/step'
 import type { UpdateController } from '@main/updater'
@@ -76,10 +74,11 @@ export interface AppContext {
   nflverse: NflverseClient
   fantasypros: FantasyProsClient
   fantasycalc: FantasyCalcClient
-  /** Stats-warehouse downloads (spec 2026-10-09), written to `warehouseDb`; read by nothing yet. */
-  warehouse: WarehouseClient
-  /** `warehouse.db` (spec §10); null when it could not be opened — the app then runs without it. */
-  warehouseDb: Db | null
+  /**
+   * The stats worker and its `stats.duckdb` (stats-analysis spec §2); null when it could not start,
+   * and the app then runs without it. Nothing reads it yet.
+   */
+  stats: StatsClient | null
   news: NewsCache
   getWindow: () => BrowserWindow | null
   update: UpdateController
@@ -181,31 +180,21 @@ export function syncDeps(ctx: AppContext): AppSyncDeps {
 let inFlight: Promise<SyncResult> | null = null
 
 /**
- * Stats-warehouse spec §4.1: one warehouse run at a time, started after a refresh or import settles.
- * No onStep: nothing reads the warehouse, so its steps neither invalidate caches nor report progress.
+ * Stats-analysis spec §4.4: the stats refresh, one at a time (the client single-flights it). Its
+ * steps log to `stats.duckdb`'s own `sync_log`, so they neither invalidate caches nor reach the
+ * status bar.
  */
-const startWarehouse = singleFlight(
-  async (ctx: AppContext, options: RefreshOptions): Promise<SyncResult> =>
-    ctx.warehouseDb
-      ? refreshWarehouse(
-          {
-            db: ctx.warehouseDb,
-            warehouse: ctx.warehouse,
-            state: getNflState(ctx.db),
-            aggregatePbp: runPbpWorker
-          },
-          options
-        )
-      : { steps: [] }
-)
+export function startStats(ctx: AppContext, options: RefreshOptions = {}): Promise<unknown> {
+  return ctx.stats ? ctx.stats.refresh(options) : Promise.resolve(null)
+}
 
-function logWarehouseError(err: unknown): void {
-  console.error('warehouse refresh failed', err)
+function logStatsError(err: unknown): void {
+  console.error('stats refresh failed', err)
 }
 
 /**
  * One refresh at a time: the on-launch refresh and the Refresh button share the same promise. The
- * warehouse starts once it settles; the caller does not wait for the warehouse.
+ * stats refresh starts once it settles; the caller does not wait for it.
  */
 export function startRefresh(ctx: AppContext, options: RefreshOptions = {}): Promise<SyncResult> {
   if (!inFlight) {
@@ -213,8 +202,8 @@ export function startRefresh(ctx: AppContext, options: RefreshOptions = {}): Pro
       refreshAll(syncDeps(ctx), options).finally(() => {
         inFlight = null
       }),
-      () => startWarehouse(ctx, options),
-      logWarehouseError
+      () => startStats(ctx, options),
+      logStatsError
     )
   }
   return inFlight
@@ -249,8 +238,8 @@ export function registerIpcHandlers(ctx: AppContext): void {
     (_event, leagueId: string, userId: string | null): Promise<SyncResult> =>
       thenInBackground(
         importAll(syncDeps(ctx), leagueId, userId),
-        () => startWarehouse(ctx, {}),
-        logWarehouseError
+        () => startStats(ctx, {}),
+        logStatsError
       )
   )
 

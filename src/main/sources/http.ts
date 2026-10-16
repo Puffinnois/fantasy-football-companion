@@ -4,6 +4,8 @@ export interface FetchTextOptions {
   fetchImpl: typeof fetch
   timeoutMs: number
   retryDelayMs: number
+  /** Aborts the request early (the stats worker closing), on top of the timeout. */
+  signal?: AbortSignal
 }
 
 function isRetryable(status: number): boolean {
@@ -21,7 +23,9 @@ export async function fetchBytes(
 ): Promise<Uint8Array | null> {
   const { fetchImpl, timeoutMs, retryDelayMs } = options
   for (let attempt = 0; ; attempt++) {
-    const res = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs) })
+    const timeout = AbortSignal.timeout(timeoutMs)
+    const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout
+    const res = await fetchImpl(url, { signal })
     if (res.status === 404) return null
     if (res.ok) return new Uint8Array(await res.arrayBuffer())
     if (attempt === 0 && isRetryable(res.status)) {

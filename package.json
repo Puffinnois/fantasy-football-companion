@@ -27,6 +27,7 @@
     "node": ">=22.13"
   },
   "dependencies": {
+    "@duckdb/node-api": "1.5.6-r.1",
     "@electron-toolkit/utils": "^4.0.0",
     "dompurify": "^3.4.15",
     "electron-updater": "^6.8.9"

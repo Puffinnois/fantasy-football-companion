@@ -1,6 +1,6 @@
 # Stats analysis — design
 
-**Date:** 2026-10-15 · **Status:** approved 2026-10-16 · **Plans:** X (DuckDB foundation), Y (metric layer + query engine), Z (models), AA (Stats screen), AB (team dashboard), AC (player dashboard), AD (explore: charts, compare, trends), AE (matchup preview); natural-language queries get their own spec after AE.
+**Date:** 2026-10-15 · **Status:** approved 2026-10-16, amended 2026-10-16 (§15: Plan X) · **Plans:** X (DuckDB foundation), Y (metric layer + query engine), Z (models), AA (Stats screen), AB (team dashboard), AC (player dashboard), AD (explore: charts, compare, trends), AE (matchup preview); natural-language queries get their own spec after AE.
 
 **Sources:** the stats catalog (`docs/research/2026-10-09-nfl-stats-catalog.md`), the predictive-metrics catalogue (`docs/research/nfl_predictive_metrics.md`), the coverage audit (`docs/research/2026-10-14-warehouse-coverage-audit.md`), and a DuckDB vs SQLite benchmark on 2023–2025 play-by-play and participation (§3.2).
 
@@ -88,7 +88,7 @@ One table per source, columns as the source publishes them (typed: integers, dou
 | Table          | Rows             | Holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | -------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `plays`        | ~48 000 a season | One row per play, deleted plays and preseason dropped. Game and situation (season, week, teams, quarter, clock, down, distance, yard line, score margin, win probability, roof, surface, weather), play type and outcome (yards, air yards, YAC, first down, TD, turnover, penalty), models (EP, EPA, WP, WPA, CP, CPOE, xYAC, xPass, PROE), formation flags (shotgun, no huddle), the existing counting flags (§11 of the warehouse spec: kneels, spikes, no_play, two-point), drive id. Plus the FTN columns (2022+: play action, RPO, screen, motion, box, blitzers, read thrown, catchable, contested, created, drop, interception-worthy, QB fault sack …) and the participation columns (personnel, formation, box, pass rushers, time to throw, pressure, route, man/zone, coverage). About 120 columns. |
-| `play_players` | ~6 a play        | Every player the play names, with a role: passer, rusher, receiver, tackler, assist tackler, sack, QB hit, pass defended, interception, forced fumble, fumble recovery, kicker, punter, returner, penalty.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `play_players` | ~3 a play        | Every player the play names, with a role: passer, rusher, receiver, tackler, assist tackler, sack, QB hit, pass defended, interception, forced fumble, fumble recovery, kicker, punter, returner, penalty.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `on_field`     | ~22 a play       | Every player on the field, with side (O / D) and the position participation lists. Through the prior season (participation for the current season is published after it ends).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 The counting rules of the warehouse spec §11–§12 (what counts as a carry, a dropback, a snap) move from the aggregation code into **views over `plays`**, so they hold everywhere and the weekly aggregates are a query, not a separate code path. The agreement gates of Plans U and V (targets, carries, snaps against nflverse) are re-run on the new tables.
@@ -397,3 +397,38 @@ X, Y and Z have no visible UI change beyond a working warehouse; they run while 
 - **Current-season gaps**: participation (on-field, routes, coverage, pressure) only through the prior season; the UI states it and uses the documented estimates.
 - **Size and backfill time** on the user's Windows machine: measured in Plan X against §4.4 targets.
 - **Scope**: eight plans. Each ships on its own, and the order puts the data and engine first so the screens are thin.
+
+## 15. Amendment 2026-10-16: the DuckDB foundation (Plan X)
+
+Measured on the live sources while Plan X was written (its Planning findings), and taken into the build. `docs/reference/stats-database.md` documents the result.
+
+- **A. One step per source.** FTN and participation are their own steps and tables, joined to play-by-play by the `plays` view instead of inside the worker. The per-source due-ness that Plan V needed inside one step is gone.
+- **B. Table set (§4.1).**
+  - QBR is `src_qbr_week` and `src_qbr_season`.
+  - Depth charts are `src_depth_charts` (weekly rows, through 2024) and `src_depth_chart_snapshots` (2025+), read through the `depth_chart_week` view.
+  - There is no `src_ff_opportunity_team`: the team totals stay as `*_team` columns of `src_ff_opportunity`, and Plan Y derives team rows.
+  - Added: `src_sleeper_players` (each Sleeper id's name and position, for identity) and `play_players`.
+- **C. Standard columns** are `season`, `season_type` and team codes normalised in place. Id columns keep their published names. ESPN's nickname column moves to `team_name`.
+- **D. Zeros are kept, and types widen** when a season disagrees: two integer types to `BIGINT`, other numbers to `DOUBLE`, anything else to `VARCHAR`. The step message names the column (`goal_to_go` in 2020). `season` and `week` are `INTEGER` in every table.
+- **E. Play-by-play keeps 234 of its 372 columns** (§4.2 said about 120), including `desc`. Dropped by pattern: running home/away totals, win-probability copies, score-type probabilities, clock strings, names and jerseys, per-tackler team columns, and game-level copies already in `games`. That halves `src_pbp` (211 → 106 MB).
+- **F. `play_players`** holds about 2.9 rows per play (1.0 M rows for 2019–2026).
+- **G. Identity (§4.3).**
+  - `sleeper_ids` resolves a Sleeper id by the crosswalk, then nflverse rosters' `sleeper_id`, then a name + position-group match among nflverse players active that season, only when exactly one matches.
+  - `combine_ids` resolves by PFR id, then name + draft year, then name + rookie season.
+  - The name key spells out nicknames and compares positions by group (OL, DL, LB, DB). The fantasy resolver uses the same key.
+  - A name match never takes a gsis already linked to another Sleeper id (in `sleeper_ids` and in the fantasy resolver).
+  - Measured: 3,002 of 3,007 Sleeper players with points mapped, and 71 of the 95 id-less combine rows resolved.
+- **H. Engine settings.** `memory_limit` 512 MB (256 MB fails on play-by-play), 2 threads, insertion order not preserved.
+  - The backfill: 135–140 s, 283–285 MB, peak process memory 1.8–2.0 GB.
+  - A forced daily refresh: 12 s and 0.8 GB, and the file stays at 301–306 MB.
+- **I. Logging.**
+  - Steps log as `stats:<source>[:<season>]` in `stats.duckdb`'s own `sync_log`.
+  - `stats:state` logs a failed NFL-state fetch; `stats:identity` logs the identity and views rebuild.
+  - `interrupted` marks steps a closed app left `running`.
+- **J. Retirement and launch.** `warehouse.db` is deleted on the first launch of v0.25.0 (nothing read it). Stats refresh at launch when no league exists, and after every refresh or league import otherwise.
+- **K. CI.** `--stats-self-test=<file>` runs in the Release workflow and in a `Package check` workflow (`workflow_dispatch`, or a push to `check/**`).
+- **L. From the final review.**
+  - Sleeper defenses are told apart by their letter ids: players with 1–3 digit ids (Rodgers, Brady, Stafford) had been filed as defenses. The Sleeper source is at version 2.
+  - Quitting closes the worker first (abort the download, interrupt the statement), because Electron aborts if the process exits mid-statement. Interrupted steps are retried on the next run.
+  - Team columns are normalised in place in every source (`depth_charts` version 2).
+  - Sleeper stat keys that are not plain identifiers are dropped. The self-test also checks `read_json` and ICU.
