@@ -11,12 +11,14 @@ export default defineConfig({
     build: {
       rollupOptions: {
         external: ['node:sqlite'],
-        // The trade and waiver searches (6b / 6c spec §6) and the play-by-play aggregation
-        // (stats-warehouse spec §6.1) run in worker threads, bundled beside the main entry.
+        // The trade and waiver searches (6b / 6c spec §6), the play-by-play aggregation
+        // (stats-warehouse spec §6.1) and the stats database (stats-analysis spec §2) run in
+        // worker threads, bundled beside the main entry.
         input: {
           index: resolve('src/main/index.ts'),
           engineWorker: resolve('src/main/engine/worker.ts'),
-          warehouseWorker: resolve('src/main/warehouse/worker.ts')
+          warehouseWorker: resolve('src/main/warehouse/worker.ts'),
+          statsWorker: resolve('src/main/stats/worker.ts')
         }
       }
     }

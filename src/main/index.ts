@@ -1,4 +1,6 @@
 import { app, BrowserWindow, dialog, shell } from 'electron'
+import { rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
@@ -15,6 +17,7 @@ import { createNflverseClient } from '@main/sources/nflverse'
 import { createSleeperClient } from '@main/sources/sleeper'
 import { createWarehouseClient } from '@main/sources/warehouse/client'
 import { createSleeperNewsClient } from '@main/sources/sleeperNews'
+import { startStatsWorker } from '@main/stats/client'
 import { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
 
@@ -83,7 +86,37 @@ function openWarehouse(): Db | null {
   }
 }
 
-app.whenReady().then(() => {
+/**
+ * `--stats-self-test=<file>` (stats-analysis spec §3.3): the packaged app opens a throwaway stats
+ * database in the worker, writes, reads and round-trips Parquet, writes the result as JSON to
+ * `<file>`, and exits 0 on success. CI runs it on the Windows build.
+ */
+const SELF_TEST_FLAG = '--stats-self-test='
+
+async function runStatsSelfTest(out: string): Promise<number> {
+  const dir = join(tmpdir(), `ffc-stats-self-test-${process.pid}`)
+  let result: object
+  let code = 1
+  try {
+    const client = startStatsWorker({ path: join(dir, 'stats.duckdb'), tempDir: dir })
+    const test = await client.selfTest()
+    await client.close()
+    code = test.parquet && test.rows === 1000 ? 0 : 1
+    result = { ok: code === 0, ...test }
+  } catch (err) {
+    result = { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+  writeFileSync(out, JSON.stringify(result))
+  rmSync(dir, { recursive: true, force: true })
+  return code
+}
+
+app.whenReady().then(async () => {
+  const selfTest = process.argv.find((a) => a.startsWith(SELF_TEST_FLAG))
+  if (selfTest) {
+    app.exit(await runStatsSelfTest(selfTest.slice(SELF_TEST_FLAG.length)))
+    return
+  }
   electronApp.setAppUserModelId('com.yhabie.fantasycompanion')
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 

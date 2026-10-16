@@ -12,8 +12,12 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml,.nvmrc,components.json}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  # DuckDB ships a musl build beside the glibc one on Linux; the app only loads the glibc one.
+  - '!node_modules/@duckdb/node-bindings-*-musl/**'
 asarUnpack:
   - resources/**
+  # DuckDB's native binding and library load from disk, not from inside the asar.
+  - node_modules/@duckdb/node-bindings-*/**
 win:
   executableName: FantasyCompanion
   target:
