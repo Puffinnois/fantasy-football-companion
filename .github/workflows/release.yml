@@ -38,6 +38,16 @@ jobs:
       - name: Package
         run: npx electron-builder --win --publish never
 
+      # Stats-analysis spec §3.3: the packaged app must load DuckDB in its worker (native binding
+      # unpacked from the asar), write, read and round-trip Parquet.
+      - name: Check the stats database in the packaged app
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          ./dist/win-unpacked/FantasyCompanion.exe --stats-self-test="$RUNNER_TEMP/stats-self-test.json"
+          cat "$RUNNER_TEMP/stats-self-test.json"
+          grep -q '"ok":true' "$RUNNER_TEMP/stats-self-test.json"
+
       - name: Check release files
         shell: bash
         run: ls -l dist/FantasyCompanion-Setup-*.exe dist/FantasyCompanion-Setup-*.exe.blockmap dist/latest.yml
