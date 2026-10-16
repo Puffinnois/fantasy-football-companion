@@ -17,12 +17,14 @@ import {
 vi.mock('@/lib/api', () => ({
   api: {
     players: { options: vi.fn(), detail: vi.fn() },
-    waiver: { adds: vi.fn(), stream: vi.fn() }
+    waiver: { adds: vi.fn(), stream: vi.fn() },
+    league: { get: vi.fn() }
   }
 }))
 const optionsMock = vi.mocked(api.players.options)
 const addsMock = vi.mocked(api.waiver.adds)
 const streamMock = vi.mocked(api.waiver.stream)
+const leagueMock = vi.mocked(api.league.get)
 
 const options: PlayersOptions = {
   seasons: [2026],
@@ -36,6 +38,7 @@ beforeEach(() => {
   optionsMock.mockReset()
   addsMock.mockReset()
   optionsMock.mockResolvedValue(options)
+  leagueMock.mockResolvedValue(null)
   addsMock.mockResolvedValue(waiverAdds())
   streamMock.mockReset()
   streamMock.mockResolvedValue([
@@ -59,14 +62,16 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('WaiverScreen', () => {
-  it('shows the window, my waiver priority and the lineup adds', async () => {
+  it('shows the window, my waiver claim, the best add and the lineup adds', async () => {
     render(<WaiverScreen dataVersion={0} />)
-    expect(await screen.findByText('weeks 3–17 · 15 weeks')).toBeTruthy()
+    expect(await screen.findByText('Week 3 · 15 weeks left')).toBeTruthy()
     expect(addsMock).toHaveBeenCalledWith(2026)
-    expect(screen.getByText('Waiver priority 12 of 16')).toBeTruthy()
+    expect(screen.getByText('12')).toBeTruthy()
+    expect(screen.getByText('of 16')).toBeTruthy()
+    expect(screen.getByText('Tyler Allgeier is the best add: +0.40 points a week.')).toBeTruthy()
     expect(screen.getByText('Tyler Allgeier')).toBeTruthy()
-    expect(screen.getByText('+0.40/wk')).toBeTruthy()
-    expect(screen.getByText('wk 7, 9')).toBeTruthy()
+    expect(screen.getByText('+0.40')).toBeTruthy()
+    expect(screen.getByText('Starts wk 7, 9')).toBeTruthy()
   })
 
   it('switches a row to another release and shows its numbers', async () => {
@@ -92,8 +97,8 @@ describe('WaiverScreen', () => {
     const select = (await screen.findByLabelText('Release for Tyler Allgeier')) as HTMLSelectElement
     expect(select.value).toBe('0')
     fireEvent.change(select, { target: { value: '1' } })
-    expect(screen.getByText('-0.20/wk')).toBeTruthy()
-    expect(screen.getByText('wk 7')).toBeTruthy()
+    expect(screen.getByText('-0.20')).toBeTruthy()
+    expect(screen.getByText('Starts wk 7')).toBeTruthy()
   })
 
   it('sorts the stash by trending on request and tags free releases', async () => {
@@ -104,10 +109,10 @@ describe('WaiverScreen', () => {
         .getAllByTestId('stash-row')
         .map((row) => within(row).getAllByRole('button')[0].textContent ?? '')
     expect(names()).toEqual(['Jaylen Wright', 'Tre Harris'])
-    fireEvent.click(screen.getByRole('button', { name: 'Trending 24 h' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Trending' }))
     expect(names()).toEqual(['Tre Harris', 'Jaylen Wright'])
-    expect(screen.getAllByText('free')).toHaveLength(2)
-    expect(screen.getByText('Trending adds unavailable — refresh to fetch them')).toBeTruthy()
+    expect(screen.getAllByText('FREE')).toHaveLength(2)
+    expect(screen.getByText('Trending adds unavailable. Refresh to fetch them.')).toBeTruthy()
   })
 
   it('explains empty lists', async () => {
@@ -116,6 +121,7 @@ describe('WaiverScreen', () => {
     expect(
       await screen.findByText('No free agent improves your lineup over the rest of the season.')
     ).toBeTruthy()
+    expect(screen.getByText('No free agent improves your lineup.')).toBeTruthy()
     expect(
       screen.getByText('No free agent carries a market, trending or expert signal.')
     ).toBeTruthy()
@@ -132,32 +138,29 @@ describe('WaiverScreen', () => {
     await screen.findByText('Tyler Allgeier')
     expect(streamMock).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Streaming' }))
-    expect(await screen.findByText('@ CAR')).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Streaming' }))
+    expect(await screen.findByTitle('@ CAR')).toBeTruthy()
     expect(streamMock).toHaveBeenCalledWith(2026, 3)
     expect(screen.queryByText('Tyler Allgeier')).toBeNull()
-    const week = screen.getByLabelText('Streaming week') as HTMLSelectElement
-    expect([...week.options].map((o) => o.textContent)).toEqual([
-      'Week 3 (this week)',
-      'Week 4',
-      'Week 5',
-      'Week 6'
-    ])
+    const weeks = within(screen.getByRole('tablist', { name: 'Streaming week' }))
+      .getAllByRole('tab')
+      .map((t) => t.textContent)
+    expect(weeks).toEqual(['Week 3This week', 'Week 4In 1', 'Week 5In 2', 'Week 6In 3'])
 
-    fireEvent.change(week, { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('tab', { name: /Week 5/ }))
     await waitFor(() => expect(streamMock).toHaveBeenCalledWith(2026, 5))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Rest of season' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Rest of season' }))
     expect(screen.getByText('Tyler Allgeier')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Streaming' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Streaming' }))
     expect(streamMock).toHaveBeenCalledTimes(2)
   })
 
   it('filters streamers by position and switches a release', async () => {
     render(<WaiverScreen dataVersion={0} />)
     await screen.findByText('Tyler Allgeier')
-    fireEvent.click(screen.getByRole('button', { name: 'Streaming' }))
-    await screen.findByText('@ CAR')
+    fireEvent.click(screen.getByRole('tab', { name: 'Streaming' }))
+    await screen.findByTitle('@ CAR')
     const names = (): string[] =>
       screen
         .getAllByTestId('stream-row')
@@ -170,7 +173,7 @@ describe('WaiverScreen', () => {
     fireEvent.change(screen.getByLabelText('Release for Jaylen Wright'), {
       target: { value: '1' }
     })
-    expect(screen.getByText('-3.50')).toBeTruthy()
+    expect(screen.getByText('-3.5')).toBeTruthy()
     expect(screen.getByText('+0.50')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'TE' }))
@@ -183,9 +186,9 @@ describe('WaiverScreen', () => {
       .mockRejectedValueOnce(new Error('Streaming covers weeks 3–6'))
     render(<WaiverScreen dataVersion={0} />)
     await screen.findByText('Tyler Allgeier')
-    fireEvent.click(screen.getByRole('button', { name: 'Streaming' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Streaming' }))
     expect(await screen.findByText('No streamer beats your lineup in week 3.')).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Streaming week'), { target: { value: '4' } })
+    fireEvent.click(screen.getByRole('tab', { name: /Week 4/ }))
     expect(await screen.findByText('Streaming covers weeks 3–6')).toBeTruthy()
   })
 })

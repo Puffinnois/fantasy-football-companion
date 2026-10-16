@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Settings } from 'lucide-react'
 import { Mark } from '@/components/edition'
 import { UpdatePill } from '@/components/UpdatePill'
 import { api } from '@/lib/api'
@@ -15,7 +14,8 @@ const ITEMS: { id: Screen; label: string }[] = [
   { id: 'lineup', label: 'Lineup' },
   { id: 'trade', label: 'Trade' },
   { id: 'waivers', label: 'Waivers' },
-  { id: 'rules', label: 'Rules' }
+  { id: 'rules', label: 'Rules' },
+  { id: 'setup', label: 'Setup' }
 ]
 
 interface TopNavProps {
@@ -113,7 +113,7 @@ function SyncButton({
   )
 }
 
-/** Fantasy nav (README "Fantasy nav"): mark, six screens, sync line, update, setup and theme. */
+/** Fantasy nav (README "Fantasy nav"): mark, seven screens, sync line, update and theme. */
 export function TopNav({
   current,
   onNavigate,
@@ -140,7 +140,7 @@ export function TopNav({
           <button
             key={id}
             type="button"
-            disabled={!hasLeague}
+            disabled={!hasLeague && id !== 'setup'}
             aria-current={current === id ? 'page' : undefined}
             onClick={() => onNavigate(id)}
             className={cn(
@@ -157,19 +157,6 @@ export function TopNav({
       <div className="ml-auto flex items-center gap-4 text-[12.5px] leading-none font-medium text-fg-2">
         <UpdatePill state={update} onOpen={onOpenUpdate} />
         {hasLeague && <SyncButton refreshKey={refreshKey} onRefreshed={onRefreshed} />}
-        <button
-          type="button"
-          title="Setup"
-          aria-label="Setup"
-          aria-current={current === 'setup' ? 'page' : undefined}
-          onClick={() => onNavigate('setup')}
-          className={cn(
-            'flex size-[30px] cursor-pointer items-center justify-center rounded-full border hover:border-fg-3 hover:text-fg',
-            current === 'setup' ? 'border-ink text-fg' : 'border-line text-fg-2'
-          )}
-        >
-          <Settings className="size-3.5" />
-        </button>
         <button
           type="button"
           title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}

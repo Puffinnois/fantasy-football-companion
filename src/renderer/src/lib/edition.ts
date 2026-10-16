@@ -29,3 +29,36 @@ const INJURY_SHORT: Record<string, string> = {
 export function injuryShort(status: string): string {
   return INJURY_SHORT[status] ?? status.slice(0, 3).toUpperCase()
 }
+
+export type SlotKind = 'pos' | 'ink' | 'flex' | 'bn' | 'ir' | 'other'
+
+const SLOT_KIND: Record<string, SlotKind> = {
+  ALL: 'ink',
+  FLEX: 'flex',
+  SUPER_FLEX: 'flex',
+  REC_FLEX: 'flex',
+  WRRB_FLEX: 'flex',
+  IDP_FLEX: 'flex',
+  BN: 'bn',
+  TAXI: 'bn',
+  IR: 'ir'
+}
+const SLOT_SHORT: Record<string, string> = {
+  SUPER_FLEX: 'SFLX',
+  REC_FLEX: 'RFLX',
+  WRRB_FLEX: 'W/R',
+  IDP_FLEX: 'IDP',
+  ALL: 'ALL'
+}
+
+export function slotKind(slot: string | null): SlotKind {
+  const raw = (slot ?? '').toUpperCase()
+  if (posBg(raw)) return 'pos'
+  return SLOT_KIND[raw] ?? 'other'
+}
+
+/** Chip text: SUPER_FLEX → SFLX, REC_FLEX → RFLX, WRRB_FLEX → W/R, IDP_FLEX → IDP; '—' when empty. */
+export function slotLabel(slot: string | null): string {
+  const raw = (slot ?? '').toUpperCase()
+  return SLOT_SHORT[raw] ?? (raw || '—')
+}

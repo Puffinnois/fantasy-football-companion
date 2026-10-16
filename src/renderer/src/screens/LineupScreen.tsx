@@ -30,7 +30,6 @@ import type { DetailTarget, LineupPlayer, LineupWeek, SlotEntry } from '@shared/
 const GRID = 'grid-cols-[48px_minmax(0,1fr)_72px_150px_56px]'
 const BENCH_GRID = 'grid-cols-[34px_minmax(0,1fr)_58px_44px]'
 const one = (n: number): string => n.toFixed(1)
-const SLOT_POS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF'])
 
 /** Bye / Out / Doubtful / Questionable tag next to the name. */
 function Flag({ p }: { p: LineupPlayer }): React.JSX.Element | null {
@@ -361,11 +360,7 @@ export function LineupScreen({ dataVersion }: LineupScreenProps): React.JSX.Elem
                 isIn && 'bg-me'
               )}
             >
-              <PosChip
-                position={SLOT_POS.has(e.slot) ? e.slot : null}
-                size="slot"
-                label={e.slot === 'SUPER_FLEX' ? 'SFLX' : e.slot.replace('_', ' ')}
-              />
+              <PosChip position={e.slot} size="slot" />
               <div className="flex min-w-0 flex-col gap-1">
                 <div className="flex min-w-0 items-center gap-[7px]">
                   {p ? (

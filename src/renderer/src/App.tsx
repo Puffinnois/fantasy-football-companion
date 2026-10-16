@@ -13,7 +13,7 @@ import { useTheme } from '@/lib/theme'
 import { useUpdateState } from '@/lib/useUpdateState'
 
 /** Screens with an Edition masthead lay out their own scroll regions; the rest scroll as a page. */
-const FULL_BLEED: Screen[] = ['league', 'players', 'lineup']
+const FULL_BLEED: Screen[] = ['league', 'players', 'lineup', 'waivers', 'setup']
 
 export default function App(): React.JSX.Element {
   const [screen, setScreen] = useState<Screen>('league')
@@ -96,9 +96,9 @@ export default function App(): React.JSX.Element {
           <SetupScreen
             onImported={() => {
               setHasLeague(true)
-              setScreen('league')
               bumpData()
             }}
+            onGoLeague={() => setScreen('league')}
           />
         )}
         {screen === 'league' && <LeagueScreen key={dataVersion} onOpenPlayer={openPlayer} />}

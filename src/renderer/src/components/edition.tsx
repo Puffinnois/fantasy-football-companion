@@ -1,21 +1,26 @@
-import { injuryShort, posBg, type Tone } from '@/lib/edition'
+import { injuryShort, posBg, slotKind, slotLabel, type Tone } from '@/lib/edition'
 import { cn } from '@/lib/utils'
 
 export type { Tone }
 
 /** Companion Fantasy "Edition" building blocks (design handoff 2026-10-15, README "Shared foundations"). */
 
-/** Solid position chip; `slot` labels that are not a position (FLEX, SUPER FLEX) get an ink outline. */
+/**
+ * Position / slot chip (README "Position / slot chip"): positions solid, ALL ink, the FLEX family
+ * ink-outlined, BN/TAXI muted, IR red-outlined, anything else a thin outline.
+ */
 export function PosChip({
   position,
   size = 'md',
-  label
+  label,
+  className
 }: {
   position: string | null
-  size?: 'sm' | 'md' | 'slot'
+  size?: 'sm' | 'md' | 'slot' | 'fill'
   label?: string
+  className?: string
 }): React.JSX.Element {
-  const bg = posBg(position)
+  const kind = slotKind(position)
   return (
     <span
       className={cn(
@@ -23,10 +28,17 @@ export function PosChip({
         size === 'sm' && 'h-[22px] w-[34px] text-[13px]',
         size === 'md' && 'h-6 w-[38px] text-[14px]',
         size === 'slot' && 'h-6 w-11 text-[14px]',
-        bg ? cn(bg, 'text-on-pos') : 'border-[1.5px] border-ink text-fg'
+        size === 'fill' && 'size-full text-[13px]',
+        kind === 'pos' && cn(posBg(position), 'text-on-pos'),
+        kind === 'ink' && 'bg-ink text-paper',
+        kind === 'flex' && 'border-[1.5px] border-ink text-fg',
+        kind === 'bn' && 'bg-panel-2 text-fg-2 shadow-[inset_0_0_0_1px_var(--line)]',
+        kind === 'ir' && 'border-[1.5px] border-bad text-bad',
+        kind === 'other' && 'border border-line text-fg-2',
+        className
       )}
     >
-      {label ?? (position ? position.toUpperCase() : '—')}
+      {label ?? slotLabel(position)}
     </span>
   )
 }

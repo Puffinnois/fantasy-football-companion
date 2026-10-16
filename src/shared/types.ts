@@ -720,6 +720,8 @@ export interface SyncStatus {
   lastNflverseSync: SyncLogEntry | null
   lastError: SyncLogEntry | null
   activeLeagueId: string | null
+  /** Latest finished entry per Setup data-source group (`SYNC_SOURCE_GROUPS` key). */
+  sources: Record<string, SyncLogEntry | null>
 }
 
 /** Auto-update progress as owned by the main process; the renderer only renders it. */
