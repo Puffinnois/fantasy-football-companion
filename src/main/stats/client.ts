@@ -16,9 +16,12 @@ export interface StatsClient {
   /** One refresh at a time: a call while one runs returns that run. */
   refresh(options?: RefreshOptions): Promise<StatsSyncResult>
   selfTest(): Promise<SelfTestResult>
-  /** Closes the database and ends the worker. */
+  /** Stops a running refresh, closes the database and ends the worker (after `CLOSE_TIMEOUT_MS` at most). */
   close(): Promise<void>
 }
+
+/** How long `close` waits for the worker to close the database before ending it anyway. */
+export const CLOSE_TIMEOUT_MS = 3_000
 
 /** Bundled beside the main entry by `electron.vite.config.ts`. */
 export function statsWorkerPath(): string {
@@ -30,7 +33,8 @@ type Pending = { resolve: (value: unknown) => void; reject: (err: Error) => void
 export function startStatsWorker(
   init: StatsWorkerInit,
   onStep: (entry: StatsLogEntry) => void = () => {},
-  workerPath: string = statsWorkerPath()
+  workerPath: string = statsWorkerPath(),
+  closeTimeoutMs: number = CLOSE_TIMEOUT_MS
 ): StatsClient {
   const worker = new Worker(workerPath, { workerData: init })
   const pending = new Map<number, Pending>()
@@ -69,8 +73,14 @@ export function startStatsWorker(
     ),
     selfTest: () => request<SelfTestResult>((id) => ({ id, kind: 'selfTest' })),
     async close() {
-      if (dead) return
-      await request((id) => ({ id, kind: 'close' })).catch(() => undefined)
+      if (!dead) {
+        let timer: NodeJS.Timeout | undefined
+        await Promise.race([
+          request((id) => ({ id, kind: 'close' })).catch(() => undefined),
+          new Promise((resolve) => (timer = setTimeout(resolve, closeTimeoutMs)))
+        ])
+        clearTimeout(timer)
+      }
       await worker.terminate()
     }
   }

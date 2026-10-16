@@ -30,6 +30,8 @@ export interface DownloadOptions {
   /** Play-by-play is ~20 MB; the default leaves room for a slow connection. */
   timeoutMs?: number
   retryDelayMs?: number
+  /** Aborts downloads in flight when the worker closes. */
+  signal?: AbortSignal
 }
 
 /** Stats-analysis spec §4.4: files are Parquet where nflverse publishes it, read from disk by DuckDB. */
@@ -37,7 +39,8 @@ export function createDownloads(options: DownloadOptions): Downloads {
   const http: FetchTextOptions = {
     fetchImpl: options.fetchImpl ?? fetch,
     timeoutMs: options.timeoutMs ?? 120_000,
-    retryDelayMs: options.retryDelayMs ?? 2_000
+    retryDelayMs: options.retryDelayMs ?? 2_000,
+    signal: options.signal
   }
   const error = (status: number, url: string): Error => new StatsHttpError(status, url)
   return {

@@ -31,7 +31,12 @@ export interface StatsWorkerInit {
 export interface SelfTestResult {
   duckdb: string
   rows: number
+  /** A Parquet round trip (every nflverse source). */
   parquet: boolean
+  /** `read_json` (Sleeper's lines). */
+  json: boolean
+  /** ICU time zones (depth-chart kickoffs). */
+  icu: boolean
 }
 
 export type StatsRequest =

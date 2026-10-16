@@ -79,7 +79,12 @@ const RETIRED_FILES = ['warehouse.db', 'warehouse.db-wal', 'warehouse.db-shm']
 function retireWarehouse(): void {
   for (const name of RETIRED_FILES) {
     const path = join(app.getPath('userData'), name)
-    if (existsSync(path)) rmSync(path, { force: true })
+    try {
+      if (existsSync(path)) rmSync(path, { force: true })
+    } catch (err) {
+      // Locked by another instance (Windows): retried on the next launch.
+      console.error(`could not delete ${path}`, err)
+    }
   }
 }
 
@@ -108,10 +113,10 @@ async function runStatsSelfTest(out: string): Promise<number> {
   let result: object
   let code = 1
   try {
-    const client = startStatsWorker({ path: join(dir, 'stats.duckdb'), tempDir: dir })
+    const client = startStatsWorker({ path: join(dir, 'stats.duckdb'), tempDir: join(dir, 'tmp') })
     const test = await client.selfTest()
     await client.close()
-    code = test.parquet && test.rows === 1000 ? 0 : 1
+    code = test.parquet && test.json && test.icu && test.rows === 1000 ? 0 : 1
     result = { ok: code === 0, ...test }
   } catch (err) {
     result = { ok: false, error: err instanceof Error ? err.message : String(err) }
@@ -156,8 +161,16 @@ app.whenReady().then(async () => {
     // Spec §4.4: the stats section works without a league, so its data syncs on its own.
     startStats(ctx).catch((err) => console.error('stats refresh failed', err))
   }
-  app.on('will-quit', () => {
-    void ctx.stats?.close()
+  // Spec §2: the process must not exit while DuckDB runs a statement (Electron aborts), so the first
+  // quit closes the stats worker, which interrupts a running refresh, and then quits again.
+  let statsClosed = false
+  app.on('will-quit', (event) => {
+    if (statsClosed || !ctx.stats) return
+    event.preventDefault()
+    void ctx.stats.close().finally(() => {
+      statsClosed = true
+      app.quit()
+    })
   })
 
   app.on('activate', () => {

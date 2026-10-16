@@ -72,6 +72,11 @@ export class StatsDb {
     }
   }
 
+  /** Stops the statement running on this connection; it rejects with an "Interrupted" error. */
+  interrupt(): void {
+    this.conn.interrupt()
+  }
+
   close(): void {
     this.conn.closeSync()
     this.instance.closeSync()

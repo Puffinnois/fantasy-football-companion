@@ -86,6 +86,13 @@ describe('startStatsWorker', () => {
     await expect(pending).rejects.toThrow('the stats worker stopped (exit 1)')
   })
 
+  it('ends the worker even when the close is never answered', async () => {
+    const client = startStatsWorker(INIT, undefined, 'w.js', 10)
+    await client.close()
+    expect(workers[0].posted).toEqual([{ id: 1, kind: 'close' }])
+    expect(workers[0].terminated).toBe(true)
+  })
+
   it('closes the database before ending the worker', async () => {
     const client = startStatsWorker(INIT, undefined, 'w.js')
     const closing = client.close()

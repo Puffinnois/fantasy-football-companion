@@ -2,6 +2,7 @@ import type { StatsDb } from './db'
 import type { Downloads } from './download'
 import type { RefreshOptions, StatsLogEntry, StatsStepStatus, StatsSyncResult } from './protocol'
 import { buildIdentity } from './identity'
+import { INTERRUPTED_MESSAGE } from './schema'
 import { describe, replaceRows, standardSelect } from './load'
 import { loadSleeperSeason, type StatsState } from './sleeper'
 import { FILE_SOURCES, STATS_FIRST_SEASON, type FileSource } from './sources'
@@ -24,6 +25,8 @@ export interface StatsSyncDeps {
   nflState: () => Promise<StatsState>
   now?: () => Date
   onStep?: (entry: StatsLogEntry) => void
+  /** True once the worker is closing: no step starts after it, and the running one is `interrupted`. */
+  cancelled?: () => boolean
 }
 
 /** A source of the sync: one of the files, or Sleeper's weekly lines. */
@@ -156,7 +159,7 @@ export function isDue(input: DueInput): boolean {
 
 async function lastAttempt(db: StatsDb, source: string): Promise<string | null> {
   const row = await db.get<{ started_at: string }>(
-    `SELECT started_at FROM sync_log WHERE source = ? AND status <> 'running'
+    `SELECT started_at FROM sync_log WHERE source = ? AND status NOT IN ('running', 'interrupted')
      ORDER BY id DESC LIMIT 1`,
     [source]
   )
@@ -207,8 +210,13 @@ async function runLogged(
     rows = out.rows
     message = out.message
   } catch (err) {
-    status = err instanceof SkipStep ? 'skipped' : 'error'
-    message = err instanceof Error ? err.message : String(err)
+    if (deps.cancelled?.()) {
+      status = 'interrupted'
+      message = INTERRUPTED_MESSAGE
+    } else {
+      status = err instanceof SkipStep ? 'skipped' : 'error'
+      message = err instanceof Error ? err.message : String(err)
+    }
   }
   const row = await db.get(
     `UPDATE sync_log SET finished_at = ?, status = ?, message = ?, rows_written = ?
@@ -226,7 +234,7 @@ async function runLogged(
 
 /**
  * Stats-analysis spec §4.4: every due step, in order, oldest season first; each commits on its own,
- * so a quit mid-backfill resumes on the next run. Then, when anything was written, identity and
+ * so a quit mid-backfill resumes on the next run (an `interrupted` step is not an attempt). Then, when anything was written, identity and
  * views are rebuilt (`stats:identity`). Never throws.
  */
 export async function refreshStats(
@@ -250,6 +258,7 @@ export async function refreshStats(
   let wrote = false
   for (const step of steps) {
     for (const season of seasonsFor(step, state.season)) {
+      if (deps.cancelled?.()) return { steps: log }
       const name = stepLogName(step, season)
       const due = isDue({
         season,
@@ -282,7 +291,7 @@ export async function refreshStats(
       log.push(entry)
     }
   }
-  if (wrote) {
+  if (wrote && !deps.cancelled?.()) {
     log.push(
       await runLogged(deps, `${STATS_LOG_PREFIX}identity`, async () => {
         const players = await buildIdentity(deps.db)

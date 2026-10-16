@@ -45,6 +45,18 @@ describe('createDownloads', () => {
     )
   })
 
+  it('stops a download when its signal aborts', async () => {
+    const abort = new AbortController()
+    const hanging: typeof fetch = (_url, init) =>
+      new Promise<Response>((_resolve, reject) =>
+        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+      )
+    const downloads = createDownloads({ dir: tempDir(), fetchImpl: hanging, signal: abort.signal })
+    const pending = downloads.withFile('https://x/f.parquet', async () => 1)
+    abort.abort()
+    await expect(pending).rejects.toThrow('aborted')
+  })
+
   it('parses JSON and rejects an unreadable body', async () => {
     const ok = createDownloads({ dir: tempDir(), fetchImpl: respond(200, '[1,2]') })
     expect(await ok.json('https://x/s')).toEqual([1, 2])

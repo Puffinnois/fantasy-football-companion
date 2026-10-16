@@ -31,6 +31,8 @@ openStatsService(workerData as StatsWorkerInit, (entry) => post({ kind: 'step', 
   (opened) => {
     service = opened
     port.on('message', (request: StatsRequest) => {
+      // A close must not wait behind a refresh: stop it now, then close in turn.
+      if (request.kind === 'close') service?.cancel()
       queue = queue.then(async () => {
         try {
           post({ kind: 'reply', id: request.id, ok: true, result: await handle(request) })

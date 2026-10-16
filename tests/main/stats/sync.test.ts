@@ -7,6 +7,7 @@ import {
   type DueInput,
   type SourceState
 } from '@main/stats/sync'
+import { INTERRUPTED_MESSAGE } from '@main/stats/schema'
 import { openTestDb, tempDir, writeFixture } from '../../fixtures/stats'
 import { fakeDownloads, runSync, STATE_2026, urlOf } from '../../fixtures/statsSync'
 
@@ -124,6 +125,46 @@ describe('refreshStats', () => {
       ['stats:combine', 'ok'],
       ['stats:identity', 'ok']
     ])
+  })
+
+  it('stops between steps once cancelled and logs the step it was in as interrupted', async () => {
+    const db = await openTestDb()
+    let cancelled = false
+    const { steps } = await refreshStats(
+      {
+        db,
+        downloads: {
+          async withFile() {
+            cancelled = true
+            throw new Error('INTERRUPT Error: Interrupted!')
+          },
+          json: async () => null
+        },
+        tempDir: tempDir(),
+        nflState: async () => STATE_2026,
+        cancelled: () => cancelled
+      },
+      {},
+      STATS_STEPS.filter((s) => s.id === 'combine' || s.id === 'players')
+    )
+    expect(steps.map((s) => [s.source, s.status, s.message])).toEqual([
+      ['stats:players', 'interrupted', INTERRUPTED_MESSAGE]
+    ])
+  })
+
+  it('retries an interrupted step on the next run, not a day later', async () => {
+    const db = await openTestDb()
+    await db.exec(
+      "INSERT INTO sync_log (source, started_at, finished_at, status) VALUES ('stats:combine', '2026-10-16T11:00:00Z', '2026-10-16T11:01:00Z', 'interrupted')"
+    )
+    const file = await writeFixture(
+      db,
+      tempDir(),
+      'c.parquet',
+      "SELECT 2010 AS season, 'X' AS player_name"
+    )
+    const { steps } = await runSync(db, { files: { [urlOf('combine')]: file }, only: ['combine'] })
+    expect(steps[0]).toMatchObject({ source: 'stats:combine', status: 'ok' })
   })
 
   it('logs the NFL state failure and stops', async () => {
