@@ -75,6 +75,18 @@ const api: Api = {
   },
   app: {
     version: () => ipcRenderer.invoke(IPC.appVersion)
+  },
+  stats: {
+    query: (query) => ipcRenderer.invoke(IPC.statsQuery, query),
+    catalogue: () => ipcRenderer.invoke(IPC.statsCatalogue),
+    status: () => ipcRenderer.invoke(IPC.statsStatus),
+    onChanged: (listener) => {
+      const handler = (): void => listener()
+      ipcRenderer.on(IPC.statsChanged, handler)
+      return () => {
+        ipcRenderer.removeListener(IPC.statsChanged, handler)
+      }
+    }
   }
 }
 

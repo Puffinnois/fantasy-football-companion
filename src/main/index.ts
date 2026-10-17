@@ -16,6 +16,7 @@ import { createNflverseClient } from '@main/sources/nflverse'
 import { createSleeperClient } from '@main/sources/sleeper'
 import { createSleeperNewsClient } from '@main/sources/sleeperNews'
 import { startStatsWorker, type StatsClient } from '@main/stats/client'
+import { STATS_DERIVED_STEP } from '@main/stats/sync'
 import { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
 
@@ -91,10 +92,18 @@ function retireWarehouse(): void {
 /** Stats-analysis spec §2: a failure here only disables the stats section, never the app. */
 function openStats(): StatsClient | null {
   try {
-    return startStatsWorker({
-      path: join(app.getPath('userData'), 'stats.duckdb'),
-      tempDir: join(app.getPath('userData'), 'stats-tmp')
-    })
+    return startStatsWorker(
+      {
+        path: join(app.getPath('userData'), 'stats.duckdb'),
+        tempDir: join(app.getPath('userData'), 'stats-tmp')
+      },
+      (entry) => {
+        // Spec §5.3: screens query again once the derived tables are rebuilt.
+        if (entry.source === STATS_DERIVED_STEP && entry.status === 'ok') {
+          mainWindow?.webContents.send(IPC.statsChanged)
+        }
+      }
+    )
   } catch (err) {
     console.error('could not start the stats worker; the stats section is off', err)
     return null
@@ -116,7 +125,7 @@ async function runStatsSelfTest(out: string): Promise<number> {
     const client = startStatsWorker({ path: join(dir, 'stats.duckdb'), tempDir: join(dir, 'tmp') })
     const test = await client.selfTest()
     await client.close()
-    code = test.parquet && test.json && test.icu && test.rows === 1000 ? 0 : 1
+    code = test.parquet && test.json && test.icu && test.query && test.rows === 1000 ? 0 : 1
     result = { ok: code === 0, ...test }
   } catch (err) {
     result = { ok: false, error: err instanceof Error ? err.message : String(err) }

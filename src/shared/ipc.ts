@@ -27,6 +27,7 @@ import type {
   WaiverAdds
 } from './types'
 import type { Rules } from './rules'
+import type { MetricInfo, StatsQuery, StatsResult, StatsStatus } from './stats/types'
 
 export interface FindLeaguesResult {
   userId: string
@@ -110,6 +111,17 @@ export interface Api {
   app: {
     version(): Promise<string>
   }
+  /** Stats-analysis spec §7: the stats section's data, with or without a league. */
+  stats: {
+    /** Runs one query in the stats worker; rejects with a readable message on an invalid query. */
+    query(query: StatsQuery): Promise<StatsResult>
+    /** Every metric the engine computes, with where it can be computed (spec §6). */
+    catalogue(): Promise<MetricInfo[]>
+    /** "Data through week N, updated <time>" (spec §5.3). */
+    status(): Promise<StatsStatus>
+    /** Fires when a rebuild finished: screens query again. Returns the unsubscribe function. */
+    onChanged(listener: () => void): () => void
+  }
 }
 
 export const IPC = {
@@ -145,5 +157,9 @@ export const IPC = {
   updateState: 'update:state',
   updateInstall: 'update:install',
   updateChanged: 'update:changed',
-  appVersion: 'app:version'
+  appVersion: 'app:version',
+  statsQuery: 'stats:query',
+  statsCatalogue: 'stats:catalogue',
+  statsStatus: 'stats:status',
+  statsChanged: 'stats:changed'
 } as const
