@@ -745,11 +745,11 @@ const RUSHING: MetricDef[] = [
     'rush_pct_over_expected',
     'Rush % over expected',
     'ROE%',
-    'Share of carries that beat their expected yards (Next Gen Stats), in percentage points.',
+    'Share of carries that beat their expected yards (Next Gen Stats).',
     {
       value: ratio('ngs_roe_sum', 'ngs_rush_att'),
       sample: 'ngs_rush_att',
-      unit: 'pp',
+      unit: 'pct',
       family: 'ngs',
       positions: RB,
       minSample: 100,

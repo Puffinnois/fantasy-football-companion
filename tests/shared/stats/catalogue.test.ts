@@ -42,6 +42,16 @@ describe('the metric catalogue (stats-analysis spec §6)', () => {
     }
   })
 
+  it('reads NGS shares as fractions and percentages as published', () => {
+    const unit = (id: string): string => CATALOGUE.find((m) => m.id === id)!.unit
+    // NGS publishes rush % over expected as a fraction (0.38), 8+ box and aggressiveness in percent.
+    expect([unit('rush_pct_over_expected'), unit('box8_rate'), unit('aggressiveness')]).toEqual([
+      'pct',
+      'pct',
+      'pct'
+    ])
+  })
+
   it('lists its ids as the metric enum of the query schema (spec §10)', () => {
     const schema = statsQuerySchema(CATALOGUE.map((m) => m.id)) as {
       required: string[]
