@@ -203,6 +203,10 @@ export function pushLeagueScoring(ctx: AppContext): Promise<unknown> {
     .setLeague(
       rules ? { scoring: rules.scoring, positionOverrides: rules.positionOverrides } : null
     )
+    .then((rescored) => {
+      // Spec §5.3: screens showing league scoring query again.
+      if (rescored) ctx.getWindow()?.webContents.send(IPC.statsChanged)
+    })
     .catch((err: unknown) => console.error('could not send the league rules to stats', err))
 }
 
