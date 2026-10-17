@@ -4,11 +4,14 @@ import {
   PRIOR_SEASON_FRESHNESS_MS,
   refreshStats,
   STATS_STEPS,
+  touchedSeasons,
   type DueInput,
   type SourceState
 } from '@main/stats/sync'
+import type { StatsLogEntry } from '@main/stats/protocol'
 import { INTERRUPTED_MESSAGE } from '@main/stats/schema'
 import { openTestDb, tempDir, writeFixture } from '../../fixtures/stats'
+import { seedGame } from '../../fixtures/statsDerived'
 import { fakeDownloads, runSync, STATE_2026, urlOf } from '../../fixtures/statsSync'
 
 const NOW = Date.parse('2026-10-16T12:00:00Z')
@@ -195,5 +198,55 @@ describe('refreshStats', () => {
       STATS_STEPS.filter((s) => s.id === 'combine')
     )
     expect(seen).toEqual(['stats:combine skipped'])
+  })
+})
+
+describe('the derived rebuild (stats-analysis spec §5.2)', () => {
+  const entry = (source: string, rowsWritten: number, status = 'ok'): StatsLogEntry => ({
+    id: 1,
+    source,
+    startedAt: '',
+    finishedAt: '',
+    status: status as StatsLogEntry['status'],
+    message: null,
+    rowsWritten
+  })
+
+  it('rebuilds the seasons whose rows changed, and the current one for an all-seasons file', () => {
+    expect(
+      touchedSeasons(
+        [
+          entry('stats:pbp:2025', 10),
+          entry('stats:sleeper:2026', 5),
+          entry('stats:pbp:2024', 0),
+          entry('stats:ftn:2023', 0, 'error'),
+          entry('stats:qbr_week', 3),
+          entry('stats:identity', 9)
+        ],
+        2026
+      )
+    ).toEqual([2025, 2026])
+  })
+
+  it('builds every season once play-by-play exists, then only after a refresh that loaded rows', async () => {
+    const db = await openTestDb()
+    await seedGame(db)
+    const first = await runSync(db, { only: [] })
+    expect(first.steps.map((s) => [s.source, s.status, s.message])).toEqual([
+      ['stats:derived', 'ok', 'all seasons']
+    ])
+    expect(await db.get('SELECT count(*) AS n FROM player_week')).toEqual({ n: 7 })
+    expect((await runSync(db, { only: [] })).steps).toEqual([])
+  })
+
+  it('scores the league’s rules when it has them', async () => {
+    const db = await openTestDb()
+    await seedGame(db)
+    await runSync(db, { only: [], league: { scoring: { rec: 3 }, positionOverrides: {} } })
+    expect(
+      await db.get(
+        "SELECT points FROM fantasy_week WHERE scoring = 'league' AND player_id = '9001'"
+      )
+    ).toEqual({ points: 3 })
   })
 })

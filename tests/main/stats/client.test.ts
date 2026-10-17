@@ -102,3 +102,26 @@ describe('startStatsWorker', () => {
     expect(workers[0].terminated).toBe(true)
   })
 })
+
+describe('the stats reads and league rules (stats-analysis spec §7)', () => {
+  it('sends queries, catalogue, status and league rules, each answered by id', async () => {
+    const client = startStatsWorker(INIT, undefined, 'w.js')
+    const query = { entity: 'team' as const, metrics: ['wins'], scope: { seasons: [2025] } }
+    const answers = [
+      client.query(query),
+      client.catalogue(),
+      client.status(),
+      client.setLeague(null)
+    ]
+    expect(workers[0].posted).toEqual([
+      { id: 1, kind: 'query', query },
+      { id: 2, kind: 'catalogue' },
+      { id: 3, kind: 'status' },
+      { id: 4, kind: 'setLeague', rules: null }
+    ])
+    workers[0].emit('message', { kind: 'reply', id: 4, ok: true, result: false })
+    workers[0].emit('message', { kind: 'reply', id: 1, ok: false, error: 'unknown metric "x"' })
+    await expect(answers[0]).rejects.toThrow('unknown metric "x"')
+    await expect(answers[3]).resolves.toBe(false)
+  })
+})

@@ -1,6 +1,8 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { singleFlight } from '@main/sync/background'
+import type { ScoringRules } from '@shared/stats/scoring'
+import type { MetricInfo, StatsQuery, StatsResult, StatsStatus } from '@shared/stats/types'
 import type {
   RefreshOptions,
   SelfTestResult,
@@ -15,7 +17,13 @@ import type {
 export interface StatsClient {
   /** One refresh at a time: a call while one runs returns that run. */
   refresh(options?: RefreshOptions): Promise<StatsSyncResult>
+  /** The league's scoring rules for the `league` scoring (null without a league); in turn with refreshes. */
+  setLeague(rules: ScoringRules | null): Promise<boolean>
   selfTest(): Promise<SelfTestResult>
+  /** Spec §7: runs at once, even during a refresh; rejects with the engine's message. */
+  query(query: StatsQuery): Promise<StatsResult>
+  catalogue(): Promise<MetricInfo[]>
+  status(): Promise<StatsStatus>
   /** Stops a running refresh, closes the database and ends the worker (after `CLOSE_TIMEOUT_MS` at most). */
   close(): Promise<void>
 }
@@ -71,7 +79,11 @@ export function startStatsWorker(
     refresh: singleFlight((options: RefreshOptions = {}) =>
       request<StatsSyncResult>((id) => ({ id, kind: 'refresh', options }))
     ),
+    setLeague: (rules) => request<boolean>((id) => ({ id, kind: 'setLeague', rules })),
     selfTest: () => request<SelfTestResult>((id) => ({ id, kind: 'selfTest' })),
+    query: (query) => request<StatsResult>((id) => ({ id, kind: 'query', query })),
+    catalogue: () => request<MetricInfo[]>((id) => ({ id, kind: 'catalogue' })),
+    status: () => request<StatsStatus>((id) => ({ id, kind: 'status' })),
     async close() {
       if (!dead) {
         let timer: NodeJS.Timeout | undefined
