@@ -97,6 +97,24 @@ async function selfTestQuery(db: StatsDb): Promise<boolean> {
   }
 }
 
+/** Rules reach SQL as numbers: anything else is refused (main validates them too). */
+function checkRules(rules: ScoringRules | null): void {
+  if (!rules) return
+  const all = [
+    ...Object.entries(rules.scoring),
+    ...Object.values(rules.positionOverrides).flatMap((o) => Object.entries(o ?? {}))
+  ]
+  for (const [key, points] of all) {
+    if (typeof points !== 'number' || !Number.isFinite(points) || !/^[a-z0-9_]+$/.test(key)) {
+      throw new Error(`league rules: ${key} must be a number`)
+    }
+  }
+  for (const position of Object.keys(rules.positionOverrides)) {
+    if (!/^[A-Z]{1,3}$/.test(position))
+      throw new Error(`league rules: unknown position ${position}`)
+  }
+}
+
 export async function openStatsService(
   init: StatsWorkerInit,
   onStep: (entry: StatsLogEntry) => void,
@@ -117,6 +135,8 @@ export async function openStatsService(
     [LEAGUE_KEY]
   )
   let league = stored?.value ? (JSON.parse(stored.value) as ScoringRules) : null
+  /** The rules the fantasy tables were built with. */
+  let built = stored?.value ?? null
   const downloads = createDownloads({ dir: init.tempDir, signal: abort.signal })
   const whileBusy = async <T>(fn: () => Promise<T>): Promise<T> => {
     busy = true
@@ -143,15 +163,24 @@ export async function openStatsService(
         )
       ),
     async setLeague(rules) {
-      const key = rulesKey(rules)
-      if (key === rulesKey(league)) return false
+      checkRules(rules)
       league = rules
-      await db.exec('INSERT OR REPLACE INTO stats_settings VALUES (?, ?)', [LEAGUE_KEY, key])
+      const key = rulesKey(rules)
+      if (key === built) return false
+      const save = async (): Promise<void> => {
+        await db.exec('INSERT OR REPLACE INTO stats_settings VALUES (?, ?)', [LEAGUE_KEY, key])
+        built = key
+      }
       // Before the first build, the next refresh builds everything, the league's scoring included.
-      if (await derivedStale(db)) return false
+      if (await derivedStale(db)) {
+        await save()
+        return false
+      }
+      // Saved once the fantasy tables hold these rules: a failed rescoring is retried next time.
       await whileBusy(() =>
         rebuildDerived(db, { seasons: 'all', league: rules, fantasyOnly: true })
       )
+      await save()
       return true
     },
     async query(query) {

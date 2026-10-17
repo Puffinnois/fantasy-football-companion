@@ -2,7 +2,13 @@ import type { StatsDb } from './db'
 import type { Downloads } from './download'
 import type { RefreshOptions, StatsLogEntry, StatsStepStatus, StatsSyncResult } from './protocol'
 import type { ScoringRules } from '@shared/stats/scoring'
-import { canDerive, derivedStale, rebuildDerived } from './derived/build'
+import {
+  canDerive,
+  derivedStale,
+  pendingSeasons,
+  rebuildDerived,
+  setPendingSeasons
+} from './derived/build'
 import { buildIdentity } from './identity'
 import { INTERRUPTED_MESSAGE } from './schema'
 import { describe, replaceRows, standardSelect, type Columns } from './load'
@@ -318,11 +324,16 @@ export async function refreshStats(
     )
   }
   const stale = await derivedStale(deps.db)
-  if ((wrote || stale) && (await canDerive(deps.db)) && !deps.cancelled?.()) {
-    const seasons = touchedSeasons(log, state.season)
+  const seasons = [
+    ...new Set([...touchedSeasons(log, state.season), ...(await pendingSeasons(deps.db))])
+  ].sort((a, b) => a - b)
+  if ((seasons.length > 0 || stale) && (await canDerive(deps.db)) && !deps.cancelled?.()) {
+    // Kept until the rebuild succeeds: a failed or interrupted step leaves them for the next run.
+    await setPendingSeasons(deps.db, seasons)
     log.push(
       await runLogged(deps, STATS_DERIVED_STEP, async () => {
         const rows = await rebuildDerived(deps.db, { seasons, league: deps.league?.() ?? null })
+        await setPendingSeasons(deps.db, [])
         await deps.db.exec('CHECKPOINT')
         const total = Object.values(rows).reduce((a, b) => a + b, 0)
         return { rows: total, message: stale ? 'all seasons' : `seasons ${seasons.join(', ')}` }

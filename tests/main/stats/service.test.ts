@@ -59,6 +59,19 @@ describe('the service reads and the league rules (stats-analysis spec §5, §7)'
     return { dir, path }
   }
 
+  it('refuses rules that are not numbers', async () => {
+    const { dir, path } = await builtFile()
+    const service = await openStatsService({ path, tempDir: join(dir, 'tmp') }, () => {})
+    try {
+      await expect(
+        service.setLeague({ scoring: { rec: Number.NaN }, positionOverrides: {} })
+      ).rejects.toThrow('league rules: rec must be a number')
+      expect(await service.setLeague(RULES)).toBe(true)
+    } finally {
+      service.close()
+    }
+  })
+
   it('says the stats are being built until they are', async () => {
     const dir = tempDir()
     const service = await openStatsService(
@@ -106,7 +119,7 @@ describe('the service reads and the league rules (stats-analysis spec §5, §7)'
     } finally {
       service.close()
     }
-    // The rules are kept with the file.
+    // The rules the fantasy tables were built with are kept with the file.
     const reopened = await openStatsService({ path, tempDir: join(dir, 'tmp') }, () => {})
     try {
       expect(await reopened.setLeague(RULES)).toBe(false)

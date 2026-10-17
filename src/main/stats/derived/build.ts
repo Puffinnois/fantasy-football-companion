@@ -56,6 +56,24 @@ export async function derivedStale(db: StatsDb): Promise<boolean> {
   return (state?.version ?? 0) < DERIVED_VERSION || !(await exists(db, 'player_week'))
 }
 
+const PENDING_KEY = 'derived_pending'
+
+/** Seasons a rebuild has still to do: kept until one succeeds, so a failed step loses none. */
+export async function pendingSeasons(db: StatsDb): Promise<number[]> {
+  const row = await db.get<{ value: string | null }>(
+    'SELECT value FROM stats_settings WHERE key = ?',
+    [PENDING_KEY]
+  )
+  return row?.value ? (JSON.parse(row.value) as number[]) : []
+}
+
+export async function setPendingSeasons(db: StatsDb, seasons: number[]): Promise<void> {
+  await db.exec('INSERT OR REPLACE INTO stats_settings VALUES (?, ?)', [
+    PENDING_KEY,
+    JSON.stringify(seasons)
+  ])
+}
+
 export interface RebuildInput {
   /** The seasons whose source rows changed, or every season (tables replaced). */
   seasons: number[] | 'all'
@@ -79,13 +97,16 @@ export async function rebuildDerived(
   if (!(await canDerive(db))) return {}
   const have = await inspect(db)
   const stale = await derivedStale(db)
-  const replace = stale || input.seasons === 'all'
+  // Only a new version replaces tables; otherwise every season is rebuilt in place, so an
+  // interrupted rebuild of every season (a rules change) leaves no season missing.
+  const replace = stale
+  const all = stale || input.seasons === 'all'
   const known = (
     await db.all<{ season: number }>(
       `SELECT DISTINCT season FROM games WHERE season >= ${STATS_FIRST_SEASON} ORDER BY season`
     )
   ).map((r) => r.season)
-  const seasons = replace ? known : known.filter((s) => (input.seasons as number[]).includes(s))
+  const seasons = all ? known : known.filter((s) => (input.seasons as number[]).includes(s))
   const sleeper = have.tables.has('src_sleeper') || have.tables.has('src_sleeper_def')
   const tables = DERIVED_TABLES.filter((t) =>
     FANTASY_TABLES.includes(t) ? sleeper : !(input.fantasyOnly ?? false) || stale

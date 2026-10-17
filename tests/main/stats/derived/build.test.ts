@@ -269,6 +269,20 @@ describe('the derived tables (stats-analysis spec §5)', () => {
     })
   })
 
+  it('rebuilds every season in place, so an interrupted rebuild loses none', async () => {
+    const db = await openTestDb()
+    await seedGame(db)
+    await rebuildDerived(db, { seasons: 'all', league: null })
+    // A season the schedule no longer lists stays: tables are not replaced.
+    await db.exec(
+      "INSERT INTO fantasy_week (player_id, season, season_type, week, scoring, points) VALUES ('1', 2019, 'REG', 1, 'ppr', 9)"
+    )
+    await rebuildDerived(db, { seasons: 'all', league: null, fantasyOnly: true })
+    expect(await db.get('SELECT points FROM fantasy_week WHERE season = 2019')).toEqual({
+      points: 9
+    })
+  })
+
   it('builds nothing without play-by-play', async () => {
     const db = await openTestDb()
     expect(await rebuildDerived(db, { seasons: 'all', league: null })).toEqual({})

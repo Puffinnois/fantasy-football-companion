@@ -239,6 +239,27 @@ describe('the derived rebuild (stats-analysis spec §5.2)', () => {
     expect((await runSync(db, { only: [] })).steps).toEqual([])
   })
 
+  it('keeps the seasons of a failed rebuild for the next run', async () => {
+    const db = await openTestDb()
+    await seedGame(db)
+    await runSync(db, { only: [] })
+    await db.exec("INSERT OR REPLACE INTO stats_settings VALUES ('derived_pending', '[2025]')")
+    await db.exec('ALTER TABLE player_week DROP COLUMN targets')
+    const failed = await runSync(db, { only: [] })
+    expect(failed.steps.map((s) => [s.source, s.status])).toEqual([['stats:derived', 'error']])
+    expect(await db.get("SELECT value FROM stats_settings WHERE key = 'derived_pending'")).toEqual({
+      value: '[2025]'
+    })
+    await db.exec('ALTER TABLE player_week ADD COLUMN targets DOUBLE')
+    const retried = await runSync(db, { only: [] })
+    expect(retried.steps.map((s) => [s.source, s.status, s.message])).toEqual([
+      ['stats:derived', 'ok', 'seasons 2025']
+    ])
+    expect(await db.get("SELECT value FROM stats_settings WHERE key = 'derived_pending'")).toEqual({
+      value: '[]'
+    })
+  })
+
   it('scores the league’s rules when it has them', async () => {
     const db = await openTestDb()
     await seedGame(db)
