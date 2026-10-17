@@ -96,7 +96,8 @@ describe('the derived tables (stats-analysis spec §5)', () => {
              1.0 AS touchback, '00-0000030' AS kicker_player_id, 0.0 AS play_deleted
       UNION ALL BY NAME
       SELECT 7 AS play_id, 2025 AS season, 1 AS week, 'REG' AS season_type, 'g1' AS game_id,
-             'BUF' AS posteam, 'KC' AS defteam, 'punt' AS play_type, 1.0 AS punt_attempt, 0.0 AS play_deleted`)
+             'BUF' AS posteam, 'KC' AS defteam, 'punt' AS play_type, 1.0 AS punt_attempt,
+             1.0 AS fumble_lost, 0.0 AS play_deleted`)
     await seedTable(db, 'play_players', [
       { season: 2025, game_id: 'g1', play_id: 7, role: 'solo_tackle', gsis: '00-0000031' }
     ])
@@ -118,6 +119,12 @@ describe('the derived tables (stats-analysis spec §5)', () => {
       { gsis_id: '00-0000030', team: 'BUF', opponent: 'KC', kickoffs: 1, tackles_solo: null },
       { gsis_id: '00-0000031', team: 'BUF', opponent: 'KC', kickoffs: null, tackles_solo: 1 }
     ])
+    // The returner's muffed punt is not the punting team's turnover.
+    expect(
+      await db.get("SELECT off_turnovers FROM team_week WHERE team = 'BUF' AND week = 1")
+    ).toEqual({
+      off_turnovers: 0
+    })
   })
 
   it('takes NGS and QBR season figures from their season rows', async () => {

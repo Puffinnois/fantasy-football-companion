@@ -394,7 +394,8 @@ export const TEAM_PLAY_COMPONENTS: TeamPlayComponent[] = [
     fourth_conv: n(`${SCRIMMAGE} AND p.down = 4 AND ${one('first_down')}`),
     rz_targets: n(`p.is_target AND ${RED_ZONE}`),
     rz_carries: n(`p.is_carry AND ${RED_ZONE}`),
-    turnovers: n(`p.counts AND (${one('interception')} OR ${one('fumble_lost')})`),
+    // Scrimmage plays only: on a punt, `posteam` is the punting team, not the muffing returner's.
+    turnovers: n(`${SCRIMMAGE} AND (${one('interception')} OR ${one('fumble_lost')})`),
     shotgun: n(`${SCRIMMAGE} AND ${one('shotgun')}`),
     no_huddle: n(`${SCRIMMAGE} AND ${one('no_huddle')}`),
     neutral_plays: n(`${SCRIMMAGE} AND ${NEUTRAL}`),
