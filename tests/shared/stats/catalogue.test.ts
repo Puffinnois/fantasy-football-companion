@@ -1,0 +1,57 @@
+import { describe, expect, it } from 'vitest'
+import { grainsOf } from '@main/stats/engine/registry'
+import { CATALOGUE, componentsOf } from '@shared/stats/catalogue'
+import { statsQuerySchema } from '@shared/stats/querySchema'
+import { POSITION_GROUPS } from '@shared/stats/types'
+
+describe('the metric catalogue (stats-analysis spec §6)', () => {
+  it('has unique ids, for players and teams', () => {
+    const ids = CATALOGUE.map((m) => m.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(CATALOGUE.filter((m) => m.entity === 'player').length).toBeGreaterThan(150)
+    expect(CATALOGUE.filter((m) => m.entity === 'team').length).toBeGreaterThan(60)
+  })
+
+  it('computes every metric from components the derived tables hold', () => {
+    const missing = CATALOGUE.filter((m) => !grainsOf(m).includes('season')).map((m) => m.id)
+    expect(missing).toEqual([])
+  })
+
+  it('splits by situation exactly the metrics that come from plays', () => {
+    const play = (id: string): boolean =>
+      grainsOf(CATALOGUE.find((m) => m.id === id)!).includes('play')
+    expect(
+      ['qb_epa_db', 'yprr', 'target_share', 'sacks', 'off_epa_play', 'def_man_epa'].map(play)
+    ).toEqual([true, true, false, true, true, true])
+    expect(['separation', 'qbr', 'fantasy_points', 'pressures', 'win_pct'].some(play)).toBe(false)
+  })
+
+  it('describes every metric for a person and an LLM', () => {
+    for (const m of CATALOGUE) {
+      expect(m.description, m.id).toMatch(/^[A-Z].+[.)]$/)
+      expect(m.label.length, m.id).toBeGreaterThan(1)
+      expect(m.short.length, m.id).toBeLessThanOrEqual(14)
+      expect(componentsOf(m), m.id).toContain(m.sample)
+      if (m.entity === 'team') expect(m.side, m.id).toBeDefined()
+      if (m.positions !== 'all') {
+        for (const p of m.positions) expect(POSITION_GROUPS, m.id).toContain(p)
+      }
+      if (m.kind === 'rate' && m.sample !== 'games' && m.entity === 'player') {
+        expect(m.minSample, m.id).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('lists its ids as the metric enum of the query schema (spec §10)', () => {
+    const schema = statsQuerySchema(CATALOGUE.map((m) => m.id)) as {
+      required: string[]
+      properties: Record<
+        string,
+        { items?: { enum: string[] }; properties?: Record<string, unknown> }
+      >
+    }
+    expect(schema.required).toEqual(['entity', 'metrics', 'scope'])
+    expect(schema.properties.metrics.items?.enum).toHaveLength(CATALOGUE.length)
+    expect(Object.keys(schema.properties.situation.properties ?? {})).toContain('withOnField')
+  })
+})
