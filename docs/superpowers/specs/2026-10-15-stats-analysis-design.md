@@ -444,7 +444,7 @@ Measured on the live database while Plan Y was written (its Planning findings), 
   - It gains `scoring`.
   - Plan Y's transforms are `raw`, `perGame`, `percentile`, `zScore` and `vsLeague`. `shrunk` and `opponentAdjusted` come with Plan Z's models. `perPlay` is dropped: the rates already are per play.
   - The JSON Schema is written by hand, typed so that the compiler fails if it and the type drift apart.
-- **E. Qualification.** `minSample` is per 17 games, scaled to the weeks a row covers and, for situational queries, to the share of plays the situation keeps.
+- **E. Qualification.** `minSample` is per 17 games, scaled to the weeks a row covers (about one game per opponent row) and, at the play grain, to the share of plays each row keeps: its situation and play-dimension group, counted among its teams' plays when the query filters teams or players on the field.
 - **F. The catalogue (§6.2)** has 259 metrics (177 player, 82 team); 162 can be split by situation. Left out or changed:
   - The EPA + CPOE composite needs league standardisation and moves to Plan Z.
   - Slot / wide / inline rates are out: participation lists positions, not alignment.
@@ -455,7 +455,7 @@ Measured on the live database while Plan Y was written (its Planning findings), 
 - **G. Routes** are dropbacks on the field (blocking included), exact through the prior season and estimated in the current one (§6.2).
 - **H. Season sources.** NGS and QBR season values come from their season rows. Postseason weeks of NGS, QBR and Sleeper are mapped to nflverse's numbering.
 - **I. Reads never wait (§2).**
-  - Queries, the catalogue and the status run at once on a second connection. Refreshes and league rules take turns.
+  - Queries and the status run at once, each on its own connection, so a timeout interrupts only its own query. Refreshes and league rules take turns. A rebuild runs DuckDB on one thread, reads included.
   - A query is interrupted after 5 s.
   - Main sends the league's scoring rules before each refresh and on every rules change. Only a change rebuilds the fantasy tables (about 2.5 s).
 - **J. Sync.** `stats:derived` follows `stats:identity`. It rebuilds the seasons whose rows changed, and the current season for an all-seasons file.
