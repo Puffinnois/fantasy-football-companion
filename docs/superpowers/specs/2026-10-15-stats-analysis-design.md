@@ -1,6 +1,6 @@
 # Stats analysis — design
 
-**Date:** 2026-10-15 · **Status:** approved 2026-10-16, amended 2026-10-16 (§15: Plan X) · **Plans:** X (DuckDB foundation), Y (metric layer + query engine), Z (models), AA (Stats screen), AB (team dashboard), AC (player dashboard), AD (explore: charts, compare, trends), AE (matchup preview); natural-language queries get their own spec after AE.
+**Date:** 2026-10-15 · **Status:** approved 2026-10-16, amended 2026-10-16 (§15: Plan X) and 2026-10-17 (§16: Plan Y) · **Plans:** X (DuckDB foundation), Y (metric layer + query engine), Z (models), AA (Stats screen), AB (team dashboard), AC (player dashboard), AD (explore: charts, compare, trends), AE (matchup preview); natural-language queries get their own spec after AE.
 
 **Sources:** the stats catalog (`docs/research/2026-10-09-nfl-stats-catalog.md`), the predictive-metrics catalogue (`docs/research/nfl_predictive_metrics.md`), the coverage audit (`docs/research/2026-10-14-warehouse-coverage-audit.md`), and a DuckDB vs SQLite benchmark on 2023–2025 play-by-play and participation (§3.2).
 
@@ -432,3 +432,32 @@ Measured on the live sources while Plan X was written (its Planning findings), a
   - Quitting closes the worker first (abort the download, interrupt the statement), because Electron aborts if the process exits mid-statement. Interrupted steps are retried on the next run.
   - Team columns are normalised in place in every source (`depth_charts` version 2).
   - Sleeper stat keys that are not plain identifiers are dropped. The self-test also checks `read_json` and ICU.
+
+## 16. Amendment 2026-10-17: the metric layer and the query engine (Plan Y)
+
+Measured on the live database while Plan Y was written (its Planning findings), and taken into the build. `docs/reference/stats-database.md` documents the result.
+
+- **A. Building the derived tables (§5.2).** One season at a time, each source into a temporary table first, on one thread (two threads need more than the 512 MB limit to write `player_week`'s ~230 columns). Each season is one transaction (delete, insert), instead of swapping whole tables. The first build takes about 25 s, a forced daily refresh's about 1.5 s. A source or column that is missing reads as NULL.
+- **B. Percentiles and ranks are computed by the engine (§5.2, §7.2)**, among the qualified rows of the query's own population (same position, same group). `player_season` holds sums only. Any week range, scoring or split then ranks correctly.
+- **C. Fantasy tables.** `fantasy_week` has one row per player-week and scoring (`ppr`, `half`, `std`, `league`), and `team_fantasy_week` holds the points each defense allowed by position. The presets are Sleeper's current defaults. Sleeper's stored `pts_*` follow older defaults in past seasons, so the gate is "the SQL scoring equals the app's scoring engine". Sleeper's single 50+ field-goal bucket before 2024 counts as 50–59. The team rows of ffopportunity (§15 B) are not needed.
+- **D. The query (§7.1).**
+  - It gains `scoring`.
+  - Plan Y's transforms are `raw`, `perGame`, `percentile`, `zScore` and `vsLeague`. `shrunk` and `opponentAdjusted` come with Plan Z's models. `perPlay` is dropped: the rates already are per play.
+  - The JSON Schema is written by hand, typed so that the compiler fails if it and the type drift apart.
+- **E. Qualification.** `minSample` is per 17 games, scaled to the weeks a row covers and, for situational queries, to the share of plays the situation keeps.
+- **F. The catalogue (§6.2)** has 259 metrics (177 player, 82 team); 162 can be split by situation. Left out or changed:
+  - The EPA + CPOE composite needs league standardisation and moves to Plan Z.
+  - Slot / wide / inline rates are out: participation lists positions, not alignment.
+  - Coverage EPA per defender is out: play-by-play does not name the covering defender, so coverage comes from PFR.
+  - Defender pressure rate uses pass snaps (opponent dropbacks on the field), since participation does not say who rushed.
+  - Two-minute and long-down snap shares are out.
+  - Red-zone TD % becomes the TD drive rate.
+- **G. Routes** are dropbacks on the field (blocking included), exact through the prior season and estimated in the current one (§6.2).
+- **H. Season sources.** NGS and QBR season values come from their season rows. Postseason weeks of NGS, QBR and Sleeper are mapped to nflverse's numbering.
+- **I. Reads never wait (§2).**
+  - Queries, the catalogue and the status run at once on a second connection. Refreshes and league rules take turns.
+  - A query is interrupted after 5 s.
+  - Main sends the league's scoring rules before each refresh and on every rules change. Only a change rebuilds the fantasy tables (about 2.5 s).
+- **J. Sync.** `stats:derived` follows `stats:identity`. It rebuilds the seasons whose rows changed, and the current season for an all-seasons file.
+- **K. QBR's season type** was ESPN's "Regular" / "Playoffs"; it is now REG / POST (source version 2).
+- **L. The self-test** also answers an engine query (§11: the packaged worker answers a query).
