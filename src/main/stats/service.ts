@@ -38,7 +38,7 @@ export interface StatsService {
    * A process must not exit while DuckDB runs a statement (Electron aborts), so closing cancels first.
    */
   cancel(): void
-  close(): void
+  close(): Promise<void>
 }
 
 /** The Sleeper NFL state, as the stats sync reads it. */
@@ -125,8 +125,26 @@ export async function openStatsService(
   mkdirSync(init.tempDir, { recursive: true })
   const db = await StatsDb.open(init.path, { tempDirectory: join(init.tempDir, 'duckdb') })
   await bootstrapStatsDb(db, new Date())
-  // Spec §2: screens read on their own connection while a refresh writes on this one.
-  const reader = await db.connect()
+  // Spec §2: each read gets its own connection, so it runs while a refresh writes, never waits
+  // behind another read, and its timeout interrupts only itself.
+  const reading = new Set<StatsDb>()
+  const inFlight = new Set<Promise<unknown>>()
+  let closing = false
+  const read = async <T>(fn: (conn: StatsDb) => Promise<T>): Promise<T> => {
+    if (closing) throw new Error('the stats database is closing')
+    const conn = await db.connect()
+    reading.add(conn)
+    const run = fn(conn).finally(() => {
+      reading.delete(conn)
+      conn.close()
+    })
+    inFlight.add(run)
+    void run.then(
+      () => inFlight.delete(run),
+      () => inFlight.delete(run)
+    )
+    return run
+  }
   const abort = new AbortController()
   let cancelled = false
   let busy = false
@@ -183,37 +201,39 @@ export async function openStatsService(
       await save()
       return true
     },
-    async query(query) {
-      if (await derivedStale(reader)) {
-        throw new StatsQueryError('the stats are still being built; try again in a few minutes')
-      }
-      const latest = await reader.get<{ season: number }>('SELECT max(season) AS season FROM games')
-      return runQuery(reader, query, {
-        currentSeason: latest?.season ?? new Date().getFullYear(),
-        hasLeague: league !== null
-      })
-    },
+    query: (query) =>
+      read(async (conn) => {
+        if (await derivedStale(conn)) {
+          throw new StatsQueryError('the stats are still being built; try again in a few minutes')
+        }
+        const latest = await conn.get<{ season: number }>('SELECT max(season) AS season FROM games')
+        return runQuery(conn, query, {
+          currentSeason: latest?.season ?? new Date().getFullYear(),
+          hasLeague: league !== null
+        })
+      }),
     catalogue: () => catalogueInfo(),
-    async status() {
-      const built = !(await derivedStale(reader))
-      const through = built
-        ? await reader.get<{ season: number; season_type: 'REG' | 'POST'; week: number }>(
-            `SELECT season, season_type, week FROM team_week WHERE games = 1
+    status: () =>
+      read(async (reader) => {
+        const built = !(await derivedStale(reader))
+        const through = built
+          ? await reader.get<{ season: number; season_type: 'REG' | 'POST'; week: number }>(
+              `SELECT season, season_type, week FROM team_week WHERE games = 1
              ORDER BY season DESC, season_type = 'POST' DESC, week DESC LIMIT 1`
-          )
-        : null
-      const updated = await reader.get<{ at: string | null }>(
-        "SELECT max(finished_at) AS at FROM sync_log WHERE status = 'ok' AND rows_written > 0"
-      )
-      return {
-        available: true,
-        through: through
-          ? { season: through.season, seasonType: through.season_type, week: through.week }
-          : null,
-        updatedAt: updated?.at ?? null,
-        busy
-      }
-    },
+            )
+          : null
+        const updated = await reader.get<{ at: string | null }>(
+          "SELECT max(finished_at) AS at FROM sync_log WHERE status = 'ok' AND rows_written > 0"
+        )
+        return {
+          available: true,
+          through: through
+            ? { season: through.season, seasonType: through.season_type, week: through.week }
+            : null,
+          updatedAt: updated?.at ?? null,
+          busy
+        }
+      }),
     /**
      * Stats-analysis spec §3.3: write, read, a Parquet round trip, `read_json` and an ICU time zone,
      * through the real file (the parquet, json and icu extensions are statically linked).
@@ -246,10 +266,12 @@ export async function openStatsService(
       cancelled = true
       abort.abort()
       db.interrupt()
-      reader.interrupt()
+      for (const conn of reading) conn.interrupt()
     },
-    close() {
-      reader.close()
+    /** Refuses new reads, waits for the running ones (interrupted by `cancel`), then closes. */
+    async close() {
+      closing = true
+      await Promise.allSettled([...inFlight])
       db.close()
     }
   }

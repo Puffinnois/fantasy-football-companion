@@ -31,7 +31,7 @@ async function handle(request: StatsRequest): Promise<unknown> {
     case 'status':
       return service.status()
     case 'close':
-      service.close()
+      await service.close()
       service = null
       return null
   }

@@ -59,6 +59,18 @@ describe('the service reads and the league rules (stats-analysis spec §5, §7)'
     return { dir, path }
   }
 
+  it('answers reads side by side, each on its own connection, and none once closing', async () => {
+    const { dir, path } = await builtFile()
+    const service = await openStatsService({ path, tempDir: join(dir, 'tmp') }, () => {})
+    const q = { entity: 'team' as const, metrics: ['wins'], scope: { seasons: [2025] } }
+    const answers = await Promise.all([service.query(q), service.query(q), service.status()])
+    expect(answers[0].rows.map((r) => r.id)).toEqual(['BUF', 'KC'])
+    expect(answers[1].rows).toHaveLength(2)
+    const closing = service.close()
+    await expect(service.query(q)).rejects.toThrow('the stats database is closing')
+    await closing
+  })
+
   it('refuses rules that are not numbers', async () => {
     const { dir, path } = await builtFile()
     const service = await openStatsService({ path, tempDir: join(dir, 'tmp') }, () => {})
