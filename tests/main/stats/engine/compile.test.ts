@@ -61,6 +61,14 @@ describe('compileQuery (stats-analysis spec §7.2)', () => {
     expect(compile({ groupBy: ['season'] }).rowWeeks(36, 2)).toBe(18)
     expect(compile({ groupBy: ['week'] }).rowWeeks(18, 1)).toBe(1)
     expect(compile({ scope: { seasons: [2025], lastNGames: 4 } }).rowWeeks(18, 1)).toBe(4)
+    // A team meets an opponent about once a season.
+    expect(compile({ groupBy: ['opponent'] }).rowWeeks(18, 1)).toBe(1)
+    expect(
+      compile({ scope: { seasons: [2024, 2025] }, groupBy: ['opponent'] }).rowWeeks(36, 2)
+    ).toBe(2)
+    expect(compile({ scope: { seasons: [2025], opponents: ['DET', 'GB'] } }).rowWeeks(18, 1)).toBe(
+      2
+    )
   })
 
   it('notes coverage the answer depends on', () => {

@@ -495,20 +495,38 @@ function playAgg(
   return { ctes: ctes.join(',\n'), dims }
 }
 
-/** The share of scrimmage plays in scope a situation keeps (1 without one). */
-function share(q: StatsQuery, c: Checked, params: Params): string {
-  if (c.grain !== 'play' || Object.keys(q.situation ?? {}).length === 0) return '1.0'
-  const scope = [
+/**
+ * Qualification at the play grain (amendment E): the share of the scope's scrimmage plays each row
+ * keeps, per play-dimension group (a third-down row keeps about a fifth). With on-field filters or
+ * a team scope, the plays counted are those teams' own, so a starter on the field keeps most.
+ */
+function sharesCte(q: StatsQuery, c: Checked, params: Params): string {
+  const dims = c.groupBy.filter((d) => PLAY_DIMS.includes(d))
+  const where = [
     `p.season IN ${params.list(q.scope.seasons)}`,
     ...seasonTypeWhere('p.season_type', q, params),
     "p.counts AND p.play_type IN ('pass', 'run')"
   ]
   if (q.scope.weeks) {
-    scope.push(`p.week BETWEEN ${params.add(q.scope.weeks[0])} AND ${params.add(q.scope.weeks[1])}`)
+    where.push(`p.week BETWEEN ${params.add(q.scope.weeks[0])} AND ${params.add(q.scope.weeks[1])}`)
   }
-  const kept = situationWhere(q.situation ?? {}, params, new Set())
-  return `(SELECT coalesce(count(*) FILTER (WHERE ${kept.join(' AND ')})::DOUBLE / nullif(count(*), 0), 0)
-           FROM plays p WHERE ${scope.join(' AND ')})`
+  const s = q.situation ?? {}
+  const onField = [...(s.withOnField ?? []), ...(s.withoutOnField ?? [])]
+  if (q.scope.teams) {
+    const teams = params.list(q.scope.teams)
+    where.push(`(p.posteam IN ${teams} OR p.defteam IN ${teams})`)
+  } else if (onField.length > 0) {
+    const teams = `(SELECT DISTINCT CASE o.side WHEN 'O' THEN t.posteam ELSE t.defteam END
+                    FROM on_field o JOIN plays t ON t.game_id = o.game_id AND t.play_id = o.play_id
+                    WHERE o.gsis IN ${params.list(onField)} AND t.season IN ${params.list(q.scope.seasons)})`
+    where.push(`(p.posteam IN ${teams} OR p.defteam IN ${teams})`)
+  }
+  const kept = situationWhere(s, params, new Set())
+  const filter = kept.length > 0 ? kept.join(' AND ') : 'true'
+  return `shares AS (
+    SELECT ${dims.map((d) => `${PLAY_DIM_SQL[d]} AS g_${d}, `).join('')}
+           count(*) FILTER (WHERE ${filter})::DOUBLE / sum(count(*)) OVER () AS share
+    FROM plays p WHERE ${where.join(' AND ')} GROUP BY ALL)`
 }
 
 /** Spec §7.2: validates a query and compiles it to parameterised, read-only SQL. */
@@ -550,15 +568,21 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
         return `v${i} AS t${i}`
     }
   })
+  const play = c.grain === 'play'
   const flags = c.metrics.map(
-    (m, i) => `(s${i} > 0 AND s${i} >= ${m.minSample ?? 0} * $factor) AS q${i}`
+    (m, i) =>
+      `(s${i} > 0 AND s${i} >= ${m.minSample ?? 0} * $factor${play ? ' * coalesce(sh.share, 0)' : ''}) AS q${i}`
   )
+  const playDims = dims.filter((d) => PLAY_DIMS.includes(d))
+  const sharesJoin = play
+    ? `LEFT JOIN shares sh ON ${playDims.length > 0 ? playDims.map((d) => `sh.g_${d} IS NOT DISTINCT FROM a.g_${d}`).join(' AND ') : 'true'}`
+    : ''
   const sort = q.sort ? q.metrics.indexOf(q.sort.metric) : 0
   const lower = c.metrics[sort].direction === 'lower' && c.transform !== 'percentile'
   const dir = q.sort?.dir ?? (lower ? 'asc' : 'desc')
   const player = q.entity === 'player'
-  const sql = `WITH ${ctes},
-    flagged AS (SELECT *, ${flags.join(', ')} FROM agg),
+  const sql = `WITH ${ctes},${play ? `\n    ${sharesCte(q, c, params)},` : ''}
+    flagged AS (SELECT a.*, ${play ? 'sh.share, ' : ''}${flags.join(', ')} FROM agg a ${sharesJoin}),
     ranked AS (SELECT *, ${ranked.join(', ')} FROM flagged),
     shaped AS (SELECT *, ${shaped.join(', ')} FROM ranked)
     SELECT x.*, ${player ? 'coalesce(pl.name, x.id)' : 'x.id'} AS name, count(*) OVER () AS total
@@ -567,8 +591,8 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     ORDER BY q${sort} DESC, t${sort} ${dir.toUpperCase()} NULLS LAST, name
     LIMIT ${q.limit ?? DEFAULT_LIMIT}`
 
-  // Qualification scales `minSample` to the weeks in scope and, at the play grain, to the share of
-  // scrimmage plays the situation keeps: 150 routes over a season is about 45 when pressured.
+  // Qualification scales `minSample` to the weeks a row covers (and, at the play grain, to the
+  // share of plays it keeps: 150 routes over a season is about 45 when pressured).
   const wp = new Params()
   const weeksWhere = [
     `season IN ${wp.list(q.scope.seasons)}`,
@@ -591,20 +615,20 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     grain: c.grain,
     metrics: c.metrics,
     transform: c.transform,
-    weeksSql: `SELECT (SELECT count(DISTINCT (season, season_type, week))::INTEGER FROM team_week
-                       WHERE ${weeksWhere.join(' AND ')}) AS weeks,
-                      ${share(q, c, wp)} AS share`,
+    weeksSql: `SELECT count(DISTINCT (season, season_type, week))::INTEGER AS weeks FROM team_week
+               WHERE ${weeksWhere.join(' AND ')}`,
     weeksParams: wp.values,
     sql,
     params: params.values,
-    rowWeeks: (weeks, seasons) =>
-      last !== undefined
-        ? Math.min(weeks, last)
-        : c.groupBy.includes('week')
-          ? 1
-          : c.groupBy.includes('season')
-            ? weeks / Math.max(1, seasons)
-            : weeks,
+    rowWeeks: (weeks, seasons) => {
+      if (last !== undefined) return Math.min(weeks, last)
+      if (c.groupBy.includes('week')) return 1
+      const bySeason = c.groupBy.includes('season')
+      // A team meets an opponent about once a season.
+      if (c.groupBy.includes('opponent')) return bySeason ? 1 : seasons
+      if (q.scope.opponents) return q.scope.opponents.length * (bySeason ? 1 : seasons)
+      return bySeason ? weeks / Math.max(1, seasons) : weeks
+    },
     notes: [...notes]
   }
 }

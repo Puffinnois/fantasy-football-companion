@@ -26,13 +26,9 @@ export async function runQuery(
   }, timeoutMs)
   let rows: Record<string, unknown>[]
   try {
-    const scope = await db.get<{ weeks: number; share: number }>(
-      compiled.weeksSql,
-      compiled.weeksParams
-    )
+    const scope = await db.get<{ weeks: number }>(compiled.weeksSql, compiled.weeksParams)
     const seasons = new Set(query.scope.seasons).size
-    const factor =
-      (compiled.rowWeeks(scope?.weeks ?? 0, seasons) / FULL_SEASON) * (scope?.share ?? 1)
+    const factor = compiled.rowWeeks(scope?.weeks ?? 0, seasons) / FULL_SEASON
     rows = await db.all(compiled.sql.replaceAll('$factor', factor.toFixed(6)), compiled.params)
   } catch (err) {
     if (timedOut) throw new StatsQueryError(`the query took longer than ${timeoutMs / 1000} s`)

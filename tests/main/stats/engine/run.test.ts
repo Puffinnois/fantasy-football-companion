@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { rebuildDerived } from '@main/stats/derived/build'
-import { StatsQueryError } from '@main/stats/engine/compile'
+import { compileQuery, StatsQueryError } from '@main/stats/engine/compile'
 import { runQuery } from '@main/stats/engine/run'
+import type { StatsQuery } from '@shared/stats/types'
 import { openTestDb } from '../../../fixtures/stats'
 import { CB, KC_RB, QB, RB, seedGame, WR } from '../../../fixtures/statsDerived'
 
@@ -80,6 +81,26 @@ describe('runQuery (stats-analysis spec §7)', () => {
     expect(pressured.rows[0].values.routes.raw).toBe(2)
     expect(pressured.rows[0].values.yprr.raw).toBe(10)
     expect(pressured.notes[0]).toMatch(/participation/)
+  })
+
+  it('scales qualification to the share of plays each situational row keeps', async () => {
+    const db = await seeded()
+    const shares = async (q: Partial<StatsQuery>): Promise<unknown[]> => {
+      const c = compileQuery(
+        {
+          entity: 'player',
+          metrics: ['qb_epa_db'],
+          scope: { seasons: [2025], players: [QB] },
+          ...q
+        },
+        CTX
+      )
+      const rows = await db.all<{ share: number }>(c.sql.replaceAll('$factor', '1'), c.params)
+      return rows.map((r) => r.share).sort()
+    }
+    // Five scrimmage plays: three on first down, one each on second and third.
+    expect(await shares({ groupBy: ['down'] })).toEqual([0.2, 0.6])
+    expect(await shares({ situation: { pressure: true } })).toEqual([0.2])
   })
 
   it('reads weekly rows, fantasy points under a scoring, and team metrics', async () => {
