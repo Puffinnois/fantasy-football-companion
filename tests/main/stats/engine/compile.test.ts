@@ -29,6 +29,11 @@ describe('compileQuery (stats-analysis spec §7.2)', () => {
       /lastNGames/
     )
     refuses({ limit: 5000 }, 'limit must be whole numbers from 1 to 1000')
+    refuses({ situation: { redZone: true } as never }, 'unknown situation filter "redZone"')
+    refuses({ scope: { seasons: [2025], season: 2025 } as never }, 'unknown scope field "season"')
+    refuses({ metric: 'targets' } as never, 'unknown query field "metric"')
+    refuses({ situation: { fieldZone: 'toString' as never } }, /fieldZone must be/)
+    refuses({ sort: null as never }, 'sort must be { metric, dir }')
   })
 
   it('reads the season tables, the weekly ones, or the plays, as the query needs', () => {

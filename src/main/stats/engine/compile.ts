@@ -126,8 +126,67 @@ interface Checked {
   groupBy: GroupBy[]
 }
 
+const QUERY_FIELDS = [
+  'entity',
+  'metrics',
+  'scope',
+  'situation',
+  'groupBy',
+  'transform',
+  'sort',
+  'limit',
+  'scoring'
+]
+const SCOPE_FIELDS = [
+  'seasons',
+  'seasonType',
+  'weeks',
+  'lastNGames',
+  'positions',
+  'teams',
+  'opponents',
+  'players',
+  'qualifiedOnly'
+]
+const SITUATION_FIELDS = [
+  'down',
+  'distance',
+  'quarter',
+  'fieldZone',
+  'scoreMargin',
+  'winProbability',
+  'neutral',
+  'pressure',
+  'blitz',
+  'playAction',
+  'coverage',
+  'formation',
+  'personnel',
+  'box',
+  'airYards',
+  'withOnField',
+  'withoutOnField'
+]
+
+/** Fields the engine does not know are refused, not ignored: a typo would silently change the answer. */
+function knownFields(value: unknown, fields: string[], what: string): void {
+  if (value === null || typeof value !== 'object' || Array.isArray(value))
+    fail(`${what} must be an object`)
+  for (const key of Object.keys(value)) {
+    if (!fields.includes(key)) fail(`unknown ${what} field "${key}"`)
+  }
+}
+
 /** Spec §7.2: the checks, with readable messages, before anything reaches SQL. */
 function validate(q: StatsQuery, ctx: CompileContext): Checked {
+  knownFields(q, QUERY_FIELDS, 'query')
+  knownFields(q.scope, SCOPE_FIELDS, 'scope')
+  if (q.situation !== undefined) {
+    if (q.situation === null || typeof q.situation !== 'object') fail('situation must be an object')
+    for (const key of Object.keys(q.situation)) {
+      if (!SITUATION_FIELDS.includes(key)) fail(`unknown situation filter "${key}"`)
+    }
+  }
   if (q.entity !== 'player' && q.entity !== 'team') fail('entity must be "player" or "team"')
   if (!Array.isArray(q.metrics) || q.metrics.length === 0 || q.metrics.length > MAX_METRICS) {
     fail(`metrics must list 1–${MAX_METRICS} catalogue ids`)
@@ -167,6 +226,9 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   const scoring = q.scoring ?? 'ppr'
   if (!SCORINGS.includes(scoring)) fail(`scoring must be one of ${SCORINGS.join(', ')}`)
   if (scoring === 'league' && !ctx.hasLeague) fail('scoring "league" needs an imported league')
+  if (q.sort !== undefined && (q.sort === null || typeof q.sort !== 'object')) {
+    fail('sort must be { metric, dir }')
+  }
   if (q.sort !== undefined) {
     if (!q.metrics.includes(q.sort.metric)) fail('sort.metric must be one of the metrics')
     if (q.sort.dir !== 'asc' && q.sort.dir !== 'desc') fail('sort.dir must be asc or desc')
@@ -235,7 +297,8 @@ function situationWhere(
       own20: 'p.yardline_100 >= 80'
     }
     where.push(
-      zones[s.fieldZone] ?? fail('situation.fieldZone must be redzone, inside10, inside5 or own20')
+      (Object.hasOwn(zones, s.fieldZone) ? zones[s.fieldZone] : undefined) ??
+        fail('situation.fieldZone must be redzone, inside10, inside5 or own20')
     )
   }
   if (s.scoreMargin !== undefined) {
