@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { rebuildDerived } from '@main/stats/derived/build'
 import { openTestDb } from '../../../fixtures/stats'
-import { CB, EDGE, QB, RB, WR, seedGame } from '../../../fixtures/statsDerived'
+import { CB, EDGE, QB, RB, WR, seedGame, seedTable } from '../../../fixtures/statsDerived'
 
 type R = Record<string, unknown>
 
@@ -84,6 +84,40 @@ describe('the derived tables (stats-analysis spec §5)', () => {
       cov_targets: 1,
       cov_adot_sum: 25
     })
+  })
+
+  it('credits a player to his own team on kickoffs and punts, where posteam is the other one', async () => {
+    const db = await openTestDb()
+    await seedGame(db)
+    // nflfastR's posteam on a kickoff is the receiving team; a punt's tacklers are on the punting team.
+    await db.exec(`INSERT INTO src_pbp BY NAME
+      SELECT 6 AS play_id, 2025 AS season, 1 AS week, 'REG' AS season_type, 'g1' AS game_id,
+             'KC' AS posteam, 'BUF' AS defteam, 'kickoff' AS play_type, 1.0 AS kickoff_attempt,
+             1.0 AS touchback, '00-0000030' AS kicker_player_id, 0.0 AS play_deleted
+      UNION ALL BY NAME
+      SELECT 7 AS play_id, 2025 AS season, 1 AS week, 'REG' AS season_type, 'g1' AS game_id,
+             'BUF' AS posteam, 'KC' AS defteam, 'punt' AS play_type, 1.0 AS punt_attempt, 0.0 AS play_deleted`)
+    await seedTable(db, 'play_players', [
+      { season: 2025, game_id: 'g1', play_id: 7, role: 'solo_tackle', gsis: '00-0000031' }
+    ])
+    await db.exec(`INSERT INTO src_player_stats BY NAME
+      SELECT '00-0000030' AS player_id, 2025 AS season, 1 AS week, 'REG' AS season_type, 'g1' AS game_id, 'BUF' AS team`)
+    await db.exec(`INSERT INTO src_snaps BY NAME
+      SELECT 'pfr31' AS pfr_player_id, 2025 AS season, 1 AS week, 'REG' AS season_type, 'g1' AS game_id,
+             'BUF' AS team, 0.0 AS offense_snaps, 0.0 AS offense_pct, 0.0 AS defense_snaps, 0.0 AS defense_pct, 5.0 AS st_snaps`)
+    await db.exec(
+      `INSERT INTO players BY NAME SELECT '00-0000031' AS gsis_id, 'pfr31' AS pfr_id, 'LB' AS position_group`
+    )
+    await rebuildDerived(db, { seasons: 'all', league: null })
+    expect(
+      await db.all(
+        'SELECT gsis_id, team, opponent, kickoffs, tackles_solo FROM player_week WHERE gsis_id IN (?, ?) ORDER BY 1',
+        ['00-0000030', '00-0000031']
+      )
+    ).toEqual([
+      { gsis_id: '00-0000030', team: 'BUF', opponent: 'KC', kickoffs: 1, tackles_solo: null },
+      { gsis_id: '00-0000031', team: 'BUF', opponent: 'KC', kickoffs: null, tackles_solo: 1 }
+    ])
   })
 
   it('takes NGS and QBR season figures from their season rows', async () => {

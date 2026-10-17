@@ -163,7 +163,8 @@ function rolePart(role: Role, components: PlayComponent[], season: number): Part
   return {
     tables: src.tables,
     sql: `SELECT ${src.id} AS gsis_id, p.season, p.season_type, p.week,
-                 any_value(p.game_id) AS game_id, any_value(${src.team}) AS team,
+                 any_value(p.game_id) AS game_id,
+                 any_value(${src.team}) FILTER (WHERE ${src.teamFrom}) AS team,
                  ${components.map((c) => `sum(${c.expr}) AS ${c.name}`).join(', ')}
           FROM ${src.from}
           WHERE ${src.id} IS NOT NULL AND ${src.where} AND p.season = ${season}
@@ -266,7 +267,12 @@ export function playerWeekSelect(have: Have, season: number): Built {
   const temps = parts.map((p, i): [string, string] => [name(i), p.sql])
   const keys = parts.map((_, i) => `SELECT ${KEY} FROM ${name(i)}`).join(' UNION ')
   const joins = parts.map((_, i) => `LEFT JOIN ${name(i)} USING (${KEY})`).join('\n')
-  const ctx = parts.flatMap((p, i) => (p.context ? [i] : []))
+  // The box score and snaps know a player's team for sure; plays come after them.
+  const ctx = parts
+    .flatMap((p, i) => (p.context ? [i] : []))
+    .sort(
+      (a, b) => Number(parts[a].tables[0] === 'src_pbp') - Number(parts[b].tables[0] === 'src_pbp')
+    )
   const components = parts
     .flatMap((p, i) => p.components.map((c) => `${name(i)}.${c}`))
     .filter((c) => !c.endsWith('.routes'))

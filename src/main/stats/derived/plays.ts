@@ -249,17 +249,22 @@ export const PLAYER_PLAY_COMPONENTS: PlayComponent[] = [
 
 const ON_FIELD_FROM = 'on_field f JOIN plays p ON p.game_id = f.game_id AND p.play_id = f.play_id'
 
+/** Plays whose `posteam` is the offense: on kickoffs it is the receiving team. */
+const SCRIMMAGE_TEAM = "p.play_type IN ('pass', 'run')"
+
 /**
  * The id a role credits, its team, the rows it reads (spec §4.2 counting flags), and the tables
- * those need.
+ * those need. `teamFrom` names the plays whose `team` is the player's own: on kickoffs and punts
+ * `posteam` / `defteam` belong to the other side for coverage players and kickers.
  */
 export const ROLE_SOURCES: Record<
   Role,
-  { id: string; team: string; from: string; where: string; tables: string[] }
+  { id: string; team: string; teamFrom: string; from: string; where: string; tables: string[] }
 > = {
   passer: {
     id: 'p.passer_player_id',
     team: 'p.posteam',
+    teamFrom: SCRIMMAGE_TEAM,
     from: 'plays p',
     where: `p.counts AND (${PASS_PLAY})`,
     tables: ['src_pbp']
@@ -267,6 +272,7 @@ export const ROLE_SOURCES: Record<
   dropback: {
     id: 'p.passer_id',
     team: 'p.posteam',
+    teamFrom: SCRIMMAGE_TEAM,
     from: 'plays p',
     where: 'p.is_dropback',
     tables: ['src_pbp']
@@ -274,6 +280,7 @@ export const ROLE_SOURCES: Record<
   rusher: {
     id: 'p.rusher_player_id',
     team: 'p.posteam',
+    teamFrom: SCRIMMAGE_TEAM,
     from: 'plays p',
     where: 'p.is_carry',
     tables: ['src_pbp']
@@ -281,6 +288,7 @@ export const ROLE_SOURCES: Record<
   receiver: {
     id: 'p.receiver_player_id',
     team: 'p.posteam',
+    teamFrom: SCRIMMAGE_TEAM,
     from: 'plays p',
     where: 'p.is_target',
     tables: ['src_pbp']
@@ -288,6 +296,7 @@ export const ROLE_SOURCES: Record<
   onO: {
     id: 'f.gsis',
     team: 'p.posteam',
+    teamFrom: SCRIMMAGE_TEAM,
     from: ON_FIELD_FROM,
     where: "f.side = 'O'",
     tables: ['src_pbp', 'on_field']
@@ -295,6 +304,7 @@ export const ROLE_SOURCES: Record<
   onD: {
     id: 'f.gsis',
     team: 'p.defteam',
+    teamFrom: SCRIMMAGE_TEAM,
     from: ON_FIELD_FROM,
     where: "f.side = 'D'",
     tables: ['src_pbp', 'on_field']
@@ -302,6 +312,7 @@ export const ROLE_SOURCES: Record<
   kicker: {
     id: 'p.kicker_player_id',
     team: 'p.posteam',
+    teamFrom: "p.play_type IN ('field_goal', 'extra_point')",
     from: 'plays p',
     where: 'true',
     tables: ['src_pbp']
@@ -309,6 +320,7 @@ export const ROLE_SOURCES: Record<
   punter: {
     id: 'p.punter_player_id',
     team: 'p.posteam',
+    teamFrom: "p.play_type = 'punt'",
     from: 'plays p',
     where: 'true',
     tables: ['src_pbp']
@@ -316,6 +328,7 @@ export const ROLE_SOURCES: Record<
   defender: {
     id: 'pp.gsis',
     team: 'p.defteam',
+    teamFrom: SCRIMMAGE_TEAM,
     from: 'play_players pp JOIN plays p ON p.game_id = pp.game_id AND p.play_id = pp.play_id',
     where:
       "pp.role IN ('solo_tackle', 'assist_tackle', 'tackle_with_assist', 'sack', 'half_sack', 'qb_hit', 'pass_defense', 'interception', 'forced_fumble', 'fumble_recovery')",
