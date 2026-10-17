@@ -54,6 +54,9 @@ export interface FileSource {
 const team = (column: string): string => `nfl_team(${column})`
 /** nflverse files that spell the season type as a game type (REG / WC / DIV / CON / SB). */
 const gameType = { season_type: 'season_type_of(game_type)' }
+/** ESPN spells season types "Regular" / "Playoffs". */
+const ESPN_SEASON_TYPE =
+  "CASE season_type WHEN 'Regular' THEN 'REG' WHEN 'Playoffs' THEN 'POST' ELSE season_type END"
 /** Regular-season weeks: 17 through 2020, 18 since. */
 export const regularWeeks = (season: number): number => (season <= 2020 ? 17 : 18)
 
@@ -287,7 +290,8 @@ export const FILE_SOURCES: FileSource[] = [
       })
     )
   ),
-  // ESPN's `team` is the nickname; it moves to `team_name` and `team` takes the code.
+  // ESPN's `team` is the nickname; it moves to `team_name` and `team` takes the code. Its season
+  // type is spelled "Regular" / "Playoffs" (version 2: REG / POST, as in every other table).
   allSeasonsFile(
     'qbr_week',
     'src_qbr_week',
@@ -298,9 +302,10 @@ export const FILE_SOURCES: FileSource[] = [
       opp_abb: team('opp_abb'),
       team: team('team_abb'),
       opponent: team('opp_abb'),
-      week: 'game_week::INTEGER'
+      week: 'game_week::INTEGER',
+      season_type: ESPN_SEASON_TYPE
     },
-    { where: `season >= ${STATS_FIRST_SEASON}` }
+    { where: `season >= ${STATS_FIRST_SEASON}`, version: 2 }
   ),
   allSeasonsFile(
     'qbr_season',
@@ -309,9 +314,10 @@ export const FILE_SOURCES: FileSource[] = [
     {
       team_name: 'team',
       team_abb: team('team_abb'),
-      team: team('team_abb')
+      team: team('team_abb'),
+      season_type: ESPN_SEASON_TYPE
     },
-    { where: `season >= ${STATS_FIRST_SEASON}` }
+    { where: `season >= ${STATS_FIRST_SEASON}`, version: 2 }
   ),
   seasonFile(
     'injuries',
