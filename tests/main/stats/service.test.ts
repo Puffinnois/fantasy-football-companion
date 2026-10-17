@@ -18,7 +18,7 @@ describe('openStatsService', () => {
       { path: join(dir, 'stats.duckdb'), tempDir: tmp },
       () => {}
     )
-    service.close()
+    await service.close()
     expect(existsSync(join(tmp, 'stale.parquet'))).toBe(false)
   })
 
@@ -40,7 +40,7 @@ describe('openStatsService', () => {
       })
       expect(result.duckdb).toMatch(/^v1\./)
     } finally {
-      service.close()
+      await service.close()
     }
   })
 })
@@ -80,7 +80,7 @@ describe('the service reads and the league rules (stats-analysis spec §5, §7)'
       ).rejects.toThrow('league rules: rec must be a number')
       expect(await service.setLeague(RULES)).toBe(true)
     } finally {
-      service.close()
+      await service.close()
     }
   })
 
@@ -102,7 +102,7 @@ describe('the service reads and the league rules (stats-analysis spec §5, §7)'
       ).rejects.toThrow('the stats are still being built')
       expect(await service.setLeague(RULES)).toBe(false)
     } finally {
-      service.close()
+      await service.close()
     }
   })
 
@@ -129,14 +129,14 @@ describe('the service reads and the league rules (stats-analysis spec §5, §7)'
         grains: ['week', 'season', 'play']
       })
     } finally {
-      service.close()
+      await service.close()
     }
     // The rules the fantasy tables were built with are kept with the file.
     const reopened = await openStatsService({ path, tempDir: join(dir, 'tmp') }, () => {})
     try {
       expect(await reopened.setLeague(RULES)).toBe(false)
     } finally {
-      reopened.close()
+      await reopened.close()
     }
   })
 })
