@@ -181,6 +181,7 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     scope.weeks !== undefined ||
     scope.lastNGames !== undefined ||
     scope.opponents !== undefined ||
+    scope.teams !== undefined ||
     groupBy.some((g) => g !== 'season')
   ) {
     grain = 'week'

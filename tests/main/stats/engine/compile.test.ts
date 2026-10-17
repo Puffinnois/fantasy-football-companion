@@ -37,6 +37,8 @@ describe('compileQuery (stats-analysis spec §7.2)', () => {
     expect(compile({ scope: { seasons: [2025], weeks: [1, 4] } }).grain).toBe('week')
     expect(compile({ scope: { seasons: [2025], lastNGames: 4 } }).grain).toBe('week')
     expect(compile({ groupBy: ['team'] }).grain).toBe('week')
+    // A traded player's season row holds both teams' games: a team filter reads the weeks.
+    expect(compile({ scope: { seasons: [2025], teams: ['KC'] } }).grain).toBe('week')
     expect(compile({ situation: { down: [3] } }).grain).toBe('play')
     expect(compile({ groupBy: ['personnel'] }).grain).toBe('play')
     expect(compile({}).sql).toContain('FROM player_season w')
