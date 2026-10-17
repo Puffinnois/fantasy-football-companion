@@ -73,11 +73,12 @@ describe('file sources (stats-analysis spec §4.1)', () => {
     await runSync(db, { files: { [urlOf('qbr_week')]: file }, only: ['qbr_week'] })
     expect(
       await db.all(
-        'SELECT season, week, team, team_name, opponent, team_abb, opp_abb FROM src_qbr_week'
+        'SELECT season, season_type, week, team, team_name, opponent, team_abb, opp_abb FROM src_qbr_week'
       )
     ).toEqual([
       {
         season: 2025,
+        season_type: 'REG',
         week: 4,
         team: 'LA',
         team_name: 'Rams',

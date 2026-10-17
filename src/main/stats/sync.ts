@@ -1,6 +1,14 @@
 import type { StatsDb } from './db'
 import type { Downloads } from './download'
 import type { RefreshOptions, StatsLogEntry, StatsStepStatus, StatsSyncResult } from './protocol'
+import type { ScoringRules } from '@shared/stats/scoring'
+import {
+  canDerive,
+  derivedStale,
+  pendingSeasons,
+  rebuildDerived,
+  setPendingSeasons
+} from './derived/build'
 import { buildIdentity } from './identity'
 import { INTERRUPTED_MESSAGE } from './schema'
 import { describe, replaceRows, standardSelect, type Columns } from './load'
@@ -15,6 +23,8 @@ export const ATTEMPT_INTERVAL_MS = DAY
 export const PRIOR_SEASON_FRESHNESS_MS = 7 * DAY
 /** Prefix of every stats step in `sync_log`. */
 export const STATS_LOG_PREFIX = 'stats:'
+/** The derived rebuild's step (spec §5.2): when it ends, screens query again. */
+export const STATS_DERIVED_STEP = `${STATS_LOG_PREFIX}derived`
 
 export interface StatsSyncDeps {
   db: StatsDb
@@ -27,6 +37,8 @@ export interface StatsSyncDeps {
   onStep?: (entry: StatsLogEntry) => void
   /** True once the worker is closing: no step starts after it, and the running one is `interrupted`. */
   cancelled?: () => boolean
+  /** The league's scoring rules for `fantasy_week` (spec §5.2); null without a league. */
+  league?: () => ScoringRules | null
 }
 
 /** A source of the sync: one of the files, or Sleeper's weekly lines. */
@@ -311,5 +323,37 @@ export async function refreshStats(
       })
     )
   }
+  const stale = await derivedStale(deps.db)
+  const seasons = [
+    ...new Set([...touchedSeasons(log, state.season), ...(await pendingSeasons(deps.db))])
+  ].sort((a, b) => a - b)
+  if ((seasons.length > 0 || stale) && (await canDerive(deps.db)) && !deps.cancelled?.()) {
+    // Kept until the rebuild succeeds: a failed or interrupted step leaves them for the next run.
+    await setPendingSeasons(deps.db, seasons)
+    log.push(
+      await runLogged(deps, STATS_DERIVED_STEP, async () => {
+        const rows = await rebuildDerived(deps.db, { seasons, league: deps.league?.() ?? null })
+        await setPendingSeasons(deps.db, [])
+        await deps.db.exec('CHECKPOINT')
+        const total = Object.values(rows).reduce((a, b) => a + b, 0)
+        return { rows: total, message: stale ? 'all seasons' : `seasons ${seasons.join(', ')}` }
+      })
+    )
+  }
   return { steps: log }
+}
+
+/**
+ * Spec §5.2: the seasons whose derived rows to rebuild, from the steps that loaded rows. A file of
+ * all seasons (players, QBR, combine) refreshes the current season's.
+ */
+export function touchedSeasons(log: StatsLogEntry[], current: number): number[] {
+  const seasons = new Set<number>()
+  for (const entry of log) {
+    if (entry.status !== 'ok' || entry.rowsWritten === 0) continue
+    const parts = entry.source.slice(STATS_LOG_PREFIX.length).split(':')
+    if (parts[0] === 'identity' || parts[0] === 'derived') continue
+    seasons.add(parts.length > 1 ? Number(parts[1]) : current)
+  }
+  return [...seasons].sort((a, b) => a - b)
 }

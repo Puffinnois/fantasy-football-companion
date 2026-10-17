@@ -3,6 +3,7 @@ import type { Downloads } from '@main/stats/download'
 import type { StatsState } from '@main/stats/sleeper'
 import { FILE_SOURCES } from '@main/stats/sources'
 import type { StatsSyncResult } from '@main/stats/protocol'
+import type { ScoringRules } from '@shared/stats/scoring'
 import { refreshStats, STATS_STEPS, type StatsSyncDeps } from '@main/stats/sync'
 import { tempDir } from './stats'
 
@@ -43,6 +44,8 @@ export interface RunOptions {
   state?: StatsState
   now?: Date
   force?: boolean
+  /** The league's scoring rules, for `fantasy_week`. */
+  league?: ScoringRules | null
 }
 
 /** One stats refresh against fake downloads. */
@@ -52,7 +55,8 @@ export async function runSync(db: StatsDb, options: RunOptions = {}): Promise<St
     downloads: fakeDownloads(options.files ?? {}, options.json ?? {}),
     tempDir: tempDir(),
     nflState: async () => options.state ?? STATE_2026,
-    now: () => options.now ?? new Date('2026-10-16T12:00:00Z')
+    now: () => options.now ?? new Date('2026-10-16T12:00:00Z'),
+    league: () => options.league ?? null
   }
   const steps = options.only ? STATS_STEPS.filter((s) => options.only?.includes(s.id)) : STATS_STEPS
   return refreshStats(deps, { force: options.force }, steps)

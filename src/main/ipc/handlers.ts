@@ -39,6 +39,7 @@ import type { RefreshOptions } from '@main/sync/step'
 import type { UpdateController } from '@main/updater'
 import { IPC, type FindLeaguesResult } from '@shared/ipc'
 import type { Rules } from '@shared/rules'
+import type { MetricInfo, StatsQuery, StatsResult, StatsStatus } from '@shared/stats/types'
 import { SYNC_SOURCE_GROUPS } from '@shared/syncSources'
 import type {
   League,
@@ -76,7 +77,7 @@ export interface AppContext {
   fantasycalc: FantasyCalcClient
   /**
    * The stats worker and its `stats.duckdb` (stats-analysis spec §2); null when it could not start,
-   * and the app then runs without it. Nothing reads it yet.
+   * and the app then runs without it (the stats section reports it unavailable).
    */
   stats: StatsClient | null
   news: NewsCache
@@ -184,8 +185,37 @@ let inFlight: Promise<SyncResult> | null = null
  * steps log to `stats.duckdb`'s own `sync_log`, so they neither invalidate caches nor reach the
  * status bar.
  */
-export function startStats(ctx: AppContext, options: RefreshOptions = {}): Promise<unknown> {
-  return ctx.stats ? ctx.stats.refresh(options) : Promise.resolve(null)
+export async function startStats(ctx: AppContext, options: RefreshOptions = {}): Promise<unknown> {
+  if (!ctx.stats) return null
+  await pushLeagueScoring(ctx)
+  return ctx.stats.refresh(options)
+}
+
+/**
+ * Stats-analysis spec §2, §5.2: the worker scores fantasy points under the league's rules too, so
+ * it gets them on every refresh and whenever they change (it ignores rules it already has).
+ */
+export function pushLeagueScoring(ctx: AppContext): Promise<unknown> {
+  if (!ctx.stats) return Promise.resolve(null)
+  const id = getSetting(ctx.db, SETTING_ACTIVE_LEAGUE)
+  const rules = id ? getRules(ctx.db, id) : null
+  return ctx.stats
+    .setLeague(
+      rules ? { scoring: rules.scoring, positionOverrides: rules.positionOverrides } : null
+    )
+    .then((rescored) => {
+      // Spec §5.3: screens showing league scoring query again.
+      if (rescored) ctx.getWindow()?.webContents.send(IPC.statsChanged)
+    })
+    .catch((err: unknown) => console.error('could not send the league rules to stats', err))
+}
+
+/** Spec §5.3: what the status line shows when the stats worker could not start. */
+const STATS_OFF: StatsStatus = { available: false, through: null, updatedAt: null, busy: false }
+
+function statsClient(ctx: AppContext): StatsClient {
+  if (!ctx.stats) throw new Error('The stats database could not be opened on this computer')
+  return ctx.stats
 }
 
 function logStatsError(err: unknown): void {
@@ -277,6 +307,7 @@ export function registerIpcHandlers(ctx: AppContext): void {
       recomputePoints(ctx.db, id, rules.updatedAt) // spec §7: rules change → rebuild player_week_points
     })
     invalidateCaches()
+    void pushLeagueScoring(ctx)
     return rules
   })
 
@@ -286,8 +317,17 @@ export function registerIpcHandlers(ctx: AppContext): void {
     const rules = await reimportRules(syncDeps(ctx), id)
     withTransaction(ctx.db, () => recomputePoints(ctx.db, id, rules.updatedAt))
     invalidateCaches()
+    void pushLeagueScoring(ctx)
     return rules
   })
+
+  ipcMain.handle(IPC.statsQuery, (_event, query: StatsQuery): Promise<StatsResult> =>
+    statsClient(ctx).query(query)
+  )
+  ipcMain.handle(IPC.statsCatalogue, (): Promise<MetricInfo[]> => statsClient(ctx).catalogue())
+  ipcMain.handle(IPC.statsStatus, (): Promise<StatsStatus> =>
+    ctx.stats ? ctx.stats.status() : Promise.resolve(STATS_OFF)
+  )
 
   ipcMain.handle(IPC.playersOptions, (): PlayersOptions => {
     const id = activeLeagueId()

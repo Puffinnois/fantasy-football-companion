@@ -20,7 +20,8 @@ const teamCase = Object.entries(TEAM_CODE_FIXES)
 /**
  * Created on every open, so a new version replaces them. The tables keep their rows across
  * versions: `sync_log` is the stats steps' own log (status adds `interrupted`), `source_state`
- * what each source holds per season (season 0 = an all-seasons file).
+ * what each source holds per season (season 0 = an all-seasons file), `derived_state` and
+ * `stats_settings` the derived layer's version and league rules (stats-analysis spec §5).
  */
 const BOOTSTRAP = [
   `CREATE OR REPLACE MACRO nfl_team(t) AS CASE t ${teamCase} ELSE t END`,
@@ -45,7 +46,10 @@ const BOOTSTRAP = [
      fetched_at VARCHAR NOT NULL,
      sealed BOOLEAN NOT NULL,
      PRIMARY KEY (source, season)
-   )`
+   )`,
+  // Plan Y: the version the derived tables were built with, and the league rules they score.
+  'CREATE TABLE IF NOT EXISTS derived_state (name VARCHAR PRIMARY KEY, version INTEGER NOT NULL)',
+  'CREATE TABLE IF NOT EXISTS stats_settings (key VARCHAR PRIMARY KEY, value VARCHAR)'
 ]
 
 export const INTERRUPTED_MESSAGE = 'The app closed during this step'

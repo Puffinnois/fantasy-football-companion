@@ -24,7 +24,9 @@ function plain(value: unknown): unknown {
 export class StatsDb {
   private constructor(
     private readonly instance: DuckDBInstance,
-    private readonly conn: DuckDBConnection
+    private readonly conn: DuckDBConnection,
+    /** A second connection shares the instance and leaves it open when it closes. */
+    private readonly ownsInstance = true
   ) {}
 
   static async open(path: string, options: StatsDbOptions = {}): Promise<StatsDb> {
@@ -72,6 +74,14 @@ export class StatsDb {
     }
   }
 
+  /**
+   * Another connection to the same database (spec §2: screens read while a refresh writes). Its
+   * statements run alongside this one's and see committed data only.
+   */
+  async connect(): Promise<StatsDb> {
+    return new StatsDb(this.instance, await this.instance.connect(), false)
+  }
+
   /** Stops the statement running on this connection; it rejects with an "Interrupted" error. */
   interrupt(): void {
     this.conn.interrupt()
@@ -79,7 +89,7 @@ export class StatsDb {
 
   close(): void {
     this.conn.closeSync()
-    this.instance.closeSync()
+    if (this.ownsInstance) this.instance.closeSync()
   }
 }
 
