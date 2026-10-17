@@ -1,6 +1,39 @@
 # Plan Y — Stats analysis: the metric layer and the query engine
 
-**Status:** not started. Written 2026-10-17, fully prototyped: every task was replayed on a clean copy of `main` from this text, with the counts below.
+**Status:** complete 2026-10-17. Merged to main as `ee27ad6` and tagged `v0.26.0` on `a2385c7` (not pushed yet). Tasks 1–6 and 8 were executed from this text. Each task's tests were seen failing, then passing, with the plan's counts plus the 3 of the untracked `tests/shared/playerImage.test.ts`. The packaged Linux self-test answered `"query":true`.
+
+Final review (fresh reviewer, Opus): 1 Critical, 6 Important and 4 Minor findings, all fixed, each test-first in its own commit (`c2480b1` … `224397d`):
+
+- (Critical) `player_week.team` was wrong on 9 % of player-weeks. On kickoffs `posteam` is the receiving team, and punt coverage was credited to the receivers. Team and game now come from the box score and snaps first; plays credit a team only where it is the player's own.
+- A team filter at the season grain summed a traded player's whole season. It now reads the weekly rows.
+- Qualification now scales:
+  - to about one game per opponent row;
+  - per play-dimension group;
+  - for on-field and team filters, to the share of plays on the metric's side (offense or defense). The live check caught this last one: Rashee Rice qualified on 88 routes with Mahomes on the field.
+- A rules rescoring rebuilds every season in place. The rules key is saved only after it succeeds, and malformed rules are refused.
+- Seasons of a failed `stats:derived` step stay pending (`stats_settings.derived_pending`) until a rebuild succeeds.
+- Each read runs on its own connection: a timeout interrupts only its own query. Closing refuses new reads and waits for running ones (`close()` is now async).
+- Minors:
+  - turnovers count scrimmage plays only;
+  - unknown query, scope and situation fields are refused;
+  - `rush_pct_over_expected` is a fraction;
+  - `stats:changed` also follows a rules rescoring.
+
+Task 7, live on the fixed code (state 2026 week 6): `ALL GATES PASSED`.
+
+- Backfill: 179 s, of which the derived step took 21 s. Peak 1.7 GB.
+- Daily refresh: 17 s (derived 1.5 s). The slowest of 31 queries during it took 24 ms.
+- Query budgets (ms): leaderboard 76, dashboard 46, situational 49, teams 96.
+- File: 351 MB.
+- Scoring twin: 82,880 of 82,958 lines identical; the other 78 are the pre-2024 50+ bucket.
+- PPR vs Sleeper's 2026 `pts_ppr`: 100 % for every position but K (98.31 %).
+- xFP within 0.1 on 99.49–99.82 % of player-weeks.
+- Box score agreement ≥ 99.85 %; `player_week.team` equals the box score's on 100 %.
+- Keys unique.
+
+Task 9: the first Windows Package check failed in one test (`service.test.ts` did not await the now-async `close()` before reopening the file, and Windows locks it), fixed in `9183ebb`. The rerun was green: 842 tests, and the self-test answered `"query":true`.
+
+Not GUI-verified (WSLg); no window changes.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -50,27 +83,27 @@ Everything below was measured with the code in this plan on a full `stats.duckdb
   - One season with each source first in its own temporary table works on one thread and fails on two (writing `player_week`'s ~230 columns in parallel). So the rebuild sets `threads = 1` while it runs and puts the setting back after.
 - **Rebuild times.**
 
-| Measure                                                          | Result                                   | Budget   |
-| ---------------------------------------------------------------- | ---------------------------------------- | -------- |
-| Fresh backfill, derived step included (empty profile)            | 156 s; the derived step 23 s             | ≤ 10 min |
-| Forced daily refresh                                             | 15 s; the derived step (2026) 1.5 s      | ≤ 30 s   |
-| A league rules change (fantasy tables, every season)             | 2.5 s                                    |          |
-| `stats.duckdb` after the backfill                                | 346 MB (Plan X: 283–285)                 | ≤ 400 MB |
-| Peak process memory: backfill / daily refresh                    | 2.4 GB / 1.07 GB                         |          |
+| Measure                                               | Result                              | Budget   |
+| ----------------------------------------------------- | ----------------------------------- | -------- |
+| Fresh backfill, derived step included (empty profile) | 156 s; the derived step 23 s        | ≤ 10 min |
+| Forced daily refresh                                  | 15 s; the derived step (2026) 1.5 s | ≤ 30 s   |
+| A league rules change (fantasy tables, every season)  | 2.5 s                               |          |
+| `stats.duckdb` after the backfill                     | 346 MB (Plan X: 283–285)            | ≤ 400 MB |
+| Peak process memory: backfill / daily refresh         | 2.4 GB / 1.07 GB                    |          |
 
 - **Query speed** (warm, every query run twice):
 
-| Query                                                              | Time        | Budget   |
-| ------------------------------------------------------------------ | ----------- | -------- |
-| WR leaderboard, 15 core metrics, a season                          | 60–80 ms    | ≤ 500 ms |
-| QB leaderboard, 15 metrics, weeks 1–9                              | 64–69 ms    | ≤ 500 ms |
-| Teams, 30 core metrics                                             | 92–98 ms    | ≤ 500 ms |
-| One player by week, 12 metrics (a dashboard card row)              | 46–48 ms    | ≤ 300 ms |
-| WRs when the QB was pressured (play grain)                         | 58–62 ms    | ≤ 1 s    |
-| Teams on third down by coverage, 3 seasons (play grain)            | 66–74 ms    | ≤ 1 s    |
-| Five seasons of a metric for every WR                              | 39–43 ms    |          |
-| 40 metrics over every player (worst case)                          | 690–736 ms  |          |
-| Queries during a forced refresh (30 of them)                       | median 16 ms, max 66 ms |  |
+| Query                                                   | Time                    | Budget   |
+| ------------------------------------------------------- | ----------------------- | -------- |
+| WR leaderboard, 15 core metrics, a season               | 60–80 ms                | ≤ 500 ms |
+| QB leaderboard, 15 metrics, weeks 1–9                   | 64–69 ms                | ≤ 500 ms |
+| Teams, 30 core metrics                                  | 92–98 ms                | ≤ 500 ms |
+| One player by week, 12 metrics (a dashboard card row)   | 46–48 ms                | ≤ 300 ms |
+| WRs when the QB was pressured (play grain)              | 58–62 ms                | ≤ 1 s    |
+| Teams on third down by coverage, 3 seasons (play grain) | 66–74 ms                | ≤ 1 s    |
+| Five seasons of a metric for every WR                   | 39–43 ms                |          |
+| 40 metrics over every player (worst case)               | 690–736 ms              |          |
+| Queries during a forced refresh (30 of them)            | median 16 ms, max 66 ms |          |
 
 - **Agreement with nflverse** (`player_week` against `stats_player`, `team_week` against `stats_team`, 2019–2026):
   - Targets, receptions, passing yards and sacks: 100 % of player-weeks. Carries: ≥ 99.995 %. Rushing yards: ≥ 99.98 %. Receiving yards: 99.85–99.96 % (laterals).
@@ -238,7 +271,7 @@ index 3277749..0dac116 100644
 +  "CASE season_type WHEN 'Regular' THEN 'REG' WHEN 'Playoffs' THEN 'POST' ELSE season_type END"
  /** Regular-season weeks: 17 through 2020, 18 since. */
  export const regularWeeks = (season: number): number => (season <= 2020 ? 17 : 18)
- 
+
 @@ -287,7 +290,8 @@ export const FILE_SOURCES: FileSource[] = [
        })
      )
@@ -1369,7 +1402,7 @@ index 5d0bf8c..8d5d4b1 100644
 +  'CREATE TABLE IF NOT EXISTS derived_state (name VARCHAR PRIMARY KEY, version INTEGER NOT NULL)',
 +  'CREATE TABLE IF NOT EXISTS stats_settings (key VARCHAR PRIMARY KEY, value VARCHAR)'
  ]
- 
+
  export const INTERRUPTED_MESSAGE = 'The app closed during this step'
 ```
 
@@ -7141,7 +7174,7 @@ index 23649d6..00402ff 100644
 +import type { ScoringRules } from '@shared/stats/scoring'
  import { refreshStats, STATS_STEPS, type StatsSyncDeps } from '@main/stats/sync'
  import { tempDir } from './stats'
- 
+
 @@ -43,6 +44,8 @@ export interface RunOptions {
    state?: StatsState
    now?: Date
@@ -7149,7 +7182,7 @@ index 23649d6..00402ff 100644
 +  /** The league's scoring rules, for `fantasy_week`. */
 +  league?: ScoringRules | null
  }
- 
+
  /** One stats refresh against fake downloads. */
 @@ -52,7 +55,8 @@ export async function runSync(db: StatsDb, options: RunOptions = {}): Promise<St
      downloads: fakeDownloads(options.files ?? {}, options.json ?? {}),
@@ -7181,7 +7214,7 @@ index f586e7d..efecfec 100644
  import { openTestDb, tempDir, writeFixture } from '../../fixtures/stats'
 +import { seedGame } from '../../fixtures/statsDerived'
  import { fakeDownloads, runSync, STATE_2026, urlOf } from '../../fixtures/statsSync'
- 
+
  const NOW = Date.parse('2026-10-16T12:00:00Z')
 @@ -197,3 +200,53 @@ describe('refreshStats', () => {
      expect(seen).toEqual(['stats:combine skipped'])
@@ -7254,7 +7287,7 @@ index 06f5b68..304d77f 100644
  import { openStatsService } from '@main/stats/service'
  import { tempDir } from '../../fixtures/stats'
 +import { seedGame, WR } from '../../fixtures/statsDerived'
- 
+
  describe('openStatsService', () => {
    it('clears temp files a closed app left behind', async () => {
 @@ -27,10 +31,87 @@ describe('openStatsService', () => {
@@ -7406,12 +7439,12 @@ index 1da8d5e..b625190 100644
 +    /** A second connection shares the instance and leaves it open when it closes. */
 +    private readonly ownsInstance = true
    ) {}
- 
+
    static async open(path: string, options: StatsDbOptions = {}): Promise<StatsDb> {
 @@ -72,6 +74,14 @@ export class StatsDb {
      }
    }
- 
+
 +  /**
 +   * Another connection to the same database (spec §2: screens read while a refresh writes). Its
 +   * statements run alongside this one's and see committed data only.
@@ -7424,14 +7457,14 @@ index 1da8d5e..b625190 100644
    interrupt(): void {
      this.conn.interrupt()
 @@ -79,7 +89,7 @@ export class StatsDb {
- 
+
    close(): void {
      this.conn.closeSync()
 -    this.instance.closeSync()
 +    if (this.ownsInstance) this.instance.closeSync()
    }
  }
- 
+
 ```
 
 - [ ] **Step 4: The protocol**
@@ -7446,7 +7479,7 @@ index c466684..55af4d3 100644
 +import type { StatsQuery } from '@shared/stats/types'
 +
  export type StatsStepStatus = 'ok' | 'error' | 'skipped' | 'running' | 'interrupted'
- 
+
  /** One row of `stats.duckdb`'s own `sync_log`. */
 @@ -37,12 +40,29 @@ export interface SelfTestResult {
    json: boolean
@@ -7455,7 +7488,7 @@ index c466684..55af4d3 100644
 +  /** The query engine answers a query (spec §11: the packaged worker answers a query). */
 +  query: boolean
  }
- 
+
 +/**
 + * Requests to the worker. `refresh`, `setLeague`, `selfTest` and `close` run one after another;
 + * `query`, `catalogue` and `status` are reads and run at once on a second connection (spec §2).
@@ -7475,7 +7508,7 @@ index c466684..55af4d3 100644
 +  'catalogue',
 +  'status'
 +])
- 
+
  export type StatsReply =
    | { kind: 'reply'; id: number; ok: true; result: unknown }
 ```
@@ -7502,7 +7535,7 @@ index eefc532..b31de11 100644
  export const STATS_LOG_PREFIX = 'stats:'
 +/** The derived rebuild's step (spec §5.2): when it ends, screens query again. */
 +export const STATS_DERIVED_STEP = `${STATS_LOG_PREFIX}derived`
- 
+
  export interface StatsSyncDeps {
    db: StatsDb
 @@ -27,6 +31,8 @@ export interface StatsSyncDeps {
@@ -7512,7 +7545,7 @@ index eefc532..b31de11 100644
 +  /** The league's scoring rules for `fantasy_week` (spec §5.2); null without a league. */
 +  league?: () => ScoringRules | null
  }
- 
+
  /** A source of the sync: one of the files, or Sleeper's weekly lines. */
 @@ -311,5 +317,32 @@ export async function refreshStats(
        })
@@ -7591,7 +7624,7 @@ index 5313c5d..f2a92e9 100644
 @@ -32,6 +47,56 @@ export async function fetchStatsState(): Promise<StatsState> {
    return { season: Number(s.season), week: s.week, seasonType: s.season_type }
  }
- 
+
 +const LEAGUE_KEY = 'league_rules'
 +
 +/** Rules as stored and compared: keys sorted, so the same rules always give the same text. */
@@ -7769,7 +7802,7 @@ index f98fa48..79dad62 100644
 -import type { StatsReply, StatsRequest, StatsWorkerInit } from './protocol'
 +import { READ_REQUESTS, type StatsReply, type StatsRequest, type StatsWorkerInit } from './protocol'
  import { openStatsService, type StatsService } from './service'
- 
+
  /**
   * Worker entry, bundled to `out/main/statsWorker.js` (stats-analysis spec §2): the only thread that
 - * opens `stats.duckdb`. Requests run one after another, in arrival order.
@@ -7799,7 +7832,7 @@ index f98fa48..79dad62 100644
 @@ -27,19 +37,27 @@ async function handle(request: StatsRequest): Promise<unknown> {
    }
  }
- 
+
 +async function answer(request: StatsRequest): Promise<void> {
 +  try {
 +    post({ kind: 'reply', id: request.id, ok: true, result: await handle(request) })
@@ -7921,7 +7954,7 @@ index cf8b80a..a241675 100644
  } from './types'
  import type { Rules } from './rules'
 +import type { MetricInfo, StatsQuery, StatsResult, StatsStatus } from './stats/types'
- 
+
  export interface FindLeaguesResult {
    userId: string
 @@ -110,6 +111,17 @@ export interface Api {
@@ -7940,7 +7973,7 @@ index cf8b80a..a241675 100644
 +    onChanged(listener: () => void): () => void
 +  }
  }
- 
+
  export const IPC = {
 @@ -145,5 +157,9 @@ export const IPC = {
    updateState: 'update:state',
@@ -7978,7 +8011,7 @@ index fa02d6b..0315395 100644
 +    }
    }
  }
- 
+
 ```
 
 - [ ] **Step 2: The handlers**
@@ -8039,7 +8072,7 @@ index f9c620c..d9f70b8 100644
 +  if (!ctx.stats) throw new Error('The stats database could not be opened on this computer')
 +  return ctx.stats
  }
- 
+
  function logStatsError(err: unknown): void {
 @@ -277,6 +303,7 @@ export function registerIpcHandlers(ctx: AppContext): void {
        recomputePoints(ctx.db, id, rules.updatedAt) // spec §7: rules change → rebuild player_week_points
@@ -8048,7 +8081,7 @@ index f9c620c..d9f70b8 100644
 +    void pushLeagueScoring(ctx)
      return rules
    })
- 
+
 @@ -286,9 +313,18 @@ export function registerIpcHandlers(ctx: AppContext): void {
      const rules = await reimportRules(syncDeps(ctx), id)
      withTransaction(ctx.db, () => recomputePoints(ctx.db, id, rules.updatedAt))
@@ -8056,7 +8089,7 @@ index f9c620c..d9f70b8 100644
 +    void pushLeagueScoring(ctx)
      return rules
    })
- 
+
 +  ipcMain.handle(IPC.statsQuery, (_event, query: StatsQuery): Promise<StatsResult> =>
 +    statsClient(ctx).query(query)
 +  )
@@ -8084,7 +8117,7 @@ index fe603c6..e1a2909 100644
 +import { STATS_DERIVED_STEP } from '@main/stats/sync'
  import { installAutoUpdater } from '@main/updater'
  import { IPC } from '@shared/ipc'
- 
+
 @@ -91,10 +92,18 @@ function retireWarehouse(): void {
  /** Stats-analysis spec §2: a failure here only disables the stats section, never the app. */
  function openStats(): StatsClient | null {
@@ -8464,14 +8497,14 @@ index 48af0d1..391d484 100644
 +++ b/docs/reference/stats-database.md
 @@ -1,13 +1,16 @@
  # Stats database — data reference
- 
+
 -Added in v0.25.0 (Plan X; spec `docs/superpowers/specs/2026-10-15-stats-analysis-design.md` §2–§4, amended in §15). It replaces the SQLite stats warehouse of v0.20–v0.24 (`warehouse.db`, deleted on the first launch of v0.25.0). Every stat the free, keyless sources publish, 2019 through the current season, in a DuckDB file, `stats.duckdb` beside `companion.db`. It is about 285 MB after the backfill and settles around 305 MB under daily refreshes (measured 2026-10-16). Deleting the file makes the next refresh rebuild it in 2–3 minutes. **Nothing in the app reads it yet**: Plan Y builds the metric layer and query engine on it.
 +Added in v0.25.0 (Plan X; spec `docs/superpowers/specs/2026-10-15-stats-analysis-design.md` §2–§4, amended in §15). It replaces the SQLite stats warehouse of v0.20–v0.24 (`warehouse.db`, deleted on the first launch of v0.25.0). Every stat the free, keyless sources publish, 2019 through the current season, in a DuckDB file, `stats.duckdb` beside `companion.db`. Deleting the file makes the next refresh rebuild it in about 2½ minutes.
 +
 +v0.26.0 (Plan Y; spec §5–§7, amended in §16) adds the derived tables, the metric catalogue and the query engine the stats screens read through. The file is about 345 MB after the backfill (measured 2026-10-17).
- 
+
  ## Engine
- 
+
 -- One worker thread (`out/main/statsWorker.js`, `src/main/stats/worker.ts`) owns the file. The main process talks to it through `StatsClient` (`src/main/stats/client.ts`): `refresh`, `selfTest`, `close`.
 +- One worker thread (`out/main/statsWorker.js`, `src/main/stats/worker.ts`) owns the file. The main process talks to it through `StatsClient` (`src/main/stats/client.ts`): `refresh`, `setLeague`, `query`, `catalogue`, `status`, `selfTest`, `close`.
 +- Writes (`refresh`, `setLeague`, `selfTest`, `close`) run one after another. Reads (`query`, `catalogue`, `status`) run at once on a second connection, so a screen never waits behind a refresh: during a forced refresh, queries took 16 ms (median) and 66 ms at most.
@@ -8480,7 +8513,7 @@ index 48af0d1..391d484 100644
 -- `FantasyCompanion.exe --stats-self-test=<file>` opens a throwaway database in the worker, writes, reads and round-trips Parquet. It checks `read_json` and an ICU time zone, writes `{"ok":true,"duckdb":"v1.5.6","rows":1000,"parquet":true,"json":true,"icu":true}` to `<file>` and exits 0. The Release and Package check workflows run it on the Windows build.
 +- `FantasyCompanion.exe --stats-self-test=<file>` opens a throwaway database in the worker, writes, reads and round-trips Parquet. It checks `read_json` and an ICU time zone, answers an engine query over a throwaway schema, writes `{"ok":true,"duckdb":"v1.5.6","rows":1000,"parquet":true,"json":true,"icu":true,"query":true}` to `<file>` and exits 0. The Release and Package check workflows run it on the Windows build.
  - **Postseason weeks differ by source.** Sleeper numbers playoff weeks 1–4 (`season_type` `POST`); nflverse numbers them after the regular season (18–21 through 2020, 19–22 since). NGS skips the Pro Bowl week (Super Bowl 22 / 23) and QBR uses 1–4. Join postseason rows on `game_id` or on the team and the game's date, not on `week`.
- 
+
  ## Tables
 @@ -27,7 +30,7 @@ Standard columns: `season` and `week` as `INTEGER` (whatever type the file uses)
  | `src_ff_opportunity`                                         | ffverse `ep_weekly` (expected fantasy points; team totals in `*_team` columns)                                                                                                                                                                                        | player-week              | `player_id` (gsis)          |
@@ -8497,7 +8530,7 @@ index 48af0d1..391d484 100644
    - **Quitting** closes the worker first: the running download is aborted, the running statement interrupted, and the step logged `interrupted`. The app quits within a few hundred milliseconds (after 3 s at most, the worker is ended). An `interrupted` step is not an attempt: the next run retries it. Steps a crashed app left `running` are marked `interrupted` on the next open, and stale temp files are cleared.
 +- **The derived rebuild.** After the steps, when one loaded rows (or the derived tables are missing or older than `DERIVED_VERSION`), `stats:derived` rebuilds the derived tables for the seasons whose rows changed. A file of all seasons (players, QBR, combine) counts as the current season. A forced daily refresh rebuilds the current season in about 1.5 s. The first build (every season) takes about 25 s.
  - **Downloads.** Parquet from nflverse and ffverse, CSV for the crosswalk, JSON for Sleeper. Files are written to `<userData>/stats-tmp`, read by DuckDB, and deleted. A full backfill downloads about 210 MB of Parquet plus Sleeper's JSON and takes 2–3 minutes. A forced daily refresh runs 24 steps in about 12 s.
- 
+
 +## Derived tables
 +
 +Built by `src/main/stats/derived/` after each refresh (spec §5). Every rate is stored as its numerator and denominator (components), and the engine divides when it reads, so any week range or group is exact.
@@ -8539,7 +8572,7 @@ index 48af0d1..391d484 100644
 +```
 +
  ## Reading it
- 
+
  ```sql
 ````
 
@@ -8552,12 +8585,12 @@ index b5b4905..19d8ac6 100644
 +++ b/docs/superpowers/specs/2026-10-15-stats-analysis-design.md
 @@ -1,6 +1,6 @@
  # Stats analysis — design
- 
+
 -**Date:** 2026-10-15 · **Status:** approved 2026-10-16, amended 2026-10-16 (§15: Plan X) · **Plans:** X (DuckDB foundation), Y (metric layer + query engine), Z (models), AA (Stats screen), AB (team dashboard), AC (player dashboard), AD (explore: charts, compare, trends), AE (matchup preview); natural-language queries get their own spec after AE.
 +**Date:** 2026-10-15 · **Status:** approved 2026-10-16, amended 2026-10-16 (§15: Plan X) and 2026-10-17 (§16: Plan Y) · **Plans:** X (DuckDB foundation), Y (metric layer + query engine), Z (models), AA (Stats screen), AB (team dashboard), AC (player dashboard), AD (explore: charts, compare, trends), AE (matchup preview); natural-language queries get their own spec after AE.
- 
+
  **Sources:** the stats catalog (`docs/research/2026-10-09-nfl-stats-catalog.md`), the predictive-metrics catalogue (`docs/research/nfl_predictive_metrics.md`), the coverage audit (`docs/research/2026-10-14-warehouse-coverage-audit.md`), and a DuckDB vs SQLite benchmark on 2023–2025 play-by-play and participation (§3.2).
- 
+
 @@ -432,3 +432,32 @@ Measured on the live sources while Plan X was written (its Planning findings), a
    - Quitting closes the worker first (abort the download, interrupt the statement), because Electron aborts if the process exits mid-statement. Interrupted steps are retried on the next run.
    - Team columns are normalised in place in every source (`depth_charts` version 2).
