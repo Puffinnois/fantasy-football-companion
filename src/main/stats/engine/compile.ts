@@ -575,14 +575,29 @@ function sharesCte(q: StatsQuery, c: Checked, params: Params): string {
   }
   const s = q.situation ?? {}
   const onField = [...(s.withOnField ?? []), ...(s.withoutOnField ?? [])]
+  // The side the metrics are on: a team's plays on that side are the ones a row can keep.
+  const needed = new Set(c.metrics.flatMap(componentsOf))
+  const defense =
+    q.entity === 'player'
+      ? PLAYER_PLAY_COMPONENTS.filter((x) => needed.has(x.name)).map(
+          (x) => x.role === 'onD' || x.role === 'defender'
+        )
+      : [...needed].filter((n) => n !== 'games').map((n) => n.startsWith('def_'))
+  const sides = defense.every((d) => d)
+    ? ['p.defteam']
+    : defense.every((d) => !d)
+      ? ['p.posteam']
+      : ['p.posteam', 'p.defteam']
+  const ofTeams = (teams: string): string =>
+    `(${sides.map((side) => `${side} IN ${teams}`).join(' OR ')})`
   if (q.scope.teams) {
-    const teams = params.list(q.scope.teams)
-    where.push(`(p.posteam IN ${teams} OR p.defteam IN ${teams})`)
+    where.push(ofTeams(params.list(q.scope.teams)))
   } else if (onField.length > 0) {
-    const teams = `(SELECT DISTINCT CASE o.side WHEN 'O' THEN t.posteam ELSE t.defteam END
-                    FROM on_field o JOIN plays t ON t.game_id = o.game_id AND t.play_id = o.play_id
-                    WHERE o.gsis IN ${params.list(onField)} AND t.season IN ${params.list(q.scope.seasons)})`
-    where.push(`(p.posteam IN ${teams} OR p.defteam IN ${teams})`)
+    where.push(
+      ofTeams(`(SELECT DISTINCT CASE o.side WHEN 'O' THEN t.posteam ELSE t.defteam END
+                FROM on_field o JOIN plays t ON t.game_id = o.game_id AND t.play_id = o.play_id
+                WHERE o.gsis IN ${params.list(onField)} AND t.season IN ${params.list(q.scope.seasons)})`)
+    )
   }
   const kept = situationWhere(s, params, new Set())
   const filter = kept.length > 0 ? kept.join(' AND ') : 'true'

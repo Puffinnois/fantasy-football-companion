@@ -4,7 +4,7 @@ import { compileQuery, StatsQueryError } from '@main/stats/engine/compile'
 import { runQuery } from '@main/stats/engine/run'
 import type { StatsQuery } from '@shared/stats/types'
 import { openTestDb } from '../../../fixtures/stats'
-import { CB, KC_RB, QB, RB, seedGame, WR } from '../../../fixtures/statsDerived'
+import { CB, EDGE, KC_RB, QB, RB, seedGame, WR } from '../../../fixtures/statsDerived'
 
 const CTX = { currentSeason: 2025, hasLeague: false }
 
@@ -101,6 +101,21 @@ describe('runQuery (stats-analysis spec §7)', () => {
     // Five scrimmage plays: three on first down, one each on second and third.
     expect(await shares({ groupBy: ['down'] })).toEqual([0.2, 0.6])
     expect(await shares({ situation: { pressure: true } })).toEqual([0.2])
+    // A team's share counts the side the metric is on: BUF's four offensive plays, not KC's run.
+    expect(
+      await shares({
+        metrics: ['yprr'],
+        scope: { seasons: [2025], teams: ['BUF'], players: [WR] },
+        situation: { withOnField: [QB] }
+      })
+    ).toEqual([1])
+    expect(
+      await shares({
+        metrics: ['sacks'],
+        scope: { seasons: [2025], teams: ['KC'], players: [EDGE] },
+        situation: { withOnField: [EDGE] }
+      })
+    ).toEqual([1])
   })
 
   it('reads weekly rows, fantasy points under a scoring, and team metrics', async () => {
