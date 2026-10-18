@@ -1,12 +1,26 @@
 import { CATALOGUE, componentsOf } from '@shared/stats/catalogue'
-import type { Entity, Grain, MetricDef, MetricInfo } from '@shared/stats/types'
+import type { Entity, Grain, MetricDef, MetricInfo, MetricStability } from '@shared/stats/types'
 import { BOX_COMPONENTS, playerComponentNames } from '../derived/player'
 import { PLAYER_PLAY_COMPONENTS, TEAM_PLAY_COMPONENTS } from '../derived/plays'
 import { TEAM_BOX_COMPONENTS, teamComponentNames } from '../derived/team'
+import { PLAYER_MODEL_SUMS, PLAYER_STATES, TEAM_MODEL_SUMS, TEAM_STATES } from '../models/columns'
 
 /** Fantasy components, joined from `fantasy_week` / `team_fantasy_week` under the chosen scoring. */
-export const PLAYER_FANTASY = ['fp', 'xfp']
+export const PLAYER_FANTASY = ['fp', 'xfp', 'boom', 'bust']
 export const TEAM_FANTASY = ['fpa_qb', 'fpa_rb', 'fpa_wr', 'fpa_te', 'fpa_k']
+/** Weekly quantiles of the fantasy points (spec §8.5 ceiling and floor): weekly rows only. */
+export const QUANTILES: Record<string, number> = { 'p80:fp': 0.8, 'p20:fp': 0.2 }
+
+/** Model sums, joined like the fantasy components, by entity. */
+export const MODEL_SUMS: Record<Entity, readonly string[]> = {
+  player: PLAYER_MODEL_SUMS,
+  team: TEAM_MODEL_SUMS
+}
+/** Model states (`{last:name}`), by entity. */
+export const STATES: Record<Entity, readonly string[]> = {
+  player: PLAYER_STATES,
+  team: TEAM_STATES
+}
 
 /**
  * Components that count something every game has a record of (play-by-play, the box score): a
@@ -32,11 +46,22 @@ export const ZERO_WHEN_MISSING: Record<Entity, ReadonlySet<string>> = {
 /** The components each grain can sum, by entity (spec §7.2: the grain decides the tables). */
 export const COMPONENTS: Record<Entity, Record<'table' | 'play', ReadonlySet<string>>> = {
   player: {
-    table: new Set([...playerComponentNames(), ...PLAYER_FANTASY]),
+    table: new Set([
+      ...playerComponentNames(),
+      ...PLAYER_FANTASY,
+      ...PLAYER_MODEL_SUMS,
+      ...PLAYER_STATES.map((s) => `last:${s}`),
+      ...Object.keys(QUANTILES)
+    ]),
     play: new Set([...PLAYER_PLAY_COMPONENTS.map((c) => c.name), 'games'])
   },
   team: {
-    table: new Set([...teamComponentNames(), ...TEAM_FANTASY]),
+    table: new Set([
+      ...teamComponentNames(),
+      ...TEAM_FANTASY,
+      ...TEAM_MODEL_SUMS,
+      ...TEAM_STATES.map((s) => `last:${s}`)
+    ]),
     play: new Set([
       ...TEAM_PLAY_COMPONENTS.flatMap((c) => [`off_${c.name}`, `def_${c.name}`]),
       'games'
@@ -45,24 +70,37 @@ export const COMPONENTS: Record<Entity, Record<'table' | 'play', ReadonlySet<str
 }
 
 /**
- * Where a metric can be computed: week and season from the derived tables; play when every
- * component comes from plays (and it does not depend on the scoring).
+ * Where a metric can be computed: week and season from the derived tables (weekly quantiles at the
+ * week grain only); play when every component comes from plays (and it does not depend on the
+ * scoring).
  */
 export function grainsOf(def: MetricDef): Grain[] {
   const parts = componentsOf(def)
   const sets = COMPONENTS[def.entity]
   const grains: Grain[] = []
-  if (parts.every((c) => sets.table.has(c))) grains.push('week', 'season')
+  if (parts.every((c) => sets.table.has(c))) {
+    grains.push('week')
+    if (!parts.some((c) => c in QUANTILES)) grains.push('season')
+  }
   if (!def.scoring && parts.every((c) => sets.play.has(c))) grains.push('play')
   return grains
 }
 
-/** The catalogue as the renderer and NLQ read it: no formulas, and the grains each metric has. */
-export function catalogueInfo(): MetricInfo[] {
+/**
+ * The catalogue as the renderer and NLQ read it: no formulas, the grains each metric has, and its
+ * stability once the models have measured it.
+ */
+export function catalogueInfo(
+  stability: ReadonlyMap<string, MetricStability> = new Map()
+): MetricInfo[] {
   return CATALOGUE.map((def) => {
     const info: Partial<MetricDef> = { ...def }
     delete info.value
     delete info.sample
-    return { ...(info as Omit<MetricDef, 'value' | 'sample'>), grains: grainsOf(def) }
+    return {
+      ...(info as Omit<MetricDef, 'value' | 'sample'>),
+      grains: grainsOf(def),
+      stability: stability.get(def.id) ?? null
+    }
   })
 }

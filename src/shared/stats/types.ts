@@ -20,10 +20,12 @@ export type MetricUnit =
 
 /**
  * One catalogue entry (spec §6.1). `value` is SQL over component sums: each `{name}` is the sum of
- * that component over the rows in scope (a column of `player_week` / `team_week`, or `fp` / `xfp`
- * / `fpa_*` under the chosen scoring). `sample` names the component that measures the sample and
- * qualifies a row (`minSample` per 17 games). Descriptions are written for a person and for an
- * LLM (spec §10).
+ * that component over the rows in scope (a column of `player_week` / `team_week`, `fp` / `xfp` /
+ * `fpa_*` under the chosen scoring, or a model sum of `team_model_week` / `player_model_week`).
+ * `{last:name}` is a model state at the end of the scope (a team's Elo, adjusted EPA, playoff odds;
+ * a player's combine profile), and `{p80:fp}` / `{p20:fp}` the 80th / 20th percentile of the weekly
+ * fantasy points in scope. `sample` names the component that measures the sample and qualifies a
+ * row (`minSample` per 17 games). Descriptions are written for a person and for an LLM (spec §10).
  */
 export interface MetricDef {
   id: string
@@ -56,9 +58,28 @@ export interface MetricDef {
   scoring?: boolean
 }
 
+/** How much a metric carries over (spec §8.6), measured on 2019 to the prior season. */
+export interface MetricStability {
+  /** Pearson r between a player's (team's) qualified seasons, one season to the next. */
+  yearToYear: number | null
+  /** Season pairs behind it. */
+  pairs: number
+  /** Correlation of odd and even weeks of a qualified season (within-season reliability). */
+  splitHalf: number | null
+  /**
+   * The sample at which half of a rate is signal (Spearman–Brown from the split halves): the
+   * `shrunk` transform weighs the league mean as this much sample.
+   */
+  prior: number | null
+  /** From the year-to-year r: high ≥ 0.6, medium ≥ 0.35, low below. */
+  reliability: 'high' | 'medium' | 'low' | null
+}
+
 /** A catalogue entry as the engine serves it: the formula left out, where it can be computed added. */
 export interface MetricInfo extends Omit<MetricDef, 'value' | 'sample'> {
   grains: Grain[]
+  /** Null until the models have run, or for a metric without enough seasons. */
+  stability: MetricStability | null
 }
 
 export type GroupBy =
@@ -72,8 +93,12 @@ export type GroupBy =
   | 'coverage'
   | 'formation'
 
-/** `shrunk` and `opponentAdjusted` (spec §7.1) arrive with the models of Plan Z. */
-export type Transform = 'raw' | 'perGame' | 'percentile' | 'zScore' | 'vsLeague'
+/**
+ * Spec §7.1. `shrunk` pulls a rate toward its league mean by its sample (spec §8.5);
+ * `opponentAdjusted` subtracts how far the opponents faced allow more or less than average.
+ */
+export type Transform =
+  'raw' | 'perGame' | 'percentile' | 'zScore' | 'vsLeague' | 'shrunk' | 'opponentAdjusted'
 
 /** Stats-analysis spec §7.1: every leaderboard, card, chart and comparison is one of these. */
 export interface StatsQuery {

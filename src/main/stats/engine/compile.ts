@@ -1,4 +1,4 @@
-import { componentsOf, METRICS } from '@shared/stats/catalogue'
+import { componentsOf, METRICS, TOKEN } from '@shared/stats/catalogue'
 import { SCORINGS, type Scoring } from '@shared/stats/scoring'
 import {
   POSITION_GROUPS,
@@ -18,7 +18,14 @@ import {
   type Role
 } from '../derived/plays'
 import { STATS_FIRST_SEASON } from '../sources'
-import { grainsOf, PLAYER_FANTASY, TEAM_FANTASY, ZERO_WHEN_MISSING } from './registry'
+import {
+  grainsOf,
+  MODEL_SUMS,
+  PLAYER_FANTASY,
+  QUANTILES,
+  TEAM_FANTASY,
+  ZERO_WHEN_MISSING
+} from './registry'
 
 /** A query the engine refuses, with a message a person (or an LLM) can act on. */
 export class StatsQueryError extends Error {}
@@ -29,7 +36,15 @@ export const MAX_LIMIT = 1000
 /** Spec §6.1: `minSample` is for 17 games; it scales with the weeks a row covers. */
 export const FULL_SEASON = 17
 
-const TRANSFORMS: Transform[] = ['raw', 'perGame', 'percentile', 'zScore', 'vsLeague']
+const TRANSFORMS: Transform[] = [
+  'raw',
+  'perGame',
+  'percentile',
+  'zScore',
+  'vsLeague',
+  'shrunk',
+  'opponentAdjusted'
+]
 const TABLE_DIMS: GroupBy[] = ['season', 'week', 'team', 'opponent']
 const PLAY_DIMS: GroupBy[] = ['down', 'quarter', 'personnel', 'coverage', 'formation']
 const TEAM_CODE = /^[A-Z]{2,3}$/
@@ -64,6 +79,13 @@ export interface CompileContext {
   currentSeason: number
   /** A league is imported, so `scoring: 'league'` exists. */
   hasLeague: boolean
+  /** Each metric's stability prior (spec §8.6), the sample the `shrunk` transform gives the mean. */
+  priors?: ReadonlyMap<string, number>
+  /**
+   * For the models only, never from a query: no row cap, and each row split into its odd and
+   * even weeks (`g_half` 1 / 0) for split-half reliability (spec §8.6).
+   */
+  internal?: { unlimited?: boolean; halves?: boolean }
 }
 
 /** What `runQuery` runs: the weeks in scope (they scale `minSample`), then the query. */
@@ -251,6 +273,16 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   if (grain === 'play' && scope.lastNGames !== undefined) {
     fail('lastNGames cannot be combined with situation filters')
   }
+  if (grain === 'play' && transform === 'opponentAdjusted') {
+    fail('opponentAdjusted cannot be combined with situation filters')
+  }
+  // Opponent adjustment and weekly quantiles (ceiling, floor) need one row per game.
+  const weekly = metrics.some(
+    (m) => !grainsOf(m).includes('season') && grainsOf(m).includes('week')
+  )
+  if (grain === 'season' && (transform === 'opponentAdjusted' || weekly || ctx.internal?.halves)) {
+    grain = 'week'
+  }
   for (const m of metrics) {
     if (!grainsOf(m).includes(grain)) {
       fail(
@@ -380,7 +412,9 @@ function metricColumns(
   perGame: boolean
 ): string[] {
   return metrics.flatMap((m, i) => {
-    let value = m.value.replace(/\{([a-z0-9_]+)\}/g, (_, c: string) => sumOf(c))
+    let value = m.value.replace(TOKEN, (_, kind: string | undefined, c: string) =>
+      sumOf(kind ? `${kind}:${c}` : c)
+    )
     if (perGame && m.kind === 'count') value = `(${value}) / nullif(${sumOf('games')}, 0)`
     return [
       `(${value})::DOUBLE AS v${i}`,
@@ -390,63 +424,199 @@ function metricColumns(
   })
 }
 
-/** The week and season grains: rows of the derived tables, summed per output row. */
-function tableAgg(q: StatsQuery, c: Checked, params: Params): { ctes: string; dims: GroupBy[] } {
+/** A token a formula reads: a sum, a model state (`last:`) or a weekly quantile (`p80:`). */
+const isState = (t: string): boolean => t.startsWith('last:')
+const quantileCol = (t: string): string => `q_${t.replace(':', '_')}`
+
+/** Whether opponent adjustment applies: sums only (a state or a quantile has no opponents). */
+const adjustable = (m: MetricDef): boolean =>
+  componentsOf(m).every((t) => !isState(t) && !(t in QUANTILES))
+
+/**
+ * The week and season grains: rows of the derived tables, summed per output row, with the fantasy
+ * and model sums joined to them; then model states (`{last:x}`, at the end of the scope) joined to
+ * the sums. With `opponentAdjusted`, each weekly row also carries how far its opponent allows more
+ * than the league (the same metric over every row facing that opponent, minus the league's).
+ */
+function tableAgg(
+  q: StatsQuery,
+  c: Checked,
+  params: Params,
+  notes: Set<string>,
+  halves: boolean
+): { ctes: string; dims: string[] } {
   const player = q.entity === 'player'
   const season = c.grain === 'season'
   const table = `${player ? 'player' : 'team'}_${season ? 'season' : 'week'}`
   const key = player ? 'gsis_id' : 'team'
   const fantasy = player ? PLAYER_FANTASY : TEAM_FANTASY
-  const needed = new Set(['games', ...c.metrics.flatMap(neededBy)])
-  const where = [
-    `w.season IN ${params.list(q.scope.seasons)}`,
-    ...seasonTypeWhere('w.season_type', q, params)
-  ]
-  if (q.scope.weeks) {
-    where.push(`w.week BETWEEN ${params.add(q.scope.weeks[0])} AND ${params.add(q.scope.weeks[1])}`)
-  }
-  if (player && q.scope.positions) where.push(`w.position IN ${params.list(q.scope.positions)}`)
-  if (q.scope.teams) where.push(`w.team IN ${params.list(q.scope.teams)}`)
-  if (q.scope.opponents) where.push(`w.opponent IN ${params.list(q.scope.opponents)}`)
-  if (player && q.scope.players) where.push(`w.gsis_id IN ${params.list(q.scope.players)}`)
-  if (!player && !season) where.push('w.games = 1')
+  const modelSums = MODEL_SUMS[q.entity]
+  const tokens = new Set(['games', ...c.metrics.flatMap(neededBy)])
+  const states = [...tokens].filter(isState).map((t) => t.slice('last:'.length))
+  const quantiles = [...tokens].filter((t) => t in QUANTILES)
+  const needed = new Set([
+    ...[...tokens].filter((t) => !isState(t) && !(t in QUANTILES)),
+    ...quantiles.map((t) => t.split(':')[1])
+  ])
+  const adjust = c.transform === 'opponentAdjusted'
+  const zero = ZERO_WHEN_MISSING[q.entity]
+  const sumSql = (n: string): string => (zero.has(n) ? `coalesce(sum(${n}), 0)` : `sum(${n})`)
+  const seasonList = params.list(q.scope.seasons)
+  const seasonType = seasonTypeWhere('w.season_type', q, params)
+  const weeks = q.scope.weeks
+    ? [`w.week BETWEEN ${params.add(q.scope.weeks[0])} AND ${params.add(q.scope.weeks[1])}`]
+    : []
 
-  let join = ''
+  const joins: string[] = []
+  // A gsis id can have two Sleeper ids; one line per person and week.
   if ([...needed].some((n) => fantasy.includes(n))) {
-    // A gsis id can have two Sleeper ids; one line per person and week.
+    const scoring = params.add(c.scoring)
     const weekly = player
-      ? `SELECT gsis_id, season, season_type, week, max(points) AS fp, max(xpoints) AS xfp
-         FROM fantasy_week WHERE scoring = ${params.add(c.scoring)} AND gsis_id IS NOT NULL GROUP BY ALL`
+      ? `SELECT gsis_id, season, season_type, week, max(points) AS fp, max(xpoints) AS xfp,
+                max(boom) AS boom, max(bust) AS bust
+         FROM (SELECT *, ${BOOM_BUST} FROM fantasy_week
+               WHERE scoring = ${scoring} AND season IN ${seasonList})
+         WHERE gsis_id IS NOT NULL GROUP BY ALL`
       : `SELECT team, season, season_type, week, ${TEAM_FANTASY.map((f) => `max(${f}) AS ${f}`).join(', ')}
-         FROM team_fantasy_week WHERE scoring = ${params.add(c.scoring)} GROUP BY ALL`
-    const rows = season
-      ? `SELECT ${key}, season, season_type, ${fantasy.map((f) => `sum(${f}) AS ${f}`).join(', ')}
-         FROM (${weekly}) GROUP BY ALL`
-      : weekly
-    join = `LEFT JOIN (${rows}) f ON f.${key} = w.${key} AND f.season = w.season
-            AND f.season_type = w.season_type${season ? '' : ' AND f.week = w.week'}`
+         FROM team_fantasy_week WHERE scoring = ${scoring} GROUP BY ALL`
+    joins.push(joined('f', key, season, fantasy, weekly))
   }
-  const cols = [...needed].map((n) => `${fantasy.includes(n) ? 'f' : 'w'}.${n}`)
+  if ([...needed].some((n) => modelSums.includes(n))) {
+    const weekly = `SELECT ${key}, season, season_type, week, ${modelSums.join(', ')}
+                    FROM ${player ? 'player' : 'team'}_model_week`
+    joins.push(joined('m', key, season, modelSums, weekly))
+  }
+  const colOf = (n: string): string =>
+    `${fantasy.includes(n) ? 'f' : modelSums.includes(n) ? 'm' : 'w'}.${n}`
+  const cols = [...needed].map((n) => `${colOf(n)} AS ${n}`)
   const last =
     q.scope.lastNGames === undefined
       ? ''
       : `QUALIFY row_number() OVER (PARTITION BY w.${key}
            ORDER BY w.season DESC, w.week DESC) <= ${params.add(q.scope.lastNGames)}`
-  const base = `SELECT w.${key} AS id, w.season, ${season ? 'NULL::INTEGER' : 'w.week'} AS week,
-                       w.team, ${player ? 'w.position' : 'NULL::VARCHAR AS position'},
-                       ${season ? 'NULL::VARCHAR' : 'w.opponent'} AS opponent, ${cols.join(', ')}
-                FROM ${table} w ${join}
-                WHERE ${where.join(' AND ')} ${last}`
-  const dims = c.groupBy
-  // A counted component a player never had (carries for a receiver) sums as 0, not NULL.
-  const zero = ZERO_WHEN_MISSING[q.entity]
-  const sumOf = (n: string): string => (zero.has(n) ? `coalesce(sum(${n}), 0)` : `sum(${n})`)
-  const agg = `SELECT id, ${dims.map((d) => `${d} AS g_${d}, `).join('')}
-                      arg_max(team, season * 100 + coalesce(week, 0)) AS team,
-                      mode(position) AS position, sum(games)::DOUBLE AS games,
-                      ${metricColumns(c.metrics, sumOf, c.transform === 'perGame').join(', ')}
-               FROM base GROUP BY id${dims.map((d) => `, ${d}`).join('')}`
-  return { ctes: `base AS (${base}), agg AS (${agg})`, dims }
+  /** The rows in scope; without `entity` filters, every row (the population an opponent faced). */
+  const rows = (entity: boolean): string => {
+    const where = [`w.season IN ${seasonList}`, ...seasonType, ...weeks]
+    if (player && q.scope.positions) where.push(`w.position IN ${params.list(q.scope.positions)}`)
+    if (entity) {
+      if (q.scope.teams) where.push(`w.team IN ${params.list(q.scope.teams)}`)
+      if (q.scope.opponents) where.push(`w.opponent IN ${params.list(q.scope.opponents)}`)
+      if (player && q.scope.players) where.push(`w.gsis_id IN ${params.list(q.scope.players)}`)
+    }
+    if (!player && !season) where.push('w.games = 1')
+    return `SELECT w.${key} AS id, w.season, ${season ? 'NULL::INTEGER' : 'w.week'} AS week,
+                   ${halves ? 'w.week % 2 AS half,' : ''}
+                   w.team, ${player ? 'w.position' : 'NULL::VARCHAR AS position'},
+                   ${season ? 'NULL::VARCHAR' : 'w.opponent'} AS opponent, ${cols.join(', ')}
+            FROM ${table} w ${joins.join(' ')}
+            WHERE ${where.join(' AND ')} ${entity ? last : ''}`
+  }
+  const ctes: string[] = [`base AS (${rows(true)})`]
+  const adjusted = adjust ? c.metrics.map(adjustable) : []
+  if (adjust) {
+    // How much more than the league each opponent allows, per metric (sums only).
+    const vs = (by: string): string =>
+      `SELECT ${by}, ${metricColumns(c.metrics, sumSql, false).join(', ')}
+       FROM pop GROUP BY ${by}`
+    ctes.push(
+      `pop AS (${rows(false)})`,
+      `allowed AS (${vs('opponent, season, position')})`,
+      `league AS (${vs('season, position')})`,
+      `faced AS (SELECT b.*, ${c.metrics
+        .map((m, i) =>
+          adjusted[i]
+            ? `a.v${i} - l.v${i} AS adj${i}, b.${m.sample}::DOUBLE AS n${i}`
+            : `NULL::DOUBLE AS adj${i}, NULL::DOUBLE AS n${i}`
+        )
+        .join(', ')}
+       FROM base b
+       LEFT JOIN allowed a ON a.opponent = b.opponent AND a.season = b.season
+         AND a.position IS NOT DISTINCT FROM b.position
+       LEFT JOIN league l ON l.season = b.season AND l.position IS NOT DISTINCT FROM b.position)`
+    )
+    c.metrics.forEach((m, i) => {
+      if (!adjusted[i]) notes.add(`${m.label}: not opponent-adjusted (a rating or a weekly range).`)
+    })
+  }
+  const dims: string[] = [...c.groupBy, ...(halves ? ['half'] : [])]
+  const sumCols = [...needed].map((n) => `${sumSql(n)} AS ${n}`)
+  const quantCols = quantiles.map(
+    (t) => `quantile_cont(${t.split(':')[1]}, ${QUANTILES[t]}) AS ${quantileCol(t)}`
+  )
+  const adjCols = adjust
+    ? c.metrics.map(
+        (_, i) =>
+          `sum(n${i} * adj${i}) FILTER (WHERE adj${i} IS NOT NULL) / nullif(sum(n${i}) FILTER (WHERE adj${i} IS NOT NULL), 0) AS o${i}`
+      )
+    : []
+  ctes.push(`sums AS (
+    SELECT id, ${dims.map((d) => `${d} AS g_${d}, `).join('')}
+           arg_max(team, season * 100 + coalesce(week, 0)) AS team,
+           mode(position) AS position,
+           ${[...sumCols, ...quantCols, ...adjCols].join(', ')}
+    FROM ${adjust ? 'faced' : 'base'} GROUP BY id${dims.map((d) => `, ${d}`).join('')})`)
+
+  // States at the end of the scope: the latest week in scope (per season or week when grouped).
+  const stateDims = c.groupBy.filter((d) => d === 'season' || d === 'week')
+  if (states.length > 0) {
+    if (player) {
+      ctes.push(`st AS (SELECT gsis_id AS id, ${states.join(', ')} FROM player_profile)`)
+    } else {
+      const where = [
+        `w.season IN ${seasonList}`,
+        ...seasonTypeWhere('w.season_type', q, params),
+        ...(q.scope.weeks
+          ? [`w.week BETWEEN ${params.add(q.scope.weeks[0])} AND ${params.add(q.scope.weeks[1])}`]
+          : [])
+      ]
+      if (q.scope.teams) where.push(`w.team IN ${params.list(q.scope.teams)}`)
+      ctes.push(`st AS (
+        SELECT w.team AS id, ${stateDims.map((d) => `w.${d} AS g_${d}, `).join('')}
+               ${states.map((x) => `arg_max(w.${x}, w.season * 100 + w.week) AS ${x}`).join(', ')}
+        FROM team_model_week w WHERE ${where.join(' AND ')}
+        GROUP BY ALL)`)
+    }
+  }
+  const sumOf = (t: string): string =>
+    isState(t) ? `st.${t.slice('last:'.length)}` : t in QUANTILES ? `s.${quantileCol(t)}` : `s.${t}`
+  const stJoin =
+    states.length > 0
+      ? `LEFT JOIN st ON st.id = s.id${player ? '' : stateDims.map((d) => ` AND st.g_${d} = s.g_${d}`).join('')}`
+      : ''
+  ctes.push(`agg AS (
+    SELECT s.id, ${dims.map((d) => `s.g_${d}, `).join('')} s.team, s.position, s.games::DOUBLE AS games,
+           ${adjust ? `${c.metrics.map((_, i) => `s.o${i}`).join(', ')}, ` : ''}
+           ${metricColumns(c.metrics, sumOf, c.transform === 'perGame').join(', ')}
+    FROM sums s ${stJoin})`)
+  return { ctes: ctes.join(',\n'), dims }
+}
+
+/**
+ * Boom and bust weeks (spec §8.5) under one scoring: a top-12 weekly finish at the position (top 24
+ * for RB and WR) is a boom, one outside the top 36 (48) a bust.
+ */
+const BOOM_BUST = `
+  CASE WHEN position IN ('QB', 'RB', 'WR', 'TE') THEN
+    (rank() OVER (PARTITION BY season, season_type, week, position ORDER BY points DESC)
+      <= CASE WHEN position IN ('RB', 'WR') THEN 24 ELSE 12 END)::INT END AS boom,
+  CASE WHEN position IN ('QB', 'RB', 'WR', 'TE') THEN
+    (rank() OVER (PARTITION BY season, season_type, week, position ORDER BY points DESC)
+      > CASE WHEN position IN ('RB', 'WR') THEN 48 ELSE 36 END)::INT END AS bust`
+
+/** A weekly side table joined to the derived rows; at the season grain, summed by season first. */
+function joined(
+  alias: string,
+  key: string,
+  season: boolean,
+  columns: readonly string[],
+  weekly: string
+): string {
+  const rows = season
+    ? `SELECT ${key}, season, season_type, ${columns.map((f) => `sum(${f}) AS ${f}`).join(', ')}
+       FROM (${weekly}) GROUP BY ALL`
+    : weekly
+  return `LEFT JOIN (${rows}) ${alias} ON ${alias}.${key} = w.${key} AND ${alias}.season = w.season
+          AND ${alias}.season_type = w.season_type${season ? '' : ` AND ${alias}.week = w.week`}`
 }
 
 /** The play grain: components summed again from plays under the situation filter (spec §7.2). */
@@ -615,7 +785,10 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   const c = validate(q, ctx)
   const params = new Params()
   const notes = new Set<string>()
-  const { ctes, dims } = c.grain === 'play' ? playAgg(q, c, params, notes) : tableAgg(q, c, params)
+  const { ctes, dims } =
+    c.grain === 'play'
+      ? playAgg(q, c, params, notes)
+      : tableAgg(q, c, params, notes, ctx.internal?.halves ?? false)
   // Percentiles and ranks among qualified rows of the same position (players) and group.
   const group = [...(q.entity === 'player' ? ['position'] : []), ...dims.map((d) => `g_${d}`)]
   const over = (i: number, order: string): string =>
@@ -634,9 +807,23 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
             `avg(v${i}) FILTER (WHERE ${ok}) OVER (${among}) AS m${i}`,
             `stddev_samp(v${i}) FILTER (WHERE ${ok}) OVER (${among}) AS d${i}`
           ]
+        : []),
+      // Shrinkage pulls toward the qualified rows' mean, weighted by their samples.
+      ...(c.transform === 'shrunk'
+        ? [
+            `sum(v${i} * s${i}) FILTER (WHERE ${ok}) OVER (${among})
+               / nullif(sum(s${i}) FILTER (WHERE ${ok}) OVER (${among}), 0) AS m${i}`
+          ]
         : [])
     ]
   })
+  const prior = (m: MetricDef): number | undefined =>
+    m.kind === 'rate' ? ctx.priors?.get(m.id) : undefined
+  if (c.transform === 'shrunk') {
+    for (const m of c.metrics) {
+      if (prior(m) === undefined) notes.add(`${m.label}: not shrunk (no stability estimate).`)
+    }
+  }
   const shaped = c.metrics.map((_, i) => {
     switch (c.transform) {
       case 'percentile':
@@ -645,6 +832,15 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
         return `(v${i} - m${i}) / nullif(d${i}, 0) AS t${i}`
       case 'vsLeague':
         return `v${i} - m${i} AS t${i}`
+      case 'shrunk': {
+        const k = prior(c.metrics[i])
+        if (k === undefined) return `v${i} AS t${i}`
+        const pk = params.add(k)
+        return `CASE WHEN v${i} IS NOT NULL AND m${i} IS NOT NULL
+                  THEN (s${i} * v${i} + ${pk} * m${i}) / nullif(s${i} + ${pk}, 0) ELSE v${i} END AS t${i}`
+      }
+      case 'opponentAdjusted':
+        return `v${i} - coalesce(o${i}, 0) AS t${i}`
       default:
         return `v${i} AS t${i}`
     }
@@ -654,7 +850,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     (m, i) =>
       `(s${i} > 0 AND s${i} >= ${m.minSample ?? 0} * $factor${play ? ' * coalesce(sh.share, 0)' : ''}) AS q${i}`
   )
-  const playDims = dims.filter((d) => PLAY_DIMS.includes(d))
+  const playDims = dims.filter((d) => (PLAY_DIMS as string[]).includes(d))
   const sharesJoin = play
     ? `LEFT JOIN shares sh ON ${playDims.length > 0 ? playDims.map((d) => `sh.g_${d} IS NOT DISTINCT FROM a.g_${d}`).join(' AND ') : 'true'}`
     : ''
@@ -670,7 +866,7 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     FROM shaped x ${player ? 'LEFT JOIN players pl ON pl.gsis_id = x.id' : ''}
     ${q.scope.qualifiedOnly ? `WHERE q${sort}` : ''}
     ORDER BY q${sort} DESC, t${sort} ${dir.toUpperCase()} NULLS LAST, name
-    LIMIT ${q.limit ?? DEFAULT_LIMIT}`
+    ${ctx.internal?.unlimited ? '' : `LIMIT ${q.limit ?? DEFAULT_LIMIT}`}`
 
   // Qualification scales `minSample` to the weeks a row covers (and, at the play grain, to the
   // share of plays it keeps: 150 routes over a season is about 45 when pressured).
