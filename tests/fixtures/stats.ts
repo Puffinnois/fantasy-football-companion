@@ -13,9 +13,17 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
-/** An in-memory stats database with the macros and bookkeeping tables; closed after the test. */
+/**
+ * An in-memory stats database with the macros and bookkeeping tables; closed after the test. It
+ * spills to its own temp directory: DuckDB's default (`.tmp` in the working directory) is shared by
+ * every test worker, and two workers' spill files corrupt each other.
+ */
 export async function openTestDb(now = new Date('2026-10-16T12:00:00Z')): Promise<StatsDb> {
-  const db = await StatsDb.open(':memory:', { threads: 1, memoryLimit: '256MB' })
+  const db = await StatsDb.open(':memory:', {
+    threads: 1,
+    memoryLimit: '256MB',
+    tempDirectory: join(tempDir(), 'duckdb')
+  })
   opened.push(db)
   await bootstrapStatsDb(db, now)
   return db

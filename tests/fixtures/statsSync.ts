@@ -56,7 +56,8 @@ export async function runSync(db: StatsDb, options: RunOptions = {}): Promise<St
     tempDir: tempDir(),
     nflState: async () => options.state ?? STATE_2026,
     now: () => options.now ?? new Date('2026-10-16T12:00:00Z'),
-    league: () => options.league ?? null
+    league: () => options.league ?? null,
+    simulationRuns: 100
   }
   const steps = options.only ? STATS_STEPS.filter((s) => options.only?.includes(s.id)) : STATS_STEPS
   return refreshStats(deps, { force: options.force }, steps)
