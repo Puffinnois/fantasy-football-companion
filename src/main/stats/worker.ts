@@ -5,7 +5,7 @@ import { openStatsService, type StatsService } from './service'
 /**
  * Worker entry, bundled to `out/main/statsWorker.js` (stats-analysis spec §2): the only thread that
  * opens `stats.duckdb`. Writes (refresh, league rules, self-test, close) run one after another, in
- * arrival order; reads (queries, catalogue, status) run at once on the read connection, so a screen
+ * arrival order; reads (queries, catalogue, status, games, outlook) run at once, so a screen
  * never waits behind a refresh.
  */
 const port = parentPort
@@ -30,6 +30,10 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.catalogue()
     case 'status':
       return service.status()
+    case 'games':
+      return service.games(request.query)
+    case 'outlook':
+      return service.outlook(request.query)
     case 'close':
       await service.close()
       service = null

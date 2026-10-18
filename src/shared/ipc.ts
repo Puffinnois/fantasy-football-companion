@@ -27,7 +27,16 @@ import type {
   WaiverAdds
 } from './types'
 import type { Rules } from './rules'
-import type { MetricInfo, StatsQuery, StatsResult, StatsStatus } from './stats/types'
+import type {
+  GameForecast,
+  GamesQuery,
+  MetricInfo,
+  OutlookQuery,
+  PlayerOutlook,
+  StatsQuery,
+  StatsResult,
+  StatsStatus
+} from './stats/types'
 
 export interface FindLeaguesResult {
   userId: string
@@ -115,8 +124,12 @@ export interface Api {
   stats: {
     /** Runs one query in the stats worker; rejects with a readable message on an invalid query. */
     query(query: StatsQuery): Promise<StatsResult>
-    /** Every metric the engine computes, with where it can be computed (spec §6). */
+    /** Every metric the engine computes, with where it can be computed and its stability (spec §6, §8.6). */
     catalogue(): Promise<MetricInfo[]>
+    /** A season's games with Elo and the betting market (spec §8.1). */
+    games(query: GamesQuery): Promise<GameForecast[]>
+    /** A player's ceiling, floor, trend, regression flags and schedule (spec §8.5). */
+    outlook(query: OutlookQuery): Promise<PlayerOutlook>
     /** "Data through week N, updated <time>" (spec §5.3). */
     status(): Promise<StatsStatus>
     /** Fires when a rebuild finished: screens query again. Returns the unsubscribe function. */
@@ -161,5 +174,7 @@ export const IPC = {
   statsQuery: 'stats:query',
   statsCatalogue: 'stats:catalogue',
   statsStatus: 'stats:status',
+  statsGames: 'stats:games',
+  statsOutlook: 'stats:outlook',
   statsChanged: 'stats:changed'
 } as const

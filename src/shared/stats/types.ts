@@ -207,3 +207,91 @@ export interface StatsStatus {
   /** A refresh or a rebuild is running. */
   busy: boolean
 }
+
+/** The games of a season with their forecasts (spec §8.1): schedules, matchups, the Forecast tab. */
+export interface GamesQuery {
+  season: number
+  /** One team's games; every game otherwise. */
+  team?: string
+  weeks?: [number, number]
+}
+
+export interface GameForecast {
+  gameId: string
+  season: number
+  seasonType: 'REG' | 'POST'
+  week: number
+  /** YYYY-MM-DD. */
+  gameday: string | null
+  home: string
+  away: string
+  neutral: boolean
+  /** Null until played. */
+  homeScore: number | null
+  awayScore: number | null
+  /** Pre-game Elo ratings, the home team's Elo win probability and expected margin. */
+  homeElo: number
+  awayElo: number
+  homeWinProb: number
+  eloSpread: number
+  /** The betting market: the home team's no-vig win probability, its expected margin, the total. */
+  vegasHomeWinProb: number | null
+  spread: number | null
+  total: number | null
+  roof: string | null
+  temp: number | null
+  wind: number | null
+}
+
+/** A player's outlook (spec §8.5), for the Forecast tab. */
+export interface OutlookQuery {
+  /** gsis id */
+  player: string
+  season: number
+  /** `ppr` by default. */
+  scoring?: Scoring
+}
+
+export interface OutlookTrend {
+  metric: string
+  season: number | null
+  last4: number | null
+  /** Last four games minus the games before them. */
+  change: number | null
+  /** The change in standard errors (two-proportion test); null without the denominators. */
+  z: number | null
+  /** |z| ≥ 2: a role change beyond noise for this sample. */
+  roleChange: 'up' | 'down' | null
+}
+
+export interface OutlookSignal {
+  metric: string
+  value: number | null
+  /** Its position's qualified mean, and how far the value should move back toward it. */
+  mean: number | null
+  expectedChange: number | null
+  /** The expected change in the position's standard deviations: 1 or more flags it. */
+  z: number | null
+  /** "Running hot" (expected to fall back) or "running cold" (expected to rise), never a promise. */
+  signal: 'hot' | 'cold' | null
+}
+
+export interface PlayerOutlook {
+  player: string
+  season: number
+  scoring: Scoring
+  position: string | null
+  team: string | null
+  games: number
+  ceiling: { season: number | null; last16: number | null }
+  floor: { season: number | null; last16: number | null }
+  boomRate: number | null
+  bustRate: number | null
+  trend: OutlookTrend[]
+  regression: OutlookSignal[]
+  /**
+   * The rest of the regular season: opponents, and how many more fantasy points per game than the
+   * league average they allowed to the position so far (positive is easier).
+   */
+  schedule: { opponents: string[]; easierBy: number | null }
+}

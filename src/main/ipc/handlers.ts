@@ -39,7 +39,16 @@ import type { RefreshOptions } from '@main/sync/step'
 import type { UpdateController } from '@main/updater'
 import { IPC, type FindLeaguesResult } from '@shared/ipc'
 import type { Rules } from '@shared/rules'
-import type { MetricInfo, StatsQuery, StatsResult, StatsStatus } from '@shared/stats/types'
+import type {
+  GameForecast,
+  GamesQuery,
+  MetricInfo,
+  OutlookQuery,
+  PlayerOutlook,
+  StatsQuery,
+  StatsResult,
+  StatsStatus
+} from '@shared/stats/types'
 import { SYNC_SOURCE_GROUPS } from '@shared/syncSources'
 import type {
   League,
@@ -325,6 +334,12 @@ export function registerIpcHandlers(ctx: AppContext): void {
     statsClient(ctx).query(query)
   )
   ipcMain.handle(IPC.statsCatalogue, (): Promise<MetricInfo[]> => statsClient(ctx).catalogue())
+  ipcMain.handle(IPC.statsGames, (_event, query: GamesQuery): Promise<GameForecast[]> =>
+    statsClient(ctx).games(query)
+  )
+  ipcMain.handle(IPC.statsOutlook, (_event, query: OutlookQuery): Promise<PlayerOutlook> =>
+    statsClient(ctx).outlook(query)
+  )
   ipcMain.handle(IPC.statsStatus, (): Promise<StatsStatus> =>
     ctx.stats ? ctx.stats.status() : Promise.resolve(STATS_OFF)
   )

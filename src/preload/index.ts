@@ -79,6 +79,8 @@ const api: Api = {
   stats: {
     query: (query) => ipcRenderer.invoke(IPC.statsQuery, query),
     catalogue: () => ipcRenderer.invoke(IPC.statsCatalogue),
+    games: (query) => ipcRenderer.invoke(IPC.statsGames, query),
+    outlook: (query) => ipcRenderer.invoke(IPC.statsOutlook, query),
     status: () => ipcRenderer.invoke(IPC.statsStatus),
     onChanged: (listener) => {
       const handler = (): void => listener()
