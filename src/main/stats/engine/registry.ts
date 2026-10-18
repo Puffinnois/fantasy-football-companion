@@ -1,12 +1,33 @@
 import { CATALOGUE, componentsOf } from '@shared/stats/catalogue'
 import type { Entity, Grain, MetricDef, MetricInfo } from '@shared/stats/types'
-import { playerComponentNames } from '../derived/player'
+import { BOX_COMPONENTS, playerComponentNames } from '../derived/player'
 import { PLAYER_PLAY_COMPONENTS, TEAM_PLAY_COMPONENTS } from '../derived/plays'
-import { teamComponentNames } from '../derived/team'
+import { TEAM_BOX_COMPONENTS, teamComponentNames } from '../derived/team'
 
 /** Fantasy components, joined from `fantasy_week` / `team_fantasy_week` under the chosen scoring. */
 export const PLAYER_FANTASY = ['fp', 'xfp']
 export const TEAM_FANTASY = ['fpa_qb', 'fpa_rb', 'fpa_wr', 'fpa_te', 'fpa_k']
+
+/**
+ * Components that count something every game has a record of (play-by-play, the box score): a
+ * player without such a play that week has none, so a missing value sums as 0. FTN, participation,
+ * NGS, PFR and QBR components stay NULL when missing: there, NULL means "not measured".
+ */
+export const ZERO_WHEN_MISSING: Record<Entity, ReadonlySet<string>> = {
+  player: new Set([
+    ...PLAYER_PLAY_COMPONENTS.filter((c) => c.group === 'pbp').map((c) => c.name),
+    ...Object.keys(BOX_COMPONENTS),
+    'games'
+  ]),
+  team: new Set([
+    ...TEAM_PLAY_COMPONENTS.filter((c) => c.group === 'pbp').flatMap((c) => [
+      `off_${c.name}`,
+      `def_${c.name}`
+    ]),
+    ...Object.keys(TEAM_BOX_COMPONENTS),
+    'games'
+  ])
+}
 
 /** The components each grain can sum, by entity (spec §7.2: the grain decides the tables). */
 export const COMPONENTS: Record<Entity, Record<'table' | 'play', ReadonlySet<string>>> = {

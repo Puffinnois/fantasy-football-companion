@@ -18,7 +18,7 @@ import {
   type Role
 } from '../derived/plays'
 import { STATS_FIRST_SEASON } from '../sources'
-import { grainsOf, PLAYER_FANTASY, TEAM_FANTASY } from './registry'
+import { grainsOf, PLAYER_FANTASY, TEAM_FANTASY, ZERO_WHEN_MISSING } from './registry'
 
 /** A query the engine refuses, with a message a person (or an LLM) can act on. */
 export class StatsQueryError extends Error {}
@@ -438,10 +438,13 @@ function tableAgg(q: StatsQuery, c: Checked, params: Params): { ctes: string; di
                 FROM ${table} w ${join}
                 WHERE ${where.join(' AND ')} ${last}`
   const dims = c.groupBy
+  // A counted component a player never had (carries for a receiver) sums as 0, not NULL.
+  const zero = ZERO_WHEN_MISSING[q.entity]
+  const sumOf = (n: string): string => (zero.has(n) ? `coalesce(sum(${n}), 0)` : `sum(${n})`)
   const agg = `SELECT id, ${dims.map((d) => `${d} AS g_${d}, `).join('')}
                       arg_max(team, season * 100 + coalesce(week, 0)) AS team,
                       mode(position) AS position, sum(games)::DOUBLE AS games,
-                      ${metricColumns(c.metrics, (n) => `sum(${n})`, c.transform === 'perGame').join(', ')}
+                      ${metricColumns(c.metrics, sumOf, c.transform === 'perGame').join(', ')}
                FROM base GROUP BY id${dims.map((d) => `, ${d}`).join('')}`
   return { ctes: `base AS (${base}), agg AS (${agg})`, dims }
 }
