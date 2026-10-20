@@ -1,5 +1,5 @@
 import type { ScoringRules } from '@shared/stats/scoring'
-import type { StatsQuery } from '@shared/stats/types'
+import type { GamesQuery, OutlookQuery, StatsQuery } from '@shared/stats/types'
 
 export type StatsStepStatus = 'ok' | 'error' | 'skipped' | 'running' | 'interrupted'
 
@@ -46,7 +46,8 @@ export interface SelfTestResult {
 
 /**
  * Requests to the worker. `refresh`, `setLeague`, `selfTest` and `close` run one after another;
- * `query`, `catalogue` and `status` are reads and run at once on a second connection (spec §2).
+ * `query`, `catalogue`, `status`, `games` and `outlook` are reads and run at once, each on its own
+ * connection (spec §2).
  */
 export type StatsRequest =
   | { id: number; kind: 'refresh'; options: RefreshOptions }
@@ -56,12 +57,16 @@ export type StatsRequest =
   | { id: number; kind: 'query'; query: StatsQuery }
   | { id: number; kind: 'catalogue' }
   | { id: number; kind: 'status' }
+  | { id: number; kind: 'games'; query: GamesQuery }
+  | { id: number; kind: 'outlook'; query: OutlookQuery }
 
 /** The kinds that run at once instead of in turn. */
 export const READ_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
   'query',
   'catalogue',
-  'status'
+  'status',
+  'games',
+  'outlook'
 ])
 
 export type StatsReply =

@@ -16,7 +16,7 @@ import { createNflverseClient } from '@main/sources/nflverse'
 import { createSleeperClient } from '@main/sources/sleeper'
 import { createSleeperNewsClient } from '@main/sources/sleeperNews'
 import { startStatsWorker, type StatsClient } from '@main/stats/client'
-import { STATS_DERIVED_STEP } from '@main/stats/sync'
+import { STATS_DERIVED_STEP, STATS_MODELS_STEP } from '@main/stats/sync'
 import { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
 
@@ -98,8 +98,9 @@ function openStats(): StatsClient | null {
         tempDir: join(app.getPath('userData'), 'stats-tmp')
       },
       (entry) => {
-        // Spec §5.3: screens query again once the derived tables are rebuilt.
-        if (entry.source === STATS_DERIVED_STEP && entry.status === 'ok') {
+        // Spec §5.3: screens query again once the derived tables (and the models) are rebuilt.
+        const rebuilt = entry.source === STATS_DERIVED_STEP || entry.source === STATS_MODELS_STEP
+        if (rebuilt && entry.status === 'ok') {
           mainWindow?.webContents.send(IPC.statsChanged)
         }
       }

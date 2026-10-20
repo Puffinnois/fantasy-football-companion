@@ -10,6 +10,7 @@ import {
   setPendingSeasons
 } from './derived/build'
 import { buildIdentity } from './identity'
+import { canModel, modelsStale, rebuildModels, stabilityDue } from './models/build'
 import { INTERRUPTED_MESSAGE } from './schema'
 import { describe, replaceRows, standardSelect, type Columns } from './load'
 import { loadSleeperSeason, type StatsState } from './sleeper'
@@ -25,6 +26,11 @@ export const PRIOR_SEASON_FRESHNESS_MS = 7 * DAY
 export const STATS_LOG_PREFIX = 'stats:'
 /** The derived rebuild's step (spec §5.2): when it ends, screens query again. */
 export const STATS_DERIVED_STEP = `${STATS_LOG_PREFIX}derived`
+/** The models' step (spec §8), after the derived rebuild: screens query again when it ends. */
+export const STATS_MODELS_STEP = `${STATS_LOG_PREFIX}models`
+const MODELS_PENDING = 'models_pending'
+/** Set while a stability pass is due, so one the app closed during runs again. */
+const STABILITY_PENDING = 'stability_pending'
 
 export interface StatsSyncDeps {
   db: StatsDb
@@ -39,6 +45,8 @@ export interface StatsSyncDeps {
   cancelled?: () => boolean
   /** The league's scoring rules for `fantasy_week` (spec §5.2); null without a league. */
   league?: () => ScoringRules | null
+  /** Season simulation runs (spec §8.1: 10,000); tests run fewer. */
+  simulationRuns?: number
 }
 
 /** A source of the sync: one of the files, or Sleeper's weekly lines. */
@@ -340,6 +348,55 @@ export async function refreshStats(
       })
     )
   }
+  // Spec §8: the models follow every successful rebuild, and run until one succeeds.
+  const derived = log.find((e) => e.source === STATS_DERIVED_STEP)
+  const flag = async (key: string): Promise<boolean> =>
+    (
+      await deps.db.get<{ value: string | null }>(
+        'SELECT value FROM stats_settings WHERE key = ?',
+        [key]
+      )
+    )?.value === '1'
+  const setFlag = (key: string, on: boolean): Promise<void> =>
+    deps.db.exec('INSERT OR REPLACE INTO stats_settings VALUES (?, ?)', [key, on ? '1' : '0'])
+  const stabilityPending = await flag(STABILITY_PENDING)
+  const due =
+    derived?.status === 'ok' ||
+    (await flag(MODELS_PENDING)) ||
+    stabilityPending ||
+    (await modelsStale(deps.db))
+  if (
+    due &&
+    derived?.status !== 'error' &&
+    !(await derivedStale(deps.db)) &&
+    (await canModel(deps.db)) &&
+    !deps.cancelled?.()
+  ) {
+    await setFlag(MODELS_PENDING, true)
+    // Stability reads 2019 to the prior season: measured again when one of those changed, and
+    // until a pass completes.
+    const through = state.season - 1
+    const pastChanged = seasons.some((s) => s < state.season)
+    const stability =
+      pastChanged || stale || stabilityPending || (await stabilityDue(deps.db, through))
+    if (stability) await setFlag(STABILITY_PENDING, true)
+    log.push(
+      await runLogged(deps, STATS_MODELS_STEP, async () => {
+        const out = await rebuildModels(deps.db, {
+          stability,
+          through,
+          runs: deps.simulationRuns
+        })
+        await setFlag(MODELS_PENDING, false)
+        if (stability) await setFlag(STABILITY_PENDING, false)
+        await deps.db.exec('CHECKPOINT')
+        const total = Object.values(out.rows).reduce((a, b) => a + b, 0)
+        const notes = [`simulated ${out.simulated} week${out.simulated === 1 ? '' : 's'}`]
+        if (out.measured > 0) notes.push(`stability of ${out.measured} metrics`)
+        return { rows: total, message: notes.join(', ') }
+      })
+    )
+  }
   return { steps: log }
 }
 
@@ -352,7 +409,7 @@ export function touchedSeasons(log: StatsLogEntry[], current: number): number[] 
   for (const entry of log) {
     if (entry.status !== 'ok' || entry.rowsWritten === 0) continue
     const parts = entry.source.slice(STATS_LOG_PREFIX.length).split(':')
-    if (parts[0] === 'identity' || parts[0] === 'derived') continue
+    if (parts[0] === 'identity' || parts[0] === 'derived' || parts[0] === 'models') continue
     seasons.add(parts.length > 1 ? Number(parts[1]) : current)
   }
   return [...seasons].sort((a, b) => a - b)

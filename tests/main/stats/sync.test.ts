@@ -233,7 +233,9 @@ describe('the derived rebuild (stats-analysis spec §5.2)', () => {
     await seedGame(db)
     const first = await runSync(db, { only: [] })
     expect(first.steps.map((s) => [s.source, s.status, s.message])).toEqual([
-      ['stats:derived', 'ok', 'all seasons']
+      ['stats:derived', 'ok', 'all seasons'],
+      // Spec §8: the models follow; 2025 is simulated before week 1 and after it (week 2 is unplayed).
+      ['stats:models', 'ok', 'simulated 2 weeks']
     ])
     expect(await db.get('SELECT count(*) AS n FROM player_week')).toEqual({ n: 7 })
     expect((await runSync(db, { only: [] })).steps).toEqual([])
@@ -253,11 +255,40 @@ describe('the derived rebuild (stats-analysis spec §5.2)', () => {
     await db.exec('ALTER TABLE player_week ADD COLUMN targets DOUBLE')
     const retried = await runSync(db, { only: [] })
     expect(retried.steps.map((s) => [s.source, s.status, s.message])).toEqual([
-      ['stats:derived', 'ok', 'seasons 2025']
+      ['stats:derived', 'ok', 'seasons 2025'],
+      // Only the latest week of the current season is simulated again.
+      ['stats:models', 'ok', 'simulated 1 week']
     ])
     expect(await db.get("SELECT value FROM stats_settings WHERE key = 'derived_pending'")).toEqual({
       value: '[]'
     })
+  })
+
+  it('runs the models again until a run succeeds, and after a model version change (spec §8)', async () => {
+    const db = await openTestDb()
+    await seedGame(db)
+    await runSync(db, { only: [] })
+    // A failed or interrupted models step leaves its flag set.
+    await db.exec("INSERT OR REPLACE INTO stats_settings VALUES ('models_pending', '1')")
+    expect((await runSync(db, { only: [] })).steps.map((s) => [s.source, s.status])).toEqual([
+      ['stats:models', 'ok']
+    ])
+    expect((await runSync(db, { only: [] })).steps).toEqual([])
+    // A stability pass the app closed during is measured again, though no season changed.
+    await db.exec("INSERT OR REPLACE INTO stats_settings VALUES ('stability_pending', '1')")
+    expect((await runSync(db, { only: [] })).steps.map((s) => [s.source, s.status])).toEqual([
+      ['stats:models', 'ok']
+    ])
+    expect(
+      await db.get("SELECT value FROM stats_settings WHERE key = 'stability_pending'")
+    ).toEqual({
+      value: '0'
+    })
+    expect((await runSync(db, { only: [] })).steps).toEqual([])
+    await db.exec("UPDATE derived_state SET version = 0 WHERE name = 'models'")
+    expect((await runSync(db, { only: [] })).steps.map((s) => [s.source, s.message])).toEqual([
+      ['stats:models', 'simulated 2 weeks']
+    ])
   })
 
   it('scores the league’s rules when it has them', async () => {

@@ -20,10 +20,12 @@ export type MetricUnit =
 
 /**
  * One catalogue entry (spec §6.1). `value` is SQL over component sums: each `{name}` is the sum of
- * that component over the rows in scope (a column of `player_week` / `team_week`, or `fp` / `xfp`
- * / `fpa_*` under the chosen scoring). `sample` names the component that measures the sample and
- * qualifies a row (`minSample` per 17 games). Descriptions are written for a person and for an
- * LLM (spec §10).
+ * that component over the rows in scope (a column of `player_week` / `team_week`, `fp` / `xfp` /
+ * `fpa_*` under the chosen scoring, or a model sum of `team_model_week` / `player_model_week`).
+ * `{last:name}` is a model state at the end of the scope (a team's Elo, adjusted EPA, playoff odds;
+ * a player's combine profile), and `{p80:fp}` / `{p20:fp}` the 80th / 20th percentile of the weekly
+ * fantasy points in scope. `sample` names the component that measures the sample and qualifies a
+ * row (`minSample` per 17 games). Descriptions are written for a person and for an LLM (spec §10).
  */
 export interface MetricDef {
   id: string
@@ -56,9 +58,28 @@ export interface MetricDef {
   scoring?: boolean
 }
 
+/** How much a metric carries over (spec §8.6), measured on 2019 to the prior season. */
+export interface MetricStability {
+  /** Pearson r between a player's (team's) qualified seasons, one season to the next. */
+  yearToYear: number | null
+  /** Season pairs behind it. */
+  pairs: number
+  /** Correlation of odd and even weeks of a qualified season (within-season reliability). */
+  splitHalf: number | null
+  /**
+   * The sample at which half of a rate is signal (Spearman–Brown from the split halves): the
+   * `shrunk` transform weighs the league mean as this much sample.
+   */
+  prior: number | null
+  /** From the year-to-year r: high ≥ 0.6, medium ≥ 0.35, low below. */
+  reliability: 'high' | 'medium' | 'low' | null
+}
+
 /** A catalogue entry as the engine serves it: the formula left out, where it can be computed added. */
 export interface MetricInfo extends Omit<MetricDef, 'value' | 'sample'> {
   grains: Grain[]
+  /** Null until the models have run, or for a metric without enough seasons. */
+  stability: MetricStability | null
 }
 
 export type GroupBy =
@@ -72,8 +93,12 @@ export type GroupBy =
   | 'coverage'
   | 'formation'
 
-/** `shrunk` and `opponentAdjusted` (spec §7.1) arrive with the models of Plan Z. */
-export type Transform = 'raw' | 'perGame' | 'percentile' | 'zScore' | 'vsLeague'
+/**
+ * Spec §7.1. `shrunk` pulls a rate toward its league mean by its sample (spec §8.5);
+ * `opponentAdjusted` subtracts how far the opponents faced allow more or less than average.
+ */
+export type Transform =
+  'raw' | 'perGame' | 'percentile' | 'zScore' | 'vsLeague' | 'shrunk' | 'opponentAdjusted'
 
 /** Stats-analysis spec §7.1: every leaderboard, card, chart and comparison is one of these. */
 export interface StatsQuery {
@@ -181,4 +206,92 @@ export interface StatsStatus {
   updatedAt: string | null
   /** A refresh or a rebuild is running. */
   busy: boolean
+}
+
+/** The games of a season with their forecasts (spec §8.1): schedules, matchups, the Forecast tab. */
+export interface GamesQuery {
+  season: number
+  /** One team's games; every game otherwise. */
+  team?: string
+  weeks?: [number, number]
+}
+
+export interface GameForecast {
+  gameId: string
+  season: number
+  seasonType: 'REG' | 'POST'
+  week: number
+  /** YYYY-MM-DD. */
+  gameday: string | null
+  home: string
+  away: string
+  neutral: boolean
+  /** Null until played. */
+  homeScore: number | null
+  awayScore: number | null
+  /** Pre-game Elo ratings, the home team's Elo win probability and expected margin. */
+  homeElo: number
+  awayElo: number
+  homeWinProb: number
+  eloSpread: number
+  /** The betting market: the home team's no-vig win probability, its expected margin, the total. */
+  vegasHomeWinProb: number | null
+  spread: number | null
+  total: number | null
+  roof: string | null
+  temp: number | null
+  wind: number | null
+}
+
+/** A player's outlook (spec §8.5), for the Forecast tab. */
+export interface OutlookQuery {
+  /** gsis id */
+  player: string
+  season: number
+  /** `ppr` by default. */
+  scoring?: Scoring
+}
+
+export interface OutlookTrend {
+  metric: string
+  season: number | null
+  last4: number | null
+  /** Last four games minus the games before them. */
+  change: number | null
+  /** The change in standard errors (two-proportion test); null without the denominators. */
+  z: number | null
+  /** |z| ≥ 2: a role change beyond noise for this sample. */
+  roleChange: 'up' | 'down' | null
+}
+
+export interface OutlookSignal {
+  metric: string
+  value: number | null
+  /** Its position's qualified mean, and how far the value should move back toward it. */
+  mean: number | null
+  expectedChange: number | null
+  /** The expected change in the position's standard deviations: 1 or more flags it. */
+  z: number | null
+  /** "Running hot" (expected to fall back) or "running cold" (expected to rise), never a promise. */
+  signal: 'hot' | 'cold' | null
+}
+
+export interface PlayerOutlook {
+  player: string
+  season: number
+  scoring: Scoring
+  position: string | null
+  team: string | null
+  games: number
+  ceiling: { season: number | null; last16: number | null }
+  floor: { season: number | null; last16: number | null }
+  boomRate: number | null
+  bustRate: number | null
+  trend: OutlookTrend[]
+  regression: OutlookSignal[]
+  /**
+   * The rest of the regular season: opponents, and how many more fantasy points per game than the
+   * league average they allowed to the position so far (positive is easier).
+   */
+  schedule: { opponents: string[]; easierBy: number | null }
 }

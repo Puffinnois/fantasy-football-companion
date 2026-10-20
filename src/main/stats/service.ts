@@ -2,13 +2,27 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { createSleeperClient } from '@main/sources/sleeper'
 import type { ScoringRules } from '@shared/stats/scoring'
-import type { MetricInfo, StatsQuery, StatsResult, StatsStatus } from '@shared/stats/types'
+import { componentsOf, METRICS } from '@shared/stats/catalogue'
+import type {
+  GameForecast,
+  GamesQuery,
+  MetricInfo,
+  OutlookQuery,
+  PlayerOutlook,
+  StatsQuery,
+  StatsResult,
+  StatsStatus
+} from '@shared/stats/types'
 import { sqlString, StatsDb } from './db'
 import { derivedStale, rebuildDerived } from './derived/build'
 import { createDownloads } from './download'
-import { StatsQueryError } from './engine/compile'
-import { catalogueInfo } from './engine/registry'
+import { StatsQueryError, type CompileContext } from './engine/compile'
+import { gameForecasts } from './engine/games'
+import { playerOutlook } from './engine/outlook'
+import { catalogueInfo, MODEL_SUMS, QUANTILES } from './engine/registry'
 import { runQuery } from './engine/run'
+import { modelsStale } from './models/build'
+import { readStability } from './models/stability'
 import type {
   RefreshOptions,
   SelfTestResult,
@@ -31,8 +45,13 @@ export interface StatsService {
   selfTest(): Promise<SelfTestResult>
   /** Spec §7: one query on the read connection; it runs while a refresh writes. */
   query(query: StatsQuery): Promise<StatsResult>
-  catalogue(): MetricInfo[]
+  /** The catalogue with each metric's stability (spec §8.6), once the models have measured it. */
+  catalogue(): Promise<MetricInfo[]>
   status(): Promise<StatsStatus>
+  /** Spec §8.1: a season's games with Elo and the betting market. */
+  games(query: GamesQuery): Promise<GameForecast[]>
+  /** Spec §8.5: a player's outlook. */
+  outlook(query: OutlookQuery): Promise<PlayerOutlook>
   /**
    * Stops a refresh now: aborts its download, interrupts its statement, and starts no other step.
    * A process must not exit while DuckDB runs a statement (Electron aborts), so closing cancels first.
@@ -97,6 +116,20 @@ async function selfTestQuery(db: StatsDb): Promise<boolean> {
   }
 }
 
+/** Whether a query reads a model table (spec §8): those exist once the first models step ran. */
+function readsModels(query: StatsQuery): boolean {
+  const sums = new Set(MODEL_SUMS[query.entity] ?? [])
+  return (query.metrics ?? []).some((id) => {
+    const def = METRICS.get(id)
+    return (
+      def !== undefined &&
+      componentsOf(def).some((t) => t.startsWith('last:') || sums.has(t) || t in QUANTILES)
+    )
+  })
+}
+
+const BUILDING = 'the stats are still being built; try again in a few minutes'
+
 /** Rules reach SQL as numbers: anything else is refused (main validates them too). */
 function checkRules(rules: ScoringRules | null): void {
   if (!rules) return
@@ -156,6 +189,13 @@ export async function openStatsService(
   /** The rules the fantasy tables were built with. */
   let built = stored?.value ?? null
   const downloads = createDownloads({ dir: init.tempDir, signal: abort.signal })
+  const contextOf = async (conn: StatsDb): Promise<CompileContext> => {
+    const latest = await conn.get<{ season: number }>('SELECT max(season) AS season FROM games')
+    return {
+      currentSeason: latest?.season ?? new Date().getFullYear(),
+      hasLeague: league !== null
+    }
+  }
   const whileBusy = async <T>(fn: () => Promise<T>): Promise<T> => {
     busy = true
     try {
@@ -203,16 +243,32 @@ export async function openStatsService(
     },
     query: (query) =>
       read(async (conn) => {
-        if (await derivedStale(conn)) {
-          throw new StatsQueryError('the stats are still being built; try again in a few minutes')
+        if (await derivedStale(conn)) throw new StatsQueryError(BUILDING)
+        if (readsModels(query) && (await modelsStale(conn))) throw new StatsQueryError(BUILDING)
+        const ctx = await contextOf(conn)
+        if (query.transform === 'shrunk') {
+          const stability = await readStability(conn)
+          ctx.priors = new Map(
+            [...stability]
+              .filter(([, s]) => s.prior !== null)
+              .map(([id, s]) => [id, s.prior as number])
+          )
         }
-        const latest = await conn.get<{ season: number }>('SELECT max(season) AS season FROM games')
-        return runQuery(conn, query, {
-          currentSeason: latest?.season ?? new Date().getFullYear(),
-          hasLeague: league !== null
-        })
+        return runQuery(conn, query, ctx)
       }),
-    catalogue: () => catalogueInfo(),
+    catalogue: () => read(async (conn) => catalogueInfo(await readStability(conn))),
+    games: (query) =>
+      read(async (conn) => {
+        if (await modelsStale(conn)) throw new StatsQueryError(BUILDING)
+        return gameForecasts(conn, query)
+      }),
+    outlook: (query) =>
+      read(async (conn) => {
+        if ((await derivedStale(conn)) || (await modelsStale(conn))) {
+          throw new StatsQueryError(BUILDING)
+        }
+        return playerOutlook(conn, query, await contextOf(conn), await readStability(conn))
+      }),
     status: () =>
       read(async (reader) => {
         const built = !(await derivedStale(reader))

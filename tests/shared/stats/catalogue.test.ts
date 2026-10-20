@@ -12,9 +12,12 @@ describe('the metric catalogue (stats-analysis spec §6)', () => {
     expect(CATALOGUE.filter((m) => m.entity === 'team').length).toBeGreaterThan(60)
   })
 
-  it('computes every metric from components the derived tables hold', () => {
-    const missing = CATALOGUE.filter((m) => !grainsOf(m).includes('season')).map((m) => m.id)
+  it('computes every metric from components the derived and model tables hold', () => {
+    const missing = CATALOGUE.filter((m) => !grainsOf(m).includes('week')).map((m) => m.id)
     expect(missing).toEqual([])
+    // Weekly quantiles need one row per game; every other metric also has a season grain.
+    const weekly = CATALOGUE.filter((m) => !grainsOf(m).includes('season')).map((m) => m.id)
+    expect(weekly).toEqual(['fp_ceiling', 'fp_floor'])
   })
 
   it('splits by situation exactly the metrics that come from plays', () => {

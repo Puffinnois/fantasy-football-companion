@@ -23,7 +23,9 @@ const TRANSFORMS: Record<Transform, true> = {
   perGame: true,
   percentile: true,
   zScore: true,
-  vsLeague: true
+  vsLeague: true,
+  shrunk: true,
+  opponentAdjusted: true
 }
 
 type Schema = Record<string, unknown>
@@ -105,7 +107,11 @@ export function statsQuerySchema(metricIds: string[]): Schema {
       description: 'Play-level filters; only metrics computed from plays accept them.'
     },
     groupBy: list({ enum: Object.keys(GROUP_BY) }, 'Split rows by these.'),
-    transform: { enum: Object.keys(TRANSFORMS) },
+    transform: {
+      enum: Object.keys(TRANSFORMS),
+      description:
+        'raw values; perGame (counts per game); percentile; zScore or vsLeague (against the qualified rows); shrunk (rates pulled toward the league mean by their sample); opponentAdjusted (minus how much more than average the opponents faced allow).'
+    },
     sort: {
       type: 'object',
       properties: { metric: { enum: metricIds }, dir: { enum: ['asc', 'desc'] } },

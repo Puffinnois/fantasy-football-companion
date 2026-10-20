@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { StatsDb } from '@main/stats/db'
 import { rebuildDerived } from '@main/stats/derived/build'
+import { rebuildModels } from '@main/stats/models/build'
 import { bootstrapStatsDb } from '@main/stats/schema'
 import { openStatsService } from '@main/stats/service'
 import { tempDir } from '../../fixtures/stats'
@@ -106,6 +107,51 @@ describe('the service reads and the league rules (stats-analysis spec §5, §7)'
     }
   })
 
+  it('answers the model reads once the models are built (spec §8)', async () => {
+    const { dir, path } = await builtFile()
+    const open = (): ReturnType<typeof openStatsService> =>
+      openStatsService({ path, tempDir: join(dir, 'tmp') }, () => {})
+    const elo = { entity: 'team' as const, metrics: ['elo'], scope: { seasons: [2025] } }
+    const before = await open()
+    try {
+      await expect(before.query(elo)).rejects.toThrow('the stats are still being built')
+      await expect(before.games({ season: 2025 })).rejects.toThrow('still being built')
+      await expect(before.outlook({ player: WR, season: 2025 })).rejects.toThrow(
+        'still being built'
+      )
+      // Metrics without a model answer meanwhile.
+      expect((await before.query({ ...elo, metrics: ['wins'] })).rows).toHaveLength(2)
+    } finally {
+      await before.close()
+    }
+    const db = await StatsDb.open(path, { threads: 1 })
+    await rebuildModels(db, { stability: false, through: 2024, runs: 50 })
+    // A prior for win % (stability is measured on two seasons or more; this file has one).
+    await db.exec(`CREATE OR REPLACE TABLE metric_stability AS SELECT 'win_pct' AS metric_id,
+      0.4::DOUBLE AS year_to_year, 100 AS pairs, 0.5::DOUBLE AS split_half, 3.0::DOUBLE AS prior,
+      'medium' AS reliability, 2024 AS through`)
+    db.close()
+    const after = await open()
+    try {
+      expect((await after.query(elo)).rows.map((r) => r.id)).toEqual(['BUF', 'KC'])
+      expect((await after.games({ season: 2025 })).map((g) => g.gameId)).toEqual(['g1', 'g2'])
+      expect((await after.outlook({ player: WR, season: 2025 })).team).toBe('BUF')
+      expect((await after.catalogue()).find((m) => m.id === 'win_pct')?.stability).toMatchObject({
+        prior: 3,
+        reliability: 'medium'
+      })
+      const shrunk = await after.query({
+        entity: 'team',
+        metrics: ['win_pct'],
+        scope: { seasons: [2025] },
+        transform: 'shrunk'
+      })
+      expect(shrunk.rows.map((r) => r.values.win_pct.value)).toEqual([0.625, 0.375])
+    } finally {
+      await after.close()
+    }
+  })
+
   it('answers queries, and rescores the league when its rules change', async () => {
     const { dir, path } = await builtFile()
     const service = await openStatsService({ path, tempDir: join(dir, 'tmp') }, () => {})
@@ -125,8 +171,9 @@ describe('the service reads and the league rules (stats-analysis spec §5, §7)'
         await service.setLeague({ positionOverrides: {}, scoring: { rec_yd: 0.1, rec: 3 } })
       ).toBe(false)
       expect((await service.query(league)).rows[0].values.fantasy_points.value).toBe(5)
-      expect(service.catalogue().find((m) => m.id === 'yprr')).toMatchObject({
-        grains: ['week', 'season', 'play']
+      expect((await service.catalogue()).find((m) => m.id === 'yprr')).toMatchObject({
+        grains: ['week', 'season', 'play'],
+        stability: null
       })
     } finally {
       await service.close()

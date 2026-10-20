@@ -2,7 +2,16 @@ import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { singleFlight } from '@main/sync/background'
 import type { ScoringRules } from '@shared/stats/scoring'
-import type { MetricInfo, StatsQuery, StatsResult, StatsStatus } from '@shared/stats/types'
+import type {
+  GameForecast,
+  GamesQuery,
+  MetricInfo,
+  OutlookQuery,
+  PlayerOutlook,
+  StatsQuery,
+  StatsResult,
+  StatsStatus
+} from '@shared/stats/types'
 import type {
   RefreshOptions,
   SelfTestResult,
@@ -24,6 +33,10 @@ export interface StatsClient {
   query(query: StatsQuery): Promise<StatsResult>
   catalogue(): Promise<MetricInfo[]>
   status(): Promise<StatsStatus>
+  /** Spec §8.1: a season's games with Elo and the betting market. */
+  games(query: GamesQuery): Promise<GameForecast[]>
+  /** Spec §8.5: a player's outlook. */
+  outlook(query: OutlookQuery): Promise<PlayerOutlook>
   /** Stops a running refresh, closes the database and ends the worker (after `CLOSE_TIMEOUT_MS` at most). */
   close(): Promise<void>
 }
@@ -84,6 +97,8 @@ export function startStatsWorker(
     query: (query) => request<StatsResult>((id) => ({ id, kind: 'query', query })),
     catalogue: () => request<MetricInfo[]>((id) => ({ id, kind: 'catalogue' })),
     status: () => request<StatsStatus>((id) => ({ id, kind: 'status' })),
+    games: (query) => request<GameForecast[]>((id) => ({ id, kind: 'games', query })),
+    outlook: (query) => request<PlayerOutlook>((id) => ({ id, kind: 'outlook', query })),
     async close() {
       if (!dead) {
         let timer: NodeJS.Timeout | undefined

@@ -1,6 +1,6 @@
 # Stats analysis — design
 
-**Date:** 2026-10-15 · **Status:** approved 2026-10-16, amended 2026-10-16 (§15: Plan X) and 2026-10-17 (§16: Plan Y) · **Plans:** X (DuckDB foundation), Y (metric layer + query engine), Z (models), AA (Stats screen), AB (team dashboard), AC (player dashboard), AD (explore: charts, compare, trends), AE (matchup preview); natural-language queries get their own spec after AE.
+**Date:** 2026-10-15 · **Status:** approved 2026-10-16, amended 2026-10-16 (§15: Plan X), 2026-10-17 (§16: Plan Y) and 2026-10-18 (§17: Plan Z) · **Plans:** X (DuckDB foundation), Y (metric layer + query engine), Z (models), AA (Stats screen), AB (team dashboard), AC (player dashboard), AD (explore: charts, compare, trends), AE (matchup preview); natural-language queries get their own spec after AE.
 
 **Sources:** the stats catalog (`docs/research/2026-10-09-nfl-stats-catalog.md`), the predictive-metrics catalogue (`docs/research/nfl_predictive_metrics.md`), the coverage audit (`docs/research/2026-10-14-warehouse-coverage-audit.md`), and a DuckDB vs SQLite benchmark on 2023–2025 play-by-play and participation (§3.2).
 
@@ -461,3 +461,60 @@ Measured on the live database while Plan Y was written (its Planning findings), 
 - **J. Sync.** `stats:derived` follows `stats:identity`. It rebuilds the seasons whose rows changed, and the current season for an all-seasons file.
 - **K. QBR's season type** was ESPN's "Regular" / "Playoffs"; it is now REG / POST (source version 2).
 - **L. The self-test** also answers an engine query (§11: the packaged worker answers a query).
+
+## 17. Amendment 2026-10-18: the models (Plan Z)
+
+Measured on the live database while Plan Z was written (its Planning findings), and taken into the build. `docs/reference/stats-database.md` documents the result.
+
+- **A. The models step.** `stats:models` follows `stats:derived` after every successful rebuild, after a `MODELS_VERSION` change, and until a run succeeds. It writes `elo_games`, `team_forecast`, `team_model_week`, `player_model_week`, `player_profile` and `metric_stability`.
+  - A first build takes about 40 s: the simulations about 20 s, stability about 20 s.
+  - A daily refresh's takes about 4.5 s.
+- **B. The engine reads models as components (§6.1, §7).**
+  - `{last:x}` is a model state at the end of the scope: a team's Elo, ratings and odds, or a player's combine profile.
+  - Model sums (expected wins, FG model, turnover luck) join like the fantasy components.
+  - `{p80:fp}` and `{p20:fp}` are weekly quantiles, so those metrics read the weekly tables.
+  - The catalogue gains 65 metrics: 324 in all, 204 for players and 120 for teams.
+  - It serves each metric's stability (`MetricInfo.stability`).
+- **C. Elo (§8.1).**
+  - Home field is 0 at a neutral site and in 2020. A tie moves nothing (ln 1 = 0).
+  - The market's probability is the no-vig moneyline, else the spread with a 13.5-point spread of margins.
+  - Measured Brier 2021–2025: Elo 0.224, Vegas 0.211.
+- **D. Season simulation (§8.1).**
+  - The tiebreakers add strength of victory and of schedule: those decided 2023 (GB / SEA) and 2024 (LA / SEA). With them, the final regular-season week reproduces every playoff field and bye 2019–2025.
+  - Divisions are a fixed map: the database has no teams table.
+  - Each run wins a game with its Elo probability; the margin for the in-run update is drawn around the Elo spread.
+  - It runs as of every regular-season week, cached: 2,000 runs for a sealed season's weeks, 10,000 for the current season's, whose latest week runs again each time. The postseason keeps the end-of-season odds.
+- **E. Adjusted EPA (§8.2).**
+  - The ridge's prior is 300 plays per team effect. It was chosen by predicting each next week's game EPA, 2019–2025: RMSE 0.2138, against 0.2239 for the league mean alone.
+  - It is fitted as of every week, for all plays, dropbacks and other runs, plain and recency-weighted.
+- **F. Ratings, luck and schedule (§8.3).**
+  - SRS is solved directly. Iterating oscillates on a week-1 schedule, where every team has played once.
+  - Elo luck is wins minus the sum of the Elo probabilities.
+  - Schedule strength (played and left) is the mean current Elo, or adjusted EPA margin, of the opponents.
+  - Interception luck (FTN, 2022+) compares interceptions with the interception-worthy throws × that season's league rate: FTN's charting changed (0.44 an interception-worthy throw in 2022, 0.69 in 2025).
+- **G. FG model (§8.4).**
+  - Distance is a spline with a knot every 5 yards from 25 to 55. A season weighs half as much as the one two seasons after it: kickers improved from long range.
+  - **The gate changes.** A one-season 5-yard bucket carries 2–9 points of noise, so ±3 points in every bucket fails even for a calibrated model. The gate is Hosmer–Lemeshow over the eight buckets of held-out 2025 (p ≥ 0.05), and the season total within ±3 points.
+  - Measured: χ² 9.8 (critical 15.5), total +2.1 points.
+- **H. Shrinkage (§8.5).**
+  - Proportions and means take one formula: (s·v + k·μ) / (s + k). s is the sample, μ the qualified rows' sample-weighted mean, and k the metric's stability prior: the sample at which split halves say half of the rate is signal (the beta and normal priors of §8.5 in one form).
+  - It applies to rates only; for anything else, a note says it was not shrunk.
+- **I. The player outlook (§8.5)** is a read of its own (`outlook`), not a query:
+  - ceiling and floor this season and over the last 16 games;
+  - boom and bust rates;
+  - trend: the last four games against the games before. Its z uses the player's own weekly spread, because a binomial test flagged every small move (snaps and routes come in series). A role change is |z| ≥ 2.
+  - regression flags: the expected move back, (1 − r)(v − μ) with r the year-to-year stability, of at least one position standard deviation;
+  - the remaining schedule: the opponents' fantasy points allowed to the position, against the league.
+  - A `games` read lists a season's games with Elo and the market.
+- **J. Stability (§8.6).**
+  - It is computed within each position and pooled, and needs 30 pairs. Reliability is high from r 0.6, medium from 0.35.
+  - It is measured again when a past season changes (the weekly prior-season refresh), in about 20 s.
+  - Measured: 305 metrics. Target share r 0.68 > TD over expected 0.07; WOPR 0.70 > FPOE 0.20.
+- **K. Transforms (§7.1).**
+  - `shrunk` (H).
+  - `opponentAdjusted`: the value minus the sample-weighted average of how much more than the league each opponent allowed, in the same metric and position. It is one step, not iterated, on the weekly rows. It applies to rates only: a count's total is not comparable with the league's.
+- **L. Profile (§8.7).**
+  - Combine scores are mid-rank percentiles: ties share the middle, so a common 4.50 forty is not scored the slowest.
+  - The score is named "Athletic score (RAS-style)". It averages raw measures, so it is not Kent Lee Platte's RAS (DK Metcalf: 7.2 here, 9.07 there). It needs four measures.
+- **M. The EPA + CPOE composite** (moved from Plan Y) averages the two in standard deviations of qualified 2019–2025 QB seasons, with fixed norms.
+- **N. Plan Y follow-up.** At the week and season grains, a counted component a player never had (carries for a receiver) read NULL, so sums of components did too (touches, opportunity share, ANY/A). Play-by-play and box-score components now read 0. FTN, participation, NGS and PFR stay NULL: there, NULL means "not measured".

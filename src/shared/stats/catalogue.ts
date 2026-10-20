@@ -2,8 +2,8 @@ import type { MetricDef, PositionGroup } from './types'
 
 /**
  * The metric catalogue (stats-analysis spec §6): every metric the engine computes, its formula over
- * component sums, and the words a screen (or an LLM, spec §10) needs to read it. The models (Elo,
- * adjusted EPA, FG over expected, stability, shrinkage, RAS) arrive with Plan Z.
+ * component sums (and the models' states, spec §8), and the words a screen (or an LLM, spec §10)
+ * needs to read it.
  */
 
 type Opts = Partial<Omit<MetricDef, 'id' | 'label' | 'short' | 'description'>> &
@@ -2824,6 +2824,596 @@ const TEAM: MetricDef[] = [
   )
 ]
 
+const MODEL = ['FantasyCompanion models (nflverse data)']
+const COMBINE_SRC = ['NFL Scouting Combine (nflverse)']
+
+/** A team model state at the end of the scope (spec §8): one value, not a sum. */
+const state = (name: string, o: Partial<Opts> = {}): Opts => ({
+  value: `{last:${name}}`,
+  sample: 'games',
+  family: 'predictive',
+  sources: MODEL,
+  ...o
+})
+
+/**
+ * QB EPA + CPOE composite (spec §6.2, moved from Plan Y): the average of the two in standard
+ * deviations of qualified QB seasons (200+ dropbacks, 2019–2025: EPA/dropback 0.058 ± 0.131, CPOE
+ * 0.53 ± 3.28), so 0 is an average starter and +1 a top-six one.
+ */
+const COMPOSITE = `((${ratio('db_epa', 'dropbacks')} - 0.058) / 0.131 + (${ratio('cpoe_sum', 'cpoe_n')} - 0.53) / 3.28) / 2`
+
+/** Wins a team's points imply (Pythagorean expectation, exponent 2.37). */
+const PYTHAG =
+  'pow({points_for}, 2.37) / nullif(pow({points_for}, 2.37) + pow({points_against}, 2.37), 0)'
+const FUMBLES_RECOVERED = '({off_fumbles} - {off_fumbles_lost} + {def_fumbles_lost})'
+const FUMBLE_LUCK = `${FUMBLES_RECOVERED} - 0.5 * ({off_fumbles} + {def_fumbles})`
+const INT_LUCK = '({def_ftn_ints} - {def_xints}) - ({off_ftn_ints} - {off_xints})'
+
+/** Plan Z (spec §8): ratings, forecasts, luck, FG over expected, outlook and profile metrics. */
+const MODELS: MetricDef[] = [
+  team(
+    'elo',
+    'Elo rating',
+    'Elo',
+    'Team strength from game results (nfelo-style Elo: 1500 is average; 25 points ≈ one point of spread).',
+    state('elo', { unit: 'number', decimals: 0, tier: 'core' })
+  ),
+  team(
+    'srs',
+    'Simple Rating System',
+    'SRS',
+    'Average margin adjusted for the opponents faced: points better than an average team on a neutral field.',
+    state('srs', { unit: 'points', tier: 'core' })
+  ),
+  team(
+    'adj_off_epa',
+    'Adjusted EPA/play',
+    'Adj EPA',
+    'Offensive EPA per play adjusted for the defenses faced and home field (a ridge regression; garbage time left out). Our own adjustment, not DVOA.',
+    state('adj_off_epa', { unit: 'epa', decimals: 3, tier: 'core' })
+  ),
+  team(
+    'adj_def_epa',
+    'Adjusted EPA/play allowed',
+    'Adj EPA All',
+    'EPA per play allowed, adjusted for the offenses faced and home field: lower is better.',
+    state('adj_def_epa', {
+      unit: 'epa',
+      decimals: 3,
+      side: 'defense',
+      direction: 'lower',
+      tier: 'core'
+    })
+  ),
+  team(
+    'adj_net_epa',
+    'Adjusted EPA margin',
+    'Adj Net',
+    'Adjusted EPA per play on offense minus allowed on defense: the overall efficiency margin.',
+    state('adj_off_epa', {
+      value: '{last:adj_off_epa} - {last:adj_def_epa}',
+      unit: 'epa',
+      decimals: 3,
+      tier: 'core'
+    })
+  ),
+  team(
+    'adj_off_pass_epa',
+    'Adjusted EPA/dropback',
+    'Adj Pass',
+    'Adjusted EPA per dropback on offense.',
+    state('adj_off_pass_epa', { unit: 'epa', decimals: 3 })
+  ),
+  team(
+    'adj_off_rush_epa',
+    'Adjusted EPA/rush',
+    'Adj Rush',
+    'Adjusted EPA per designed run on offense.',
+    state('adj_off_rush_epa', { unit: 'epa', decimals: 3 })
+  ),
+  team(
+    'adj_def_pass_epa',
+    'Adjusted EPA/dropback allowed',
+    'Adj Pass All',
+    'Adjusted EPA per dropback allowed.',
+    state('adj_def_pass_epa', { unit: 'epa', decimals: 3, side: 'defense', direction: 'lower' })
+  ),
+  team(
+    'adj_def_rush_epa',
+    'Adjusted EPA/rush allowed',
+    'Adj Rush All',
+    'Adjusted EPA per designed run allowed.',
+    state('adj_def_rush_epa', { unit: 'epa', decimals: 3, side: 'defense', direction: 'lower' })
+  ),
+  team(
+    'adj_recent_off_epa',
+    'Recent adjusted EPA/play',
+    'Rec EPA',
+    'Adjusted EPA per play with recent games weighted more (a game counts half every 4 weeks back).',
+    state('adj_recent_off_epa', { unit: 'epa', decimals: 3 })
+  ),
+  team(
+    'adj_recent_def_epa',
+    'Recent adjusted EPA/play allowed',
+    'Rec EPA All',
+    'Adjusted EPA per play allowed, recent games weighted more.',
+    state('adj_recent_def_epa', { unit: 'epa', decimals: 3, side: 'defense', direction: 'lower' })
+  ),
+  ...(['pass', 'rush'] as const).flatMap((k) => [
+    team(
+      `adj_recent_off_${k}_epa`,
+      `Recent adjusted EPA/${k === 'pass' ? 'dropback' : 'rush'}`,
+      `Rec ${k === 'pass' ? 'Pass' : 'Rush'}`,
+      `Adjusted EPA per ${k === 'pass' ? 'dropback' : 'designed run'}, recent games weighted more.`,
+      state(`adj_recent_off_${k}_epa`, { unit: 'epa', decimals: 3, tier: 'stored' })
+    ),
+    team(
+      `adj_recent_def_${k}_epa`,
+      `Recent adjusted EPA/${k === 'pass' ? 'dropback' : 'rush'} allowed`,
+      `Rec ${k === 'pass' ? 'Pass' : 'Rush'} All`,
+      `Adjusted EPA per ${k === 'pass' ? 'dropback' : 'designed run'} allowed, recent games weighted more.`,
+      state(`adj_recent_def_${k}_epa`, {
+        unit: 'epa',
+        decimals: 3,
+        side: 'defense',
+        direction: 'lower',
+        tier: 'stored'
+      })
+    )
+  ]),
+  team(
+    'pythag_win_pct',
+    'Pythagorean win %',
+    'Pyth%',
+    'The win % a team’s points scored and allowed imply (exponent 2.37): a steadier guide to strength than the record.',
+    { value: PYTHAG, sample: 'games', unit: 'pct', family: 'predictive', tier: 'core' }
+  ),
+  team('pythag_wins', 'Pythagorean wins', 'Pyth W', 'Games × Pythagorean win %.', {
+    value: `{games} * ${PYTHAG}`,
+    sample: 'games',
+    kind: 'count',
+    unit: 'number',
+    decimals: 1,
+    family: 'predictive',
+    tier: 'core'
+  }),
+  team(
+    'luck_wins',
+    'Wins over Pythagorean',
+    'Luck',
+    'Wins (a tie half) minus Pythagorean wins: far above zero usually means close games went its way, which rarely lasts.',
+    {
+      value: `{wins} + 0.5 * {ties} - {games} * ${PYTHAG}`,
+      sample: 'games',
+      kind: 'count',
+      unit: 'number',
+      decimals: 1,
+      family: 'predictive',
+      direction: 'neutral',
+      tier: 'core'
+    }
+  ),
+  team(
+    'elo_xwins',
+    'Elo expected wins',
+    'Elo xW',
+    'The sum of the pre-game Elo win probabilities of its games.',
+    {
+      value: '{elo_wp}',
+      sample: 'elo_games',
+      kind: 'count',
+      unit: 'number',
+      decimals: 1,
+      family: 'predictive',
+      sources: MODEL
+    }
+  ),
+  team(
+    'elo_luck',
+    'Wins over Elo expectation',
+    'Elo Luck',
+    'Wins minus the Elo expected wins of its games.',
+    {
+      value: '{wins} + 0.5 * {ties} - {elo_wp}',
+      sample: 'elo_games',
+      kind: 'count',
+      unit: 'number',
+      decimals: 1,
+      family: 'predictive',
+      direction: 'neutral',
+      sources: MODEL
+    }
+  ),
+  team(
+    'vegas_xwins',
+    'Vegas expected wins',
+    'Vegas xW',
+    'The sum of the win probabilities the betting market gave its games (no-vig moneyline).',
+    {
+      value: '{vegas_wp}',
+      sample: 'vegas_games',
+      kind: 'count',
+      unit: 'number',
+      decimals: 1,
+      family: 'predictive',
+      sources: LINES
+    }
+  ),
+  team(
+    'sos_elo',
+    'Schedule strength played (Elo)',
+    'SOS',
+    'The average current Elo of the opponents faced so far: above 1500 means a hard schedule.',
+    state('sos_elo', { unit: 'number', decimals: 0, direction: 'neutral', tier: 'core' })
+  ),
+  team(
+    'sos_adj',
+    'Schedule strength played (adjusted EPA)',
+    'SOS EPA',
+    'The average adjusted EPA margin of the opponents faced so far.',
+    state('sos_adj', { unit: 'epa', decimals: 3, direction: 'neutral' })
+  ),
+  team(
+    'sos_left_elo',
+    'Remaining schedule strength (Elo)',
+    'SOS Left',
+    'The average current Elo of the regular-season opponents still to play.',
+    state('sos_left_elo', { unit: 'number', decimals: 0, direction: 'neutral', tier: 'core' })
+  ),
+  team(
+    'sos_left_adj',
+    'Remaining schedule strength (adjusted EPA)',
+    'SOS Left EPA',
+    'The average adjusted EPA margin of the regular-season opponents still to play.',
+    state('sos_left_adj', { unit: 'epa', decimals: 3, direction: 'neutral' })
+  ),
+  team(
+    'games_left',
+    'Games left',
+    'Left',
+    'Regular-season games still to play.',
+    state('games_left', { unit: 'count', decimals: 0, direction: 'neutral', tier: 'stored' })
+  ),
+  team(
+    'proj_wins',
+    'Projected wins',
+    'Proj W',
+    'Average wins over 10,000 simulations of the rest of the regular season from the current Elo ratings.',
+    state('proj_wins', { unit: 'number', decimals: 1, tier: 'core' })
+  ),
+  team(
+    'proj_losses',
+    'Projected losses',
+    'Proj L',
+    'Average losses over the simulations.',
+    state('proj_losses', { unit: 'number', decimals: 1, direction: 'lower' })
+  ),
+  team(
+    'playoff_pct',
+    'Playoff odds',
+    'Playoff%',
+    'Share of the simulated seasons in which it makes the playoffs (NFL tiebreakers, approximated).',
+    state('playoff_pct', { unit: 'pct', tier: 'core' })
+  ),
+  team(
+    'division_pct',
+    'Division odds',
+    'Div%',
+    'Share of the simulated seasons in which it wins its division.',
+    state('division_pct', { unit: 'pct', tier: 'core' })
+  ),
+  team(
+    'bye_pct',
+    'First-round bye odds',
+    'Bye%',
+    'Share of the simulated seasons in which it is the top seed (the top two in 2019).',
+    state('bye_pct', { unit: 'pct' })
+  ),
+  team(
+    'conference_pct',
+    'Conference title odds',
+    'Conf%',
+    'Share of the simulated seasons in which it reaches the Super Bowl.',
+    state('conference_pct', { unit: 'pct' })
+  ),
+  team(
+    'sb_pct',
+    'Super Bowl odds',
+    'SB%',
+    'Share of the simulated seasons in which it wins the Super Bowl.',
+    state('sb_pct', { unit: 'pct', tier: 'core' })
+  ),
+  team(
+    'fumble_recovery_pct',
+    'Fumble recovery %',
+    'FR%',
+    'Share of all fumbles in its games (its own and the opponents’) it recovered: about 50 % in the long run, so far from it is luck.',
+    {
+      value: `${FUMBLES_RECOVERED} / nullif({off_fumbles} + {def_fumbles}, 0)`,
+      sample: 'games',
+      unit: 'pct',
+      family: 'predictive',
+      direction: 'neutral',
+      sources: [...PBP, ...MODEL]
+    }
+  ),
+  team(
+    'fumble_luck',
+    'Fumble luck',
+    'Fum Luck',
+    'Fumbles recovered minus half of all fumbles in its games.',
+    {
+      value: FUMBLE_LUCK,
+      sample: 'games',
+      kind: 'count',
+      unit: 'number',
+      decimals: 1,
+      family: 'predictive',
+      direction: 'neutral',
+      sources: [...PBP, ...MODEL]
+    }
+  ),
+  team(
+    'int_luck',
+    'Interception luck',
+    'INT Luck',
+    'Interceptions made minus expected (from the interception-worthy throws it faced), minus the same for its own passes. FTN charting, from 2022.',
+    {
+      value: INT_LUCK,
+      sample: 'games',
+      kind: 'count',
+      unit: 'number',
+      decimals: 1,
+      family: 'predictive',
+      direction: 'neutral',
+      sources: [...FTN, ...MODEL],
+      firstSeason: 2022
+    }
+  ),
+  team(
+    'turnover_luck',
+    'Turnover luck',
+    'TO Luck',
+    'Fumble luck plus interception luck: turnovers gained beyond what the plays deserved. Tends to vanish the next season.',
+    {
+      value: `${FUMBLE_LUCK} + ${INT_LUCK}`,
+      sample: 'games',
+      kind: 'count',
+      unit: 'number',
+      decimals: 1,
+      family: 'predictive',
+      direction: 'neutral',
+      sources: [...PBP, ...FTN, ...MODEL],
+      firstSeason: 2022,
+      tier: 'core'
+    }
+  ),
+  team(
+    'team_fgoe',
+    'FG over expected',
+    'FGOE',
+    'Field goals made minus the FG model’s expected makes for the kicks tried.',
+    {
+      value: '{fg_model_made} - {fg_xmade}',
+      sample: 'fg_model_att',
+      kind: 'count',
+      unit: 'number',
+      decimals: 1,
+      side: 'special',
+      family: 'predictive',
+      sources: [...PBP, ...MODEL]
+    }
+  ),
+  metric(
+    'fgoe',
+    'FG over expected',
+    'FGOE',
+    'Field goals made minus expected makes, from a model of distance, roof, cold, wind and surface: kicking skill beyond the kicks tried.',
+    {
+      value: '{fg_model_made} - {fg_xmade}',
+      sample: 'fg_model_att',
+      kind: 'count',
+      unit: 'number',
+      decimals: 1,
+      positions: K,
+      minSample: 20,
+      family: 'predictive',
+      sources: [...PBP, ...MODEL],
+      tier: 'core'
+    }
+  ),
+  metric('fgoe_pct', 'FG % over expected', 'FGOE%', 'FG over expected per attempt.', {
+    value: '({fg_model_made} - {fg_xmade}) / nullif({fg_model_att}, 0)',
+    sample: 'fg_model_att',
+    unit: 'pct',
+    positions: K,
+    minSample: 20,
+    family: 'predictive',
+    sources: [...PBP, ...MODEL],
+    tier: 'core'
+  }),
+  metric(
+    'fg_expected_pct',
+    'Expected FG %',
+    'xFG%',
+    'The FG % the model expects for the kicks tried: lower means harder kicks.',
+    {
+      value: '{fg_xmade} / nullif({fg_model_att}, 0)',
+      sample: 'fg_model_att',
+      unit: 'pct',
+      positions: K,
+      minSample: 20,
+      family: 'predictive',
+      direction: 'neutral',
+      sources: [...PBP, ...MODEL]
+    }
+  ),
+  metric(
+    'epa_cpoe_composite',
+    'EPA + CPOE composite',
+    'EPA+CPOE',
+    'EPA per dropback and CPOE averaged in standard deviations of qualified QB seasons (2019–2025): 0 is an average starter, +1 a top-six passer.',
+    {
+      value: COMPOSITE,
+      sample: 'dropbacks',
+      unit: 'number',
+      decimals: 2,
+      family: 'advanced',
+      positions: QB,
+      minSample: 200,
+      sources: [...PBP, ...MODEL],
+      tier: 'core'
+    }
+  ),
+  metric(
+    'fp_ceiling',
+    'Ceiling',
+    'Ceil',
+    'The 80th percentile of the weekly fantasy points in scope, under the chosen scoring: a good week.',
+    {
+      value: '{p80:fp}',
+      sample: 'games',
+      unit: 'points',
+      family: 'predictive',
+      positions: SKILL,
+      sources: SLEEPER,
+      scoring: true,
+      tier: 'core'
+    }
+  ),
+  metric(
+    'fp_floor',
+    'Floor',
+    'Floor',
+    'The 20th percentile of the weekly fantasy points in scope: a bad week.',
+    {
+      value: '{p20:fp}',
+      sample: 'games',
+      unit: 'points',
+      family: 'predictive',
+      positions: SKILL,
+      sources: SLEEPER,
+      scoring: true,
+      tier: 'core'
+    }
+  ),
+  metric(
+    'boom_rate',
+    'Boom rate',
+    'Boom%',
+    'Share of games with a top-12 weekly finish at the position (top 24 for RB and WR), under the chosen scoring.',
+    {
+      value: '{boom} / nullif({games}, 0)',
+      sample: 'games',
+      unit: 'pct',
+      family: 'predictive',
+      positions: SKILL,
+      sources: SLEEPER,
+      scoring: true,
+      tier: 'core'
+    }
+  ),
+  metric(
+    'bust_rate',
+    'Bust rate',
+    'Bust%',
+    'Share of games finishing outside the top 36 at the position (48 for RB and WR).',
+    {
+      value: '{bust} / nullif({games}, 0)',
+      sample: 'games',
+      unit: 'pct',
+      family: 'predictive',
+      positions: SKILL,
+      direction: 'lower',
+      sources: SLEEPER,
+      scoring: true,
+      tier: 'core'
+    }
+  ),
+  metric(
+    'ras',
+    'Athletic score (RAS-style)',
+    'RAS',
+    'Combine measures scored 0–10 by percentile within the position since 2000, averaged over those he did (four at least). Our version of Kent Lee Platte’s Relative Athletic Score, so values differ from his.',
+    {
+      value: '{last:ras}',
+      sample: 'games',
+      unit: 'number',
+      decimals: 2,
+      family: 'advanced',
+      sources: COMBINE_SRC,
+      tier: 'core'
+    }
+  ),
+  metric(
+    'ras_measures',
+    'Combine measures',
+    'Measures',
+    'How many of the eight combine measures the athletic score uses: fewer than eight is a partial score.',
+    {
+      value: '{last:ras_measures}',
+      sample: 'games',
+      unit: 'count',
+      decimals: 0,
+      direction: 'neutral',
+      sources: COMBINE_SRC,
+      tier: 'stored'
+    }
+  ),
+  metric(
+    'speed_score',
+    'Speed Score',
+    'Speed',
+    'Speed for the size: 200 × weight / 40-yard time⁴ (Bill Barnwell); about 100 is average for a back.',
+    {
+      value: '{last:speed_score}',
+      sample: 'games',
+      unit: 'number',
+      decimals: 1,
+      family: 'advanced',
+      sources: COMBINE_SRC,
+      tier: 'core'
+    }
+  ),
+  ...(
+    [
+      ['height', 'Height', 'Ht', 'inches', 'number', 0, 'neutral'],
+      ['weight', 'Weight', 'Wt', 'pounds', 'number', 0, 'neutral'],
+      ['forty', '40-yard dash', '40', 'seconds', 'seconds', 2, 'lower'],
+      ['bench', 'Bench press', 'Bench', 'repetitions of 225 pounds', 'count', 0, 'higher'],
+      ['vertical', 'Vertical jump', 'Vert', 'inches', 'number', 1, 'higher'],
+      ['broad_jump', 'Broad jump', 'Broad', 'inches', 'number', 0, 'higher'],
+      ['cone', '3-cone drill', '3-Cone', 'seconds', 'seconds', 2, 'lower'],
+      ['shuttle', 'Short shuttle', 'Shuttle', 'seconds', 'seconds', 2, 'lower']
+    ] as const
+  ).flatMap(([name, label, short, what, unit, decimals, direction]) => [
+    metric(name, label, short, `The ${label.toLowerCase()} at the combine, in ${what}.`, {
+      value: `{last:${name}}`,
+      sample: 'games',
+      unit,
+      decimals,
+      direction,
+      sources: COMBINE_SRC
+    }),
+    metric(
+      `${name}_score`,
+      `${label} score`,
+      `${short} Sc`,
+      `The ${label.toLowerCase()} as a 0–10 percentile within the position over every combine since 2000.`,
+      {
+        value: `{last:${name}_score}`,
+        sample: 'games',
+        unit: 'number',
+        decimals: 1,
+        family: 'advanced',
+        sources: COMBINE_SRC,
+        tier: 'stored'
+      }
+    )
+  ])
+]
+
 export const CATALOGUE: MetricDef[] = [
   ...PASSING,
   ...RUSHING,
@@ -2832,13 +3422,17 @@ export const CATALOGUE: MetricDef[] = [
   ...FANTASY,
   ...DEFENSE,
   ...KICKING,
-  ...TEAM
+  ...TEAM,
+  ...MODELS
 ]
 
 export const METRICS: ReadonlyMap<string, MetricDef> = new Map(CATALOGUE.map((m) => [m.id, m]))
 
-/** The `{component}` names a formula reads, and its sample. */
+/** `{name}`, `{last:name}`, `{p80:name}` and `{p20:name}` in a formula (types.ts `MetricDef`). */
+export const TOKEN = /\{(?:(last|p80|p20):)?([a-z0-9_]+)\}/g
+
+/** The tokens a formula reads (`name`, `last:name`, `p80:name`), and its sample. */
 export function componentsOf(def: Pick<MetricDef, 'value' | 'sample'>): string[] {
-  const names = [...def.value.matchAll(/\{([a-z0-9_]+)\}/g)].map((m) => m[1])
+  const names = [...def.value.matchAll(TOKEN)].map((m) => (m[1] ? `${m[1]}:${m[2]}` : m[2]))
   return [...new Set([...names, def.sample])]
 }
