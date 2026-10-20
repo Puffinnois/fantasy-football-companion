@@ -295,3 +295,41 @@ export interface PlayerOutlook {
    */
   schedule: { opponents: string[]; easierBy: number | null }
 }
+
+/** Who rosters a player (or a team defense) in the imported league (spec §9.2). */
+export interface StatsOwner {
+  /** The fantasy team's name. */
+  name: string
+  mine: boolean
+}
+
+/** The league's rosters keyed the way the stats rows are: gsis ids and nflverse team codes. */
+export interface StatsOwnership {
+  players: Record<string, StatsOwner>
+  teams: Record<string, StatsOwner>
+}
+
+/** A leaderboard's own settings (spec §9.2): what a custom view saves. */
+export interface LeaderboardBoard {
+  entity: Entity
+  /** A position group for players; `offense`, `defense` or `forecast` for teams. */
+  tab: string
+  /** Catalogue ids, in display order. */
+  columns: string[]
+  /** A column id, or `name`. */
+  sort: { by: string; dir: 'asc' | 'desc' }
+  perGame: boolean
+  qualifiedOnly: boolean
+  /** nflverse team code; null for every team. */
+  team: string | null
+  /** With a league: every row, my team's, or the unrostered. */
+  owner: 'all' | 'mine' | 'free'
+}
+
+/** A custom view: a named leaderboard, saved in `companion.db` (spec §9.2). */
+export interface StatsView {
+  id: number
+  name: string
+  board: LeaderboardBoard
+  updatedAt: string
+}

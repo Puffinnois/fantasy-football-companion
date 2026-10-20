@@ -1,14 +1,18 @@
-import { app, ipcMain, type BrowserWindow } from 'electron'
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { app, dialog, ipcMain, type BrowserWindow } from 'electron'
 import { withTransaction, type Db } from '@main/db/connection'
 import { runEngine, runEngineStream } from '@main/engine/runEngine'
 import { listExpertRanks } from '@main/db/repos/expertRanks'
 import { getLeague, leagueRosterPositions } from '@main/db/repos/leagues'
 import { listMatchups } from '@main/db/repos/matchups'
+import { leagueOwnership } from '@main/db/repos/ownership'
 import { playersOptions, playersWeek } from '@main/db/repos/playersWeek'
 import { latestPointsWeek, NO_POINTS_CONTEXT } from '@main/db/repos/points'
 import { getRules, saveRules } from '@main/db/repos/rules'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
 import { getNflState } from '@main/db/repos/state'
+import { deleteStatsView, listStatsViews, saveStatsView } from '@main/db/repos/statsViews'
 import {
   getLastError,
   getLastFinishedLike,
@@ -42,12 +46,15 @@ import type { Rules } from '@shared/rules'
 import type {
   GameForecast,
   GamesQuery,
+  LeaderboardBoard,
   MetricInfo,
   OutlookQuery,
   PlayerOutlook,
+  StatsOwnership,
   StatsQuery,
   StatsResult,
-  StatsStatus
+  StatsStatus,
+  StatsView
 } from '@shared/stats/types'
 import { SYNC_SOURCE_GROUPS } from '@shared/syncSources'
 import type {
@@ -342,6 +349,32 @@ export function registerIpcHandlers(ctx: AppContext): void {
   )
   ipcMain.handle(IPC.statsStatus, (): Promise<StatsStatus> =>
     ctx.stats ? ctx.stats.status() : Promise.resolve(STATS_OFF)
+  )
+  ipcMain.handle(IPC.statsOwnership, (): StatsOwnership | null => {
+    const id = activeLeagueId()
+    return id ? leagueOwnership(ctx.db, id) : null
+  })
+  ipcMain.handle(IPC.statsViews, (): StatsView[] => listStatsViews(ctx.db))
+  ipcMain.handle(IPC.statsSaveView, (_event, name: string, board: LeaderboardBoard): StatsView =>
+    saveStatsView(ctx.db, name, board, new Date().toISOString())
+  )
+  ipcMain.handle(IPC.statsDeleteView, (_event, id: number): void => deleteStatsView(ctx.db, id))
+  ipcMain.handle(
+    IPC.statsExportCsv,
+    async (_event, fileName: string, csv: string): Promise<string | null> => {
+      const window = ctx.getWindow()
+      const options = {
+        defaultPath: join(app.getPath('downloads'), fileName),
+        filters: [{ name: 'CSV', extensions: ['csv'] }]
+      }
+      const picked = window
+        ? await dialog.showSaveDialog(window, options)
+        : await dialog.showSaveDialog(options)
+      if (picked.canceled || !picked.filePath) return null
+      // A byte-order mark so Excel reads the names' accents as UTF-8.
+      await writeFile(picked.filePath, `\uFEFF${csv}`, 'utf8')
+      return picked.filePath
+    }
   )
 
   ipcMain.handle(IPC.playersOptions, (): PlayersOptions => {
