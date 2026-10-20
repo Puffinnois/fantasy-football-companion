@@ -1,6 +1,17 @@
 # Plan Z — Stats analysis: the models
 
-**Status:** not started. Written 2026-10-18, fully prototyped: every task was replayed on a clean copy of `main` from this text, with the counts below. Each task's tests were seen failing before its code.
+**Status:** complete 2026-10-20. Merged to main as `98990d7` and tagged `v0.27.0` on `9706a31` (not pushed yet). Tasks 1–8 and 10 were executed from this text; each task's tests were seen failing, then passing, with the plan's counts plus the 3 of the untracked `tests/shared/playerImage.test.ts`.
+
+Task 9, live on the branch (state 2026 week 6): `ALL GATES PASSED`. Backfill 223 s (derived 24 s, models 43 s); forced daily refresh 22 s (derived 1.8 s, models 4.4 s), queries during it max 93 ms; file 354 MB; Elo Brier 0.2236 (Vegas 0.2110); FG 2025 Hosmer–Lemeshow χ² 9.8 (critical 15.5), total +2.1 points; simulated playoff fields 2019–2025 all match.
+
+Final review (fresh reviewer, Opus): 1 Important and 3 Minor findings, all fixed, each test-first in its own commit (`bfdeb5f` … `89091f4`):
+
+- (Important) `opponentAdjusted` on a count compared one opponent's total with the whole league's (2025 Nacua: 375 → 16,593 points). It now applies to rates only; counts are returned raw, with a note.
+- A model state NULL at the end of the scope (remaining schedule strength after the last game) was filled by an older one. The engine reads states with `arg_max_null`, and the postseason rows carry the end-of-season odds.
+- A stability pass the app closed during was not redone until the next weekly refresh: a `stability_pending` flag now keeps it due.
+- A note says when Next Gen Stats values come from its weekly rows (weekly quantiles, opponent adjustment).
+
+Windows Package check green before and after the fixes (`"query":true`; 887 tests after them). Not GUI-verified (WSLg); no window changes.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
