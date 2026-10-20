@@ -72,6 +72,8 @@ export function StatsApp({
   const top = useStatsQuery(topQuery, data.version)
   // With a roster, wait for my top scorer before choosing (no flash of the first team).
   const shownTeam = team ?? (topQuery && top.loading ? null : defaultTeam(top.result))
+  // Once on screen, the default is the team: a new season or range does not switch it.
+  if (team === null && screen === 'team' && shownTeam !== null) setTeam(shownTeam)
   const openTeam = (code: string): void => {
     setTeam(code)
     setScreen('team')

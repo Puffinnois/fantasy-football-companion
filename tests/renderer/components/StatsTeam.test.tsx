@@ -54,7 +54,11 @@ function answer(q: StatsQuery): ReturnType<typeof result> {
     )
     return result(q.metrics, rows)
   }
-  if (q.scope.players) return result(q.metrics, [row('p1', 'Mine', vals(0), { team: 'SEA' })])
+  // My top scorer: SEA in 2026, LA in 2025.
+  if (q.scope.players) {
+    const team = q.scope.seasons[0] === 2025 ? 'LA' : 'SEA'
+    return result(q.metrics, [row('p1', 'Mine', vals(0), { team })])
+  }
   const weeks = q.groupBy?.includes('week') ? [1, 2, 3] : [null]
   const rows = ['p0', 'p1', 'p2'].flatMap((id, i) =>
     weeks.map((w) => ({
@@ -190,6 +194,16 @@ describe('the team dashboard (spec §9.3)', () => {
     expect(within(tip).getByText('Week 1')).toBeTruthy()
     expect(within(tip).getByText('Offense')).toBeTruthy()
     expect(within(tip).getByText('Defense (allowed)')).toBeTruthy()
+  })
+
+  it('keeps the team on screen when the season changes', async () => {
+    await openTeams()
+    await screen.findByRole('heading', { name: 'SEA' })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Season' }), {
+      target: { value: '2025' }
+    })
+    await waitFor(() => expect(stats.games).toHaveBeenLastCalledWith({ season: 2025, team: 'SEA' }))
+    expect(screen.getByRole('heading', { name: 'SEA' })).toBeTruthy()
   })
 
   it('moves between teams with the arrows and the select', async () => {
