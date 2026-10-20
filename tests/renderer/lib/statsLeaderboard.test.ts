@@ -10,6 +10,7 @@ import {
   leaderboardQuery,
   leaderRows,
   pickable,
+  rankWithinTab,
   PLAYER_TABS,
   tabOf,
   TEAM_TABS
@@ -232,5 +233,58 @@ describe('the leaderboards (spec §9.2)', () => {
     expect(csvFileName(defaultBoard('team', 'forecast', CAT), scope, 'Postseason')).toBe(
       'stats-2026-teams-ratings-odds-postseason.csv'
     )
+  })
+
+  it('ranks every column among the rows the tab qualifies, per position (review fix)', () => {
+    const tab = tabOf('player', 'WR')
+    // The engine ranked receiving yards among every WR; the tab shows the qualified ones only.
+    const rows = [
+      row('a', 'A', { rec_yds: value(900, { percentile: 100 }), target_share: value(0.3) }),
+      row('b', 'B', { rec_yds: value(500, { percentile: 80 }), target_share: value(0.2) }),
+      row('c', 'C', { rec_yds: value(500, { percentile: 80 }), target_share: value(0.2) }),
+      row('d', 'D', { rec_yds: value(100, { percentile: 60 }), target_share: value(0.1) }),
+      row('e', 'E', {
+        rec_yds: value(50, { percentile: 0 }),
+        target_share: value(0.05, { qualified: false })
+      }),
+      row(
+        't',
+        'T',
+        { rec_yds: value(400, { percentile: 50 }), target_share: value(0.2) },
+        { position: 'TE' }
+      )
+    ]
+    const ranked = rankWithinTab(result(['rec_yds', 'target_share'], rows), tab)
+    const pct = (id: string): [number | null, number | null] => {
+      const v = ranked.rows.find((r) => r.id === id)!.values.rec_yds
+      return [v.percentile, v.rank]
+    }
+    expect(['a', 'b', 'c', 'd', 'e', 't'].map(pct)).toEqual([
+      [100, 1],
+      [100 / 3, 2],
+      [100 / 3, 2],
+      [0, 4],
+      [null, null],
+      // The only qualified TE.
+      [0, 1]
+    ])
+    // Lower is better: the smallest value ranks first.
+    const ints = rankWithinTab(
+      result(
+        ['pass_int', 'qb_epa_db'],
+        [
+          row('q1', 'Q1', { pass_int: value(3), qb_epa_db: value(0.1) }, { position: 'QB' }),
+          row('q2', 'Q2', { pass_int: value(9), qb_epa_db: value(0.2) }, { position: 'QB' })
+        ]
+      ),
+      tabOf('player', 'QB')
+    )
+    expect(ints.rows.map((r) => r.values.pass_int.percentile)).toEqual([100, 0])
+    // Teams keep the engine's ranks: every team qualifies.
+    const teams = result(
+      ['elo'],
+      [row('SF', 'SF', { elo: value(1600, { percentile: 40, rank: 3 }) }, { position: null })]
+    )
+    expect(rankWithinTab(teams, tabOf('team', 'forecast'))).toBe(teams)
   })
 })

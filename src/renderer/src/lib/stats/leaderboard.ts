@@ -396,6 +396,50 @@ export function qualifies(row: StatsRow, tab: TabDef): boolean {
   return !tab.qualifier || row.values[tab.qualifier]?.qualified === true
 }
 
+/**
+ * Percentiles and ranks among the rows the tab qualifies, per position, as the engine computes
+ * them (`percent_rank`, `rank`). The engine ranks a count among every row with a game, since a
+ * count's sample has no minimum; the table shows the qualified rows, so it ranks among those.
+ * Rows outside the tab's qualifier, or below a metric's own sample, get none. Teams keep the
+ * engine's (every team qualifies).
+ */
+export function rankWithinTab(result: StatsResult, tab: TabDef): StatsResult {
+  if (!tab.qualifier) return result
+  const pools = new Map<string, number[]>()
+  const key = (position: string | null, metric: string): string => `${position}|${metric}`
+  const ranked = (r: StatsRow, metric: string): number | null => {
+    const v = r.values[metric]
+    return qualifies(r, tab) && v?.qualified && v.value !== null ? v.value : null
+  }
+  for (const r of result.rows) {
+    for (const c of result.columns) {
+      const v = ranked(r, c.id)
+      if (v === null) continue
+      const k = key(r.position, c.id)
+      pools.set(k, [...(pools.get(k) ?? []), v])
+    }
+  }
+  const lower = new Map(result.columns.map((c) => [c.id, c.direction === 'lower']))
+  return {
+    ...result,
+    rows: result.rows.map((r) => ({
+      ...r,
+      values: Object.fromEntries(
+        Object.entries(r.values).map(([id, v]) => {
+          const x = ranked(r, id)
+          const pool = pools.get(key(r.position, id))
+          if (x === null || !pool) return [id, { ...v, percentile: null, rank: null }]
+          const down = lower.get(id) ?? false
+          const worse = pool.filter((y) => (down ? y > x : y < x)).length
+          const better = pool.filter((y) => (down ? y < x : y > x)).length
+          const percentile = pool.length > 1 ? (100 * worse) / (pool.length - 1) : 0
+          return [id, { ...v, percentile, rank: better + 1 }]
+        })
+      )
+    }))
+  }
+}
+
 /** "Brown" finds "A.J. Brown" and "Amon-Ra St. Brown". */
 export function searchKey(text: string): string {
   return text

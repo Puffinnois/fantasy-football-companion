@@ -18,6 +18,7 @@ import {
   leaderboardCsv,
   leaderboardQuery,
   leaderRows,
+  rankWithinTab,
   tabOf,
   tabsOf
 } from '@/lib/stats/leaderboard'
@@ -117,8 +118,8 @@ export function StatsLeaderboard({
   )
   const { result, loading, error } = useStatsQuery(query, data.version)
   const rows = useMemo(
-    () => (result ? leaderRows(result, board, data.ownership, search) : []),
-    [result, board, data.ownership, search]
+    () => (result ? leaderRows(rankWithinTab(result, tab), board, data.ownership, search) : []),
+    [result, tab, board, data.ownership, search]
   )
   const families = familiesOf(data.catalogue, tab)
   const range = rangeLabel(scope, data.status)
