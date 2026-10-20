@@ -884,6 +884,15 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
   if (q.scope.weeks) {
     weeksWhere.push(`week BETWEEN ${wp.add(q.scope.weeks[0])} AND ${wp.add(q.scope.weeks[1])}`)
   }
+  // Reference "Derived tables": NGS publishes a week only for players over its weekly minimum.
+  if (
+    c.grain === 'week' &&
+    c.metrics.some((m) => componentsOf(m).some((t) => t.startsWith('ngs_')))
+  ) {
+    notes.add(
+      'Next Gen Stats: from its weekly rows, which leave out players under its weekly minimum (its season rows count everyone).'
+    )
+  }
   for (const m of c.metrics) {
     if (m.lastSeason === 'prior' && q.scope.seasons.includes(ctx.currentSeason)) {
       notes.add(`${m.label}: published through ${ctx.currentSeason - 1}.`)

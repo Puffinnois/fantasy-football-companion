@@ -157,6 +157,16 @@ describe('model metrics in the query engine (stats-analysis spec §7, §8)', () 
     ])
   })
 
+  it('says when NGS values come from its weekly rows', () => {
+    const notes = (metrics: string[]): string[] =>
+      compileQuery({ entity: 'player', metrics, scope: { seasons: [2025] } }, CTX).notes
+    const weekly =
+      'Next Gen Stats: from its weekly rows, which leave out players under its weekly minimum (its season rows count everyone).'
+    // A weekly quantile moves the query to the weekly rows.
+    expect(notes(['fp_ceiling', 'separation'])).toContain(weekly)
+    expect(notes(['separation'])).not.toContain(weekly)
+  })
+
   it('splits rows into odd and even weeks for the stability model only', async () => {
     const db = await seeded()
     const compiled = compileQuery(
