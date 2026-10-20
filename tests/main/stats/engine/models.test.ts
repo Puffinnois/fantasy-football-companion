@@ -131,6 +131,19 @@ describe('model metrics in the query engine (stats-analysis spec §7, §8)', () 
     ).rejects.toThrow(StatsQueryError)
   })
 
+  it('leaves a count unadjusted: a total is not comparable with the league total', async () => {
+    const db = await seeded()
+    const q = { entity: 'team' as const, metrics: ['points_for'], scope: { seasons: [2025] } }
+    const r = await runQuery(db, { ...q, transform: 'opponentAdjusted' }, CTX)
+    expect(r.rows.map((x) => [x.id, x.values.points_for.value])).toEqual([
+      ['BUF', 27],
+      ['KC', 20]
+    ])
+    expect(r.notes).toEqual([
+      'Points scored: not opponent-adjusted (a count, a rating or a weekly range).'
+    ])
+  })
+
   it('splits rows into odd and even weeks for the stability model only', async () => {
     const db = await seeded()
     const compiled = compileQuery(

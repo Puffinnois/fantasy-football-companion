@@ -512,7 +512,7 @@ Measured on the live database while Plan Z was written (its Planning findings), 
   - Measured: 305 metrics. Target share r 0.68 > TD over expected 0.07; WOPR 0.70 > FPOE 0.20.
 - **K. Transforms (§7.1).**
   - `shrunk` (H).
-  - `opponentAdjusted`: the value minus the sample-weighted average of how much more than the league each opponent allowed, in the same metric and position. It is one step, not iterated; sums only, on the weekly rows.
+  - `opponentAdjusted`: the value minus the sample-weighted average of how much more than the league each opponent allowed, in the same metric and position. It is one step, not iterated, on the weekly rows. It applies to rates only: a count's total is not comparable with the league's.
 - **L. Profile (§8.7).**
   - Combine scores are mid-rank percentiles: ties share the middle, so a common 4.50 forty is not scored the slowest.
   - The score is named "Athletic score (RAS-style)". It averages raw measures, so it is not Kent Lee Platte's RAS (DK Metcalf: 7.2 here, 9.07 there). It needs four measures.

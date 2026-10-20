@@ -428,9 +428,12 @@ function metricColumns(
 const isState = (t: string): boolean => t.startsWith('last:')
 const quantileCol = (t: string): string => `q_${t.replace(':', '_')}`
 
-/** Whether opponent adjustment applies: sums only (a state or a quantile has no opponents). */
+/**
+ * Whether opponent adjustment applies: rates over sums only. A count's total is not comparable
+ * with the league's (it is about 30 times larger), and a state or a quantile has no opponents.
+ */
 const adjustable = (m: MetricDef): boolean =>
-  componentsOf(m).every((t) => !isState(t) && !(t in QUANTILES))
+  m.kind === 'rate' && componentsOf(m).every((t) => !isState(t) && !(t in QUANTILES))
 
 /**
  * The week and season grains: rows of the derived tables, summed per output row, with the fantasy
@@ -535,7 +538,8 @@ function tableAgg(
        LEFT JOIN league l ON l.season = b.season AND l.position IS NOT DISTINCT FROM b.position)`
     )
     c.metrics.forEach((m, i) => {
-      if (!adjusted[i]) notes.add(`${m.label}: not opponent-adjusted (a rating or a weekly range).`)
+      if (!adjusted[i])
+        notes.add(`${m.label}: not opponent-adjusted (a count, a rating or a weekly range).`)
     })
   }
   const dims: string[] = [...c.groupBy, ...(halves ? ['half'] : [])]
