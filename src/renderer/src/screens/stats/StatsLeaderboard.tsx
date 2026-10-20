@@ -14,6 +14,7 @@ import {
   defaultBoard,
   engineSort,
   familiesOf,
+  familyOf,
   familyColumns,
   leaderboardCsv,
   leaderboardQuery,
@@ -127,6 +128,7 @@ export function StatsLeaderboard({
   // The selected row is on screen, however far down it ranks.
   const shown = Math.max(limit, rows.findIndex((r) => r.id === selected) + 1)
   const families = familiesOf(data.catalogue, tab)
+  const preset = familyOf(board, data.catalogue, data.byId)
   const range = rangeLabel(scope, data.status)
 
   const update = (patch: Partial<LeaderboardBoard>): void => {
@@ -160,7 +162,8 @@ export function StatsLeaderboard({
       team: board.team
     })
   }
-  const setFamily = (family: MetricFamily | 'default'): void => {
+  const setFamily = (family: MetricFamily | 'default' | 'custom'): void => {
+    if (family === 'custom') return
     if (family === 'default') {
       update({ columns: defaultBoard(entity, board.tab, data.byId).columns })
       return
@@ -231,10 +234,13 @@ export function StatsLeaderboard({
         <div className="flex items-center gap-2 pb-1.5">
           <StatsSelect
             title="Metric family"
-            value="default"
+            value={preset}
             options={[
               { value: 'default' as const, label: 'Columns: this tab' },
-              ...families.map((f) => ({ value: f, label: `Columns: ${familyLabel(f)}` }))
+              ...families.map((f) => ({ value: f, label: `Columns: ${familyLabel(f)}` })),
+              ...(preset === 'custom'
+                ? [{ value: 'custom' as const, label: 'Columns: your own' }]
+                : [])
             ]}
             onChange={setFamily}
           />

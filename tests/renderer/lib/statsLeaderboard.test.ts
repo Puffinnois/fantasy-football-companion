@@ -6,6 +6,7 @@ import {
   engineSort,
   familiesOf,
   familyColumns,
+  familyOf,
   leaderboardCsv,
   leaderboardQuery,
   leaderRows,
@@ -345,5 +346,13 @@ describe('the leaderboards (spec §9.2)', () => {
     const res = result(['target_share'], rows)
     expect(leaderRows(res, wr(), null, '').map((r) => r.id)).toEqual(['a'])
     expect(leaderRows(res, wr(), null, '', 'c').map((r) => r.id)).toEqual(['a', 'c'])
+  })
+
+  it('names the column preset a board is on (review fix)', () => {
+    const cat = catalogue()
+    const tab = tabOf('player', 'WR')
+    expect(familyOf(wr(), cat, CAT)).toBe('default')
+    expect(familyOf(wr({ columns: familyColumns(cat, tab, 'ngs') }), cat, CAT)).toBe('ngs')
+    expect(familyOf(wr({ columns: ['yprr', 'drops'] }), cat, CAT)).toBe('custom')
   })
 })

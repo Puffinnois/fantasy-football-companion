@@ -335,6 +335,19 @@ export function familyColumns(
   return familyMetrics(catalogue, tab, family).slice(0, MAX_COLUMNS)
 }
 
+/** Which column preset a board shows: the tab's, one family's, or columns of the user's own. */
+export function familyOf(
+  board: LeaderboardBoard,
+  catalogue: readonly MetricInfo[],
+  byId: ReadonlyMap<string, MetricInfo>
+): MetricFamily | 'default' | 'custom' {
+  const tab = tabOf(board.entity, board.tab)
+  const same = (ids: string[]): boolean =>
+    ids.length === board.columns.length && ids.every((id, i) => board.columns[i] === id)
+  if (same(defaultBoard(board.entity, board.tab, byId).columns)) return 'default'
+  return familiesOf(catalogue, tab).find((f) => same(familyColumns(catalogue, tab, f))) ?? 'custom'
+}
+
 /** The header groups over the columns: the tab's group names, a family for an added column. */
 export function columnGroups(
   columns: readonly string[],

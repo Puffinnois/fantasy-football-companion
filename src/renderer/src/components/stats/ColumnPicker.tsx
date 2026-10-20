@@ -82,19 +82,21 @@ export function ColumnPicker({
                 </div>
                 {metrics.map((m) => {
                   const on = chosen.has(m.id)
+                  // The last column stays: a board needs one to query.
+                  const locked = (on && columns.length === 1) || (!on && full)
                   return (
                     <label
                       key={m.id}
                       title={m.description}
                       className={cn(
                         'flex h-[30px] cursor-pointer items-center gap-2 px-3 text-[12.5px] hover:bg-hover',
-                        !on && full && 'cursor-not-allowed opacity-50'
+                        locked && 'cursor-not-allowed opacity-50'
                       )}
                     >
                       <input
                         type="checkbox"
                         checked={on}
-                        disabled={!on && full}
+                        disabled={locked}
                         onChange={() => toggle(m.id)}
                         className="accent-[var(--cobalt)]"
                       />

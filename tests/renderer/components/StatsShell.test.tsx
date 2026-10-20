@@ -1,11 +1,20 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { ColumnPicker } from '@/components/stats/ColumnPicker'
 import { ScopeBar } from '@/components/stats/ScopeBar'
+import { tabOf } from '@/lib/stats/leaderboard'
 import { StatsNav } from '@/components/stats/StatsNav'
 import type { StatsScope } from '@/lib/stats/scope'
 import type { UpdateState } from '@shared/types'
-import { STATUS } from '../../fixtures/statsScreens'
+import { catalogue, STATUS } from '../../fixtures/statsScreens'
+
+// Radix popovers measure their content.
+globalThis.ResizeObserver ??= class {
+  observe = vi.fn()
+  unobserve = vi.fn()
+  disconnect = vi.fn()
+} as unknown as typeof ResizeObserver
 
 afterEach(cleanup)
 
@@ -95,5 +104,31 @@ describe('the Stats nav', () => {
     expect(fantasy.title).toBe('Import a Sleeper league in Fantasy')
     fireEvent.click(fantasy)
     expect(onOpenFantasy).toHaveBeenCalled()
+  })
+})
+
+describe('the column picker', () => {
+  it('adds a column at the end and never removes the last one (review fix)', () => {
+    const onChange = vi.fn()
+    const picker = (columns: string[]): React.JSX.Element => (
+      <ColumnPicker
+        tab={tabOf('player', 'WR')}
+        catalogue={catalogue()}
+        columns={columns}
+        onChange={onChange}
+        onReset={() => {}}
+      />
+    )
+    const { rerender } = render(picker(['yprr', 'targets']))
+    fireEvent.click(screen.getByRole('button', { name: /Columns/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Separation/ }))
+    expect(onChange).toHaveBeenLastCalledWith(['yprr', 'targets', 'separation'])
+    fireEvent.click(screen.getByRole('checkbox', { name: /Targets per route run/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /^Yards per route run/ }))
+    expect(onChange).toHaveBeenLastCalledWith(['targets'])
+    rerender(picker(['yprr']))
+    expect(
+      (screen.getByRole('checkbox', { name: /^Yards per route run/ }) as HTMLInputElement).disabled
+    ).toBe(true)
   })
 })
