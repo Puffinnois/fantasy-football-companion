@@ -468,14 +468,18 @@ export function searchKey(text: string): string {
     .replace(/[^a-z0-9\s]/g, '')
 }
 
-/** The owner of a row in my league, if anyone rosters it. */
+/**
+ * The owner of a row in my league, if anyone rosters it. A fantasy team rosters a defense, so a
+ * team is marked on the Defense tab only.
+ */
 export function ownerOf(
   row: Pick<StatsRow, 'id'>,
-  entity: Entity,
+  board: Pick<LeaderboardBoard, 'entity' | 'tab'>,
   ownership: StatsOwnership | null
 ): { name: string; mine: boolean } | null {
   if (!ownership) return null
-  return (entity === 'player' ? ownership.players[row.id] : ownership.teams[row.id]) ?? null
+  if (board.entity === 'player') return ownership.players[row.id] ?? null
+  return board.tab === 'defense' ? (ownership.teams[row.id] ?? null) : null
 }
 
 /**
@@ -494,7 +498,7 @@ export function leaderRows(
     if (board.qualifiedOnly && !qualifies(r, tab)) return false
     if (needle && !searchKey(r.name).includes(needle)) return false
     if (!ownership || board.owner === 'all') return true
-    const owner = ownerOf(r, board.entity, ownership)
+    const owner = ownerOf(r, board, ownership)
     return board.owner === 'mine' ? owner?.mine === true : owner === null
   })
   if (board.sort.by !== 'name') return rows

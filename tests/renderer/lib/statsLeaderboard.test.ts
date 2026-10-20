@@ -10,6 +10,7 @@ import {
   leaderboardQuery,
   leaderRows,
   normalizeBoard,
+  ownerOf,
   pickable,
   rankWithinTab,
   PLAYER_TABS,
@@ -317,5 +318,22 @@ describe('the leaderboards (spec §9.2)', () => {
     // A board that is fine is returned as is.
     const ok = wr()
     expect(normalizeBoard(ok, CAT)).toBe(ok)
+  })
+
+  it('marks a rostered defense on the Defense tab only (review fix)', () => {
+    const own: StatsOwnership = { players: {}, teams: { LA: { name: 'Cook Book', mine: true } } }
+    const la = { id: 'LA' }
+    expect(ownerOf(la, defaultBoard('team', 'defense', CAT), own)).toEqual({
+      name: 'Cook Book',
+      mine: true
+    })
+    expect(ownerOf(la, defaultBoard('team', 'offense', CAT), own)).toBeNull()
+    expect(ownerOf(la, defaultBoard('team', 'forecast', CAT), own)).toBeNull()
+    expect(
+      ownerOf({ id: 'p1' }, wr(), { players: { p1: { name: 'X', mine: false } }, teams: {} })
+    ).toEqual({
+      name: 'X',
+      mine: false
+    })
   })
 })

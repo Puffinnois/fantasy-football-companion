@@ -287,7 +287,7 @@ export function StatsLeaderboard({
             className="w-[110px]"
           />
         )}
-        {hasLeague && data.ownership && (
+        {hasLeague && data.ownership && (entity === 'player' || tab.id === 'defense') && (
           <StatsSelect
             title="Fantasy rosters"
             value={board.owner}

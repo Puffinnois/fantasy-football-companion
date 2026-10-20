@@ -178,7 +178,7 @@ export function LeaderTable({
       </thead>
       <tbody>
         {rows.map((r, i) => {
-          const owner = ownerOf(r, board.entity, ownership)
+          const owner = ownerOf(r, board, ownership)
           const ok = qualifies(r, tab)
           const isSel = r.id === selected
           return (
