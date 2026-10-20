@@ -119,6 +119,9 @@
   --l1: oklch(0.95 0.03 25);
   --l2: oklch(0.905 0.06 25);
   --l3: oklch(0.85 0.1 25);
+  /* Chart series (handoff --s1, --s2), validated for colour-blind separation. */
+  --s1: #1f5ed9;
+  --s2: #00897d;
 }
 
 .dark .stats {
@@ -143,6 +146,8 @@
   --l1: oklch(0.265 0.04 25);
   --l2: oklch(0.33 0.075 25);
   --l3: oklch(0.41 0.11 25);
+  --s1: #5d8ff2;
+  --s2: #26a092;
 }
 
 @theme inline {
@@ -180,6 +185,8 @@
   --color-cobalt: var(--cobalt);
   --color-on-cobalt: var(--on-cobalt);
   --color-cobalt-soft: var(--cobalt-soft);
+  --color-s1: var(--s1);
+  --color-s2: var(--s2);
   --color-h1: var(--h1);
   --color-h2: var(--h2);
   --color-h3: var(--h3);

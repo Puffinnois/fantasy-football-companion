@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
 import type {
+  GameForecast,
   MetricInfo,
   StatsOwnership,
   StatsQuery,
@@ -110,4 +111,63 @@ export function useStatsQuery(query: StatsQuery | null, version: number): QueryS
     loading: key !== null && !current,
     error: current ? done.error : null
   }
+}
+
+/**
+ * Runs several queries at once (a dashboard tab), keyed: the answers come back together, or the
+ * first error. As `useStatsQuery`, a late answer for queries that have since changed is dropped.
+ */
+export function useStatsQueries<K extends string>(
+  queries: ReadonlyMap<K, StatsQuery> | null,
+  version: number
+): { results: Map<K, StatsResult> | null; loading: boolean; error: string | null } {
+  const key = queries ? `${version}|${JSON.stringify([...queries])}` : null
+  const [done, setDone] = useState<{
+    key: string
+    results: Map<K, StatsResult> | null
+    error: string | null
+  } | null>(null)
+  useEffect(() => {
+    if (!key) return
+    let cancelled = false
+    const entries = JSON.parse(key.slice(key.indexOf('|') + 1)) as [K, StatsQuery][]
+    Promise.all(entries.map(async ([k, q]) => [k, await api.stats.query(q)] as const))
+      .then((rs) => !cancelled && setDone({ key, results: new Map(rs), error: null }))
+      .catch((err) => !cancelled && setDone({ key, results: null, error: errorMessage(err) }))
+    return () => {
+      cancelled = true
+    }
+  }, [key])
+  const current = done !== null && done.key === key
+  return {
+    results: done?.results ?? null,
+    loading: key !== null && !current,
+    error: current ? done.error : null
+  }
+}
+
+/** A season's games for one team (spec §8.1), again after a rebuild. */
+export function useTeamGames(
+  season: number,
+  team: string,
+  version: number
+): { games: GameForecast[] | null; error: string | null } {
+  const key = `${version}|${season}|${team}`
+  const [done, setDone] = useState<{
+    key: string
+    games: GameForecast[] | null
+    error: string | null
+  } | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    api.stats
+      .games({ season, team })
+      .then((games) => !cancelled && setDone({ key, games, error: null }))
+      .catch((err) => !cancelled && setDone({ key, games: null, error: errorMessage(err) }))
+    return () => {
+      cancelled = true
+    }
+  }, [key, season, team])
+  const current = done !== null && done.key === key
+  return { games: current ? done.games : null, error: current ? done.error : null }
 }
