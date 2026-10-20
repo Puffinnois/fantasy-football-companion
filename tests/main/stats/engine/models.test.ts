@@ -29,13 +29,16 @@ describe('model metrics in the query engine (stats-analysis spec §7, §8)', () 
       season_type: week > 18 ? 'POST' : 'REG',
       week,
       elo,
-      playoff_pct: odds
+      playoff_pct: odds,
+      // Remaining schedule strength: NULL once no game is left.
+      sos_left_elo: week >= 2 ? null : 1490
     })
     await seedTable(db, 'team_model_week', [
       row('BUF', 0, 1500, 0.5),
       row('BUF', 1, 1520, 0.6),
       row('BUF', 2, 1520, 0.7),
-      row('BUF', 19, 1540, null),
+      // The build carries the end-of-season odds into the postseason.
+      row('BUF', 19, 1540, 0.7),
       row('KC', 0, 1500, 0.5),
       row('KC', 1, 1480, 0.4),
       row('KC', 2, 1470, 0.3)
@@ -70,8 +73,18 @@ describe('model metrics in the query engine (stats-analysis spec §7, §8)', () 
       ['BUF', null, 1520, 0.6],
       ['KC', null, 1480, 0.4]
     ])
-    // With the postseason, the rating moves on and the odds stay the last ones there were.
+    // With the postseason, the rating moves on and the odds stay the end-of-season ones.
     expect((await at({ seasonType: 'ALL' }))[0]).toEqual(['BUF', null, 1540, 0.7])
+    // A state that is NULL at the end of the scope stays NULL: no older value fills in.
+    const left = await runQuery(
+      db,
+      { entity: 'team', metrics: ['sos_left_elo'], scope: { seasons: [2025] } },
+      CTX
+    )
+    expect(left.rows.map((x) => [x.id, x.values.sos_left_elo.value])).toEqual([
+      ['BUF', null],
+      ['KC', null]
+    ])
     // By week: each played week's state (a team's rows are its games).
     expect(await at({ teams: ['KC'] }, ['week'])).toEqual([['KC', 1, 1480, 0.4]])
   })

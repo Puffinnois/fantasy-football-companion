@@ -3,6 +3,7 @@ import { rebuildDerived } from '@main/stats/derived/build'
 import { modelsStale, rebuildModels } from '@main/stats/models/build'
 import { eloShift, winProbability } from '@main/stats/models/elo'
 import { measureStability, readStability, writeStability } from '@main/stats/models/stability'
+import { teamWeekRows } from '@main/stats/models/team'
 import { buildViews } from '@main/stats/views'
 import { openTestDb } from '../../../fixtures/stats'
 import { seedGame, seedTable } from '../../../fixtures/statsDerived'
@@ -193,4 +194,48 @@ describe('the model tables (stats-analysis spec §8)', () => {
       expect(await readStability(db)).toEqual(measured)
     }
   )
+
+  it('carries the end-of-season odds into the postseason weeks', () => {
+    const game = (
+      week: number,
+      type: 'REG' | 'POST'
+    ): Parameters<typeof teamWeekRows>[0]['games'][number] => ({
+      game_id: `g${week}`,
+      season: 2025,
+      season_type: type,
+      week,
+      home_team: 'BUF',
+      away_team: 'KC',
+      neutral: false,
+      result: 3,
+      spread_line: null,
+      home_moneyline: null,
+      away_moneyline: null
+    })
+    const odds = {
+      team: 'BUF',
+      wins: 1,
+      losses: 0,
+      ties: 0,
+      playoffs: 1,
+      division: 1,
+      bye: 0.4,
+      conference: 0.3,
+      superBowl: 0.2
+    }
+    const rows = teamWeekRows({
+      season: 2025,
+      lastWeek: 19,
+      games: [game(18, 'REG'), game(19, 'POST')],
+      elo: [],
+      cells: [],
+      forecast: new Map([['BUF|18', odds]]),
+      kicks: new Map(),
+      sums: new Map()
+    })
+    const buf = (w: number): Record<string, unknown> =>
+      rows.find((r) => r.team === 'BUF' && r.week === w)!
+    expect(buf(18)).toMatchObject({ season_type: 'REG', sb_pct: 0.2 })
+    expect(buf(19)).toMatchObject({ season_type: 'POST', playoff_pct: 1, sb_pct: 0.2 })
+  })
 })

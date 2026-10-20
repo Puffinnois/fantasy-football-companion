@@ -561,6 +561,7 @@ function tableAgg(
     FROM ${adjust ? 'faced' : 'base'} GROUP BY id${dims.map((d) => `, ${d}`).join('')})`)
 
   // States at the end of the scope: the latest week in scope (per season or week when grouped).
+  // A NULL there stays NULL (no schedule left means no remaining strength), so `arg_max_null`.
   const stateDims = c.groupBy.filter((d) => d === 'season' || d === 'week')
   if (states.length > 0) {
     if (player) {
@@ -576,7 +577,7 @@ function tableAgg(
       if (q.scope.teams) where.push(`w.team IN ${params.list(q.scope.teams)}`)
       ctes.push(`st AS (
         SELECT w.team AS id, ${stateDims.map((d) => `w.${d} AS g_${d}, `).join('')}
-               ${states.map((x) => `arg_max(w.${x}, w.season * 100 + w.week) AS ${x}`).join(', ')}
+               ${states.map((x) => `arg_max_null(w.${x}, w.season * 100 + w.week) AS ${x}`).join(', ')}
         FROM team_model_week w WHERE ${where.join(' AND ')}
         GROUP BY ALL)`)
     }

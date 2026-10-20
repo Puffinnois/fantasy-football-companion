@@ -164,7 +164,8 @@ export function teamWeekRows(input: TeamWeekInput): Record<string, unknown>[] {
       const margins = played
         .filter((g) => g.home_team === team || g.away_team === team)
         .map((g) => (g.home_team === team ? (g.result as number) : -(g.result as number)))
-      const odds = w <= regWeeks(season) ? input.forecast.get(`${team}|${w}`) : undefined
+      // The postseason keeps the end-of-season odds (the simulation covers the regular season).
+      const odds = input.forecast.get(`${team}|${Math.min(w, regWeeks(season))}`)
       const sums = input.sums.get(`${team}|${season}|${w}`)
       const fg = input.kicks.get(`${team}|${w}`)
       const row: Record<string, unknown> = {
