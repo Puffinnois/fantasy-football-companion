@@ -1,4 +1,5 @@
 import { CATALOGUE, componentsOf } from '@shared/stats/catalogue'
+import { sampleLabel } from '@shared/stats/samples'
 import type { Entity, Grain, MetricDef, MetricInfo, MetricStability } from '@shared/stats/types'
 import { BOX_COMPONENTS, playerComponentNames } from '../derived/player'
 import { PLAYER_PLAY_COMPONENTS, TEAM_PLAY_COMPONENTS } from '../derived/plays'
@@ -100,6 +101,7 @@ export function catalogueInfo(
     return {
       ...(info as Omit<MetricDef, 'value' | 'sample'>),
       grains: grainsOf(def),
+      sampleLabel: sampleLabel(def.sample),
       stability: stability.get(def.id) ?? null
     }
   })

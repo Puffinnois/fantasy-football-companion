@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { grainsOf } from '@main/stats/engine/registry'
 import { CATALOGUE, componentsOf } from '@shared/stats/catalogue'
 import { statsQuerySchema } from '@shared/stats/querySchema'
+import { SAMPLE_LABELS } from '@shared/stats/samples'
 import { POSITION_GROUPS } from '@shared/stats/types'
 
 describe('the metric catalogue (stats-analysis spec §6)', () => {
@@ -66,5 +67,9 @@ describe('the metric catalogue (stats-analysis spec §6)', () => {
     expect(schema.required).toEqual(['entity', 'metrics', 'scope'])
     expect(schema.properties.metrics.items?.enum).toHaveLength(CATALOGUE.length)
     expect(Object.keys(schema.properties.situation.properties ?? {})).toContain('withOnField')
+  })
+
+  it('names what every sample counts (spec §9.2)', () => {
+    expect(CATALOGUE.filter((m) => !SAMPLE_LABELS[m.sample]).map((m) => m.sample)).toEqual([])
   })
 })

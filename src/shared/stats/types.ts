@@ -78,6 +78,8 @@ export interface MetricStability {
 /** A catalogue entry as the engine serves it: the formula left out, where it can be computed added. */
 export interface MetricInfo extends Omit<MetricDef, 'value' | 'sample'> {
   grains: Grain[]
+  /** What the sample counts, in words: "routes", "dropbacks faced". */
+  sampleLabel: string
   /** Null until the models have run, or for a metric without enough seasons. */
   stability: MetricStability | null
 }

@@ -173,6 +173,7 @@ describe('the service reads and the league rules (stats-analysis spec §5, §7)'
       expect((await service.query(league)).rows[0].values.fantasy_points.value).toBe(5)
       expect((await service.catalogue()).find((m) => m.id === 'yprr')).toMatchObject({
         grains: ['week', 'season', 'play'],
+        sampleLabel: 'routes',
         stability: null
       })
     } finally {
