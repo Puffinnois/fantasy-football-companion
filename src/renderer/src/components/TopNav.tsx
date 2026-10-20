@@ -30,6 +30,8 @@ interface TopNavProps {
   /** Bumped by App when data changed, so the sync line re-reads its status. */
   refreshKey: number
   onRefreshed: () => void
+  /** "Stats ↗" (handoff "Fantasy nav"): the other product. */
+  onOpenStats: () => void
 }
 
 /**
@@ -113,7 +115,7 @@ function SyncButton({
   )
 }
 
-/** Fantasy nav (README "Fantasy nav"): mark, seven screens, sync line, update and theme. */
+/** Fantasy nav (README "Fantasy nav"): mark, seven screens, sync line, update, Stats ↗ and theme. */
 export function TopNav({
   current,
   onNavigate,
@@ -124,7 +126,8 @@ export function TopNav({
   theme,
   onToggleTheme,
   refreshKey,
-  onRefreshed
+  onRefreshed,
+  onOpenStats
 }: TopNavProps): React.JSX.Element {
   return (
     <nav className="flex h-[54px] shrink-0 items-center gap-7 border-b border-line px-8">
@@ -157,6 +160,15 @@ export function TopNav({
       <div className="ml-auto flex items-center gap-4 text-[12.5px] leading-none font-medium text-fg-2">
         <UpdatePill state={update} onOpen={onOpenUpdate} />
         {hasLeague && <SyncButton refreshKey={refreshKey} onRefreshed={onRefreshed} />}
+        <button
+          type="button"
+          onClick={onOpenStats}
+          title="Open Companion Stats"
+          className="flex cursor-pointer items-center gap-1.5 hover:text-fg"
+        >
+          <Mark product="stats" size={14} />
+          Stats ↗
+        </button>
         <button
           type="button"
           title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}

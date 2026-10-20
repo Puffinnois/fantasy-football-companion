@@ -30,12 +30,15 @@ import type { Rules } from './rules'
 import type {
   GameForecast,
   GamesQuery,
+  LeaderboardBoard,
   MetricInfo,
   OutlookQuery,
   PlayerOutlook,
+  StatsOwnership,
   StatsQuery,
   StatsResult,
-  StatsStatus
+  StatsStatus,
+  StatsView
 } from './stats/types'
 
 export interface FindLeaguesResult {
@@ -134,6 +137,15 @@ export interface Api {
     status(): Promise<StatsStatus>
     /** Fires when a rebuild finished: screens query again. Returns the unsubscribe function. */
     onChanged(listener: () => void): () => void
+    /** The league's rosters keyed like the stats rows (spec §9.2); null without a league. */
+    ownership(): Promise<StatsOwnership | null>
+    /** Custom views (spec §9.2), by name. */
+    views(): Promise<StatsView[]>
+    /** Saves a view; one of the same name is replaced. Rejects with a readable message. */
+    saveView(name: string, board: LeaderboardBoard): Promise<StatsView>
+    deleteView(id: number): Promise<void>
+    /** Asks where to save a table as CSV and writes it; resolves to the path, null if cancelled. */
+    exportCsv(fileName: string, csv: string): Promise<string | null>
   }
 }
 
@@ -176,5 +188,10 @@ export const IPC = {
   statsStatus: 'stats:status',
   statsGames: 'stats:games',
   statsOutlook: 'stats:outlook',
-  statsChanged: 'stats:changed'
+  statsChanged: 'stats:changed',
+  statsOwnership: 'stats:ownership',
+  statsViews: 'stats:views',
+  statsSaveView: 'stats:saveView',
+  statsDeleteView: 'stats:deleteView',
+  statsExportCsv: 'stats:exportCsv'
 } as const

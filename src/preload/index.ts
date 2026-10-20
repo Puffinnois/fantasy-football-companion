@@ -88,7 +88,12 @@ const api: Api = {
       return () => {
         ipcRenderer.removeListener(IPC.statsChanged, handler)
       }
-    }
+    },
+    ownership: () => ipcRenderer.invoke(IPC.statsOwnership),
+    views: () => ipcRenderer.invoke(IPC.statsViews),
+    saveView: (name, board) => ipcRenderer.invoke(IPC.statsSaveView, name, board),
+    deleteView: (id) => ipcRenderer.invoke(IPC.statsDeleteView, id),
+    exportCsv: (fileName, csv) => ipcRenderer.invoke(IPC.statsExportCsv, fileName, csv)
   }
 }
 

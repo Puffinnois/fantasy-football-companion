@@ -8,6 +8,8 @@ import { PlayersScreen } from '@/screens/PlayersScreen'
 import { LineupScreen } from '@/screens/LineupScreen'
 import { TradeScreen } from '@/screens/TradeScreen'
 import { WaiverScreen } from '@/screens/WaiverScreen'
+import { StatsApp } from '@/screens/stats/StatsApp'
+import type { StatsScope } from '@/lib/stats/scope'
 import { api } from '@/lib/api'
 import { useTheme } from '@/lib/theme'
 import { useUpdateState } from '@/lib/useUpdateState'
@@ -16,6 +18,9 @@ import { useUpdateState } from '@/lib/useUpdateState'
 const FULL_BLEED: Screen[] = ['league', 'players', 'lineup', 'trade', 'waivers', 'rules', 'setup']
 
 export default function App(): React.JSX.Element {
+  // Two products, one app (design handoff 2026-10-16): Fantasy, and Stats, which works without a league.
+  const [product, setProduct] = useState<'fantasy' | 'stats'>('fantasy')
+  const [statsScope, setStatsScope] = useState<StatsScope | null>(null)
   const [screen, setScreen] = useState<Screen>('league')
   const [hasLeague, setHasLeague] = useState<boolean | null>(null)
   const [dataVersion, setDataVersion] = useState(0)
@@ -43,11 +48,16 @@ export default function App(): React.JSX.Element {
       .get()
       .then((league) => {
         setHasLeague(league !== null)
-        if (league === null) setScreen('setup')
+        // Stats-analysis spec §9.1: with no league, the app opens on Stats.
+        if (league === null) {
+          setScreen('setup')
+          setProduct('stats')
+        }
       })
       .catch(() => {
         setHasLeague(false)
         setScreen('setup')
+        setProduct('stats')
       })
   }, [])
 
@@ -71,6 +81,37 @@ export default function App(): React.JSX.Element {
     )
   }
 
+  const updateDialog = (
+    <UpdateDialog
+      state={update}
+      currentVersion={version ?? '?'}
+      open={updateOpen}
+      onOpenChange={setUpdateOpen}
+    />
+  )
+
+  if (product === 'stats') {
+    return (
+      <>
+        <StatsApp
+          hasLeague={hasLeague}
+          leagueKey={dataVersion}
+          onOpenFantasy={() => {
+            if (!hasLeague) setScreen('setup')
+            setProduct('fantasy')
+          }}
+          update={update}
+          version={version}
+          onOpenUpdate={() => setUpdateOpen(true)}
+          onToggleTheme={toggleTheme}
+          scope={statsScope}
+          onScope={setStatsScope}
+        />
+        {updateDialog}
+      </>
+    )
+  }
+
   return (
     <div className="flex h-full flex-col">
       <TopNav
@@ -84,6 +125,7 @@ export default function App(): React.JSX.Element {
         onToggleTheme={toggleTheme}
         refreshKey={dataVersion}
         onRefreshed={bumpData}
+        onOpenStats={() => setProduct('stats')}
       />
       <main
         className={
@@ -108,12 +150,7 @@ export default function App(): React.JSX.Element {
         {screen === 'trade' && <TradeScreen dataVersion={dataVersion} />}
         {screen === 'waivers' && <WaiverScreen dataVersion={dataVersion} />}
       </main>
-      <UpdateDialog
-        state={update}
-        currentVersion={version ?? '?'}
-        open={updateOpen}
-        onOpenChange={setUpdateOpen}
-      />
+      {updateDialog}
     </div>
   )
 }

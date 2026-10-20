@@ -78,6 +78,8 @@ export interface MetricStability {
 /** A catalogue entry as the engine serves it: the formula left out, where it can be computed added. */
 export interface MetricInfo extends Omit<MetricDef, 'value' | 'sample'> {
   grains: Grain[]
+  /** What the sample counts, in words: "routes", "dropbacks faced". */
+  sampleLabel: string
   /** Null until the models have run, or for a metric without enough seasons. */
   stability: MetricStability | null
 }
@@ -294,4 +296,42 @@ export interface PlayerOutlook {
    * league average they allowed to the position so far (positive is easier).
    */
   schedule: { opponents: string[]; easierBy: number | null }
+}
+
+/** Who rosters a player (or a team defense) in the imported league (spec §9.2). */
+export interface StatsOwner {
+  /** The fantasy team's name. */
+  name: string
+  mine: boolean
+}
+
+/** The league's rosters keyed the way the stats rows are: gsis ids and nflverse team codes. */
+export interface StatsOwnership {
+  players: Record<string, StatsOwner>
+  teams: Record<string, StatsOwner>
+}
+
+/** A leaderboard's own settings (spec §9.2): what a custom view saves. */
+export interface LeaderboardBoard {
+  entity: Entity
+  /** A position group for players; `offense`, `defense` or `forecast` for teams. */
+  tab: string
+  /** Catalogue ids, in display order. */
+  columns: string[]
+  /** A column id, or `name`. */
+  sort: { by: string; dir: 'asc' | 'desc' }
+  perGame: boolean
+  qualifiedOnly: boolean
+  /** nflverse team code; null for every team. */
+  team: string | null
+  /** With a league: every row, my team's, or the unrostered. */
+  owner: 'all' | 'mine' | 'free'
+}
+
+/** A custom view: a named leaderboard, saved in `companion.db` (spec §9.2). */
+export interface StatsView {
+  id: number
+  name: string
+  board: LeaderboardBoard
+  updatedAt: string
 }

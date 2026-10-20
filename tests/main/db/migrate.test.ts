@@ -12,7 +12,7 @@ describe('migrate', () => {
         name: string
       }[]
     ).map((r) => r.name)
-    expect(version).toBe(10)
+    expect(version).toBe(11)
     expect(tables).toEqual(
       expect.arrayContaining([
         'app_settings',
@@ -38,6 +38,7 @@ describe('migrate', () => {
         'market_values',
         'trending_adds',
         'sleeper_week_stats',
+        'stats_views',
         'schema_version'
       ])
     )
@@ -48,7 +49,7 @@ describe('migrate', () => {
     migrate(db)
     expect(() => migrate(db)).not.toThrow()
     const row = db.prepare('SELECT COUNT(*) AS n FROM schema_version').get() as { n: number }
-    expect(row.n).toBe(10)
+    expect(row.n).toBe(11)
   })
 
   it('005 adds crosswalk.fantasypros_id and forgets the crosswalk step so it is re-downloaded', () => {
@@ -70,7 +71,7 @@ describe('migrate', () => {
        VALUES ('nflverse:crosswalk', 't', 't', 'ok', NULL, 10), ('nflverse:games', 't', 't', 'ok', NULL, 1)`
     ).run()
 
-    expect(migrate(db)).toBe(10)
+    expect(migrate(db)).toBe(11)
     const columns = (db.prepare('PRAGMA table_info(crosswalk)').all() as { name: string }[]).map(
       (c) => c.name
     )
