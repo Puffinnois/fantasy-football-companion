@@ -93,6 +93,58 @@
   --shadow-c: rgba(0, 0, 0, 0.5);
 }
 
+/*
+ * Companion Stats "Profile" palette (design handoff 2026-10-16, README "Stats (Profile)"): the Stats
+ * shell carries `.stats`, which re-points the shared tokens and adds cobalt, row lines, the selected
+ * row and the Ledger's percentile shading. Popovers portalled out of the shell carry `.stats` too.
+ */
+.stats {
+  --paper: oklch(0.993 0.002 250);
+  --panel: oklch(1 0 0);
+  --panel-2: oklch(0.972 0.004 250);
+  --line: oklch(0.915 0.005 250);
+  --line-2: oklch(0.945 0.004 250);
+  --hover: oklch(0.975 0.006 255);
+  --sel: oklch(0.95 0.03 262);
+  --fg: oklch(0.19 0.012 255);
+  --fg-2: oklch(0.42 0.014 255);
+  --fg-3: oklch(0.54 0.014 255);
+  --cobalt: oklch(0.52 0.2 262);
+  --on-cobalt: oklch(1 0 0);
+  --cobalt-soft: oklch(0.52 0.2 262 / 0.09);
+  --shadow-c: rgba(20, 30, 50, 0.12);
+  --h1: oklch(0.945 0.04 150);
+  --h2: oklch(0.89 0.075 150);
+  --h3: oklch(0.83 0.11 150);
+  --l1: oklch(0.95 0.03 25);
+  --l2: oklch(0.905 0.06 25);
+  --l3: oklch(0.85 0.1 25);
+}
+
+.dark .stats {
+  --paper: oklch(0.165 0.008 255);
+  --panel: oklch(0.19 0.009 255);
+  --panel-2: oklch(0.22 0.01 255);
+  --line: oklch(0.28 0.01 255);
+  --line-2: oklch(0.235 0.01 255);
+  --hover: oklch(0.215 0.012 255);
+  --sel: oklch(0.26 0.05 262);
+  --fg: oklch(0.96 0.004 255);
+  --fg-2: oklch(0.77 0.01 255);
+  --fg-3: oklch(0.62 0.012 255);
+  --cobalt: oklch(0.7 0.15 262);
+  --on-cobalt: oklch(0.16 0.03 262);
+  --cobalt-soft: oklch(0.7 0.15 262 / 0.16);
+  --bad: oklch(0.72 0.17 25);
+  --shadow-c: rgba(0, 0, 0, 0.5);
+  --h1: oklch(0.27 0.045 150);
+  --h2: oklch(0.35 0.075 150);
+  --h3: oklch(0.44 0.1 150);
+  --l1: oklch(0.265 0.04 25);
+  --l2: oklch(0.33 0.075 25);
+  --l3: oklch(0.41 0.11 25);
+}
+
 @theme inline {
   --font-sans: 'Geist Variable', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
@@ -123,6 +175,17 @@
   --color-on-pos: var(--on-pos);
   --color-scrim: var(--scrim);
   --color-stats: var(--stats);
+  --color-line-2: var(--line-2);
+  --color-sel: var(--sel);
+  --color-cobalt: var(--cobalt);
+  --color-on-cobalt: var(--on-cobalt);
+  --color-cobalt-soft: var(--cobalt-soft);
+  --color-h1: var(--h1);
+  --color-h2: var(--h2);
+  --color-h3: var(--h3);
+  --color-l1: var(--l1);
+  --color-l2: var(--l2);
+  --color-l3: var(--l3);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
