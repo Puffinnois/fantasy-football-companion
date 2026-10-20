@@ -55,7 +55,7 @@ describe('the dashboard’s stat lines and charts', () => {
 
   it('places the percentile pill along the track', () => {
     render(<PercentileBar percentile={25} />)
-    expect(screen.getByLabelText('25th percentile')).toBeTruthy()
+    expect(screen.getByRole('img', { name: '25th percentile' })).toBeTruthy()
     expect(screen.getByText('25').getAttribute('style')).toContain('calc(25% - 13px)')
   })
 
@@ -97,6 +97,23 @@ describe('the dashboard’s stat lines and charts', () => {
     const tip = screen.getByRole('tooltip')
     expect(within(tip).getByText('Week 1')).toBeTruthy()
     expect(within(tip).getByText('-0.1')).toBeTruthy()
+  })
+
+  it('survives the weeks shrinking under the mouse, and keys end labels to their line', () => {
+    const series = (weeks: number[]): Parameters<typeof WeekChart>[0]['series'] => [
+      { id: 'a', label: 'Offense', points: weeks.map((week) => ({ week, value: week / 10 })) }
+    ]
+    const { rerender } = render(
+      <WeekChart label="Shrink" format={(v) => v.toFixed(1)} series={series([19, 20, 21, 22])} />
+    )
+    const chart = screen.getByRole('img', { name: 'Shrink' })
+    fireEvent.mouseMove(chart, { clientX: 10_000 })
+    expect(within(screen.getByRole('tooltip')).getByText('Week 22')).toBeTruthy()
+    rerender(<WeekChart label="Shrink" format={(v) => v.toFixed(1)} series={series([19])} />)
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    // The end label carries its series' swatch.
+    const end = chart.querySelector('[data-end="a"]')!
+    expect(end.querySelector('rect')!.getAttribute('fill')).toBe('var(--s1)')
   })
 
   it('says so when the range has no games', () => {

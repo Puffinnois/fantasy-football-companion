@@ -36,8 +36,10 @@ export function WeekChart({
   /** What the chart shows, for screen readers. */
   label: string
 }): React.JSX.Element {
-  const [hover, setHover] = useState<number | null>(null)
+  const [hovered, setHover] = useState<number | null>(null)
   const weeks = series[0]?.points.map((p) => p.week) ?? []
+  // The weeks can shrink under a resting mouse (another team's postseason): drop a stale index.
+  const hover = hovered !== null && hovered < weeks.length ? hovered : null
   const values = series.flatMap((s) => s.points.map((p) => p.value)).filter((v) => v !== null)
   if (!weeks.length || !values.length) {
     return (
@@ -48,7 +50,7 @@ export function WeekChart({
   }
   const W = 720
   const H = height
-  const [L, R, T, B, PX] = [44, 64, 12, 26, 14]
+  const [L, R, T, B, PX] = [44, 72, 12, 26, 14]
   let [lo, hi] = domain ?? [Math.min(...values, 0), Math.max(...values, 0)]
   if (!domain) {
     const pad = (hi - lo || Math.abs(hi) || 1) * 0.08
@@ -183,16 +185,24 @@ export function WeekChart({
               </g>
             )
           })}
-          {ends.map((e) => (
-            <text
-              key={e.k}
-              x={x(e.i) + 9}
-              y={e.y + 4}
-              className="fill-fg-2 text-[11px] font-medium"
-            >
-              {format(series[e.k].points[e.i].value!)}
-            </text>
-          ))}
+          {ends.map((e) => {
+            const y0 = Math.min(Math.max(e.y, T + 4), H - B)
+            return (
+              <g key={e.k} data-end={series[e.k].id}>
+                <rect
+                  x={x(e.i) + 8}
+                  y={y0 - 1.5}
+                  width={6}
+                  height={3}
+                  rx={1.5}
+                  fill={COLORS[e.k]}
+                />
+                <text x={x(e.i) + 17} y={y0 + 4} className="fill-fg-2 text-[11px] font-medium">
+                  {format(series[e.k].points[e.i].value!)}
+                </text>
+              </g>
+            )
+          })}
         </svg>
         {hover !== null && (
           <div

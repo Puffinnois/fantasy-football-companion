@@ -27,7 +27,7 @@ export function PercentileBar({
   const color = heatColor(n / 100, neutral)
   const strong = !neutral && Math.abs(n - 50) > 18
   return (
-    <div className="relative h-[22px]" aria-label={`${n}th percentile`}>
+    <div className="relative h-[22px]" role="img" aria-label={`${n}th percentile`}>
       <div className="absolute inset-x-0 top-[10px] h-[2px] rounded-[1px] bg-line" />
       <div
         className="absolute left-0 top-[9px] h-1 rounded-[2px]"
@@ -37,8 +37,10 @@ export function PercentileBar({
         className="absolute top-0 h-[22px] w-[26px] rounded-[11px] text-center font-mono text-[11px] leading-[22px] font-semibold shadow-[0_0_0_2px_var(--panel)]"
         style={{
           left: `calc(${n}% - 13px)`,
-          background: color,
-          color: strong || neutral ? '#fff' : 'var(--fg)'
+          // A neutral pill is quiet: panel fill, ink text (white on grey would be too faint).
+          background: neutral ? 'var(--panel-2)' : color,
+          boxShadow: neutral ? '0 0 0 1px var(--line), 0 0 0 3px var(--panel)' : undefined,
+          color: strong ? '#fff' : 'var(--fg)'
         }}
       >
         {n}
