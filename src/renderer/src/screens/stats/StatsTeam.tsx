@@ -11,6 +11,7 @@ import {
   gamesInScope,
   nextGame,
   nextGameView,
+  noGamesNote,
   personnelQuery,
   personnelRows,
   resultCards,
@@ -141,6 +142,11 @@ export function StatsTeam({
         </button>
       </div>
       {gamesError && <div className="text-[12.5px] text-bad">{gamesError}</div>}
+      {games && !gamesInScope(games, scope, data.status).some((g) => g.played) && (
+        <div className="rounded-[8px] bg-panel-2 px-4 py-3 text-[13px] text-fg-2">
+          {noGamesNote(team, scope, data.status)}
+        </div>
+      )}
       {tab === 'overview' && <Overview {...props} ratings={ratings} />}
       {(tab === 'offense' || tab === 'defense' || tab === 'special' || tab === 'tendencies') && (
         <LinesTab key={tab} {...props} sections={TAB_SECTIONS[tab]} tab={tab} />

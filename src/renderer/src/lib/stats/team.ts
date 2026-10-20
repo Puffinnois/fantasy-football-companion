@@ -10,7 +10,7 @@ import type {
 } from '@shared/stats/types'
 import { DIVISIONS, divisionOf, STATS_TEAMS } from '@shared/stats/nflTeams'
 import { cellTitle, fmtStat, heatOf, ordinal, type Heat } from './format'
-import { queryScope, regularWeeks, weeksOf, type StatsScope } from './scope'
+import { queryScope, rangeLabel, regularWeeks, weeksOf, type StatsScope } from './scope'
 
 /** Spec §9.3: the team dashboard's tabs. */
 export type TeamTab =
@@ -378,7 +378,9 @@ export function statLine(
             null
           )
         : '',
-    missing: missingFor(column, info ?? undefined, season)
+    missing:
+      missingFor(column, info ?? undefined, season) ??
+      (result && !result.rows.some((r) => r.id === team) ? 'No games in this range.' : null)
   }
 }
 
@@ -581,6 +583,12 @@ export function resultCards(
 export function roundOf(season: number, week: number): string {
   const n = week - regularWeeks(season)
   return ['WC', 'DIV', 'CONF', 'SB'][n - 1] ?? `W${week}`
+}
+
+/** Why a dashboard is empty: the team played no games in the scope (a bye, missed playoffs). */
+export function noGamesNote(team: string, scope: StatsScope, status: StatsStatus | null): string {
+  if (scope.seasonType === 'POST') return `${team} did not play in the ${scope.season} postseason.`
+  return `${team} played no games in ${rangeLabel(scope, status)}.`
 }
 
 /** The team's next game, from every game of the season (not only the scope's). */

@@ -230,6 +230,15 @@ describe('the team dashboard (spec §9.3)', () => {
     expect(screen.getAllByText('Loading…').length).toBeGreaterThan(0)
   })
 
+  it('says so when the team has no games in range', async () => {
+    await openTeams()
+    await screen.findByRole('heading', { name: 'SEA' })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Season type' }), {
+      target: { value: 'POST' }
+    })
+    expect(await screen.findByText('SEA did not play in the 2026 postseason.')).toBeTruthy()
+  })
+
   it('moves between teams with the arrows and the select', async () => {
     await openTeams()
     await screen.findByRole('heading', { name: 'SEA' })

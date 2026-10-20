@@ -23,6 +23,7 @@ import {
   weekSeries,
   chartWeeks,
   roundOf,
+  noGamesNote,
   type SplitKey
 } from '@/lib/stats/team'
 import type { GameForecast, StatsOwnership, StatsResult } from '@shared/stats/types'
@@ -193,6 +194,21 @@ describe('the team dashboard (spec §9.3)', () => {
     })
     expect(statLine(r, 'DET', { metric: 'def_blitz_rate' }, byId, 2021).missing).toBe(
       'Charted from 2022.'
+    )
+  })
+
+  it('says the team had no games when its row is missing', () => {
+    const r = result(['off_epa_play'], [team('BUF', { off_epa_play: value(0.2) })])
+    expect(statLine(r, 'DET', { metric: 'off_epa_play' }, byId, 2026)).toMatchObject({
+      value: '—',
+      rank: null,
+      missing: 'No games in this range.'
+    })
+    expect(noGamesNote('DET', { ...scope, seasonType: 'POST' }, STATUS)).toBe(
+      'DET did not play in the 2026 postseason.'
+    )
+    expect(noGamesNote('DET', { ...scope, weeks: [6, 6] }, STATUS)).toBe(
+      'DET played no games in Week 6.'
     )
   })
 
