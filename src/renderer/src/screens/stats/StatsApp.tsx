@@ -21,6 +21,9 @@ interface StatsAppProps {
   version: string | null
   onOpenUpdate: () => void
   onToggleTheme: () => void
+  /** The scope chosen this session (spec §18 J), kept by App across product switches; null: the default. */
+  scope: StatsScope | null
+  onScope: (scope: StatsScope) => void
 }
 
 /**
@@ -34,11 +37,12 @@ export function StatsApp({
   update,
   version,
   onOpenUpdate,
-  onToggleTheme
+  onToggleTheme,
+  scope: chosen,
+  onScope: setChosen
 }: StatsAppProps): React.JSX.Element {
   const data = useStatsData(leagueKey)
   const [screen, setScreen] = useState<StatsScreen>('home')
-  const [chosen, setChosen] = useState<StatsScope | null>(null)
   const scope = chosen ?? defaultScope(data.status, hasLeague)
   const [open, setOpen] = useState<LeaderboardOpen | null>(null)
   const [views, setViews] = useState<StatsView[]>([])

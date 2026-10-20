@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { useState } from 'react'
 import { StatsApp } from '@/screens/stats/StatsApp'
+import type { StatsScope } from '@/lib/stats/scope'
 import { api } from '@/lib/api'
 import type { StatsOwnership, StatsQuery, StatsView } from '@shared/stats/types'
 import type { UpdateState } from '@shared/types'
@@ -57,8 +59,10 @@ function answer(q: StatsQuery): ReturnType<typeof result> {
 
 const IDLE: UpdateState = { status: 'idle' } as UpdateState
 
-function renderApp(hasLeague = true): void {
-  render(
+/** App keeps the scope across product switches; here a harness does. */
+function Harness({ hasLeague }: { hasLeague: boolean }): React.JSX.Element {
+  const [scope, setScope] = useState<StatsScope | null>(null)
+  return (
     <StatsApp
       hasLeague={hasLeague}
       leagueKey={0}
@@ -67,8 +71,14 @@ function renderApp(hasLeague = true): void {
       version="0.28.0"
       onOpenUpdate={() => {}}
       onToggleTheme={() => {}}
+      scope={scope}
+      onScope={setScope}
     />
   )
+}
+
+function renderApp(hasLeague = true): void {
+  render(<Harness hasLeague={hasLeague} />)
 }
 
 const lastQuery = (): StatsQuery => stats.query.mock.calls.at(-1)![0]

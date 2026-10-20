@@ -15,10 +15,23 @@ vi.mock('@/lib/api', () => ({
 vi.mock('@/lib/useUpdateState', () => ({ useUpdateState: () => ({ status: 'idle' }) }))
 // The products' screens are tested on their own; here only which one shows.
 vi.mock('@/screens/stats/StatsApp', () => ({
-  StatsApp: ({ onOpenFantasy }: { onOpenFantasy: () => void }) => (
-    <button type="button" onClick={onOpenFantasy}>
-      Stats product
-    </button>
+  StatsApp: ({
+    onOpenFantasy,
+    scope,
+    onScope
+  }: {
+    onOpenFantasy: () => void
+    scope: { season: number } | null
+    onScope: (s: unknown) => void
+  }) => (
+    <>
+      <button type="button" onClick={onOpenFantasy}>
+        Stats product
+      </button>
+      <button type="button" onClick={() => onScope({ season: 2023 })}>
+        Season {scope?.season ?? 'default'}
+      </button>
+    </>
   )
 }))
 vi.mock('@/components/TopNav', () => ({
@@ -65,5 +78,15 @@ describe('App: two products (stats-analysis spec §9.1)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Stats product' }))
     // Back to the last Fantasy screen.
     expect(screen.getByText('League screen')).toBeTruthy()
+  })
+
+  it('keeps the Stats scope for the session (spec §18 J, review fix)', async () => {
+    vi.mocked(api.league.get).mockResolvedValue(LEAGUE)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Fantasy nav on league' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Season default' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Stats product' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Fantasy nav on league' }))
+    expect(await screen.findByRole('button', { name: 'Season 2023' })).toBeTruthy()
   })
 })

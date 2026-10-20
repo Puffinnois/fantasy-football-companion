@@ -9,6 +9,7 @@ import { LineupScreen } from '@/screens/LineupScreen'
 import { TradeScreen } from '@/screens/TradeScreen'
 import { WaiverScreen } from '@/screens/WaiverScreen'
 import { StatsApp } from '@/screens/stats/StatsApp'
+import type { StatsScope } from '@/lib/stats/scope'
 import { api } from '@/lib/api'
 import { useTheme } from '@/lib/theme'
 import { useUpdateState } from '@/lib/useUpdateState'
@@ -19,6 +20,7 @@ const FULL_BLEED: Screen[] = ['league', 'players', 'lineup', 'trade', 'waivers',
 export default function App(): React.JSX.Element {
   // Two products, one app (design handoff 2026-10-16): Fantasy, and Stats, which works without a league.
   const [product, setProduct] = useState<'fantasy' | 'stats'>('fantasy')
+  const [statsScope, setStatsScope] = useState<StatsScope | null>(null)
   const [screen, setScreen] = useState<Screen>('league')
   const [hasLeague, setHasLeague] = useState<boolean | null>(null)
   const [dataVersion, setDataVersion] = useState(0)
@@ -102,6 +104,8 @@ export default function App(): React.JSX.Element {
           version={version}
           onOpenUpdate={() => setUpdateOpen(true)}
           onToggleTheme={toggleTheme}
+          scope={statsScope}
+          onScope={setStatsScope}
         />
         {updateDialog}
       </>
