@@ -81,7 +81,8 @@ export function StatsLeaderboard({
   views,
   onSaveView,
   onDeleteView,
-  onOpenView
+  onOpenView,
+  onOpenTeam
 }: {
   entity: Entity
   data: StatsData
@@ -93,6 +94,8 @@ export function StatsLeaderboard({
   onSaveView: (name: string, board: LeaderboardBoard) => Promise<void>
   onDeleteView: (view: StatsView) => Promise<void>
   onOpenView: (view: StatsView) => void
+  /** A team row opens the team dashboard (spec §9.3). */
+  onOpenTeam?: (team: string) => void
 }): React.JSX.Element {
   // The board on screen: the one opened (until the user changes it), else the default tab's.
   const [own, setOwn] = useState<{ nonce: number | null; board: LeaderboardBoard } | null>(null)
@@ -344,7 +347,11 @@ export function StatsLeaderboard({
             ownership={data.ownership}
             season={scope.season}
             selected={selected}
-            onSelect={(id) => setPicked({ nonce: opened?.nonce ?? null, id })}
+            onSelect={(id) =>
+              entity === 'team' && onOpenTeam
+                ? onOpenTeam(id)
+                : setPicked({ nonce: opened?.nonce ?? null, id })
+            }
             onSort={sortBy}
           />
         )}

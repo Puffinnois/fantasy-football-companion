@@ -5,10 +5,12 @@ import { errorMessage } from '@/lib/format'
 import type { BoardDef } from '@/lib/stats/boards'
 import { bestFirst, defaultBoard, normalizeBoard } from '@/lib/stats/leaderboard'
 import { defaultScope, type StatsScope } from '@/lib/stats/scope'
-import { useStatsData } from '@/lib/stats/useStats'
+import { defaultTeam, topScorerQuery, type TeamTab } from '@/lib/stats/team'
+import { useStatsData, useStatsQuery } from '@/lib/stats/useStats'
 import { StatsGlossary } from '@/screens/stats/StatsGlossary'
 import { StatsHome } from '@/screens/stats/StatsHome'
 import { StatsLeaderboard, type LeaderboardOpen } from '@/screens/stats/StatsLeaderboard'
+import { StatsTeam } from '@/screens/stats/StatsTeam'
 import type { LeaderboardBoard, StatsView } from '@shared/stats/types'
 import type { UpdateState } from '@shared/types'
 
@@ -47,6 +49,9 @@ export function StatsApp({
   const [open, setOpen] = useState<LeaderboardOpen | null>(null)
   const [views, setViews] = useState<StatsView[]>([])
   const [viewsError, setViewsError] = useState<string | null>(null)
+  // The team dashboard (spec §9.3): the team chosen this session, else my top scorer's.
+  const [team, setTeam] = useState<string | null>(null)
+  const [teamTab, setTeamTab] = useState<TeamTab>('overview')
 
   useEffect(() => {
     void api.stats
@@ -59,12 +64,29 @@ export function StatsApp({
   const effective: StatsScope =
     scope.scoring === 'league' && !hasLeague ? { ...scope, scoring: 'ppr' } : scope
 
+  // The query hook keys on the query's text, so a new object each render runs nothing again.
+  const topQuery =
+    team === null && screen === 'team'
+      ? topScorerQuery(data.ownership, effective, data.status)
+      : null
+  const top = useStatsQuery(topQuery, data.version)
+  // With a roster, wait for my top scorer before choosing (no flash of the first team).
+  const shownTeam = team ?? (topQuery && top.loading ? null : defaultTeam(top.result))
+  const openTeam = (code: string): void => {
+    setTeam(code)
+    setScreen('team')
+  }
+
   const openBoard = (board: LeaderboardBoard, selected: string | null): void => {
     setOpen((o) => ({ board, selected, nonce: (o?.nonce ?? 0) + 1 }))
     setScreen(board.entity === 'player' ? 'players' : 'teams')
   }
   const openFromHome = (b: BoardDef, rowId: string | null, perGame: boolean): void => {
     const entity = b.position ? 'player' : 'team'
+    if (entity === 'team' && rowId) {
+      openTeam(rowId)
+      return
+    }
     const base = defaultBoard(entity, b.tab, data.byId)
     const columns = base.columns.includes(b.metric) ? base.columns : [b.metric, ...base.columns]
     openBoard(
@@ -136,8 +158,25 @@ export function StatsApp({
                 onSaveView={saveView}
                 onDeleteView={deleteView}
                 onOpenView={openView}
+                onOpenTeam={openTeam}
               />
             )}
+            {screen === 'team' &&
+              (shownTeam ? (
+                <StatsTeam
+                  data={data}
+                  scope={effective}
+                  onScope={setChosen}
+                  hasLeague={hasLeague}
+                  team={shownTeam}
+                  onTeam={setTeam}
+                  tab={teamTab}
+                  onTab={setTeamTab}
+                  onOpenLeaderboard={() => setScreen('teams')}
+                />
+              ) : (
+                <div className="py-20 text-center text-[13px] text-fg-3">Loading…</div>
+              ))}
             {screen === 'glossary' && <StatsGlossary catalogue={data.catalogue} />}
             {viewsError && <div className="px-8 pb-4 text-[12px] text-bad">{viewsError}</div>}
           </>
