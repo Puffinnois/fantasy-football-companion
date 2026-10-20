@@ -1,6 +1,6 @@
 # Stats analysis — design
 
-**Date:** 2026-10-15 · **Status:** approved 2026-10-16, amended 2026-10-16 (§15: Plan X), 2026-10-17 (§16: Plan Y), 2026-10-18 (§17: Plan Z) and 2026-10-20 (§18: Plan AA) · **Plans:** X (DuckDB foundation), Y (metric layer + query engine), Z (models), AA (Stats screen), AB (team dashboard), AC (player dashboard), AD (explore: charts, compare, trends), AE (matchup preview); natural-language queries get their own spec after AE.
+**Date:** 2026-10-15 · **Status:** approved 2026-10-16, amended 2026-10-16 (§15: Plan X), 2026-10-17 (§16: Plan Y), 2026-10-18 (§17: Plan Z), 2026-10-20 (§18: Plan AA) and 2026-10-20 (§19: Plan AB) · **Plans:** X (DuckDB foundation), Y (metric layer + query engine), Z (models), AA (Stats screen), AB (team dashboard), AC (player dashboard), AD (explore: charts, compare, trends), AE (matchup preview); natural-language queries get their own spec after AE.
 
 **Sources:** the stats catalog (`docs/research/2026-10-09-nfl-stats-catalog.md`), the predictive-metrics catalogue (`docs/research/nfl_predictive_metrics.md`), the coverage audit (`docs/research/2026-10-14-warehouse-coverage-audit.md`), and a DuckDB vs SQLite benchmark on 2023–2025 play-by-play and participation (§3.2).
 
@@ -540,3 +540,21 @@ Decided with the user and measured on the live database while Plan AA was writte
 - **I. CSV** holds every row the filters keep: unformatted numbers, percentages in percent, gsis ids. It is saved through a dialog (Downloads by default), in UTF-8 with a byte-order mark for Excel.
 - **J. The scope** (season, season type, the regular season's weeks, scoring) is shared by every Stats screen for the session and not saved. Postseason and Both have no week range.
 - **K. Measured** (2026 week 6): the home's eight boards on screen in about 90 ms, a leaderboard tab 100–210 ms from click to table, a 40-column query 265 ms (budgets 300 ms and 500 ms, §11).
+
+## 19. Amendment 2026-10-20: the team dashboard (Plan AB)
+
+Decided with the user and measured on the live database while Plan AB was written (its Planning findings), and taken into the build. `docs/reference/stats-screens.md` documents the result.
+
+- **A. The handoff's team page is the dashboard's frame (§9.3, §9.6).** Its header (team select with ‹ ›, name and division place, the abbreviation, four tiles, a results strip) tops every tab, and its tables (who gets the targets, the carries, who throws) open the Overview. The spec's tabs follow in the Stats language. The handoff's Defense tiles give way to the spec's ratings; defense has its own tab.
+  - Teams in the nav opens the dashboard on the team viewed last; the first time, on the team of my top fantasy scorer in range, else ARI. The team leaderboard is under "Team leaderboards →" and the home's "All →"; a team row there, or on a home board, opens the dashboard.
+  - A share in the Overview's tables is of the team's total in range (handoff), not the engine's share of the games a player played.
+- **B. Ranks are among the league.** Each tab asks for every team (one query per split) and finds the team's row. The dashboard ranks among the teams that qualify: a tie shares a rank ("T-3rd") and its percentile sits at the middle of the tie (30 teams with no special-teams touchdown are near the median, not last). A metric with no better side reads "11th highest" and is not shaded. The percentile is the handoff profile's pill on a track; the league's mean is beside the rank.
+- **C. Two-minute (§7.1).** The engine gains `situation.twoMinute`: the last two minutes of the second and fourth quarters. The Situational tab splits by red zone, two-minute, leading by 9+, within 8, trailing by 9+ and quarter, each ranked among the 32 in the same split.
+- **D. What the data cannot give (§9.3).**
+  - Red-zone TD % is the TD drive rate (as §16 F), with red-zone EPA and success beside it.
+  - Coverage shell, formation mix and defensive personnel have no metric: man / zone rate and EPA, shotgun rate, personnel groupings, box count and blitz rate stand in. Participation's columns (pressure, coverage, personnel) end with the prior season, and a line says so.
+  - The Players tab covers QB, RB, WR and TE.
+- **E. Schedule and Forecast.** Games come from `stats.games`: result, Elo and market probability, the line, weather, and the opponent's Elo before the game as its strength (1550 and up hard, 1450 and below easy). The Forecast charts playoff and division odds and adjusted EPA as of each week.
+- **F. Charts** are drawn as SVG (no chart library): a line per series in the handoff's `--s1` / `--s2`, checked with the dataviz validator for colour-blind separation (the dark values moved into the dark lightness band: `#5d8ff2`, `#26a092`), gaps for byes, end labels and a hover with every series that week.
+- **G. Teams' names and divisions** live in `src/shared/stats/nflTeams.ts`; the season simulation reads its divisions from there. A division place is the regular season's win %, then margin (an approximation of the tiebreakers).
+- **H. Measured** (2026 week 6): each tab's queries 25–120 ms, the eleven of Situational 145–170 ms; in the app, Teams 140 ms from click to the Overview and a tab 65–275 ms (budget 300 ms, §11).
