@@ -30,6 +30,7 @@ import type { GameForecast, StatsOwnership, StatsResult } from '@shared/stats/ty
 import { catalogueMap, result, row, STATUS, value } from '../../fixtures/statsScreens'
 
 const byId = catalogueMap()
+const TODAY = new Date('2026-10-20T12:00:00')
 const scope = { season: 2026, seasonType: 'REG' as const, weeks: null, scoring: 'ppr' as const }
 const team = (id: string, values: Parameters<typeof row>[2]): ReturnType<typeof row> =>
   row(id, id, values, { team: id, position: null })
@@ -78,7 +79,15 @@ const GAMES = teamGames(
       vegasHomeWinProb: 0.3,
       spread: -6
     }),
-    game({ gameId: '7', week: 7, home: 'MIN', away: 'DET', roof: 'dome', homeWinProb: 0.45 }),
+    game({
+      gameId: '7',
+      week: 7,
+      gameday: '2026-10-25',
+      home: 'MIN',
+      away: 'DET',
+      roof: 'dome',
+      homeWinProb: 0.45
+    }),
     // Another pair's game: not DET's.
     game({ gameId: 'x', week: 1, home: 'NYJ', away: 'BUF' })
   ],
@@ -168,7 +177,7 @@ describe('the team dashboard (spec §9.3)', () => {
         team('DET', { team_st_tds: value(0) }),
         team('NYJ', { team_st_tds: value(0) }),
         // Below the metric's sample: shown, not ranked.
-        team('SF', { team_st_tds: value(5, { qualified: false }) })
+        team('SF', { team_st_tds: value(50, { qualified: false }) })
       ]
     )
     expect(statLine(r, 'BUF', { metric: 'team_st_tds' }, byId, 2026)).toMatchObject({
@@ -176,8 +185,10 @@ describe('the team dashboard (spec §9.3)', () => {
       percentile: 100 / 3,
       heat: 'l1'
     })
+    // The league's mean is over the same teams: SF's 50 (below the sample) is left out.
+    expect(statLine(r, 'BUF', { metric: 'team_st_tds' }, byId, 2026).league).toBe('1')
     expect(statLine(r, 'SF', { metric: 'team_st_tds' }, byId, 2026)).toMatchObject({
-      value: '5',
+      value: '50',
       rank: null,
       percentile: null,
       heat: 'n'
@@ -273,7 +284,7 @@ describe('the team dashboard (spec §9.3)', () => {
   })
 
   it('previews the next game: Elo against the market, weather', () => {
-    const g = nextGame(GAMES)!
+    const g = nextGame(GAMES, TODAY)!
     expect(g.week).toBe(7)
     expect(nextGameView(g, 'DET')).toMatchObject({
       opponent: 'MIN',
@@ -284,7 +295,11 @@ describe('the team dashboard (spec §9.3)', () => {
       weather: 'Indoors'
     })
     expect(nextGameView(GAMES[0], 'DET').weather).toBe('61°F, wind 8 mph')
-    expect(nextGame(GAMES.slice(0, 2))).toBeNull()
+    expect(nextGame(GAMES.slice(0, 2), TODAY)).toBeNull()
+    // A game never played whose day has passed was cancelled (2022 BUF at CIN): not next.
+    const cancelled = teamGames([game({ week: 17, gameday: '2023-01-02' })], 'DET')
+    expect(nextGame(cancelled, new Date('2023-01-10T12:00:00'))).toBeNull()
+    expect(nextGame(cancelled, new Date('2022-12-30T12:00:00'))?.week).toBe(17)
   })
 
   it('places the team in its division', () => {

@@ -350,9 +350,10 @@ export function statLine(
   const column = result?.columns.find((c) => c.id === line.metric)
   const f = { unit: info?.unit ?? 'number', decimals: info?.decimals ?? 1, kind: info?.kind }
   const v = result?.rows.find((r) => r.id === team)?.values[line.metric]
-  const values = (result?.rows ?? [])
-    .map((r) => r.values[line.metric]?.value ?? null)
-    .filter((x): x is number => x !== null)
+  // The league's mean is over the teams the rank counts (qualified), else over every value.
+  const all = (result?.rows ?? []).map((r) => r.values[line.metric]).filter((x) => x?.value != null)
+  const counted = all.filter((x) => x!.qualified)
+  const values = (counted.length ? counted : all).map((x) => x!.value!)
   const place = result ? teamRank(result, team, line.metric, info?.direction ?? 'neutral') : null
   let rank: string | null = null
   if (place) {
@@ -591,9 +592,14 @@ export function noGamesNote(team: string, scope: StatsScope, status: StatsStatus
   return `${team} played no games in ${rangeLabel(scope, status)}.`
 }
 
-/** The team's next game, from every game of the season (not only the scope's). */
-export function nextGame(games: readonly TeamGame[]): TeamGame | null {
-  return games.find((g) => !g.played) ?? null
+/**
+ * The team's next game, from every game of the season (not only the scope's): the first not
+ * played yet whose day has not passed (a game past its day without a score was cancelled).
+ */
+export function nextGame(games: readonly TeamGame[], today = new Date()): TeamGame | null {
+  const ahead = (g: TeamGame): boolean =>
+    g.gameday === null || new Date(`${g.gameday}T23:59:59`) >= today
+  return games.find((g) => !g.played && ahead(g)) ?? null
 }
 
 /** "Detroit is 61 % to win by Elo, 62 % by the market." in parts the card lays out. */

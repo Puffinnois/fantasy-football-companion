@@ -98,7 +98,15 @@ function game(over: Partial<GameForecast>): GameForecast {
 const GAMES = [
   game({ gameId: 'a', week: 1, homeScore: 27, awayScore: 20 }),
   game({ gameId: 'b', week: 2, home: 'LA', away: 'SEA', homeScore: 30, awayScore: 10 }),
-  game({ gameId: 'c', week: 7, home: 'ARI', away: 'SEA', homeWinProb: 0.3 })
+  // A week from now: the next game, whatever day the tests run.
+  game({
+    gameId: 'c',
+    week: 7,
+    gameday: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10),
+    home: 'ARI',
+    away: 'SEA',
+    homeWinProb: 0.3
+  })
 ]
 
 const IDLE: UpdateState = { status: 'idle' } as UpdateState
