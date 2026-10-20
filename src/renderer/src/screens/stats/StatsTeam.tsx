@@ -246,10 +246,11 @@ function Header({
         <ScopeBar scope={scope} status={data.status} hasLeague={hasLeague} onChange={onScope} />
       </div>
       {cards.length > 0 && (
-        <div className="flex gap-1.5 overflow-x-auto pb-1" aria-label="Results">
+        <div className="flex gap-1.5 overflow-x-auto pb-1" role="list" aria-label="Results">
           {cards.map((c) => (
             <div
               key={c.key}
+              role="listitem"
               className="flex w-[58px] shrink-0 flex-col items-center gap-1 rounded-[7px] bg-panel pt-[7px] pb-1.5 shadow-[0_0_0_1px_var(--line)]"
             >
               <span className="font-mono text-[10.5px] leading-none text-fg-3">{c.week}</span>
@@ -588,7 +589,8 @@ function LinesTab({
 
 function Specialists({ data, scope, team }: Omit<TabProps, 'games'>): React.JSX.Element | null {
   const q = useMemo(() => specialistsQuery(team, scope, data.status), [team, scope, data.status])
-  const { result } = useStatsQuery(q, data.version, FRESH)
+  const { result, error } = useStatsQuery(q, data.version, FRESH)
+  if (error) return <Loading error={error} />
   if (!result) return null
   const f = (id: string, v: number | null | undefined): string => {
     const m = data.byId.get(id)
@@ -635,7 +637,8 @@ function Specialists({ data, scope, team }: Omit<TabProps, 'games'>): React.JSX.
 
 function Personnel({ data, scope, team }: Omit<TabProps, 'games'>): React.JSX.Element | null {
   const q = useMemo(() => personnelQuery(team, scope, data.status), [team, scope, data.status])
-  const { result } = useStatsQuery(q, data.version, FRESH)
+  const { result, error } = useStatsQuery(q, data.version, FRESH)
+  if (error) return <Loading error={error} />
   if (!result) return null
   const rows = personnelRows(result)
   return (
@@ -849,7 +852,7 @@ function Schedule({ data, scope, team, games }: TabProps): React.JSX.Element {
     () => sectionQueries(sections, scope, data.status),
     [sections, scope, data.status]
   )
-  const { results } = useStatsQueries(queries, data.version, FRESH)
+  const { results, error } = useStatsQueries(queries, data.version, FRESH)
   if (!games) return <Loading />
   const rows = scheduleRows(games, team)
   return (
@@ -922,8 +925,10 @@ function Schedule({ data, scope, team, games }: TabProps): React.JSX.Element {
           }))}
         />
       </section>
-      {results && (
+      {results ? (
         <StatSection section={sectionViews(sections, results, team, data.byId, scope.season)[0]} />
+      ) : (
+        <Loading error={error} />
       )}
     </div>
   )

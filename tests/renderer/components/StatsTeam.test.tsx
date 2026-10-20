@@ -247,6 +247,27 @@ describe('the team dashboard (spec §9.3)', () => {
     expect(await screen.findByText('SEA did not play in the 2026 postseason.')).toBeTruthy()
   })
 
+  it('shows a failed table’s error instead of nothing', async () => {
+    stats.query.mockImplementation(async (q) => {
+      if (q.metrics.includes('fg_made')) throw new Error('Specialists failed')
+      if (q.groupBy?.includes('personnel')) throw new Error('Personnel failed')
+      if (q.metrics.includes('sos_elo') && q.metrics.length === 4)
+        throw new Error('Strength failed')
+      return answer(q)
+    })
+    await openTeams()
+    await screen.findByRole('heading', { name: 'SEA' })
+    expect(
+      within(await screen.findByRole('list', { name: 'Results' })).getAllByRole('listitem').length
+    ).toBe(6)
+    fireEvent.click(screen.getByRole('tab', { name: 'Special teams' }))
+    expect(await screen.findByText('Specialists failed')).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Tendencies' }))
+    expect(await screen.findByText('Personnel failed')).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Schedule' }))
+    expect(await screen.findByText('Strength failed')).toBeTruthy()
+  })
+
   it('moves between teams with the arrows and the select', async () => {
     await openTeams()
     await screen.findByRole('heading', { name: 'SEA' })
