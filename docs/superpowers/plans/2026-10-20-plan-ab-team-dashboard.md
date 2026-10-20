@@ -1,6 +1,28 @@
 # Plan AB — Stats analysis: the team dashboard
 
-**Status:** not started. Written 2026-10-20, fully prototyped: every task was replayed on a clean copy of `main` from this text, with the counts below. Each task's tests were seen failing before its code. The prototype ran in the real app (WSLg) on scratch profiles, with the live database and the dev league, and without a league.
+**Status:** complete 2026-10-20. Merged to main as `c1a96a3` and tagged `v0.29.0` on `78d08d9` (not pushed yet). Tasks 1–5 were executed from this text; each task's tests were seen failing, then passing, with the plan's counts plus the 3 of the untracked `tests/shared/playerImage.test.ts`.
+
+Task 6 on the branch: `ALL GATES PASSED`. Every tab's queries 23–177 ms (splits 136–160 ms); every team in 2025 and 2026 had its games, place, roster tables, usage grid and lines. In the app: Teams 135–170 ms to the Overview, tabs 56–177 ms, Situational 215–256 ms. The walk-through ran on the branch's build with the dev league and without one, light and dark; every screenshot matched its checklist except `11-forecast-2024` (below), and all matched after the review fixes.
+
+Windows Package check green (`"query":true`) after the review fixes.
+
+Final review (fresh reviewer, Opus): no Critical; 4 Important and 7 Minor findings. All four Important and five Minor were fixed, each test-first in its own commit (`ed05ab2` … `3e34962`):
+
+- (Important, also seen in the walk-through) Until a team was picked, the dashboard followed "my top scorer in scope", so a new season switched the team (BUF to GB in 2024) and remounted the screen. The team shown is now kept.
+- (Important) The query hooks keep the last answer while the next loads, so › showed the previous team's players and record, and Offense to Defense showed empty lines. The dashboard takes fresh answers only (`keepLast: false`), `LinesTab` is keyed by tab, and the tiles read "—" until the games arrive.
+- (Important) A team without games in range (missed playoffs, a bye week) got a page of "—". A notice says so ("DET did not play in the 2026 postseason."), and lines read "No games in this range."
+- (Important) The two-minute test seeded only first-quarter plays. It now checks Q2 at 90 s and 120 s, Q4 at 30 s and 121 s, the ends of Q1 and Q3, and overtime, and fails on a broken clause.
+- The chart's hover index outlived shrinking weeks (a crash); end labels carry their line's swatch and stay in the plot.
+- A cancelled game (2022 BUF at CIN) showed as next; the league mean now counts the same teams as the rank.
+- Failed tables (kickers, personnel, schedule strength) show their error; the results strip is a list, the percentile pill an image, and the neutral pill has ink text.
+
+Deferred (Minor):
+
+- the tabs have no arrow-key navigation and the leaderboard rows no keyboard focus (as in Plan AA);
+- a brief ARI before my top scorer's team when rosters are still loading;
+- the share tables count QB, RB, WR and TE targets only (fullbacks are RBs here).
+
+975 tests after the fixes.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
