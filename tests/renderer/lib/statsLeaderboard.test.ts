@@ -336,4 +336,14 @@ describe('the leaderboards (spec §9.2)', () => {
       mine: false
     })
   })
+
+  it('keeps the row opened from the home even below the qualifier (review fix)', () => {
+    const rows = [
+      row('a', 'A', { target_share: value(0.3) }),
+      row('c', 'C', { target_share: value(0.04, { qualified: false }) })
+    ]
+    const res = result(['target_share'], rows)
+    expect(leaderRows(res, wr(), null, '').map((r) => r.id)).toEqual(['a'])
+    expect(leaderRows(res, wr(), null, '', 'c').map((r) => r.id)).toEqual(['a', 'c'])
+  })
 })

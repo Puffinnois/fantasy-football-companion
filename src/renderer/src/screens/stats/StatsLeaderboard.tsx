@@ -118,9 +118,14 @@ export function StatsLeaderboard({
   )
   const { result, loading, error } = useStatsQuery(query, data.version)
   const rows = useMemo(
-    () => (result ? leaderRows(rankWithinTab(result, tab), board, data.ownership, search) : []),
-    [result, tab, board, data.ownership, search]
+    () =>
+      result
+        ? leaderRows(rankWithinTab(result, tab), board, data.ownership, search, opened?.selected)
+        : [],
+    [result, tab, board, data.ownership, search, opened?.selected]
   )
+  // The selected row is on screen, however far down it ranks.
+  const shown = Math.max(limit, rows.findIndex((r) => r.id === selected) + 1)
   const families = familiesOf(data.catalogue, tab)
   const range = rangeLabel(scope, data.status)
 
@@ -325,7 +330,7 @@ export function StatsLeaderboard({
       >
         {result && (
           <LeaderTable
-            rows={rows.slice(0, limit)}
+            rows={rows.slice(0, shown)}
             board={board}
             tab={tab}
             columns={result.columns}
@@ -364,16 +369,16 @@ export function StatsLeaderboard({
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex items-center gap-3">
             <span>
-              <span className="font-semibold text-fg">{Math.min(limit, rows.length)}</span> of{' '}
+              <span className="font-semibold text-fg">{Math.min(shown, rows.length)}</span> of{' '}
               {rows.length} · sorted by {sortLabel} · {board.perGame ? 'per game' : 'totals'}
             </span>
-            {rows.length > limit && (
+            {rows.length > shown && (
               <button
                 type="button"
-                onClick={() => setLimit(limit + PAGE)}
+                onClick={() => setLimit(shown + PAGE)}
                 className="h-6 cursor-pointer rounded-[6px] border border-line bg-panel px-2 text-[12px] font-medium text-fg hover:bg-hover"
               >
-                Show {Math.min(PAGE, rows.length - limit)} more
+                Show {Math.min(PAGE, rows.length - shown)} more
               </button>
             )}
           </div>

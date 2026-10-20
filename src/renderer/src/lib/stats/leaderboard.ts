@@ -490,12 +490,14 @@ export function leaderRows(
   result: StatsResult,
   board: LeaderboardBoard,
   ownership: StatsOwnership | null,
-  search: string
+  search: string,
+  /** A row opened from the home: shown even below the qualifier, greyed and marked NQ. */
+  keep: string | null = null
 ): StatsRow[] {
   const needle = searchKey(search.trim())
   const tab = tabOf(board.entity, board.tab)
   const rows = result.rows.filter((r) => {
-    if (board.qualifiedOnly && !qualifies(r, tab)) return false
+    if (board.qualifiedOnly && !qualifies(r, tab) && r.id !== keep) return false
     if (needle && !searchKey(r.name).includes(needle)) return false
     if (!ownership || board.owner === 'all') return true
     const owner = ownerOf(r, board, ownership)
