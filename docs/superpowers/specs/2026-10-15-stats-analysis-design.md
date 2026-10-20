@@ -1,6 +1,6 @@
 # Stats analysis — design
 
-**Date:** 2026-10-15 · **Status:** approved 2026-10-16, amended 2026-10-16 (§15: Plan X), 2026-10-17 (§16: Plan Y) and 2026-10-18 (§17: Plan Z) · **Plans:** X (DuckDB foundation), Y (metric layer + query engine), Z (models), AA (Stats screen), AB (team dashboard), AC (player dashboard), AD (explore: charts, compare, trends), AE (matchup preview); natural-language queries get their own spec after AE.
+**Date:** 2026-10-15 · **Status:** approved 2026-10-16, amended 2026-10-16 (§15: Plan X), 2026-10-17 (§16: Plan Y), 2026-10-18 (§17: Plan Z) and 2026-10-20 (§18: Plan AA) · **Plans:** X (DuckDB foundation), Y (metric layer + query engine), Z (models), AA (Stats screen), AB (team dashboard), AC (player dashboard), AD (explore: charts, compare, trends), AE (matchup preview); natural-language queries get their own spec after AE.
 
 **Sources:** the stats catalog (`docs/research/2026-10-09-nfl-stats-catalog.md`), the predictive-metrics catalogue (`docs/research/nfl_predictive_metrics.md`), the coverage audit (`docs/research/2026-10-14-warehouse-coverage-audit.md`), and a DuckDB vs SQLite benchmark on 2023–2025 play-by-play and participation (§3.2).
 
@@ -518,3 +518,25 @@ Measured on the live database while Plan Z was written (its Planning findings), 
   - The score is named "Athletic score (RAS-style)". It averages raw measures, so it is not Kent Lee Platte's RAS (DK Metcalf: 7.2 here, 9.07 there). It needs four measures.
 - **M. The EPA + CPOE composite** (moved from Plan Y) averages the two in standard deviations of qualified 2019–2025 QB seasons, with fixed norms.
 - **N. Plan Y follow-up.** At the week and season grains, a counted component a player never had (carries for a receiver) read NULL, so sums of components did too (touches, opportunity share, ANY/A). Play-by-play and box-score components now read 0. FTN, participation, NGS and PFR stay NULL: there, NULL means "not measured".
+
+## 18. Amendment 2026-10-20: the Stats screen (Plan AA)
+
+Decided with the user and measured on the live database while Plan AA was written (its Planning findings), and taken into the build. `docs/reference/stats-screens.md` documents the result.
+
+- **A. Two products (§9.1, §9.6).** Stats follows the approved design handoff (2026-10-16, "Companion Stats"), not a `TopNav` entry: its own shell, cobalt palette and nav (Leaderboards · Players · Teams · Games · Glossary).
+  - The Fantasy nav gains "Stats ↗"; the Stats nav has "Fantasy ↗", which opens Setup when no league is imported.
+  - Games stays disabled until a later plan; Explore and Matchups join the nav with Plans AD and AE.
+  - Saved views are a Views menu on the leaderboards and chips on the home, not a nav item.
+- **B. The home (§9.2)** is the handoff's eight boards (top six, Totals / Per game, my players marked, my best one under a dashed line when outside the top six). A row needs half the regular-season games in range on top of the metric's qualification. A row or "All →" opens the full leaderboard sorted by that metric.
+- **C. The leaderboard table** is the handoff's Ledger (round 1, 3d).
+  - The percentile is the cell's shading in seven steps, not a bar; a neutral metric is unshaded. The percentile, rank and sample are in the cell's hover.
+  - The reliability marker sits in the column head, since stability is a metric's, not a value's; so does the catalogue entry, on hover.
+  - The games column is the row's games: `perGame` of the games metric reads 1.
+- **D. Qualification is the tab's.** A count's sample is its games, with no minimum, so "qualified only" changed nothing on 8 of the 10 player tabs. Each tab qualifies a row on one metric's `minSample`, scaled as the engine scales it: QB dropbacks, RB carries, WR and TE targets, K field-goal attempts, P punts, defenders' defensive snaps, All offense's offensive snaps. 2025 measured: 38 of 82 QBs, 110 of 253 WRs. Teams always qualify.
+- **E. The family filter** sets the columns to that family's core metrics on the tab (extended ones fill in to 12).
+- **F. Custom views** save the board: entity, tab, columns, sort, per game, qualified only, team and owner filter. The season, weeks and scoring stay the screen's, so a view carries over from week to week. A name is unique regardless of case; saving under it replaces the view. Table `stats_views` in `companion.db` (migration 11).
+- **G. Rosters.** Main keys the league's rosters by gsis id (`player_ids`) and team defenses by nflverse code (`stats.ownership`). My team and Free agents filter the engine's rows, so percentiles stay among the whole position. My players carry the amber dot, another team's a hollow ring naming it.
+- **H. Samples in words.** `MetricInfo.sampleLabel` names what each of the catalogue's 78 samples counts ("routes", "dropbacks faced"), for the hover and for NLQ (§10).
+- **I. CSV** holds every row the filters keep: unformatted numbers, percentages in percent, gsis ids. It is saved through a dialog (Downloads by default), in UTF-8 with a byte-order mark for Excel.
+- **J. The scope** (season, season type, the regular season's weeks, scoring) is shared by every Stats screen for the session and not saved. Postseason and Both have no week range.
+- **K. Measured** (2026 week 6): the home's eight boards on screen in about 90 ms, a leaderboard tab 100–210 ms from click to table, a 40-column query 265 ms (budgets 300 ms and 500 ms, §11).
