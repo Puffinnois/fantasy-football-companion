@@ -1,6 +1,22 @@
 # Plan AA — Stats analysis: the Stats screen
 
-**Status:** not started. Written 2026-10-20, fully prototyped: every task was replayed on a clean copy of `main` from this text, with the counts below. Each task's tests were seen failing before its code. The prototype ran in the real app (WSLg) on scratch profiles, with the live database and the dev league, and without a league.
+**Status:** complete 2026-10-20. Merged to main as `0c71f1b` and tagged `v0.28.0` on `63d0321` (not pushed yet). Tasks 1–8 were executed from this text; each task's tests were seen failing, then passing, with the plan's counts plus the 3 of the untracked `tests/shared/playerImage.test.ts`.
+
+Task 9 on the branch: `ALL GATES PASSED`. Boards 35 ms (per game 25 ms); leaderboard tabs 19–70 ms warm, cold within 10 ms of warm; 40 columns 233 ms; qualified counts as in the Planning findings. The walk-through ran on the branch's build with the dev league and without one; every screenshot matched its checklist, and again after the review fixes.
+
+Windows Package check green (`"query":true`) before the review fixes.
+
+Final review (fresh reviewer, Opus): no Critical; 2 Important and 9 Minor findings. Both Important and five Minor were fixed, each test-first in its own commit (`c865ac3` … `b12c267`):
+
+- (Important) The table ranked a count (receiving yards, sacks) among every player with a game while showing only the tab's qualified rows, so nearly every count cell was green. Columns are now ranked among the tab's qualified rows, per position (`rankWithinTab`).
+- (Important) A saved view whose sort column left the catalogue made the engine reject its query. Boards are normalised (`normalizeBoard`) when a view opens and before every query.
+- A rostered defense marked that team's offense and ratings rows; team ownership now applies on the Defense tab only.
+- A row opened from the home could be off screen (below the qualifier or past 50 rows); it is kept and shown.
+- The family select always read "this tab", and unchecking every column left stale rows; the select shows the preset, and the last column cannot be removed.
+- A malformed board was stored as is, and one corrupt row broke the views list; main validates boards and skips bad rows; a failed delete shows its error.
+- The scope reset when switching to Fantasy and back (amendment J); App keeps it.
+
+Deferred (Minor): the "#" and CSV "Rank" are display positions, not the engine's rank, and CSV stays enabled during a refetch; sorting by column head is mouse-only (no keyboard focus); rosters are re-read only when league data changes. 936 tests after the fixes.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
