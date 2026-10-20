@@ -129,6 +129,8 @@ export interface StatsQuery {
     scoreMargin?: [number, number]
     winProbability?: [number, number]
     neutral?: boolean
+    /** The last two minutes of either half (2nd and 4th quarters). */
+    twoMinute?: boolean
     pressure?: boolean
     blitz?: boolean
     playAction?: boolean

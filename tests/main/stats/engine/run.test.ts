@@ -83,6 +83,26 @@ describe('runQuery (stats-analysis spec §7)', () => {
     expect(pressured.notes[0]).toMatch(/participation/)
   })
 
+  it('splits the last two minutes of a half from the rest', async () => {
+    const db = await seeded()
+    const epa = async (twoMinute: boolean): Promise<unknown[]> => {
+      const r = await runQuery(
+        db,
+        {
+          entity: 'team',
+          metrics: ['off_epa_play'],
+          scope: { seasons: [2025], teams: ['BUF'] },
+          situation: { twoMinute }
+        },
+        CTX
+      )
+      return r.rows.map((x) => [x.values.off_epa_play.raw, x.values.off_epa_play.sample])
+    }
+    // Every seeded play is in the first quarter.
+    expect(await epa(false)).toEqual([[-0.175, 4]])
+    expect(await epa(true)).toEqual([])
+  })
+
   it('scales qualification to the share of plays each situational row keeps', async () => {
     const db = await seeded()
     const shares = async (q: Partial<StatsQuery>): Promise<unknown[]> => {
