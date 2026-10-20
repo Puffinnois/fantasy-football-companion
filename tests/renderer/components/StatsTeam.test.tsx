@@ -206,6 +206,30 @@ describe('the team dashboard (spec §9.3)', () => {
     expect(screen.getByRole('heading', { name: 'SEA' })).toBeTruthy()
   })
 
+  it('never shows the last team’s or tab’s answers while the next ones load', async () => {
+    await openTeams()
+    await screen.findByRole('heading', { name: 'SEA' })
+    expect((await screen.findAllByText('Player 0')).length).toBeGreaterThan(0)
+    expect(await screen.findByText('1–1')).toBeTruthy()
+    // From here on, nothing answers.
+    stats.query.mockImplementation(() => new Promise(() => {}))
+    stats.games.mockImplementation(() => new Promise(() => {}))
+    fireEvent.click(screen.getByRole('button', { name: 'Next team' }))
+    expect(await screen.findByRole('heading', { name: 'SF' })).toBeTruthy()
+    expect(screen.queryByText('Player 0')).toBeNull()
+    expect(screen.queryByText('1–1')).toBeNull()
+    expect(screen.getAllByText('Loading…').length).toBeGreaterThan(0)
+
+    stats.query.mockImplementation(async (q) => answer(q))
+    fireEvent.click(screen.getByRole('tab', { name: 'Offense' }))
+    expect(await screen.findByText('Red-zone EPA per play')).toBeTruthy()
+    stats.query.mockImplementation(() => new Promise(() => {}))
+    fireEvent.click(screen.getByRole('tab', { name: 'Defense' }))
+    expect(screen.queryByText('Red-zone EPA per play')).toBeNull()
+    expect(screen.queryByText('EPA per play allowed')).toBeNull()
+    expect(screen.getAllByText('Loading…').length).toBeGreaterThan(0)
+  })
+
   it('moves between teams with the arrows and the select', async () => {
     await openTeams()
     await screen.findByRole('heading', { name: 'SEA' })

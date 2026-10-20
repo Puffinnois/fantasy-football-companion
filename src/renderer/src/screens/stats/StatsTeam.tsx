@@ -44,6 +44,9 @@ import { cn } from '@/lib/utils'
 import { STATS_TEAMS, TEAM_NAMES } from '@shared/stats/nflTeams'
 import type { MetricInfo, StatsResult } from '@shared/stats/types'
 
+/** The dashboard is about one team: never another team's (or tab's) answers while its own load. */
+const FRESH = { keepLast: false }
+
 interface TabProps {
   data: StatsData
   scope: StatsScope
@@ -94,7 +97,7 @@ export function StatsTeam({
     () => sectionQueries(TAB_SECTIONS.overview, scope, data.status, STANDING_METRICS),
     [scope, data.status]
   )
-  const { results: ratings } = useStatsQueries(overview, data.version)
+  const { results: ratings } = useStatsQueries(overview, data.version, FRESH)
   const props: TabProps = { data, scope, team, games }
 
   return (
@@ -140,7 +143,7 @@ export function StatsTeam({
       {gamesError && <div className="text-[12.5px] text-bad">{gamesError}</div>}
       {tab === 'overview' && <Overview {...props} ratings={ratings} />}
       {(tab === 'offense' || tab === 'defense' || tab === 'special' || tab === 'tendencies') && (
-        <LinesTab {...props} sections={TAB_SECTIONS[tab]} tab={tab} />
+        <LinesTab key={tab} {...props} sections={TAB_SECTIONS[tab]} tab={tab} />
       )}
       {tab === 'situational' && <Situational {...props} />}
       {tab === 'players' && <Players {...props} />}
@@ -170,17 +173,18 @@ function Header({
   place: string | null
 }): React.JSX.Element {
   const inScope = games ? gamesInScope(games, scope, data.status) : []
-  const rec = teamRecord(inScope)
+  // Until the team's games arrive, no tile shows another team's record.
+  const rec = games ? teamRecord(inScope) : null
   const cards = games ? resultCards(games, scope, data.status) : []
   const i = STATS_TEAMS.indexOf(team)
   const step = (d: number): void =>
     onTeam(STATS_TEAMS[(i + d + STATS_TEAMS.length) % STATS_TEAMS.length])
   const owner = data.ownership?.teams[team]
   const tiles: [string, string, string?][] = [
-    ['Record', rec.record],
-    ['Points / game', rec.pointsPerGame],
-    ['Allowed / game', rec.allowedPerGame],
-    ['Margin', rec.margin, rec.tone]
+    ['Record', rec?.record ?? '—'],
+    ['Points / game', rec?.pointsPerGame ?? '—'],
+    ['Allowed / game', rec?.allowedPerGame ?? '—'],
+    ['Margin', rec?.margin ?? '—', rec?.tone]
   ]
   return (
     <header className="flex flex-col gap-4">
@@ -407,12 +411,12 @@ function Overview({
   ratings
 }: TabProps & { ratings: Map<SplitKey, StatsResult> | null }): React.JSX.Element {
   const q = useMemo(() => rosterQuery(team, scope, data.status), [team, scope, data.status])
-  const { result, error } = useStatsQuery(q, data.version)
+  const { result, error } = useStatsQuery(q, data.version, FRESH)
   const weekly = useMemo(
     () => weeklyQuery(team, ['off_epa_play', 'def_epa_play'], scope, data.status),
     [team, scope, data.status]
   )
-  const { result: wk } = useStatsQuery(weekly, data.version)
+  const { result: wk } = useStatsQuery(weekly, data.version, FRESH)
   const v = result ? rosterView(result, data.ownership) : null
   const sections = ratings
     ? sectionViews(TAB_SECTIONS.overview, ratings, team, data.byId, scope.season)
@@ -562,7 +566,7 @@ function LinesTab({
     () => sectionQueries(sections, scope, data.status),
     [sections, scope, data.status]
   )
-  const { results, error } = useStatsQueries(queries, data.version)
+  const { results, error } = useStatsQueries(queries, data.version, FRESH)
   return (
     <div className="flex flex-col gap-8">
       {results ? (
@@ -578,7 +582,7 @@ function LinesTab({
 
 function Specialists({ data, scope, team }: Omit<TabProps, 'games'>): React.JSX.Element | null {
   const q = useMemo(() => specialistsQuery(team, scope, data.status), [team, scope, data.status])
-  const { result } = useStatsQuery(q, data.version)
+  const { result } = useStatsQuery(q, data.version, FRESH)
   if (!result) return null
   const f = (id: string, v: number | null | undefined): string => {
     const m = data.byId.get(id)
@@ -625,7 +629,7 @@ function Specialists({ data, scope, team }: Omit<TabProps, 'games'>): React.JSX.
 
 function Personnel({ data, scope, team }: Omit<TabProps, 'games'>): React.JSX.Element | null {
   const q = useMemo(() => personnelQuery(team, scope, data.status), [team, scope, data.status])
-  const { result } = useStatsQuery(q, data.version)
+  const { result } = useStatsQuery(q, data.version, FRESH)
   if (!result) return null
   const rows = personnelRows(result)
   return (
@@ -675,9 +679,9 @@ function Situational({ data, scope, team }: TabProps): React.JSX.Element {
     () => sectionQueries(sections, scope, data.status),
     [sections, scope, data.status]
   )
-  const { results: lines, error } = useStatsQueries(lineQueries, data.version)
+  const { results: lines, error } = useStatsQueries(lineQueries, data.version, FRESH)
   const sq = useMemo(() => splitQueries(scope, data.status), [scope, data.status])
-  const { results: splits, error: splitError } = useStatsQueries(sq, data.version)
+  const { results: splits, error: splitError } = useStatsQueries(sq, data.version, FRESH)
   const heads = ['EPA/play', 'Success', 'EPA/play allowed', 'Success allowed']
   return (
     <div className="flex flex-col gap-8">
@@ -754,7 +758,7 @@ function Players({ data, scope, team }: TabProps): React.JSX.Element {
       ]),
     [team, scope, data.status]
   )
-  const { results, error } = useStatsQueries(queries, data.version)
+  const { results, error } = useStatsQueries(queries, data.version, FRESH)
   if (!results) return <Loading error={error} />
   const weekly = results.get('weekly')!
   const weeks = chartWeeks(weekly, scope, data.status)
@@ -839,7 +843,7 @@ function Schedule({ data, scope, team, games }: TabProps): React.JSX.Element {
     () => sectionQueries(sections, scope, data.status),
     [sections, scope, data.status]
   )
-  const { results } = useStatsQueries(queries, data.version)
+  const { results } = useStatsQueries(queries, data.version, FRESH)
   if (!games) return <Loading />
   const rows = scheduleRows(games, team)
   return (
@@ -929,12 +933,12 @@ function Forecast({ data, scope, team, games }: TabProps): React.JSX.Element {
     () => sectionQueries(sections, scope, data.status),
     [sections, scope, data.status]
   )
-  const { results, error } = useStatsQueries(queries, data.version)
+  const { results, error } = useStatsQueries(queries, data.version, FRESH)
   const weekly = useMemo(
     () => weeklyQuery(team, FORECAST_WEEKLY, scope, data.status),
     [team, scope, data.status]
   )
-  const { result: wk } = useStatsQuery(weekly, data.version)
+  const { result: wk } = useStatsQuery(weekly, data.version, FRESH)
   const weeks = chartWeeks(wk, scope, data.status)
   const series = weekSeries(wk, FORECAST_WEEKLY, weeks, data.byId)
   const next = games ? nextGame(games) : null

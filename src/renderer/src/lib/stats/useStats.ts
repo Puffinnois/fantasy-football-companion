@@ -83,11 +83,21 @@ export interface QueryState {
   error: string | null
 }
 
+/** `keepLast` (default): the last answer stays on screen while the next one loads. */
+export interface QueryOptions {
+  keepLast?: boolean
+}
+
 /**
  * Runs `query` (null: nothing to run) and again when it, or `version`, changes. An answer for a
- * query that has since changed is dropped.
+ * query that has since changed is dropped. A screen about one team asks for fresh answers only
+ * (`keepLast: false`): another team's numbers must not stand in while its own load.
  */
-export function useStatsQuery(query: StatsQuery | null, version: number): QueryState {
+export function useStatsQuery(
+  query: StatsQuery | null,
+  version: number,
+  { keepLast = true }: QueryOptions = {}
+): QueryState {
   const key = query ? `${version}|${JSON.stringify(query)}` : null
   const [done, setDone] = useState<{
     key: string
@@ -107,7 +117,7 @@ export function useStatsQuery(query: StatsQuery | null, version: number): QueryS
   }, [key])
   const current = done !== null && done.key === key
   return {
-    result: done?.result ?? null,
+    result: (keepLast || current ? done?.result : null) ?? null,
     loading: key !== null && !current,
     error: current ? done.error : null
   }
@@ -119,7 +129,8 @@ export function useStatsQuery(query: StatsQuery | null, version: number): QueryS
  */
 export function useStatsQueries<K extends string>(
   queries: ReadonlyMap<K, StatsQuery> | null,
-  version: number
+  version: number,
+  { keepLast = true }: QueryOptions = {}
 ): { results: Map<K, StatsResult> | null; loading: boolean; error: string | null } {
   const key = queries ? `${version}|${JSON.stringify([...queries])}` : null
   const [done, setDone] = useState<{
@@ -140,7 +151,7 @@ export function useStatsQueries<K extends string>(
   }, [key])
   const current = done !== null && done.key === key
   return {
-    results: done?.results ?? null,
+    results: (keepLast || current ? done?.results : null) ?? null,
     loading: key !== null && !current,
     error: current ? done.error : null
   }
