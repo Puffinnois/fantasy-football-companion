@@ -3,7 +3,7 @@ import { StatsNav, type StatsScreen } from '@/components/stats/StatsNav'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
 import type { BoardDef } from '@/lib/stats/boards'
-import { bestFirst, defaultBoard } from '@/lib/stats/leaderboard'
+import { bestFirst, defaultBoard, normalizeBoard } from '@/lib/stats/leaderboard'
 import { defaultScope, type StatsScope } from '@/lib/stats/scope'
 import { useStatsData } from '@/lib/stats/useStats'
 import { StatsGlossary } from '@/screens/stats/StatsGlossary'
@@ -73,7 +73,7 @@ export function StatsApp({
       rowId
     )
   }
-  const openView = (v: StatsView): void => openBoard(v.board, null)
+  const openView = (v: StatsView): void => openBoard(normalizeBoard(v.board, data.byId), null)
   const saveView = async (name: string, board: LeaderboardBoard): Promise<void> => {
     const saved = await api.stats.saveView(name, board)
     setViews((vs) =>

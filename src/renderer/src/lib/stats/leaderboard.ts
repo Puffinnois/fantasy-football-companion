@@ -365,15 +365,34 @@ export function engineSort(
   return { metric, dir: bestFirst(catalogue.get(metric)) }
 }
 
+/**
+ * A board the catalogue can answer: a saved view may name metrics it no longer has. Unknown
+ * columns are dropped (the tab's defaults if none is left), and a sort on a dropped column falls
+ * back to the engine's. Before the catalogue loads, the board is left as it is.
+ */
+export function normalizeBoard(
+  board: LeaderboardBoard,
+  catalogue: ReadonlyMap<string, MetricInfo>
+): LeaderboardBoard {
+  if (catalogue.size === 0) return board
+  const kept = board.columns.filter((id) => catalogue.has(id))
+  if (kept.length === board.columns.length) return board
+  const columns = kept.length > 0 ? kept : defaultBoard(board.entity, board.tab, catalogue).columns
+  const next = { ...board, columns }
+  if (next.sort.by === 'name' || columns.includes(next.sort.by)) return next
+  const { metric, dir } = engineSort(next, catalogue)
+  return { ...next, sort: { by: metric, dir } }
+}
+
 export function leaderboardQuery(
   board: LeaderboardBoard,
   scope: StatsScope,
   status: StatsStatus | null,
   catalogue: ReadonlyMap<string, MetricInfo>
 ): StatsQuery {
-  const tab = tabOf(board.entity, board.tab)
-  // A saved view may name a metric the catalogue no longer has.
-  const columns = board.columns.filter((id) => catalogue.has(id))
+  const fixed = normalizeBoard(board, catalogue)
+  const tab = tabOf(fixed.entity, fixed.tab)
+  const columns = fixed.columns
   const extra = tab.qualifier && !columns.includes(tab.qualifier) ? [tab.qualifier] : []
   // Qualification is the tab's (see `qualifies`), so the engine returns every row.
   return {
@@ -385,7 +404,7 @@ export function leaderboardQuery(
       ...(board.team ? { teams: [board.team] } : {})
     },
     transform: board.perGame ? 'perGame' : 'raw',
-    sort: engineSort(board, catalogue),
+    sort: engineSort(fixed, catalogue),
     scoring: scope.scoring,
     limit: ROW_LIMIT
   }

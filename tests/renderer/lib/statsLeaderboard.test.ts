@@ -9,6 +9,7 @@ import {
   leaderboardCsv,
   leaderboardQuery,
   leaderRows,
+  normalizeBoard,
   pickable,
   rankWithinTab,
   PLAYER_TABS,
@@ -286,5 +287,35 @@ describe('the leaderboards (spec §9.2)', () => {
       [row('SF', 'SF', { elo: value(1600, { percentile: 40, rank: 3 }) }, { position: null })]
     )
     expect(rankWithinTab(teams, tabOf('team', 'forecast'))).toBe(teams)
+  })
+
+  it('repairs a saved view whose metrics left the catalogue (review fix)', () => {
+    const gone = wr({ columns: ['gone', 'yprr'], sort: { by: 'gone', dir: 'asc' } })
+    expect(normalizeBoard(gone, CAT)).toEqual(
+      wr({ columns: ['yprr'], sort: { by: 'yprr', dir: 'desc' } })
+    )
+    const q = leaderboardQuery(gone, scope, STATUS, CAT)
+    expect(q.metrics).toEqual(['yprr', 'target_share'])
+    expect(q.sort).toEqual({ metric: 'yprr', dir: 'desc' })
+    // Sorted by name, the engine still sorts by a column the query has.
+    expect(
+      leaderboardQuery({ ...gone, sort: { by: 'name', dir: 'asc' } }, scope, STATUS, CAT).sort
+    ).toEqual({
+      metric: 'yprr',
+      dir: 'desc'
+    })
+    // Every column gone: the tab's default columns.
+    const empty = normalizeBoard(
+      {
+        ...defaultBoard('team', 'forecast', CAT),
+        columns: ['gone'],
+        sort: { by: 'gone', dir: 'desc' }
+      },
+      CAT
+    )
+    expect(empty).toEqual(defaultBoard('team', 'forecast', CAT))
+    // A board that is fine is returned as is.
+    const ok = wr()
+    expect(normalizeBoard(ok, CAT)).toBe(ok)
   })
 })
