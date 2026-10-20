@@ -50,4 +50,27 @@ describe('stats views repo', () => {
     expect(() => saveStatsView(db, '  ', board(), 't')).toThrow('A view needs a name')
     expect(() => saveStatsView(db, 'x'.repeat(61), board(), 't')).toThrow('at most 60')
   })
+
+  it('refuses a malformed board and skips a corrupt row (review fix)', () => {
+    const db = openDatabase(':memory:')
+    migrate(db)
+    const bad =
+      (b: unknown): (() => unknown) =>
+      () =>
+        saveStatsView(db, 'x', b as LeaderboardBoard, 't')
+    expect(bad(undefined)).toThrow('This view cannot be saved')
+    expect(bad({ ...board(), entity: 'coach' })).toThrow('This view cannot be saved')
+    expect(bad({ ...board(), columns: 'yprr' })).toThrow('This view cannot be saved')
+    expect(bad({ ...board(), columns: Array(41).fill('yprr') })).toThrow(
+      'This view cannot be saved'
+    )
+    expect(bad({ ...board(), sort: { by: 'yprr', dir: 'up' } })).toThrow(
+      'This view cannot be saved'
+    )
+    saveStatsView(db, 'Good', board(), 't')
+    db.prepare(
+      "INSERT INTO stats_views (name, board_json, created_at, updated_at) VALUES ('Broken', '{not json', 't', 't'), ('Odd', '{}', 't', 't')"
+    ).run()
+    expect(listStatsViews(db).map((v) => v.name)).toEqual(['Good'])
+  })
 })

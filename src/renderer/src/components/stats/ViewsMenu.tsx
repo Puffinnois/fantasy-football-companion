@@ -83,7 +83,7 @@ export function ViewsMenu({
                   type="button"
                   title={`Delete "${v.name}"`}
                   aria-label={`Delete ${v.name}`}
-                  onClick={() => void onDelete(v)}
+                  onClick={() => void onDelete(v).catch((err) => setError(errorMessage(err)))}
                   className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-[5px] text-fg-3 hover:bg-panel-2 hover:text-bad"
                 >
                   <X className="size-3.5" />
