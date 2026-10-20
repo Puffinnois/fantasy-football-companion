@@ -4,7 +4,17 @@ import { compileQuery, StatsQueryError } from '@main/stats/engine/compile'
 import { runQuery } from '@main/stats/engine/run'
 import type { StatsQuery } from '@shared/stats/types'
 import { openTestDb } from '../../../fixtures/stats'
-import { CB, EDGE, KC_RB, QB, RB, seedGame, seedPlays, WR } from '../../../fixtures/statsDerived'
+import {
+  CB,
+  EDGE,
+  KC_RB,
+  QB,
+  RB,
+  seedGame,
+  seedPlays,
+  WR,
+  type Row
+} from '../../../fixtures/statsDerived'
 
 const CTX = { currentSeason: 2025, hasLeague: false }
 
@@ -86,7 +96,7 @@ describe('runQuery (stats-analysis spec §7)', () => {
   it('splits the last two minutes of the 2nd and 4th quarters from the rest', async () => {
     const db = await seeded()
     // EPA in powers of two: a sum names the plays it holds.
-    const play = (qtr: number, left: number, epa: number): Record<string, unknown> => ({
+    const play = (qtr: number, left: number, epa: number): Row => ({
       posteam: 'BUF',
       defteam: 'KC',
       play_type: 'run',
