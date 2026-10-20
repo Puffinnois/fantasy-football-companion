@@ -274,6 +274,17 @@ describe('the derived rebuild (stats-analysis spec §5.2)', () => {
       ['stats:models', 'ok']
     ])
     expect((await runSync(db, { only: [] })).steps).toEqual([])
+    // A stability pass the app closed during is measured again, though no season changed.
+    await db.exec("INSERT OR REPLACE INTO stats_settings VALUES ('stability_pending', '1')")
+    expect((await runSync(db, { only: [] })).steps.map((s) => [s.source, s.status])).toEqual([
+      ['stats:models', 'ok']
+    ])
+    expect(
+      await db.get("SELECT value FROM stats_settings WHERE key = 'stability_pending'")
+    ).toEqual({
+      value: '0'
+    })
+    expect((await runSync(db, { only: [] })).steps).toEqual([])
     await db.exec("UPDATE derived_state SET version = 0 WHERE name = 'models'")
     expect((await runSync(db, { only: [] })).steps.map((s) => [s.source, s.message])).toEqual([
       ['stats:models', 'simulated 2 weeks']
