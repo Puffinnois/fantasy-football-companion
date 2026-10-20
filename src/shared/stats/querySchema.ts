@@ -69,6 +69,10 @@ export function statsQuerySchema(metricIds: string[]): Schema {
       type: 'boolean',
       description: 'Win probability 20–80 %, not the last two minutes of a half.'
     },
+    twoMinute: {
+      type: 'boolean',
+      description: 'The last two minutes of either half (2nd and 4th quarters).'
+    },
     pressure: {
       type: 'boolean',
       description: 'QB pressured (participation, through the prior season).'

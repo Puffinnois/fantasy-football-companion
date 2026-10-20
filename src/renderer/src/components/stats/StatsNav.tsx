@@ -5,12 +5,13 @@ import { cn } from '@/lib/utils'
 import type { StatsStatus } from '@shared/stats/types'
 import type { UpdateState } from '@shared/types'
 
-export type StatsScreen = 'home' | 'players' | 'teams' | 'glossary'
+/** `team` is the team dashboard (spec §9.3), `teams` the team leaderboard. */
+export type StatsScreen = 'home' | 'players' | 'team' | 'teams' | 'glossary'
 
 const ITEMS: { id: StatsScreen | 'games'; label: string }[] = [
   { id: 'home', label: 'Leaderboards' },
   { id: 'players', label: 'Players' },
-  { id: 'teams', label: 'Teams' },
+  { id: 'team', label: 'Teams' },
   { id: 'games', label: 'Games' },
   { id: 'glossary', label: 'Glossary' }
 ]
@@ -27,7 +28,10 @@ interface StatsNavProps {
   onToggleTheme: () => void
 }
 
-/** Stats nav (handoff "Stats nav"): 52px, mark + "Companion Stats", five items, Fantasy ↗, theme. */
+/**
+ * Stats nav (handoff "Stats nav"): 52px, mark + "Companion Stats", five items, Fantasy ↗, theme.
+ * Teams opens the team dashboard.
+ */
 export function StatsNav({
   current,
   onNavigate,
@@ -53,17 +57,19 @@ export function StatsNav({
       <div className="flex gap-[22px] self-stretch text-[13.5px] leading-none font-medium">
         {ITEMS.map(({ id, label }) => {
           const soon = id === 'games'
+          // Teams opens the dashboard; the team leaderboard is under it.
+          const on = current === id || (id === 'team' && current === 'teams')
           return (
             <button
               key={id}
               type="button"
               disabled={soon}
               title={soon ? 'Game previews come in a later update' : undefined}
-              aria-current={current === id ? 'page' : undefined}
+              aria-current={on ? 'page' : undefined}
               onClick={() => !soon && onNavigate(id)}
               className={cn(
                 'flex cursor-pointer items-center disabled:cursor-default disabled:opacity-40',
-                current === id
+                on
                   ? 'text-fg shadow-[inset_0_-2px_0_var(--cobalt)]'
                   : 'text-fg-2 hover:text-fg disabled:hover:text-fg-2'
               )}

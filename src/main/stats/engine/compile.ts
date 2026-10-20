@@ -178,6 +178,7 @@ const SITUATION_FIELDS = [
   'scoreMargin',
   'winProbability',
   'neutral',
+  'twoMinute',
   'pressure',
   'blitz',
   'playAction',
@@ -341,6 +342,10 @@ function situationWhere(
     const neutral =
       'coalesce(p.wp BETWEEN 0.2 AND 0.8 AND p.qtr <= 4 AND p.half_seconds_remaining > 120, false)'
     where.push(flag(s.neutral, 'situation.neutral') ? neutral : `NOT ${neutral}`)
+  }
+  if (s.twoMinute !== undefined) {
+    const late = 'coalesce(p.qtr IN (2, 4) AND p.half_seconds_remaining <= 120, false)'
+    where.push(flag(s.twoMinute, 'situation.twoMinute') ? late : `NOT ${late}`)
   }
   if (s.pressure !== undefined) {
     part()

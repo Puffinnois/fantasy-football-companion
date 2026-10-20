@@ -1,3 +1,4 @@
+import { DIVISIONS } from '@shared/stats/nflTeams'
 import { ELO, eloShift, MARGIN_SD, winProbability } from './elo'
 import { rng } from './linear'
 
@@ -10,16 +11,7 @@ import { rng } from './linear'
  */
 
 /** Divisions since 2002; nflverse codes. */
-export const DIVISIONS: Record<string, string[]> = {
-  'AFC East': ['BUF', 'MIA', 'NE', 'NYJ'],
-  'AFC North': ['BAL', 'CIN', 'CLE', 'PIT'],
-  'AFC South': ['HOU', 'IND', 'JAX', 'TEN'],
-  'AFC West': ['DEN', 'KC', 'LAC', 'LV'],
-  'NFC East': ['DAL', 'NYG', 'PHI', 'WAS'],
-  'NFC North': ['CHI', 'DET', 'GB', 'MIN'],
-  'NFC South': ['ATL', 'CAR', 'NO', 'TB'],
-  'NFC West': ['ARI', 'LA', 'SF', 'SEA']
-}
+export { DIVISIONS }
 
 export const SIM_RUNS = 10_000
 

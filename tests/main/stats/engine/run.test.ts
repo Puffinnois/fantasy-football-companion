@@ -4,7 +4,17 @@ import { compileQuery, StatsQueryError } from '@main/stats/engine/compile'
 import { runQuery } from '@main/stats/engine/run'
 import type { StatsQuery } from '@shared/stats/types'
 import { openTestDb } from '../../../fixtures/stats'
-import { CB, EDGE, KC_RB, QB, RB, seedGame, WR } from '../../../fixtures/statsDerived'
+import {
+  CB,
+  EDGE,
+  KC_RB,
+  QB,
+  RB,
+  seedGame,
+  seedPlays,
+  WR,
+  type Row
+} from '../../../fixtures/statsDerived'
 
 const CTX = { currentSeason: 2025, hasLeague: false }
 
@@ -81,6 +91,46 @@ describe('runQuery (stats-analysis spec §7)', () => {
     expect(pressured.rows[0].values.routes.raw).toBe(2)
     expect(pressured.rows[0].values.yprr.raw).toBe(10)
     expect(pressured.notes[0]).toMatch(/participation/)
+  })
+
+  it('splits the last two minutes of the 2nd and 4th quarters from the rest', async () => {
+    const db = await seeded()
+    // EPA in powers of two: a sum names the plays it holds.
+    const play = (qtr: number, left: number, epa: number): Row => ({
+      posteam: 'BUF',
+      defteam: 'KC',
+      play_type: 'run',
+      rush: 1,
+      qtr,
+      half_seconds_remaining: left,
+      epa
+    })
+    await seedPlays(db, [
+      play(2, 90, 1),
+      play(4, 30, 2),
+      play(2, 120, 4),
+      // The end of the 1st and 3rd quarters: the half has 15 more minutes.
+      play(1, 960, 8),
+      play(3, 960, 16),
+      play(4, 121, 32),
+      play(5, 60, 64)
+    ])
+    const sum = async (twoMinute: boolean): Promise<number[]> => {
+      const r = await runQuery(
+        db,
+        {
+          entity: 'team',
+          metrics: ['off_epa_play'],
+          scope: { seasons: [2025], teams: ['BUF'] },
+          situation: { twoMinute }
+        },
+        CTX
+      )
+      const v = r.rows[0].values.off_epa_play
+      return [v.raw! * v.sample!, v.sample!]
+    }
+    expect(await sum(true)).toEqual([1 + 2 + 4, 3])
+    expect(await sum(false)).toEqual([8 + 16 + 32 + 64, 4])
   })
 
   it('scales qualification to the share of plays each situational row keeps', async () => {
