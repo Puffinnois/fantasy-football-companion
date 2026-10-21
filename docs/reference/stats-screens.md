@@ -1,16 +1,16 @@
 # Stats screens — reference
 
-Added in v0.28.0 (Plan AA; spec `docs/superpowers/specs/2026-10-15-stats-analysis-design.md` §9.1–§9.2, amended in §18); the team dashboard in v0.29.0 (Plan AB; §9.3, amended in §19). Companion Stats is the app's second product: its own shell and cobalt palette (design handoff 2026-10-16, "Companion Stats"), reachable from the Fantasy nav ("Stats ↗"), and where the app opens when no league is imported. Every number comes from the query engine (`stats.query`, data reference: `docs/reference/stats-database.md`).
+Added in v0.28.0 (Plan AA; spec `docs/superpowers/specs/2026-10-15-stats-analysis-design.md` §9.1–§9.2, amended in §18); the team dashboard in v0.29.0 (Plan AB; §9.3, amended in §19); the player dashboard in v0.30.0 (Plan AC; §9.4, amended in §21). Companion Stats is the app's second product: its own shell and cobalt palette (design handoff 2026-10-16, "Companion Stats"), reachable from the Fantasy nav ("Stats ↗"), and where the app opens when no league is imported. Every number comes from the query engine (`stats.query`, data reference: `docs/reference/stats-database.md`).
 
 ## Shell
 
-- **Nav:** Leaderboards · Players · Teams (the team dashboard) · Games (later) · Glossary; "Data through 2026 week 6 · updated 2 h ago" from `stats.status()` ("updating…" while a refresh runs); "Fantasy ↗" (Setup without a league); the theme toggle.
+- **Nav:** Leaderboards · Players (the player dashboard) · Teams (the team dashboard) · Games (later) · Glossary; "Data through 2026 week 6 · updated 2 h ago" from `stats.status()` ("updating…" while a refresh runs); "Fantasy ↗" (Setup without a league); the theme toggle.
 - **Scope** (every screen, kept for the session): season (2019 → latest), Regular season / Postseason / Both, the regular season's week range, and the fantasy scoring (My league once a league is imported, else PPR, Half PPR, Standard).
 - A finished rebuild (`stats:changed`) re-reads the status and the catalogue and runs every query on screen again.
 
 ## Leaderboards (home)
 
-Eight boards, the top six of each: QB passing yards and yards per attempt, RB rushing yards and touches, WR receiving yards and target share, TE receiving yards, team takeaways (`def_turnovers`). A row needs the metric's own qualification and half the regular-season games in range (one in the postseason). Totals or per game. With a league, "My players" marks my players with an amber dot and adds my best one under a dashed line when he ranks outside the top six. "All →" or a row opens the full leaderboard sorted by that metric (the row selected). Saved views are listed above the boards.
+Eight boards, the top six of each: QB passing yards and yards per attempt, RB rushing yards and touches, WR receiving yards and target share, TE receiving yards, team takeaways (`def_turnovers`). A row needs the metric's own qualification and half the regular-season games in range (one in the postseason). Totals or per game. With a league, "My players" marks my players with an amber dot and adds my best one under a dashed line when he ranks outside the top six. "All →" opens the full leaderboard sorted by that metric; a row opens that player's (or team's) dashboard. Saved views are listed above the boards.
 
 ## Players and Teams
 
@@ -28,6 +28,7 @@ The Ledger table: one tab per position group (All offense, QB, RB, WR, TE, K, P,
 | Owner mark       | With a league: amber dot for my players (my defense), a hollow ring for another team's, its name on hover                                                                                                                                                                                                                                                       |
 
 - **A team row** (on the team leaderboard, or a home board's) opens that team's dashboard. The team leaderboard is under the dashboard's "Team leaderboards →" and the home's "All →".
+- **A player row** (on a player leaderboard, a home board, or a team dashboard's tables) opens that player's dashboard. The player leaderboards are under the dashboard's "Player leaderboards →" (at his position, his row selected) and the home's "All →".
 - **Filters:** Totals / Per game, Qualified only, team (players), with a league All / My team / Free agents, search by name. Ownership and search filter the engine's rows, so percentiles stay among the whole position.
 - **Columns:** "Columns: this tab" or one family's core metrics on the tab (Traditional, Advanced, Next Gen, Charting, Predictive; extended ones fill in to 12); the column picker adds any core or extended metric of the tab (at most 40) or removes one; Reset.
 - **Sort:** a column head (best first, then the other way), or the name. The engine sorts; the table shows 50 rows at a time.
@@ -55,14 +56,40 @@ Teams in the nav opens it on the team viewed last; the first time, on the team o
 
 Charts: one line per series (cobalt, teal; colour-blind safe in both themes), gaps for byes, end labels, and a hover that lists every series that week.
 
+## Player dashboard
+
+Players in the nav opens it on the player viewed last; the first time, on my top fantasy scorer in range (with a league, once the rosters have loaded), else the leading WR by receiving yards. A Fantasy player file's "Full stats ↗" opens it too (a team defense opens its team dashboard).
+
+- **Rail** (handoff "6. Player profile"): the nine positions (QB, RB, WR, TE, K, P, DL, LB, DB), a search, a rank-by metric (the position leaderboard's columns), and the players the position's leaderboard qualifies, best first, the value in a chip shaded by its percentile. The player shown stays listed below the qualifier ("NQ"). ↑ / ↓ or J / K move the selection; picking a position opens its leader; 25 rows, then "Show 25 more".
+- **Header** (every tab): Sleeper's headshot (initials when it does not load), the position chip, the team (opens its dashboard), games in range, "Not qualified", the status tag, the fantasy rank under the scoring ("WR4 in PPR", fantasy positions); the name he goes by (first, then last); number, his age that season, season of his career, draft, college, size; the scope bar; Compare (Plan AD); with a league and a fantasy position, the owner chip ("On your fantasy team", "Rostered by …", "Free agent in your league") that opens his Fantasy file.
+- **Status tag:** the latest roster week's reserve list (IR, PUP, NFI, SUS, RES) or the latest week's injury report (OUT, D, Q; DNP or LP in practice before a game status), the latest season only. Hover: the status, the injury and the week.
+- **Stat lines** (as the team dashboard's): value, percentile pill and rank among his position's players the leaderboard qualifies who also meet the metric's own sample ("4th of 110"), the qualified players' mean ("Lg"). Below the qualifier, values without ranks. An empty line says why: "Not published for 2026 yet.", "Charted from 2022.", "No plays in this split.", "No NFL Next Gen Stats value for him." (NGS and ESPN QBR publish players over their own minimums).
+
+| Position group | Tabs                                                                                   |
+| -------------- | -------------------------------------------------------------------------------------- |
+| QB             | Overview · Passing · Under pressure · Rushing · Game log · Splits · Forecast · Profile |
+| RB             | Overview · Usage · Rushing · Receiving · Game log · Splits · Forecast · Profile        |
+| WR, TE         | Overview · Usage · Receiving · vs Coverage · Game log · Splits · Forecast · Profile    |
+| K, P           | Overview · Kicking (Punting) · Game log · Profile                                      |
+| DL, LB, DB     | Overview · Pass rush · Coverage · Run defense & tackling · Game log · Splits · Profile |
+
+| Tab                                                                                                                            | Shows                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview                                                                                                                       | The handoff's four tiles (value, percentile chip), the percentile rankings (6–8 core metrics), fantasy points by week against expected points, the season and career lines (regular seasons since 2019)                                                                                                                                                           |
+| Passing, Under pressure, Rushing, Usage, Receiving, vs Coverage, Kicking, Punting, Pass rush, Coverage, Run defense & tackling | Stat lines in sections; Under pressure and vs Coverage add play splits (pressured and clean, blitzed and not, man and zone) ranked among the position in the same split                                                                                                                                                                                           |
+| Game log                                                                                                                       | A row per week of the range: opponent (@ on the road), result from his team's side, the position's columns, fantasy and expected points; a bye or "Did not play" for the team he played for nearest that week; postseason rounds                                                                                                                                  |
+| Splits                                                                                                                         | Games (all, home, away, last 4), quarter, score (leading by 9+, within 8, trailing by 9+), down and red zone, and pressure, blitz and play action (QB) or man and zone (WR, TE): his plays, then each metric shaded and ranked among his position in that split; by opponent; with and without a teammate on the field                                            |
+| Forecast                                                                                                                       | The next game and its defense against the position (among the 32, a stingy one in red); with a league and this season, Sleeper's projection, the rest of the season and its rank, FantasyPros' rank; the range of outcomes (ceiling, floor, boom, bust), role (last 4 against before), running hot or cold, the schedule from here, the core rates raw and shrunk |
+| Profile                                                                                                                        | Bio (born, size, college, draft, rookie season, team now), the combine with percentiles among his position since 2000, the athletic score (RAS-style) and Speed Score, career by season and in all                                                                                                                                                                |
+
 ## Glossary
 
 Every core and extended metric, players or teams, by family or search, with the same entry as the column hover.
 
 ## IPC
 
-`stats.games({ season, team })` for the dashboard's header, next game and schedule; `stats.ownership()` (the league's rosters keyed by gsis id and nflverse team code, from `player_ids`), `stats.views()`, `stats.saveView(name, board)`, `stats.deleteView(id)`, `stats.exportCsv(fileName, csv)`; and Plan Y's `stats.query`, `stats.catalogue`, `stats.status`, `stats.onChanged`.
+`stats.games({ season, team })` for the dashboard's header, next game and schedule (`{ season }` for a player's log); `stats.player({ player })` for a player's bio and status; `stats.outlook({ player, season, scoring })` for his Forecast; `stats.link({ sleeper } | { gsis })` (the same player in both products, from `player_ids`); `stats.ownership()` (the league's rosters keyed by gsis id and nflverse team code, from `player_ids`), `stats.views()`, `stats.saveView(name, board)`, `stats.deleteView(id)`, `stats.exportCsv(fileName, csv)`; and Plan Y's `stats.query`, `stats.catalogue`, `stats.status`, `stats.onChanged`.
 
 ## Speed
 
-Measured on the live database (2026 week 6): the home's eight boards on screen in about 90 ms, a leaderboard tab 100–210 ms from click to table, a sort 120 ms, a 40-column query 265 ms. The team dashboard: Teams 140 ms from click to the Overview, a tab 65–150 ms, Situational (eleven queries) 275 ms.
+Measured on the live database (2026 week 6): the home's eight boards on screen in about 90 ms, a leaderboard tab 100–210 ms from click to table, a sort 120 ms, a 40-column query 265 ms. The team dashboard: Teams 140 ms from click to the Overview, a tab 65–150 ms, Situational (eleven queries) 275 ms. The player dashboard: Players 230–290 ms from click to the Overview, a tab 70–135 ms, Splits 265–480 ms, a rail position 135–275 ms.
