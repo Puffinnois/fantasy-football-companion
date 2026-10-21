@@ -224,6 +224,78 @@ describe('runQuery (stats-analysis spec §7)', () => {
     expect(perGame.rows[0].values.tackles.value).toBe(1)
   })
 
+  it('divides per-route rates over the weeks whose routes are known (snap counts lag the plays)', async () => {
+    const db = await seeded()
+    // Week 2: its plays are in, its snap counts (so its routes) are not published yet.
+    await db.exec(
+      `INSERT INTO player_week BY NAME
+       SELECT '${WR}' AS gsis_id, 2025 AS season, 'REG' AS season_type, 2 AS week, 'BUF' AS team,
+              'WR' AS position, 1 AS games, 5 AS targets, 60 AS rec_yds, 3 AS rec_fd,
+              30 AS tm_dropbacks, NULL::DOUBLE AS routes`
+    )
+    const r = await runQuery(
+      db,
+      {
+        entity: 'player',
+        metrics: ['tprr', 'yprr', 'fd_per_route', 'route_participation'],
+        scope: { seasons: [2025], weeks: [1, 2], players: [WR] }
+      },
+      CTX
+    )
+    expect(r.grain).toBe('week')
+    const v = r.rows[0].values
+    // Week 1 only: 2 targets, 20 yards and 1 first down on 3 routes, of 3 team dropbacks.
+    expect(v.tprr.value).toBeCloseTo(2 / 3)
+    expect(v.yprr.value).toBeCloseTo(20 / 3)
+    expect(v.fd_per_route.value).toBeCloseTo(1 / 3)
+    expect(v.route_participation.value).toBeCloseTo(1)
+  })
+
+  it('compares fantasy points with expected points over the weeks that have both', async () => {
+    const db = await seeded()
+    const query: StatsQuery = {
+      entity: 'player',
+      metrics: ['fpoe', 'expected_ppg'],
+      scope: { seasons: [2025], weeks: [1, 2], players: [WR] },
+      scoring: 'half'
+    }
+    const week1 = (await runQuery(db, query, CTX)).rows[0].values
+    // Week 2: Sleeper's line is in, ffopportunity's expected stats are not published yet.
+    await db.exec(
+      `INSERT INTO player_week BY NAME
+       SELECT '${WR}' AS gsis_id, 2025 AS season, 'REG' AS season_type, 2 AS week, 'BUF' AS team,
+              'WR' AS position, 1 AS games`
+    )
+    await db.exec(
+      `INSERT INTO fantasy_week BY NAME
+       SELECT gsis_id, season, season_type, 2 AS week, scoring, position, 30 AS points,
+              NULL::DOUBLE AS xpoints
+       FROM fantasy_week WHERE gsis_id = '${WR}' AND scoring = 'half'`
+    )
+    const both = (await runQuery(db, query, CTX)).rows[0].values
+    expect(both.fpoe.value).toBeCloseTo(week1.fpoe.value as number)
+    expect(both.expected_ppg.value).toBeCloseTo(week1.expected_ppg.value as number)
+  })
+
+  it('counts a target toward per-route rates only on plays with players on the field', async () => {
+    const db = await seeded()
+    // Play 4 (the second target) lost its participation rows: no route for it either.
+    await db.exec('DELETE FROM on_field WHERE play_id = 4')
+    const r = await runQuery(
+      db,
+      {
+        entity: 'player',
+        metrics: ['tprr'],
+        scope: { seasons: [2025], players: [WR] },
+        situation: { quarter: [1, 2, 3, 4] }
+      },
+      CTX
+    )
+    expect(r.grain).toBe('play')
+    // Routes: dropbacks 1 and 2 on the field; targets on those plays: play 1.
+    expect(r.rows[0].values.tprr.value).toBeCloseTo(1 / 2)
+  })
+
   it('marks routes estimated in a season without participation', async () => {
     const db = await openTestDb()
     await seedGame(db)

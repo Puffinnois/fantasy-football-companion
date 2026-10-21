@@ -558,3 +558,12 @@ Decided with the user and measured on the live database while Plan AB was writte
 - **F. Charts** are drawn as SVG (no chart library): a line per series in the handoff's `--s1` / `--s2`, checked with the dataviz validator for colour-blind separation (the dark values moved into the dark lightness band: `#5d8ff2`, `#26a092`), gaps for byes, end labels and a hover with every series that week.
 - **G. Teams' names and divisions** live in `src/shared/stats/nflTeams.ts`; the season simulation reads its divisions from there. A division place is the regular season's win %, then margin (an approximation of the tiebreakers).
 - **H. Measured** (2026 week 6): each tab's queries 25–120 ms, the eleven of Situational 145–170 ms; in the app, Teams 140 ms from click to the Overview and a tab 65–275 ms (budget 300 ms, §11).
+
+## 20. Amendment 2026-10-21: paired sums (v0.29.1)
+
+Found while checking Plans AA and AB on live data. Sources are published at different times: play-by-play the night of a game, snap counts, PFR and ffopportunity a day or two later. §5.1's sums divide over every week in scope, so until a week's snap counts were out, its targets counted against the earlier weeks' routes: 130 of 145 receivers targeted in 2026 week 6 had no routes yet, and targets per route read 41.7 % for a receiver at 26.2 %.
+
+- A rate whose two sides come from different sources divides **paired sums**: the plays' side summed only over the weeks where the other side is known (`<base>__<when>`, `src/main/stats/derived/paired.ts`). That covers TPRR, YPRR, first downs per route and route participation (with routes); bad-throw %, PFR pressure %, broken tackles per touch, pressure rate and blitz rate (with PFR); FPOE and expected points per game (with ffopportunity).
+- At the play grain, a target pairs with routes when participation lists the play's players.
+- Broken tackles per touch counts a missing PFR side as 0: it was blank for the receivers without a PFR rushing row (52 of 112 qualifying 2025 WRs).
+- `DERIVED_VERSION` 2: the first refresh after the update rebuilds the derived tables and the models (about 50 s), then measures stability again.

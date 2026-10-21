@@ -1,4 +1,5 @@
 import { PLAYER_PLAY_COMPONENTS, ROLE_SOURCES, type PlayComponent, type Role } from './plays'
+import { PAIRED, PAIRED_NAMES, pairedName } from './paired'
 import { groupAvailable, hasAll, postWeek, sums, type Built, type Have } from './sql'
 
 /**
@@ -139,6 +140,7 @@ export function playerComponentNames(): string[] {
       'qbr_plays',
       ...Object.keys(FF_OPPORTUNITY_COMPONENTS),
       ...Object.keys(TEAM_CONTEXT),
+      ...PAIRED_NAMES,
       'routes_est',
       'games'
     ])
@@ -256,8 +258,9 @@ function sourceParts(have: Have, season: number): Part[] {
  * `player_week` (spec §5.2): one row per player × season type × week of one season, every
  * component from every source joined on gsis, plus the week's position (nflverse rosters), the
  * team context for shares, and routes: exact from participation, else estimated as team dropbacks
- * × offensive snap share (`routes_est` = 1). Each source is aggregated into its own temporary
- * table first, then joined to the keys, so no wide intermediate is built.
+ * × offensive snap share (`routes_est` = 1), and the paired sums of `paired.ts`. Each source is
+ * aggregated into its own temporary table first, then joined to the keys, so no wide intermediate
+ * is built.
  */
 export function playerWeekSelect(have: Have, season: number): Built {
   const all = [...playParts(have, season), ...sourceParts(have, season)]
@@ -311,7 +314,11 @@ export function playerWeekSelect(have: Have, season: number): Built {
     LEFT JOIN games g ON g.game_id = s.game_id
     LEFT JOIN team_week t ON t.team = s.team AND t.game_id = s.game_id
     WHERE s.gsis_id IS NOT NULL`
-  return { temps, sql }
+  // Each rate's two sides over the same weeks (`paired.ts`).
+  const paired = PAIRED.map(
+    ([base, when]) => `CASE WHEN ${when} IS NOT NULL THEN ${base} END AS ${pairedName(base, when)}`
+  )
+  return { temps, sql: `SELECT *, ${paired.join(', ')} FROM (${sql})` }
 }
 
 /**

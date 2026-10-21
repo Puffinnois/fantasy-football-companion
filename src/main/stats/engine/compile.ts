@@ -17,6 +17,7 @@ import {
   type PlayComponent,
   type Role
 } from '../derived/plays'
+import { FANTASY_PAIRED, ON_FIELD_KNOWN, PLAY_PAIRED } from '../derived/paired'
 import { STATS_FIRST_SEASON } from '../sources'
 import {
   grainsOf,
@@ -481,7 +482,10 @@ function tableAgg(
     const scoring = params.add(c.scoring)
     const weekly = player
       ? `SELECT gsis_id, season, season_type, week, max(points) AS fp, max(xpoints) AS xfp,
-                max(boom) AS boom, max(bust) AS bust
+                max(boom) AS boom, max(bust) AS bust,
+                ${Object.entries(FANTASY_PAIRED)
+                  .map(([name, expr]) => `${expr} AS ${name}`)
+                  .join(', ')}
          FROM (SELECT *, ${BOOM_BUST} FROM fantasy_week
                WHERE scoring = ${scoring} AND season IN ${seasonList})
          WHERE gsis_id IS NOT NULL GROUP BY ALL`
@@ -639,6 +643,13 @@ function playAgg(
   const player = q.entity === 'player'
   const dims = c.groupBy
   const needed = new Set(c.metrics.flatMap(componentsOf))
+  // A paired component sums its base play component on plays with players on the field.
+  const pairedPlay = [...PLAY_PAIRED].flatMap(([name, base]): PlayComponent[] => {
+    const comp = PLAYER_PLAY_COMPONENTS.find((x) => x.name === base)
+    return needed.has(name) && comp
+      ? [{ ...comp, name, expr: `CASE WHEN ${ON_FIELD_KNOWN} THEN ${comp.expr} END` }]
+      : []
+  })
   const situation = situationWhere(q.situation ?? {}, params, notes)
   const scopeWhere = (team: string, opp: string, id: string): string[] => {
     const w = [
@@ -672,7 +683,7 @@ function playAgg(
   const parts: { sql: string; cols: string[] }[] = []
   if (player) {
     const byRole = new Map<Role, PlayComponent[]>()
-    for (const comp of PLAYER_PLAY_COMPONENTS) {
+    for (const comp of [...PLAYER_PLAY_COMPONENTS, ...pairedPlay]) {
       if (needed.has(comp.name)) byRole.set(comp.role, [...(byRole.get(comp.role) ?? []), comp])
     }
     for (const [role, comps] of byRole) {

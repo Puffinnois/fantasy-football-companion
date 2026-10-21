@@ -1,13 +1,17 @@
 import { CATALOGUE, componentsOf } from '@shared/stats/catalogue'
 import { sampleLabel } from '@shared/stats/samples'
 import type { Entity, Grain, MetricDef, MetricInfo, MetricStability } from '@shared/stats/types'
+import { FANTASY_PAIRED, PLAY_PAIRED } from '../derived/paired'
 import { BOX_COMPONENTS, playerComponentNames } from '../derived/player'
 import { PLAYER_PLAY_COMPONENTS, TEAM_PLAY_COMPONENTS } from '../derived/plays'
 import { TEAM_BOX_COMPONENTS, teamComponentNames } from '../derived/team'
 import { PLAYER_MODEL_SUMS, PLAYER_STATES, TEAM_MODEL_SUMS, TEAM_STATES } from '../models/columns'
 
-/** Fantasy components, joined from `fantasy_week` / `team_fantasy_week` under the chosen scoring. */
-export const PLAYER_FANTASY = ['fp', 'xfp', 'boom', 'bust']
+/**
+ * Fantasy components, joined from `fantasy_week` / `team_fantasy_week` under the chosen scoring;
+ * `fp__xfp` and `games__xfp` are the points and games of the weeks that have expected points.
+ */
+export const PLAYER_FANTASY = ['fp', 'xfp', 'boom', 'bust', ...Object.keys(FANTASY_PAIRED)]
 export const TEAM_FANTASY = ['fpa_qb', 'fpa_rb', 'fpa_wr', 'fpa_te', 'fpa_k']
 /** Weekly quantiles of the fantasy points (spec §8.5 ceiling and floor): weekly rows only. */
 export const QUANTILES: Record<string, number> = { 'p80:fp': 0.8, 'p20:fp': 0.2 }
@@ -54,7 +58,7 @@ export const COMPONENTS: Record<Entity, Record<'table' | 'play', ReadonlySet<str
       ...PLAYER_STATES.map((s) => `last:${s}`),
       ...Object.keys(QUANTILES)
     ]),
-    play: new Set([...PLAYER_PLAY_COMPONENTS.map((c) => c.name), 'games'])
+    play: new Set([...PLAYER_PLAY_COMPONENTS.map((c) => c.name), ...PLAY_PAIRED.keys(), 'games'])
   },
   team: {
     table: new Set([

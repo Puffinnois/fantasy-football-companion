@@ -1,6 +1,6 @@
 # Plan AB — Stats analysis: the team dashboard
 
-**Status:** complete 2026-10-20. Merged to main as `c1a96a3` and tagged `v0.29.0` on `78d08d9` (not pushed yet). Tasks 1–5 were executed from this text; each task's tests were seen failing, then passing, with the plan's counts plus the 3 of the untracked `tests/shared/playerImage.test.ts`.
+**Status:** complete 2026-10-20. Merged to main as `c1a96a3` and tagged `v0.29.0` on `78d08d9` (pushed and published 2026-10-20). Tasks 1–5 were executed from this text; each task's tests were seen failing, then passing, with the plan's counts plus the 3 of the untracked `tests/shared/playerImage.test.ts`.
 
 Task 6 on the branch: `ALL GATES PASSED`. Every tab's queries 23–177 ms (splits 136–160 ms); every team in 2025 and 2026 had its games, place, roster tables, usage grid and lines. In the app: Teams 135–170 ms to the Overview, tabs 56–177 ms, Situational 215–256 ms. The walk-through ran on the branch's build with the dev league and without one, light and dark; every screenshot matched its checklist except `11-forecast-2024` (below), and all matched after the review fixes.
 

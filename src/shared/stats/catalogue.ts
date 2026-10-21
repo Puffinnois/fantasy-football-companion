@@ -369,7 +369,7 @@ const PASSING: MetricDef[] = [
     'Bad%',
     'Share of attempts Pro Football Reference charts as poorly thrown.',
     {
-      value: ratio('pfr_bad_throws', 'pass_att'),
+      value: ratio('pfr_bad_throws', 'pass_att__pfr_bad_throws'),
       sample: 'pass_att',
       unit: 'pct',
       family: 'charting',
@@ -419,7 +419,7 @@ const PASSING: MetricDef[] = [
     'PFR Prss%',
     'Times pressured per dropback as Pro Football Reference charts it; published for the current season too.',
     {
-      value: ratio('pfr_times_pressured', 'dropbacks'),
+      value: ratio('pfr_times_pressured', 'dropbacks__pfr_times_pressured'),
       sample: 'dropbacks',
       unit: 'pct',
       family: 'charting',
@@ -810,7 +810,8 @@ const RUSHING: MetricDef[] = [
     'BTkl/Tch',
     'Broken tackles, rushing and receiving, per carry or catch (Pro Football Reference).',
     {
-      value: '({pfr_rush_btkl} + {pfr_rec_btkl}) / nullif({carries} + {receptions}, 0)',
+      value:
+        '(coalesce({pfr_rush_btkl}, 0) + coalesce({pfr_rec_btkl}, 0)) / nullif(coalesce({carries__pfr_rush_btkl}, 0) + coalesce({receptions__pfr_rec_btkl}, 0), 0)',
       sample: 'carries',
       unit: 'number',
       decimals: 3,
@@ -985,7 +986,7 @@ const RECEIVING: MetricDef[] = [
     'Rte%',
     `Share of the team’s dropbacks he ran a route on. ${ROUTES_NOTE}`,
     {
-      value: ratio('routes', 'tm_dropbacks'),
+      value: ratio('routes', 'tm_dropbacks__routes'),
       sample: 'routes',
       unit: 'pct',
       family: 'advanced',
@@ -1002,7 +1003,7 @@ const RECEIVING: MetricDef[] = [
     'YPRR',
     `Receiving yards per route: efficiency that does not punish a player for targets he did not get. ${ROUTES_NOTE}`,
     {
-      value: ratio('rec_yds', 'routes'),
+      value: ratio('rec_yds__routes', 'routes'),
       sample: 'routes',
       unit: 'yards',
       decimals: 2,
@@ -1020,7 +1021,7 @@ const RECEIVING: MetricDef[] = [
     'TPRR',
     `Targets per route: how often he earns the ball when he is out there. ${ROUTES_NOTE}`,
     {
-      value: ratio('targets', 'routes'),
+      value: ratio('targets__routes', 'routes'),
       sample: 'routes',
       unit: 'pct',
       family: 'advanced',
@@ -1037,7 +1038,7 @@ const RECEIVING: MetricDef[] = [
     '1D/RR',
     `Receiving first downs per route. ${ROUTES_NOTE}`,
     {
-      value: ratio('rec_fd', 'routes'),
+      value: ratio('rec_fd__routes', 'routes'),
       sample: 'routes',
       unit: 'number',
       decimals: 3,
@@ -1603,7 +1604,7 @@ const FANTASY: MetricDef[] = [
     })
   ),
   metric('expected_ppg', 'Expected points per game', 'xFP/G', 'Expected fantasy points per game.', {
-    value: ratio('xfp', 'games'),
+    value: ratio('xfp', 'games__xfp'),
     sample: 'games',
     unit: 'points',
     family: 'predictive',
@@ -1618,7 +1619,7 @@ const FANTASY: MetricDef[] = [
     'FPOE',
     'Fantasy points minus expected points: efficiency, which regresses toward zero more than volume does.',
     count('fp', {
-      value: '{fp} - {xfp}',
+      value: '{fp__xfp} - {xfp}',
       unit: 'points',
       decimals: 1,
       family: 'predictive',
@@ -1775,7 +1776,7 @@ const DEFENSE: MetricDef[] = [
     'Prss%',
     'Pressures per pass snap. Pass snaps are the opponent’s dropbacks he was on the field for (participation, through the prior season), not true pass rushes.',
     {
-      value: ratio('pfr_pressures', 'def_pass_snaps'),
+      value: ratio('pfr_pressures', 'def_pass_snaps__pfr_pressures'),
       sample: 'def_pass_snaps',
       unit: 'pct',
       family: 'advanced',
@@ -1791,7 +1792,7 @@ const DEFENSE: MetricDef[] = [
     'Blitz%',
     'Blitzes per pass snap (Pro Football Reference blitzes; pass snaps from participation, through the prior season).',
     {
-      value: ratio('pfr_blitzes', 'def_pass_snaps'),
+      value: ratio('pfr_blitzes', 'def_pass_snaps__pfr_blitzes'),
       sample: 'def_pass_snaps',
       unit: 'pct',
       family: 'advanced',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rebuildDerived } from '@main/stats/derived/build'
+import { DERIVED_VERSION, rebuildDerived } from '@main/stats/derived/build'
 import { openTestDb } from '../../../fixtures/stats'
 import { CB, EDGE, QB, RB, WR, seedGame, seedTable } from '../../../fixtures/statsDerived'
 
@@ -208,6 +208,65 @@ describe('the derived tables (stats-analysis spec §5)', () => {
     })
   })
 
+  it('pairs per-route numerators with the weeks whose routes are known', async () => {
+    const db = await openTestDb()
+    await seedGame(db)
+    await rebuildDerived(db, { seasons: 'all', league: null })
+    const paired = (table: string): Promise<R | null> =>
+      db.get<R>(
+        `SELECT targets__routes, rec_yds__routes, rec_fd__routes, tm_dropbacks__routes
+         FROM ${table} WHERE gsis_id = ?`,
+        [WR]
+      )
+    const known = {
+      targets__routes: 2,
+      rec_yds__routes: 20,
+      rec_fd__routes: 1,
+      tm_dropbacks__routes: 3
+    }
+    expect(await paired('player_week')).toEqual(known)
+    expect(await paired('player_season')).toEqual(known)
+    // The current season before its snap counts are published: no participation, no snaps, so no
+    // routes, and the plays' side of a per-route rate leaves that week out too.
+    await db.exec('DELETE FROM on_field')
+    await db.exec('DELETE FROM src_snaps')
+    await rebuildDerived(db, { seasons: 'all', league: null })
+    const unknown = {
+      targets__routes: null,
+      rec_yds__routes: null,
+      rec_fd__routes: null,
+      tm_dropbacks__routes: null
+    }
+    expect(await paired('player_week')).toEqual(unknown)
+    expect(await paired('player_season')).toEqual(unknown)
+    expect(await db.get<R>('SELECT targets FROM player_week WHERE gsis_id = ?', [WR])).toEqual({
+      targets: 2
+    })
+  })
+
+  it('pairs a PFR rate’s denominator with the weeks PFR has published', async () => {
+    const db = await openTestDb()
+    await seedGame(db)
+    await rebuildDerived(db, { seasons: 'all', league: null })
+    const cb = (): Promise<R | null> =>
+      db.get<R>(
+        `SELECT def_pass_snaps, def_pass_snaps__pfr_pressures, def_pass_snaps__pfr_blitzes
+         FROM player_week WHERE gsis_id = ?`,
+        [CB]
+      )
+    const before = (await cb())!
+    expect(before.def_pass_snaps).toBeGreaterThan(0)
+    expect(before.def_pass_snaps__pfr_pressures).toBe(before.def_pass_snaps)
+    expect(before.def_pass_snaps__pfr_blitzes).toBe(before.def_pass_snaps)
+    await db.exec('DELETE FROM src_pfr_def')
+    await rebuildDerived(db, { seasons: 'all', league: null })
+    expect(await cb()).toEqual({
+      def_pass_snaps: before.def_pass_snaps,
+      def_pass_snaps__pfr_pressures: null,
+      def_pass_snaps__pfr_blitzes: null
+    })
+  })
+
   it('leaves out what an unloaded source would give', async () => {
     const db = await openTestDb()
     await seedGame(db)
@@ -260,7 +319,7 @@ describe('the derived tables (stats-analysis spec §5)', () => {
     await seedGame(db)
     await rebuildDerived(db, { seasons: [], league: null })
     expect(await db.get<R>("SELECT version FROM derived_state WHERE name = 'derived'")).toEqual({
-      version: 1
+      version: DERIVED_VERSION
     })
     await db.exec('UPDATE player_week SET targets = 99')
     await rebuildDerived(db, {
