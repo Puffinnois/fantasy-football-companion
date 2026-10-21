@@ -191,4 +191,37 @@ describe('the service reads and the league rules (stats-analysis spec §5, §7)'
       await reopened.close()
     }
   })
+
+  it('answers league reads only once a league’s first scoring is done', async () => {
+    const { dir, path } = await builtFile()
+    const service = await openStatsService({ path, tempDir: join(dir, 'tmp') }, () => {})
+    const league = {
+      entity: 'player' as const,
+      metrics: ['fantasy_points'],
+      scope: { seasons: [2025], players: [WR] },
+      scoring: 'league' as const
+    }
+    try {
+      const scoring = service.setLeague(RULES)
+      // The fantasy tables hold no league points yet: a read would find none for every player.
+      await expect(service.query(league)).rejects.toThrow(
+        'the league’s scoring is still being applied'
+      )
+      await expect(
+        service.outlook({ player: WR, season: 2025, scoring: 'league' })
+      ).rejects.toThrow('the league’s scoring is still being applied')
+      expect((await service.query({ ...league, scoring: 'ppr' })).rows).toHaveLength(1)
+      expect(await scoring).toBe(true)
+      expect((await service.query(league)).rows[0].values.fantasy_points.value).toBe(5)
+      // New rules rescore points the tables already hold: reads go on meanwhile.
+      const rescoring = service.setLeague({
+        scoring: { rec: 1, rec_yd: 0.1 },
+        positionOverrides: {}
+      })
+      expect((await service.query(league)).rows).toHaveLength(1)
+      expect(await rescoring).toBe(true)
+    } finally {
+      await service.close()
+    }
+  })
 })

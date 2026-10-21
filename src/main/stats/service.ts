@@ -1,7 +1,7 @@
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { createSleeperClient } from '@main/sources/sleeper'
-import type { ScoringRules } from '@shared/stats/scoring'
+import type { Scoring, ScoringRules } from '@shared/stats/scoring'
 import { componentsOf, METRICS } from '@shared/stats/catalogue'
 import type {
   GameForecast,
@@ -42,7 +42,8 @@ export interface StatsService {
   refresh(options: RefreshOptions): Promise<StatsSyncResult>
   /**
    * The league's scoring rules (null without a league). When they differ from the ones the
-   * fantasy tables were built with, those are rebuilt; resolves true then.
+   * fantasy tables were built with, those are rebuilt; resolves true then. Until the tables first
+   * hold a league's points, its reads answer that the scoring is still being applied.
    */
   setLeague(rules: ScoringRules | null): Promise<boolean>
   selfTest(): Promise<SelfTestResult>
@@ -134,6 +135,7 @@ function readsModels(query: StatsQuery): boolean {
 }
 
 const BUILDING = 'the stats are still being built; try again in a few minutes'
+const SCORING = 'the league’s scoring is still being applied; the screens update when it is done'
 
 /** Rules reach SQL as numbers: anything else is refused (main validates them too). */
 function checkRules(rules: ScoringRules | null): void {
@@ -194,6 +196,12 @@ export async function openStatsService(
   /** The rules the fantasy tables were built with. */
   let built = stored?.value ?? null
   const downloads = createDownloads({ dir: init.tempDir, signal: abort.signal })
+  // A league's first scoring: until it is done, its reads would find no points for anyone.
+  const scoringFirst = (scoring: Scoring | undefined): void => {
+    if (scoring === 'league' && league !== null && built === null) {
+      throw new StatsQueryError(SCORING)
+    }
+  }
   const contextOf = async (conn: StatsDb): Promise<CompileContext> => {
     const latest = await conn.get<{ season: number }>('SELECT max(season) AS season FROM games')
     return {
@@ -246,8 +254,9 @@ export async function openStatsService(
       await save()
       return true
     },
-    query: (query) =>
-      read(async (conn) => {
+    query: async (query) => {
+      scoringFirst(query.scoring)
+      return read(async (conn) => {
         if (await derivedStale(conn)) throw new StatsQueryError(BUILDING)
         if (readsModels(query) && (await modelsStale(conn))) throw new StatsQueryError(BUILDING)
         const ctx = await contextOf(conn)
@@ -260,20 +269,23 @@ export async function openStatsService(
           )
         }
         return runQuery(conn, query, ctx)
-      }),
+      })
+    },
     catalogue: () => read(async (conn) => catalogueInfo(await readStability(conn))),
     games: (query) =>
       read(async (conn) => {
         if (await modelsStale(conn)) throw new StatsQueryError(BUILDING)
         return gameForecasts(conn, query)
       }),
-    outlook: (query) =>
-      read(async (conn) => {
+    outlook: async (query) => {
+      scoringFirst(query.scoring)
+      return read(async (conn) => {
         if ((await derivedStale(conn)) || (await modelsStale(conn))) {
           throw new StatsQueryError(BUILDING)
         }
         return playerOutlook(conn, query, await contextOf(conn), await readStability(conn))
-      }),
+      })
+    },
     player: (query) => read((conn) => playerBio(conn, query)),
     status: () =>
       read(async (reader) => {
