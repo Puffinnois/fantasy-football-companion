@@ -353,7 +353,8 @@ describe('the team dashboard (spec §9.3)', () => {
     })
     await openTeams()
     await waitFor(() => expect(queries().some((q) => q.scope.players?.join() === 'p1')).toBe(true))
-    expect(await screen.findByText('Loading…')).toBeTruthy()
+    // It says why it waits.
+    expect(await screen.findByText('the league’s scoring is still being applied')).toBeTruthy()
     scored = true
     act(() => changed())
     expect(await screen.findByRole('heading', { name: 'SEA' })).toBeTruthy()

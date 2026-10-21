@@ -107,6 +107,12 @@ export function StatsApp({
   const rosters = !hasLeague || data.ownershipReady
   // So does an error (the league's first scoring): the stats change when it is done.
   const topWaiting = topQuery !== null && (top.loading || top.error !== null)
+  // While a default waits on an error, it says why.
+  const waiting = (
+    <div className="py-20 text-center text-[13px] text-fg-3">
+      {top.error ?? leaders.error ?? 'Loading…'}
+    </div>
+  )
   const shownTeam = team ?? (!rosters || topWaiting ? null : defaultTeam(top.result))
   // Once on screen, the default is the team: a new season or range does not switch it.
   if (team === null && screen === 'team' && shownTeam !== null) setTeam(shownTeam)
@@ -227,7 +233,7 @@ export function StatsApp({
                   onOpenPlayer={openPlayer}
                 />
               ) : (
-                <div className="py-20 text-center text-[13px] text-fg-3">Loading…</div>
+                waiting
               ))}
             {screen === 'player' &&
               (shownPlayer ? (
@@ -248,7 +254,7 @@ export function StatsApp({
                   }
                 />
               ) : (
-                <div className="py-20 text-center text-[13px] text-fg-3">Loading…</div>
+                waiting
               ))}
             {screen === 'glossary' && <StatsGlossary catalogue={data.catalogue} />}
             {viewsError && <div className="px-8 pb-4 text-[12px] text-bad">{viewsError}</div>}

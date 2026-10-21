@@ -260,7 +260,8 @@ describe('the player dashboard (stats-analysis spec §9.4)', () => {
     await waitFor(() => expect(stats.catalogue).toHaveBeenCalled())
     fireEvent.click(screen.getByRole('button', { name: 'Players' }))
     await waitFor(() => expect(queries().some((q) => q.scope.players && q.limit === 1)).toBe(true))
-    expect(await screen.findByText('Loading…')).toBeTruthy()
+    // It says why it waits.
+    expect(await screen.findByText('the league’s scoring is still being applied')).toBeTruthy()
     scored = true
     act(() => changed())
     expect(await screen.findByRole('heading', { name: 'Player 1' })).toBeTruthy()
