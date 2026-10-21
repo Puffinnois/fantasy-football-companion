@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { ArrowUpRight } from 'lucide-react'
+import { Mark } from '@/components/edition'
 import { StatsSelect } from '@/components/stats/controls'
 import { ReliabilityMarker } from '@/components/stats/MetricCard'
 import { Headshot, HeatCell, Loading, MiniTable, SectionHead } from '@/components/stats/parts'
@@ -18,6 +20,7 @@ import {
   fantasyRankQuery,
   gameLog,
   gameLogQuery,
+  inFantasy,
   kindOf,
   lineHead,
   lineRow,
@@ -38,6 +41,7 @@ import {
   positionGroup,
   positionTab,
   profileQuery,
+  projectionView,
   railQuery,
   railRows,
   sectionsFor,
@@ -59,7 +63,9 @@ import {
 import { rangeLabel, type StatsScope } from '@/lib/stats/scope'
 import { chartWeeks, weekSeries } from '@/lib/stats/team'
 import {
+  useFantasyDetail,
   usePlayerBio,
+  usePlayerLink,
   usePlayerOutlook,
   useSeasonGames,
   useStatsQueries,
@@ -86,6 +92,8 @@ interface TabProps {
   player: string
   position: PositionGroup
   bio: PlayerBio | null
+  /** The league's key with a league (Fantasy's projections), null without one. */
+  league: number | null
 }
 
 /** The player shown: his gsis id and the position group his dashboard follows. */
@@ -108,7 +116,9 @@ export function StatsPlayer({
   tab,
   onTab,
   onOpenTeam,
-  onOpenLeaderboard
+  onOpenLeaderboard,
+  leagueKey = 0,
+  onOpenFantasyPlayer
 }: {
   data: StatsData
   scope: StatsScope
@@ -121,6 +131,10 @@ export function StatsPlayer({
   onOpenTeam: (team: string) => void
   /** The player leaderboard at his position (spec §9.2). */
   onOpenLeaderboard: (position: PositionGroup) => void
+  /** Bumped when league data changed: the link to Fantasy is read again. */
+  leagueKey?: number
+  /** His file in Companion Fantasy (spec §9.4), with a league. */
+  onOpenFantasyPlayer?: (playerId: string) => void
 }): React.JSX.Element {
   const { bio, error: bioError } = usePlayerBio(player.id, data.version)
   const position: PositionGroup | null =
@@ -202,6 +216,8 @@ export function StatsPlayer({
               qualified={row ? qualifies(row, positionTab(position)) : true}
               rank={position ? fantasyRank(fr, player.id, position, scope) : null}
               onOpenTeam={onOpenTeam}
+              leagueKey={leagueKey}
+              onOpenFantasyPlayer={onOpenFantasyPlayer}
             />
             <div className="flex items-end justify-between gap-4 border-b border-line">
               <div role="tablist" aria-label="Player dashboard" className="flex gap-[22px]">
@@ -244,6 +260,7 @@ export function StatsPlayer({
               player={player.id}
               position={position}
               bio={bio}
+              league={hasLeague ? leagueKey : null}
             />
           </div>
         )}
@@ -280,7 +297,9 @@ function Header({
   row,
   qualified,
   rank,
-  onOpenTeam
+  onOpenTeam,
+  leagueKey,
+  onOpenFantasyPlayer
 }: {
   data: StatsData
   scope: StatsScope
@@ -292,9 +311,15 @@ function Header({
   qualified: boolean
   rank: string | null
   onOpenTeam: (team: string) => void
+  leagueKey: number
+  onOpenFantasyPlayer?: (playerId: string) => void
 }): React.JSX.Element {
   const h = playerHeader(bio, row, scope, data.status)
   const team = row?.team ?? bio.team
+  const fantasy =
+    hasLeague && onOpenFantasyPlayer && inFantasy(position) ? onOpenFantasyPlayer : null
+  const link = usePlayerLink(fantasy ? bio.id : null, leagueKey)
+  const owner = data.ownership?.players[bio.id] ?? null
   return (
     <header className="flex items-end justify-between gap-6">
       <div className="flex min-w-0 items-end gap-4">
@@ -366,6 +391,23 @@ function Header({
           >
             Compare
           </button>
+          {fantasy && (
+            <button
+              type="button"
+              disabled={!link}
+              onClick={() => link && fantasy(link.sleeper)}
+              title={link ? 'Open in Companion Fantasy' : 'Not in your league’s player list'}
+              className="flex h-8 cursor-pointer items-center gap-2 rounded-[8px] px-3 text-[12.5px] font-medium text-fg-2 shadow-[inset_0_0_0_1px_var(--line)] hover:bg-hover hover:text-fg disabled:cursor-default disabled:opacity-50"
+            >
+              <Mark size={14} />
+              {owner?.mine
+                ? 'On your fantasy team'
+                : owner
+                  ? `Rostered by ${owner.name}`
+                  : 'Free agent in your league'}
+              <ArrowUpRight className="size-[13px]" />
+            </button>
+          )}
         </div>
       </div>
     </header>
@@ -719,7 +761,7 @@ function Teammate({
   position,
   team,
   head
-}: Omit<TabProps, 'bio'> & { team: string; head: string[] }): React.JSX.Element | null {
+}: Omit<TabProps, 'bio' | 'league'> & { team: string; head: string[] }): React.JSX.Element | null {
   const mq = useMemo(
     () => teammatesQuery(team, position, scope, data.status),
     [team, position, scope, data.status]
@@ -790,7 +832,7 @@ function Teammate({
 }
 
 /** Spec §9.4 Forecast: the next matchup, the range of outcomes, trend, regression, schedule, profile. */
-function Forecast({ data, scope, player, position, bio }: TabProps): React.JSX.Element {
+function Forecast({ data, scope, player, position, bio, league }: TabProps): React.JSX.Element {
   const oq = useMemo(
     () => ({ player, season: scope.season, scoring: scope.scoring }),
     [player, scope.season, scope.scoring]
@@ -847,6 +889,13 @@ function Forecast({ data, scope, player, position, bio }: TabProps): React.JSX.E
             </p>
           )}
         </section>
+        <Projections
+          data={data}
+          scope={scope}
+          player={player}
+          position={position}
+          league={league}
+        />
         <section className="flex flex-col gap-2.5">
           <SectionHead
             title="Range of outcomes"
@@ -965,6 +1014,70 @@ function Forecast({ data, scope, player, position, bio }: TabProps): React.JSX.E
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * Spec §9.4 Forecast, with a league: Sleeper's projection of the next game, the rest of the season
+ * and its rank, FantasyPros' rank, from the Fantasy side (its scoring: the league's).
+ */
+function Projections({
+  data,
+  scope,
+  player,
+  position,
+  league
+}: Omit<TabProps, 'bio'>): React.JSX.Element {
+  const current = scope.season === data.status?.through?.season
+  const link = usePlayerLink(league !== null && current ? player : null, league)
+  const { detail, error } = useFantasyDetail(
+    link ? scope.season : null,
+    link?.sleeper ?? null,
+    league ?? 0
+  )
+  const v = detail ? projectionView(detail, position) : null
+  const note =
+    league === null
+      ? 'Import a league for Sleeper’s projection and FantasyPros’ rank.'
+      : !current
+        ? `Projections are for the ${data.status?.through?.season ?? 'current'} season.`
+        : link === null
+          ? 'Not in your league’s player list.'
+          : error
+  const rows: [string, string][] = v
+    ? [
+        [
+          'Next game (Sleeper)',
+          v.next
+            ? `${v.next.points} pts · week ${v.next.week}${v.next.opponent ? ` vs ${v.next.opponent}` : ''}`
+            : '—'
+        ],
+        ['Rest of season', `${v.ros} pts${v.rosRank ? ` · ${v.rosRank}` : ''}`],
+        ['FantasyPros rank', v.experts ?? '—']
+      ]
+    : []
+  return (
+    <section className="flex flex-col gap-2.5">
+      <SectionHead
+        title="Projections"
+        note={league === null ? undefined : 'Your league’s scoring'}
+      />
+      {note ? (
+        <p className="m-0 text-[12.5px] text-fg-3">{note}</p>
+      ) : (
+        <div className="flex flex-col border-b border-line-2">
+          {rows.map(([k, val]) => (
+            <div
+              key={k}
+              className="flex h-[34px] items-center justify-between gap-3 border-t border-line-2 text-[12.5px]"
+            >
+              <span className="text-fg-2">{k}</span>
+              <span className="font-mono font-medium">{val}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 

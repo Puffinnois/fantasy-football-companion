@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Star, X } from 'lucide-react'
 import {
   InjuryTag,
+  Mark,
   MeChip,
   PosChip,
   RookieTag,
@@ -22,7 +23,9 @@ import {
   splitName,
   type ReadTone
 } from '@/lib/playerFileView'
+import { useProductLinks } from '@/lib/productLinks'
 import { cn } from '@/lib/utils'
+import type { PlayerLink } from '@shared/stats/types'
 import type { DetailTarget, PlayerDetail } from '@shared/types'
 
 interface PlayerDetailPanelProps {
@@ -44,11 +47,13 @@ function Pill({
   on,
   onClick,
   title,
+  disabled,
   children
 }: {
   on?: boolean
   onClick: () => void
   title: string
+  disabled?: boolean
   children: React.ReactNode
 }): React.JSX.Element {
   return (
@@ -56,11 +61,12 @@ function Pill({
       type="button"
       title={title}
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        'flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full pr-3 pl-2.5 font-cond text-[13px] leading-none font-bold tracking-[0.08em] uppercase',
+        'flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full pr-3 pl-2.5 font-cond text-[13px] leading-none font-bold tracking-[0.08em] uppercase disabled:cursor-default disabled:opacity-40',
         on
           ? 'bg-brand text-on-brand'
-          : 'border border-line text-fg-2 hover:border-ink hover:text-fg'
+          : 'border border-line text-fg-2 hover:border-ink hover:text-fg disabled:hover:border-line disabled:hover:text-fg-2'
       )}
     >
       {children}
@@ -141,6 +147,21 @@ export function PlayerDetailPanel({
   const [watch, setWatch] = useState<{ playerId: string; on: boolean } | null>(null)
   const playerId = player?.playerId ?? null
   const key = playerId === null ? null : `${season}|${playerId}`
+  // Spec §9.4: "Full stats ↗" opens the player (a defense: its team) in Companion Stats.
+  const links = useProductLinks()
+  const [link, setLink] = useState<{ playerId: string; link: PlayerLink | null } | null>(null)
+
+  useEffect(() => {
+    if (playerId === null || links === null) return
+    let cancelled = false
+    void api.stats
+      .link({ sleeper: playerId })
+      .then((l) => !cancelled && setLink({ playerId, link: l }))
+      .catch(() => !cancelled && setLink({ playerId, link: null }))
+    return () => {
+      cancelled = true
+    }
+  }, [playerId, links])
 
   useEffect(() => {
     if (playerId === null || key === null) return
@@ -172,6 +193,7 @@ export function PlayerDetailPanel({
   const error = failed?.key === key ? failed.message : null
   const row = detail?.row ?? null
   const watched = watch?.playerId === player.playerId ? watch.on : (row?.watched ?? false)
+  const statsLink = link?.playerId === player.playerId ? link.link : null
 
   async function toggleWatch(): Promise<void> {
     if (player === null) return
@@ -249,6 +271,20 @@ export function PlayerDetailPanel({
               <Star className="size-3.5" fill={watched ? 'currentColor' : 'none'} />
               {watched ? 'Watching' : 'Watch'}
             </Pill>
+            {links && (
+              <Pill
+                onClick={() => statsLink && links.openStats(statsLink)}
+                disabled={!statsLink}
+                title={
+                  statsLink
+                    ? 'Open in Companion Stats'
+                    : 'Not in the stats database: no nflverse id for this player'
+                }
+              >
+                <Mark product="stats" size={14} />
+                Full stats ↗
+              </Pill>
+            )}
             <button
               type="button"
               title="Close (Esc)"

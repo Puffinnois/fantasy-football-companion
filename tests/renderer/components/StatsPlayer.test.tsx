@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
-import { StatsApp } from '@/screens/stats/StatsApp'
+import { StatsApp, type StatsFocus } from '@/screens/stats/StatsApp'
 import type { StatsScope } from '@/lib/stats/scope'
 import { api } from '@/lib/api'
 import type { GameForecast, PlayerOutlook, StatsOwnership, StatsQuery } from '@shared/stats/types'
@@ -11,6 +11,7 @@ import { bio, catalogue, result, row, STATUS, value } from '../../fixtures/stats
 
 vi.mock('@/lib/api', () => ({
   api: {
+    players: { detail: vi.fn() },
     stats: {
       status: vi.fn(),
       catalogue: vi.fn(),
@@ -149,10 +150,20 @@ const OUTLOOK: PlayerOutlook = {
 
 const IDLE: UpdateState = { status: 'idle' } as UpdateState
 
-function Harness({ hasLeague }: { hasLeague: boolean }): React.JSX.Element {
+function Harness({
+  hasLeague,
+  focus = null,
+  onOpenFantasyPlayer
+}: {
+  hasLeague: boolean
+  focus?: StatsFocus | null
+  onOpenFantasyPlayer?: (id: string) => void
+}): React.JSX.Element {
   const [scope, setScope] = useState<StatsScope | null>(null)
   return (
     <StatsApp
+      focus={focus}
+      onOpenFantasyPlayer={onOpenFantasyPlayer}
       hasLeague={hasLeague}
       leagueKey={0}
       onOpenFantasy={() => {}}
@@ -368,5 +379,86 @@ describe('the player dashboard (stats-analysis spec §9.4)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Teams' }))
     fireEvent.click((await screen.findAllByTitle('Open Player 2’s dashboard'))[0])
     expect(await screen.findByRole('heading', { name: 'Player 2' })).toBeTruthy()
+  })
+
+  it('opens what Fantasy asks, and his Fantasy file from the owner chip', async () => {
+    stats.link.mockResolvedValue({ sleeper: '9999', gsis: 'p2', team: null })
+    const open = vi.fn()
+    render(
+      <Harness
+        hasLeague
+        focus={{ kind: 'player', id: 'p2', nonce: 1 }}
+        onOpenFantasyPlayer={open}
+      />
+    )
+    // His position comes from his bio: a WR.
+    expect(await screen.findByRole('heading', { name: 'Player 2' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'vs Coverage' })).toBeTruthy()
+    const chip = await screen.findByRole('button', { name: /Free agent in your league/ })
+    expect(screen.getByText(/Free agent in your league/, { selector: 'button' })).toBe(chip)
+    await waitFor(() => expect((chip as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.click(chip)
+    expect(stats.link).toHaveBeenCalledWith({ gsis: 'p2' })
+    expect(open).toHaveBeenCalledWith('9999')
+    // The Forecast reads his Fantasy file's projections, under the league's scoring.
+    vi.mocked(api.players.detail).mockResolvedValue({
+      row: { rosPoints: 151.25, rosRank: 9, expert: { ecrPosRank: 7 } },
+      weeks: [{ week: 7, played: false, projected: 16.36, opponent: 'ARI' }],
+      schedule: []
+    } as never)
+    tab('Forecast')
+    expect(await screen.findByText('16.4 pts · week 7 vs ARI')).toBeTruthy()
+    expect(screen.getByText('151.3 pts · WR9')).toBeTruthy()
+    expect(api.players.detail).toHaveBeenCalledWith(2026, '9999')
+  })
+
+  it('keeps defenders out of Fantasy, and says what the Forecast needs without a league', async () => {
+    stats.player.mockImplementation(async ({ player }) => bio(player, { position: 'CB' }))
+    render(
+      <Harness
+        hasLeague
+        focus={{ kind: 'player', id: 'p2', nonce: 1 }}
+        onOpenFantasyPlayer={vi.fn()}
+      />
+    )
+    expect(await screen.findByRole('tab', { name: 'Run defense & tackling' })).toBeTruthy()
+    expect(
+      // The chip's own text (a rail row's name carries my player's dot label).
+      screen.queryByText(/On your fantasy team|Rostered by|Free agent in your league/, {
+        selector: 'button'
+      })
+    ).toBeNull()
+    cleanup()
+    stats.ownership.mockResolvedValue(null)
+    stats.player.mockImplementation(async ({ player }) => bio(player))
+    render(<Harness hasLeague={false} focus={{ kind: 'player', id: 'p2', nonce: 1 }} />)
+    await screen.findByRole('heading', { name: 'Player 2' })
+    tab('Forecast')
+    expect(
+      await screen.findByText('Import a league for Sleeper’s projection and FantasyPros’ rank.')
+    ).toBeTruthy()
+  })
+
+  it('opens a defense’s team, and shows no Fantasy chip without a league', async () => {
+    stats.games.mockResolvedValue(GAMES)
+    render(<Harness hasLeague={false} focus={{ kind: 'team', team: 'LA', nonce: 1 }} />)
+    expect(await screen.findByRole('heading', { name: 'LA' })).toBeTruthy()
+    cleanup()
+    stats.ownership.mockResolvedValue(null)
+    render(
+      <Harness
+        hasLeague={false}
+        focus={{ kind: 'player', id: 'p1', nonce: 1 }}
+        onOpenFantasyPlayer={vi.fn()}
+      />
+    )
+    expect(await screen.findByRole('heading', { name: 'Player 1' })).toBeTruthy()
+    expect(
+      // The chip's own text (a rail row's name carries my player's dot label).
+      screen.queryByText(/On your fantasy team|Rostered by|Free agent in your league/, {
+        selector: 'button'
+      })
+    ).toBeNull()
+    expect(stats.link).not.toHaveBeenCalled()
   })
 })

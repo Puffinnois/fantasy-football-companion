@@ -16,6 +16,10 @@ import { StatsTeam } from '@/screens/stats/StatsTeam'
 import type { LeaderboardBoard, PositionGroup, StatsView } from '@shared/stats/types'
 import type { UpdateState } from '@shared/types'
 
+/** What Fantasy asks Stats to open (spec §9.4); a new nonce opens it again. */
+export type StatsFocus =
+  { kind: 'player'; id: string; nonce: number } | { kind: 'team'; team: string; nonce: number }
+
 interface StatsAppProps {
   hasLeague: boolean
   /** Bumped when league data changed: the rosters are read again. */
@@ -28,6 +32,10 @@ interface StatsAppProps {
   /** The scope chosen this session (spec §18 J), kept by App across product switches; null: the default. */
   scope: StatsScope | null
   onScope: (scope: StatsScope) => void
+  /** A player (or a defense's team) to open, from a Fantasy player file. */
+  focus?: StatsFocus | null
+  /** Opens a player's file in Fantasy, by his Sleeper id (spec §9.4). */
+  onOpenFantasyPlayer?: (playerId: string) => void
 }
 
 /**
@@ -44,7 +52,9 @@ export function StatsApp({
   onOpenUpdate,
   onToggleTheme,
   scope: chosen,
-  onScope: setChosen
+  onScope: setChosen,
+  focus = null,
+  onOpenFantasyPlayer
 }: StatsAppProps): React.JSX.Element {
   const data = useStatsData(leagueKey)
   const [screen, setScreen] = useState<StatsScreen>('home')
@@ -58,6 +68,18 @@ export function StatsApp({
   // The player dashboard (spec §9.4): the player chosen this session, else my top scorer.
   const [player, setPlayer] = useState<PlayerRef | null>(null)
   const [playerTab, setPlayerTab] = useState<PlayerTab>('overview')
+  // A focus from Fantasy opens its dashboard once.
+  const [focused, setFocused] = useState<number | null>(null)
+  if (focus && focus.nonce !== focused) {
+    setFocused(focus.nonce)
+    if (focus.kind === 'player') {
+      setPlayer({ id: focus.id, position: null })
+      setScreen('player')
+    } else {
+      setTeam(focus.team)
+      setScreen('team')
+    }
+  }
 
   useEffect(() => {
     void api.stats
@@ -219,6 +241,8 @@ export function StatsApp({
                   tab={playerTab}
                   onTab={setPlayerTab}
                   onOpenTeam={openTeam}
+                  leagueKey={leagueKey}
+                  onOpenFantasyPlayer={onOpenFantasyPlayer}
                   onOpenLeaderboard={(position) =>
                     openBoard(defaultBoard('player', position, data.byId), shownPlayer.id)
                   }

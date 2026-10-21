@@ -96,6 +96,11 @@ const FANTASY: PlayerKind[] = ['QB', 'RB', 'REC', 'K']
 /** Expected points, the Forecast and its outlook: offense only. */
 const OFFENSE: PlayerKind[] = ['QB', 'RB', 'REC']
 
+/** A position the fantasy side scores (spec §13: no IDP), so a player there has a Fantasy file. */
+export function inFantasy(position: PositionGroup | null): boolean {
+  return FANTASY.includes(kindOf(position))
+}
+
 export type PlayerTab =
   | 'overview'
   | 'passing'
