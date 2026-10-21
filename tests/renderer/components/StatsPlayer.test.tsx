@@ -343,6 +343,18 @@ describe('the player dashboard (stats-analysis spec §9.4)', () => {
     expect(home.scope.positions).toEqual(['RB'])
   })
 
+  it('lists teammates from the team he played for that season, not his team now', async () => {
+    stats.player.mockImplementation(async ({ player }) =>
+      bio(player, player === 'p1' ? { position: 'RB', status: null, team: 'BUF' } : {})
+    )
+    await openPlayers()
+    tab('Splits')
+    await screen.findByText('By situation')
+    const mates = (): StatsQuery[] => queries().filter((q) => q.limit === 30 && q.scope.teams)
+    await waitFor(() => expect(mates().length).toBeGreaterThan(0))
+    expect(mates().map((q) => q.scope.teams)).toEqual(mates().map(() => ['SEA']))
+  })
+
   it('forecasts: next game, range, role, running hot, weighted rates', async () => {
     await openPlayers()
     tab('Forecast')

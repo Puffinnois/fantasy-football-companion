@@ -660,7 +660,7 @@ function GameLog({ data, scope, player, position }: TabProps): React.JSX.Element
 }
 
 /** Spec §9.4 Splits: games, quarters, score, downs and the position's play splits; opponents; a teammate. */
-function Splits({ data, scope, player, position, bio }: TabProps): React.JSX.Element {
+function Splits({ data, scope, player, position }: TabProps): React.JSX.Element {
   const queries = useMemo(
     () => splitTableQueries(position, scope, data.status),
     [position, scope, data.status]
@@ -679,6 +679,8 @@ function Splits({ data, scope, player, position, bio }: TabProps): React.JSX.Ele
     .join(' ')}`
   const groups = splitTable(results, player, position, data.byId, scope.season)
   const oppRows = opponentRows(opp, position, data.byId)
+  // His team that season (his last in range), not his team now: a player who moved since.
+  const team = results.get('all')?.rows.find((r) => r.id === player)?.team ?? null
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-2.5">
@@ -739,13 +741,13 @@ function Splits({ data, scope, player, position, bio }: TabProps): React.JSX.Ele
           />
         </section>
       )}
-      {bio?.team && (
+      {team && (
         <Teammate
           data={data}
           scope={scope}
           player={player}
           position={position}
-          team={bio.team}
+          team={team}
           head={head}
         />
       )}
