@@ -5,6 +5,7 @@ import type {
   MetricInfo,
   MetricStability,
   MetricValue,
+  PlayerBio,
   StatsResult,
   StatsRow,
   StatsStatus
@@ -85,6 +86,29 @@ export function result(
     total: rows.length,
     notes: [],
     ms: 12,
+    ...over
+  }
+}
+
+/** A player as `stats.player()` reads him: "Player 0" for p0, a WR on SEA. */
+export function bio(id: string, over: Partial<PlayerBio> = {}): PlayerBio {
+  return {
+    id,
+    name: `Player ${id.slice(1)}`,
+    firstName: 'Player',
+    lastName: id.slice(1),
+    position: 'WR',
+    team: 'SEA',
+    jersey: 11,
+    birthDate: '2000-01-15',
+    height: 73,
+    weight: 200,
+    college: 'Ohio State',
+    draft: { year: 2021, round: 1, pick: 10, team: 'SEA' },
+    rookieSeason: 2021,
+    seasons: [2025, 2026],
+    sleeperId: null,
+    status: null,
     ...over
   }
 }

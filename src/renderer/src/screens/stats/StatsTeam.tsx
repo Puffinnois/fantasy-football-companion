@@ -13,6 +13,7 @@ import { ScopeBar } from '@/components/stats/ScopeBar'
 import { StatSection, StatSections } from '@/components/stats/StatLines'
 import { WeekChart } from '@/components/stats/WeekChart'
 import { fmtStat } from '@/lib/stats/format'
+import { positionGroup } from '@/lib/stats/player'
 import { rangeLabel, type StatsScope } from '@/lib/stats/scope'
 import {
   chartWeeks,
@@ -51,7 +52,7 @@ import {
 import { useStatsQueries, useStatsQuery, useTeamGames, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
 import { STATS_TEAMS, TEAM_NAMES } from '@shared/stats/nflTeams'
-import type { MetricInfo, StatsResult } from '@shared/stats/types'
+import type { MetricInfo, PositionGroup, StatsResult } from '@shared/stats/types'
 
 /** The dashboard is about one team: never another team's (or tab's) answers while its own load. */
 const FRESH = { keepLast: false }
@@ -61,6 +62,8 @@ interface TabProps {
   scope: StatsScope
   team: string
   games: TeamGame[] | null
+  /** A player's name opens his dashboard (spec §9.4). */
+  onOpenPlayer?: (id: string, position: PositionGroup | null) => void
 }
 
 /**
@@ -76,7 +79,8 @@ export function StatsTeam({
   onTeam,
   tab,
   onTab,
-  onOpenLeaderboard
+  onOpenLeaderboard,
+  onOpenPlayer
 }: {
   data: StatsData
   scope: StatsScope
@@ -88,6 +92,7 @@ export function StatsTeam({
   onTab: (tab: TeamTab) => void
   /** The team leaderboard (spec §9.2). */
   onOpenLeaderboard: () => void
+  onOpenPlayer?: (id: string, position: PositionGroup | null) => void
 }): React.JSX.Element {
   const { games: raw, error: gamesError } = useTeamGames(scope.season, team, data.version)
   const games = useMemo(() => (raw ? teamGames(raw, team) : null), [raw, team])
@@ -97,7 +102,7 @@ export function StatsTeam({
     [scope, data.status]
   )
   const { results: ratings } = useStatsQueries(overview, data.version, FRESH)
-  const props: TabProps = { data, scope, team, games }
+  const props: TabProps = { data, scope, team, games, onOpenPlayer }
 
   return (
     <div className="flex flex-col gap-5 px-8 pt-[22px] pb-8">
@@ -302,8 +307,11 @@ function Overview({
   scope,
   team,
   games,
-  ratings
+  ratings,
+  onOpenPlayer
 }: TabProps & { ratings: Map<SplitKey, StatsResult> | null }): React.JSX.Element {
+  const open = (id: string, position: string | null): (() => void) | undefined =>
+    onOpenPlayer ? () => onOpenPlayer(id, positionGroup(position)) : undefined
   const q = useMemo(() => rosterQuery(team, scope, data.status), [team, scope, data.status])
   const { result, error } = useStatsQuery(q, data.version, FRESH)
   const weekly = useMemo(
@@ -333,7 +341,13 @@ function Overview({
                 rows={v.targets.map((r) => ({
                   key: r.id,
                   cells: [
-                    <PlayerName key="n" name={r.name} position={r.position} mine={r.mine} />,
+                    <PlayerName
+                      key="n"
+                      name={r.name}
+                      position={r.position}
+                      mine={r.mine}
+                      onOpen={open(r.id, r.position)}
+                    />,
                     r.cells[0],
                     <ShareBar key="s" row={r} />,
                     <span key="r" className="text-fg-2">
@@ -358,7 +372,13 @@ function Overview({
                 rows={v.carries.map((r) => ({
                   key: r.id,
                   cells: [
-                    <PlayerName key="n" name={r.name} position={r.position} mine={r.mine} />,
+                    <PlayerName
+                      key="n"
+                      name={r.name}
+                      position={r.position}
+                      mine={r.mine}
+                      onOpen={open(r.id, r.position)}
+                    />,
                     r.cells[0],
                     <ShareBar key="s" row={r} />,
                     r.cells[1],
@@ -381,7 +401,13 @@ function Overview({
                   rows={v.passers.map((r) => ({
                     key: r.id,
                     cells: [
-                      <PlayerName key="n" name={r.name} position={null} mine={r.mine} />,
+                      <PlayerName
+                        key="n"
+                        name={r.name}
+                        position={null}
+                        mine={r.mine}
+                        onOpen={open(r.id, 'QB')}
+                      />,
                       ...r.cells
                     ]
                   }))}
@@ -454,7 +480,8 @@ function LinesTab({
   scope,
   team,
   sections,
-  tab
+  tab,
+  onOpenPlayer
 }: TabProps & { sections: SectionDef[]; tab: TeamTab }): React.JSX.Element {
   const queries = useMemo(
     () => sectionQueries(sections, scope, data.status),
@@ -468,13 +495,20 @@ function LinesTab({
       ) : (
         <Loading error={error} />
       )}
-      {tab === 'special' && <Specialists data={data} scope={scope} team={team} />}
+      {tab === 'special' && (
+        <Specialists data={data} scope={scope} team={team} onOpenPlayer={onOpenPlayer} />
+      )}
       {tab === 'tendencies' && <Personnel data={data} scope={scope} team={team} />}
     </div>
   )
 }
 
-function Specialists({ data, scope, team }: Omit<TabProps, 'games'>): React.JSX.Element | null {
+function Specialists({
+  data,
+  scope,
+  team,
+  onOpenPlayer
+}: Omit<TabProps, 'games'>): React.JSX.Element | null {
   const q = useMemo(() => specialistsQuery(team, scope, data.status), [team, scope, data.status])
   const { result, error } = useStatsQuery(q, data.version, FRESH)
   if (error) return <Loading error={error} />
@@ -497,7 +531,13 @@ function Specialists({ data, scope, team }: Omit<TabProps, 'games'>): React.JSX.
           rows={kickers.map((r) => ({
             key: r.id,
             cells: [
-              <PlayerName key="n" name={r.name} position="K" mine={false} />,
+              <PlayerName
+                key="n"
+                name={r.name}
+                position="K"
+                mine={false}
+                onOpen={onOpenPlayer && (() => onOpenPlayer(r.id, 'K'))}
+              />,
               `${f('fg_made', r.values.fg_made?.value)}/${f('fg_att', r.values.fg_att?.value)}`,
               ...cells(r, ['fg_pct', 'fg_pct_50p', 'fgoe', 'pat_pct'])
             ]
@@ -512,7 +552,13 @@ function Specialists({ data, scope, team }: Omit<TabProps, 'games'>): React.JSX.
           rows={punters.map((r) => ({
             key: r.id,
             cells: [
-              <PlayerName key="n" name={r.name} position="P" mine={false} />,
+              <PlayerName
+                key="n"
+                name={r.name}
+                position="P"
+                mine={false}
+                onOpen={onOpenPlayer && (() => onOpenPlayer(r.id, 'P'))}
+              />,
               ...cells(r, ['punts', 'punt_net_avg', 'punt_in20_rate'])
             ]
           }))}
@@ -635,7 +681,7 @@ function Situational({ data, scope, team }: TabProps): React.JSX.Element {
 }
 
 /** Spec §9.3 Players: usage shares across the roster, week by week. */
-function Players({ data, scope, team }: TabProps): React.JSX.Element {
+function Players({ data, scope, team, onOpenPlayer }: TabProps): React.JSX.Element {
   const [metric, setMetric] = useState(USAGE_METRICS[0].id)
   const queries = useMemo(
     () =>
@@ -686,7 +732,12 @@ function Players({ data, scope, team }: TabProps): React.JSX.Element {
             {rows.map((r) => (
               <tr key={r.id} className="h-[34px] border-b border-line-2">
                 <td className="sticky left-0 bg-panel px-3">
-                  <PlayerName name={r.name} position={r.position} mine={r.mine} />
+                  <PlayerName
+                    name={r.name}
+                    position={r.position}
+                    mine={r.mine}
+                    onOpen={onOpenPlayer && (() => onOpenPlayer(r.id, positionGroup(r.position)))}
+                  />
                 </td>
                 <td className="px-2 text-right font-semibold">
                   {pct(r.season)}

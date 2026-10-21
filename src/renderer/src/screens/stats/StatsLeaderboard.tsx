@@ -23,11 +23,18 @@ import {
   tabOf,
   tabsOf
 } from '@/lib/stats/leaderboard'
+import { positionGroup } from '@/lib/stats/player'
 import { rangeLabel, type StatsScope } from '@/lib/stats/scope'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
 import { NFL_TEAMS, toNflverseTeam } from '@shared/teams'
-import type { Entity, LeaderboardBoard, MetricFamily, StatsView } from '@shared/stats/types'
+import type {
+  Entity,
+  LeaderboardBoard,
+  MetricFamily,
+  PositionGroup,
+  StatsView
+} from '@shared/stats/types'
 
 /** Rows rendered at a time; "Show more" adds as many. */
 const PAGE = 50
@@ -82,7 +89,8 @@ export function StatsLeaderboard({
   onSaveView,
   onDeleteView,
   onOpenView,
-  onOpenTeam
+  onOpenTeam,
+  onOpenPlayer
 }: {
   entity: Entity
   data: StatsData
@@ -96,6 +104,8 @@ export function StatsLeaderboard({
   onOpenView: (view: StatsView) => void
   /** A team row opens the team dashboard (spec §9.3). */
   onOpenTeam?: (team: string) => void
+  /** A player row opens the player dashboard (spec §9.4). */
+  onOpenPlayer?: (id: string, position: PositionGroup | null) => void
 }): React.JSX.Element {
   // The board on screen: the one opened (until the user changes it), else the default tab's.
   const [own, setOwn] = useState<{ nonce: number | null; board: LeaderboardBoard } | null>(null)
@@ -347,11 +357,12 @@ export function StatsLeaderboard({
             ownership={data.ownership}
             season={scope.season}
             selected={selected}
-            onSelect={(id) =>
-              entity === 'team' && onOpenTeam
-                ? onOpenTeam(id)
-                : setPicked({ nonce: opened?.nonce ?? null, id })
-            }
+            onSelect={(id) => {
+              if (entity === 'team' && onOpenTeam) onOpenTeam(id)
+              else if (entity === 'player' && onOpenPlayer)
+                onOpenPlayer(id, positionGroup(rows.find((r) => r.id === id)?.position ?? null))
+              else setPicked({ nonce: opened?.nonce ?? null, id })
+            }}
             onSort={sortBy}
           />
         )}

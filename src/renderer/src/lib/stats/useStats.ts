@@ -21,6 +21,8 @@ export interface StatsData {
   catalogue: MetricInfo[]
   byId: ReadonlyMap<string, MetricInfo>
   ownership: StatsOwnership | null
+  /** The rosters' first answer arrived (the dashboards open on my top scorer only then). */
+  ownershipReady: boolean
   /** Bumped when a rebuild finished (spec §5.3): screens query again. */
   version: number
   error: string | null
@@ -34,6 +36,7 @@ export function useStatsData(leagueKey: number): StatsData {
   const [status, setStatus] = useState<StatsStatus | null>(null)
   const [catalogue, setCatalogue] = useState<MetricInfo[]>([])
   const [ownership, setOwnership] = useState<StatsOwnership | null>(null)
+  const [ownershipReady, setOwnershipReady] = useState(false)
   const [version, setVersion] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
@@ -58,6 +61,7 @@ export function useStatsData(leagueKey: number): StatsData {
       .ownership()
       .then((o) => alive && setOwnership(o))
       .catch(() => alive && setOwnership(null))
+      .finally(() => alive && setOwnershipReady(true))
     return () => {
       alive = false
     }
@@ -78,7 +82,7 @@ export function useStatsData(leagueKey: number): StatsData {
   }, [status?.busy])
 
   const byId = useMemo(() => new Map(catalogue.map((m) => [m.id, m])), [catalogue])
-  return { status, catalogue, byId, ownership, version, error }
+  return { status, catalogue, byId, ownership, ownershipReady, version, error }
 }
 
 export interface QueryState {
