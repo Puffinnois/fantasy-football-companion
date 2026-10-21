@@ -136,6 +136,10 @@ describe('the service reads and the league rules (stats-analysis spec §5, §7)'
       expect((await after.query(elo)).rows.map((r) => r.id)).toEqual(['BUF', 'KC'])
       expect((await after.games({ season: 2025 })).map((g) => g.gameId)).toEqual(['g1', 'g2'])
       expect((await after.outlook({ player: WR, season: 2025 })).team).toBe('BUF')
+      expect(await after.player({ player: WR })).toMatchObject({
+        name: 'Wes Wideout',
+        seasons: [2025]
+      })
       expect((await after.catalogue()).find((m) => m.id === 'win_pct')?.stability).toMatchObject({
         prior: 3,
         reliability: 'medium'

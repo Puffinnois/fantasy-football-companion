@@ -55,6 +55,10 @@ export function statsQuerySchema(metricIds: string[]): Schema {
     positions: list({ enum: [...POSITION_GROUPS] }, 'Position groups (players).'),
     teams: list(team, 'Team codes (nflverse: LA, LV, WAS, …).'),
     opponents: list(team, 'Opponent team codes.'),
+    home: {
+      type: 'boolean',
+      description: 'Home games (true) or road games (false), as the schedule lists the home team.'
+    },
     players: list(gsis, 'gsis player ids.'),
     qualifiedOnly: { type: 'boolean', description: 'Only rows over the metric’s minimum sample.' }
   }

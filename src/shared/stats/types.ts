@@ -116,6 +116,8 @@ export interface StatsQuery {
     positions?: PositionGroup[]
     teams?: string[]
     opponents?: string[]
+    /** Home games (true) or road games (false): the schedule's home team, at a neutral site too. */
+    home?: boolean
     /** gsis ids */
     players?: string[]
     qualifiedOnly?: boolean
@@ -298,6 +300,63 @@ export interface PlayerOutlook {
    * league average they allowed to the position so far (positive is easier).
    */
   schedule: { opponents: string[]; easierBy: number | null }
+}
+
+/** A player's identity (spec §9.4): the dashboard's header and Profile. */
+export interface PlayerBioQuery {
+  /** gsis id */
+  player: string
+}
+
+/** Now (spec §9.4 header): on a reserve list, or on the latest week's injury report. */
+export interface PlayerStatus {
+  season: number
+  week: number
+  /** The latest roster's reserve list: injured reserve, PUP, non-football injury, suspended, other. */
+  reserve: 'IR' | 'PUP' | 'NFI' | 'Suspended' | 'Reserve' | null
+  /** The game status on the report (from Friday). */
+  report: 'Out' | 'Doubtful' | 'Questionable' | null
+  /** Practice that week: did not practice, limited, full. */
+  practice: 'DNP' | 'Limited' | 'Full' | null
+  /** The injury the report names ("Hamstring"). */
+  injury: string | null
+}
+
+export interface PlayerBio {
+  /** gsis id */
+  id: string
+  name: string
+  firstName: string | null
+  lastName: string | null
+  /** nflverse position: WR, CB, ILB, … */
+  position: string | null
+  /** His team on his latest roster, and his number there. */
+  team: string | null
+  jersey: number | null
+  /** YYYY-MM-DD */
+  birthDate: string | null
+  /** Inches and pounds. */
+  height: number | null
+  weight: number | null
+  college: string | null
+  draft: { year: number; round: number; pick: number; team: string | null } | null
+  rookieSeason: number | null
+  /** Seasons with a game, 2019 on, oldest first. */
+  seasons: number[]
+  /** Sleeper's id: the headshot. */
+  sleeperId: string | null
+  /** Null when healthy (or no longer on a roster). */
+  status: PlayerStatus | null
+}
+
+/**
+ * The same player in both products (spec §9.4): his Sleeper id in Fantasy; his gsis id in Stats, or
+ * the team's nflverse code for a team defense.
+ */
+export interface PlayerLink {
+  sleeper: string
+  gsis: string | null
+  team: string | null
 }
 
 /** Who rosters a player (or a team defense) in the imported league (spec §9.2). */

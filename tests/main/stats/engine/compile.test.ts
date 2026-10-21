@@ -34,6 +34,10 @@ describe('compileQuery (stats-analysis spec §7.2)', () => {
     refuses({ metric: 'targets' } as never, 'unknown query field "metric"')
     refuses({ situation: { fieldZone: 'toString' as never } }, /fieldZone must be/)
     refuses({ sort: null as never }, 'sort must be { metric, dir }')
+    refuses(
+      { scope: { seasons: [2025], home: 'yes' as never } },
+      'scope.home must be true or false'
+    )
   })
 
   it('reads the season tables, the weekly ones, or the plays, as the query needs', () => {
@@ -44,6 +48,7 @@ describe('compileQuery (stats-analysis spec §7.2)', () => {
     expect(compile({ groupBy: ['team'] }).grain).toBe('week')
     // A traded player's season row holds both teams' games: a team filter reads the weeks.
     expect(compile({ scope: { seasons: [2025], teams: ['KC'] } }).grain).toBe('week')
+    expect(compile({ scope: { seasons: [2025], home: true } }).grain).toBe('week')
     expect(compile({ situation: { down: [3] } }).grain).toBe('play')
     expect(compile({ groupBy: ['personnel'] }).grain).toBe('play')
     expect(compile({}).sql).toContain('FROM player_season w')
@@ -74,6 +79,8 @@ describe('compileQuery (stats-analysis spec §7.2)', () => {
     expect(compile({ scope: { seasons: [2025], opponents: ['DET', 'GB'] } }).rowWeeks(18, 1)).toBe(
       2
     )
+    // Home or road: half the games.
+    expect(compile({ scope: { seasons: [2025], home: false } }).rowWeeks(18, 1)).toBe(9)
   })
 
   it('notes coverage the answer depends on', () => {
