@@ -1,6 +1,24 @@
 # Plan AC — Stats analysis: the player dashboard
 
-**Status:** not started. Written 2026-10-21 from a prototype (branch `proto/plan-ac`). Every task was replayed in order on a clean copy of `main`; typecheck, lint and the full suite were green after each, each task's tests were seen failing first, and the final tree is byte-identical to the prototype.
+**Status:** complete 2026-10-21. Merged to main as `63b23d3` and tagged `v0.30.0` on `3f9ef44` (not pushed yet). Tasks 1–6 were executed from this text; each task's tests were seen failing as the plan says, then passing, with the plan's counts plus the 3 of the untracked `tests/shared/playerImage.test.ts`, and each task's tree was identical to the prototype's commit.
+
+Task 7: `ALL GATES PASSED` (195 s). The pools, Chase's 2025 lines and every tab's speed matched: Splits at most 373 ms (budget 1 s), no empty line without a reason, every played game with its result. The walk-through **stopped at its gate** first: with the dev league the dashboard opened on Bryce Young, not James Cook. Cause: `base.duckdb` holds no league points, so `setLeague` scored every season in place, oldest first, while `hasLeague` was already true; a league read of 2026 mid-scoring found no points for anyone, the top-scorer query (limit 1) returned an arbitrary rostered player and the default kept him. The same happens to a user who imports a league once Stats is built. Fixed with the user's approval (below). After the fixes, every screenshot matched its checklist, with the league and without, light and dark. In the app (a scored copy, three runs): Players 202–243 ms to the Overview, tabs 65–141 ms, Forecast 179–181 ms, Splits 253–269 ms (a lineman's 287–358 ms), a rail position 129–184 ms.
+
+Windows Package check green after all fixes (1,032 tests; `"query":true`).
+
+Fixes, each test-first in its own commit:
+
+- (Walk-through) `016d91a`: during a league's first scoring, league-scored `query` and `outlook` answer "the league’s scoring is still being applied"; the screens query again when it is done. New rules for a league already scored apply in place as before. `d27d2bd`: the team and player defaults wait while my top scorer's query fails, not only while it loads (the team dashboard had fallen back to ARI).
+
+Final review (fresh reviewer, Opus): no Critical; 2 Important and 3 Minor findings, all fixed:
+
+- (Important) `2344904`: a defender's quarter and down splits passed the engine's 1,000-row cap (a season of DBs has about 1,500 player-quarters), so rows were cut: blank cells or shifted ranks for every 2025 DB, 193 of 194 DL, 98 of 161 LB. The engine's `MAX_LIMIT` is 5,000 now (the JSON Schema too), and the position queries ask for it; re-measured on live data, no player affected.
+- (Important) `4bc49d3`: with and without a teammate listed his team now in every season (DJ Moore, CHI in 2025, offered Buffalo's players). It takes the team of his row in scope.
+- (Minor) `56e0971`: a default waiting on a failed query says why instead of a bare "Loading…". `0bb1e6f`: the Forecast no longer flashes "Not in your league’s player list." while the link is read (`usePlayerLink` is undefined meanwhile). `928a4f8`: a player with no row yet in the current season (PUP) reads "Did not play" for his team's games, not "Bye". `fb462c6`: in the rail, the last position picked wins, and a player chosen since cancels a pick.
+
+Deferred: nothing. The tests: 1,035 passed, 5 skipped (1,032 in a clean checkout).
+
+Note for later walk-throughs: Task 7 copies `base.duckdb`, which holds no league points, so the league run starts with the first scoring (Players waits until the startup refresh sends the league). Time the app on a copy the app has already scored.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
