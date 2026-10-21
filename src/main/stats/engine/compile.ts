@@ -33,7 +33,8 @@ export class StatsQueryError extends Error {}
 
 export const MAX_METRICS = 40
 export const DEFAULT_LIMIT = 100
-export const MAX_LIMIT = 1000
+/** A grouped query has a row per player and group: a season of DBs by quarter has about 1,500. */
+export const MAX_LIMIT = 5000
 /** Spec §6.1: `minSample` is for 17 games; it scales with the weeks a row covers. */
 export const FULL_SEASON = 17
 

@@ -658,8 +658,11 @@ export function positionTab(position: PositionGroup): TabDef {
   return tabOf('player', position)
 }
 
-/** The weekly rows of every player at a position, at most this many a query. */
-const POSITION_ROWS = 1000
+/**
+ * Every player's row at a position, and in a grouped split one per quarter or down (a season of
+ * DBs has about 1,500): the engine's most, so no row the ranks need is cut off.
+ */
+const POSITION_ROWS = 5000
 
 /** One query over the position (a rank is among the position), under a split. */
 export function positionQuery(

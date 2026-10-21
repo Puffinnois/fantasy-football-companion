@@ -126,7 +126,7 @@ export function statsQuerySchema(metricIds: string[]): Schema {
       required: ['metric', 'dir'],
       additionalProperties: false
     },
-    limit: { type: 'integer', minimum: 1, maximum: 1000 },
+    limit: { type: 'integer', minimum: 1, maximum: 5000 },
     scoring: {
       enum: [...SCORINGS],
       description: 'Fantasy scoring; league needs an imported league.'

@@ -145,6 +145,11 @@ describe('the player dashboard model (stats-analysis spec §9.4)', () => {
     expect(t.get('coverage')!.groupBy).toEqual(['coverage'])
     expect(t.get('all')!.metrics).toContain('target_share')
     expect(splitTableQueries('RB', scope, STATUS).has('coverage')).toBe(false)
+    // A grouped split has a row per player and quarter (or down): a season of DBs has about
+    // 1,500, and a row cut off would leave his cells blank and move the ranks.
+    const db = splitTableQueries('DB', scope, STATUS)
+    expect(db.get('quarter')!.limit).toBeGreaterThanOrEqual(3000)
+    expect(db.get('down')!.limit).toBeGreaterThanOrEqual(3000)
     expect(splitTableQueries('K', scope, STATUS).size).toBe(0)
   })
 
