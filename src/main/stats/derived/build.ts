@@ -7,7 +7,7 @@ import type { Built, Have } from './sql'
 import { teamSeasonSelect, teamWeekSelect } from './team'
 
 /** Bump to rebuild every season into new tables after a change to how they are built. */
-export const DERIVED_VERSION = 1
+export const DERIVED_VERSION = 2
 
 /** The derived tables in build order: each reads the ones before it. */
 export const DERIVED_TABLES = [
