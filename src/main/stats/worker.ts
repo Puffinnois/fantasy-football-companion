@@ -34,6 +34,8 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.games(request.query)
     case 'outlook':
       return service.outlook(request.query)
+    case 'player':
+      return service.player(request.query)
     case 'close':
       await service.close()
       service = null

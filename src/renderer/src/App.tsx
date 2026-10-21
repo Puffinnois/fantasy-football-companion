@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { TopNav, type Screen } from '@/components/TopNav'
 import { UpdateDialog } from '@/components/UpdateDialog'
 import { SetupScreen } from '@/screens/SetupScreen'
@@ -8,9 +8,10 @@ import { PlayersScreen } from '@/screens/PlayersScreen'
 import { LineupScreen } from '@/screens/LineupScreen'
 import { TradeScreen } from '@/screens/TradeScreen'
 import { WaiverScreen } from '@/screens/WaiverScreen'
-import { StatsApp } from '@/screens/stats/StatsApp'
+import { StatsApp, type StatsFocus } from '@/screens/stats/StatsApp'
 import type { StatsScope } from '@/lib/stats/scope'
 import { api } from '@/lib/api'
+import { ProductLinksContext, type ProductLinks } from '@/lib/productLinks'
 import { useTheme } from '@/lib/theme'
 import { useUpdateState } from '@/lib/useUpdateState'
 
@@ -35,6 +36,22 @@ export default function App(): React.JSX.Element {
     setFocus((f) => ({ playerId, nonce: (f?.nonce ?? 0) + 1 }))
     setScreen('players')
   }, [])
+  // Spec §9.4: a player file's "Full stats ↗" opens Stats on his dashboard (a defense: its team).
+  const [statsFocus, setStatsFocus] = useState<StatsFocus | null>(null)
+  const links = useMemo<ProductLinks>(
+    () => ({
+      openStats: (link) => {
+        setStatsFocus((f) => {
+          const nonce = (f?.nonce ?? 0) + 1
+          return link.gsis
+            ? { kind: 'player', id: link.gsis, nonce }
+            : { kind: 'team', team: link.team ?? '', nonce }
+        })
+        setProduct('stats')
+      }
+    }),
+    []
+  )
 
   useEffect(() => {
     void api.app
@@ -100,6 +117,11 @@ export default function App(): React.JSX.Element {
             if (!hasLeague) setScreen('setup')
             setProduct('fantasy')
           }}
+          focus={statsFocus}
+          onOpenFantasyPlayer={(playerId) => {
+            openPlayer(playerId)
+            setProduct('fantasy')
+          }}
           update={update}
           version={version}
           onOpenUpdate={() => setUpdateOpen(true)}
@@ -113,44 +135,49 @@ export default function App(): React.JSX.Element {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <TopNav
-        current={screen}
-        onNavigate={setScreen}
-        hasLeague={hasLeague}
-        update={update}
-        version={version}
-        onOpenUpdate={() => setUpdateOpen(true)}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        refreshKey={dataVersion}
-        onRefreshed={bumpData}
-        onOpenStats={() => setProduct('stats')}
-      />
-      <main
-        className={
-          FULL_BLEED.includes(screen)
-            ? 'flex min-h-0 flex-1 flex-col'
-            : 'min-h-0 flex-1 overflow-auto px-8 py-6'
-        }
-      >
-        {screen === 'setup' && (
-          <SetupScreen
-            onImported={() => {
-              setHasLeague(true)
-              bumpData()
-            }}
-            onGoLeague={() => setScreen('league')}
-          />
-        )}
-        {screen === 'league' && <LeagueScreen key={dataVersion} onOpenPlayer={openPlayer} />}
-        {screen === 'rules' && <RulesScreen onSaved={bumpData} />}
-        {screen === 'players' && <PlayersScreen dataVersion={dataVersion} focus={focus} />}
-        {screen === 'lineup' && <LineupScreen dataVersion={dataVersion} />}
-        {screen === 'trade' && <TradeScreen dataVersion={dataVersion} />}
-        {screen === 'waivers' && <WaiverScreen dataVersion={dataVersion} />}
-      </main>
-      {updateDialog}
-    </div>
+    <ProductLinksContext.Provider value={links}>
+      <div className="flex h-full flex-col">
+        <TopNav
+          current={screen}
+          onNavigate={setScreen}
+          hasLeague={hasLeague}
+          update={update}
+          version={version}
+          onOpenUpdate={() => setUpdateOpen(true)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          refreshKey={dataVersion}
+          onRefreshed={bumpData}
+          onOpenStats={() => {
+            setStatsFocus(null)
+            setProduct('stats')
+          }}
+        />
+        <main
+          className={
+            FULL_BLEED.includes(screen)
+              ? 'flex min-h-0 flex-1 flex-col'
+              : 'min-h-0 flex-1 overflow-auto px-8 py-6'
+          }
+        >
+          {screen === 'setup' && (
+            <SetupScreen
+              onImported={() => {
+                setHasLeague(true)
+                bumpData()
+              }}
+              onGoLeague={() => setScreen('league')}
+            />
+          )}
+          {screen === 'league' && <LeagueScreen key={dataVersion} onOpenPlayer={openPlayer} />}
+          {screen === 'rules' && <RulesScreen onSaved={bumpData} />}
+          {screen === 'players' && <PlayersScreen dataVersion={dataVersion} focus={focus} />}
+          {screen === 'lineup' && <LineupScreen dataVersion={dataVersion} />}
+          {screen === 'trade' && <TradeScreen dataVersion={dataVersion} />}
+          {screen === 'waivers' && <WaiverScreen dataVersion={dataVersion} />}
+        </main>
+        {updateDialog}
+      </div>
+    </ProductLinksContext.Provider>
   )
 }

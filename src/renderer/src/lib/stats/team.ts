@@ -342,13 +342,17 @@ export function missingFor(
   return `Not published for ${season} yet.`
 }
 
-/** A team's line from a result over every team: its value, rank among the teams, the league's mean. */
+/**
+ * A team's line from a result over every team: its value, rank among the teams, the league's mean.
+ * `among` narrows who is ranked (a player's dashboard: his position's qualified players).
+ */
 export function statLine(
   result: StatsResult | undefined,
   team: string,
   line: LineDef,
   byId: ReadonlyMap<string, MetricInfo>,
-  season: number
+  season: number,
+  among?: (row: StatsRow) => boolean
 ): StatLine {
   const info = byId.get(line.metric) ?? null
   const label = line.label ?? info?.label ?? line.metric
@@ -357,10 +361,15 @@ export function statLine(
   const f = { unit: info?.unit ?? 'number', decimals: info?.decimals ?? 1, kind: info?.kind }
   const v = result?.rows.find((r) => r.id === team)?.values[line.metric]
   // The league's mean is over the teams the rank counts (qualified), else over every value.
-  const all = (result?.rows ?? []).map((r) => r.values[line.metric]).filter((x) => x?.value != null)
+  const all = (result?.rows ?? [])
+    .filter((r) => !among || among(r))
+    .map((r) => r.values[line.metric])
+    .filter((x) => x?.value != null)
   const counted = all.filter((x) => x!.qualified)
   const values = (counted.length ? counted : all).map((x) => x!.value!)
-  const place = result ? teamRank(result, team, line.metric, info?.direction ?? 'neutral') : null
+  const place = result
+    ? teamRank(result, team, line.metric, info?.direction ?? 'neutral', among)
+    : null
   let rank: string | null = null
   if (place) {
     const at = `${place.tied ? 'T-' : ''}${ordinal(place.rank)}`
@@ -400,9 +409,11 @@ export function teamRank(
   result: StatsResult,
   team: string,
   metric: string,
-  direction: MetricInfo['direction']
+  direction: MetricInfo['direction'],
+  among?: (row: StatsRow) => boolean
 ): { rank: number; tied: boolean; of: number; percentile: number } | null {
   const pool = result.rows
+    .filter((r) => !among || among(r))
     .map((r) => ({ id: r.id, v: r.values[metric] }))
     .filter((x) => x.v?.qualified && x.v.value !== null)
     .map((x) => ({ id: x.id, value: x.v!.value! }))

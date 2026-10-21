@@ -7,7 +7,7 @@ import type { StatsScope } from '@/lib/stats/scope'
 import { api } from '@/lib/api'
 import type { StatsOwnership, StatsQuery, StatsView } from '@shared/stats/types'
 import type { UpdateState } from '@shared/types'
-import { catalogue, result, row, STATUS, value } from '../../fixtures/statsScreens'
+import { bio, catalogue, result, row, STATUS, value } from '../../fixtures/statsScreens'
 
 vi.mock('@/lib/api', () => ({
   api: {
@@ -15,6 +15,7 @@ vi.mock('@/lib/api', () => ({
       status: vi.fn(),
       catalogue: vi.fn(),
       query: vi.fn(),
+      player: vi.fn(),
       ownership: vi.fn(),
       views: vi.fn(),
       saveView: vi.fn(),
@@ -83,11 +84,18 @@ function renderApp(hasLeague = true): void {
 
 const lastQuery = (): StatsQuery => stats.query.mock.calls.at(-1)![0]
 
+/** The player leaderboards are under the player dashboard (spec §9.4), at his position. */
+async function openPlayerBoards(): Promise<void> {
+  fireEvent.click(screen.getByRole('button', { name: 'Players' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Player leaderboards →' }))
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
   stats.status.mockResolvedValue(STATUS)
   stats.catalogue.mockResolvedValue(catalogue())
   stats.query.mockImplementation(async (q) => answer(q))
+  stats.player.mockImplementation(async ({ player }) => bio(player))
   stats.ownership.mockResolvedValue(OWNERSHIP)
   stats.views.mockResolvedValue([])
   stats.onChanged.mockReturnValue(() => {})
@@ -121,7 +129,7 @@ describe('Companion Stats', () => {
 
   it('sorts by a column, hides rows below the sample until asked, and filters my team', async () => {
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Players' }))
+    await openPlayerBoards()
     fireEvent.click(await screen.findByRole('tab', { name: 'WR' }))
     await screen.findByText('Player 2')
     expect(screen.queryByText('Player 3')).toBeNull()
@@ -160,7 +168,8 @@ describe('Companion Stats', () => {
     stats.saveView.mockResolvedValue(saved)
     stats.exportCsv.mockResolvedValue('/home/me/Downloads/stats.csv')
     renderApp()
-    fireEvent.click(screen.getByRole('button', { name: 'Players' }))
+    await openPlayerBoards()
+    fireEvent.click(await screen.findByRole('tab', { name: 'All offense' }))
     await screen.findByText('Player 2')
 
     fireEvent.click(screen.getByRole('button', { name: 'CSV' }))
@@ -197,8 +206,8 @@ describe('Companion Stats', () => {
     const scoring = screen.getByRole('combobox', { name: 'Fantasy scoring' })
     expect(within(scoring).queryByText('My league')).toBeNull()
     expect(screen.queryByRole('button', { name: 'My players' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Players' }))
-    await screen.findByText('Player 2')
+    await openPlayerBoards()
+    await screen.findByRole('table')
     expect(screen.queryByRole('combobox', { name: 'Fantasy rosters' })).toBeNull()
   })
 

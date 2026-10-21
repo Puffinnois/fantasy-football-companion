@@ -105,13 +105,25 @@ function Line({ line }: { line: StatLine }): React.JSX.Element {
   )
 }
 
-/** A titled list of stat lines (spec §9.3): value, percentile among the teams, rank, league mean. */
-export function StatSection({ section }: { section: SectionView }): React.JSX.Element {
+/**
+ * A titled list of stat lines (spec §9.3): value, percentile among the teams (a player's position),
+ * rank, league mean; a note beside the title says what the data covers.
+ */
+export function StatSection({
+  section
+}: {
+  section: SectionView & { note?: string }
+}): React.JSX.Element {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="m-0 text-[15px] leading-none font-semibold tracking-[-0.01em]">
-        {section.title}
-      </h2>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="m-0 text-[15px] leading-none font-semibold tracking-[-0.01em]">
+          {section.title}
+        </h2>
+        {section.note && (
+          <span className="text-right text-[11.5px] leading-none text-fg-3">{section.note}</span>
+        )}
+      </div>
       <div className="flex flex-col border-b border-line-2">
         {section.lines.map((l) => (
           <Line key={l.key} line={l} />
@@ -122,7 +134,11 @@ export function StatSection({ section }: { section: SectionView }): React.JSX.El
 }
 
 /** Sections in two columns. */
-export function StatSections({ sections }: { sections: SectionView[] }): React.JSX.Element {
+export function StatSections({
+  sections
+}: {
+  sections: (SectionView & { note?: string })[]
+}): React.JSX.Element {
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(520px,1fr))] items-start gap-x-10 gap-y-7">
       {sections.map((s) => (

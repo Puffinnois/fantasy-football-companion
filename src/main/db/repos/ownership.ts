@@ -1,4 +1,4 @@
-import type { StatsOwner, StatsOwnership } from '@shared/stats/types'
+import type { PlayerLink, StatsOwner, StatsOwnership } from '@shared/stats/types'
 import type { Db } from '../connection'
 
 interface OwnerRow {
@@ -30,4 +30,29 @@ export function leagueOwnership(db: Db, leagueId: string): StatsOwnership {
     else if (r.gsis_id) players[r.gsis_id] = owner
   }
   return { players, teams }
+}
+
+/**
+ * Stats-analysis spec §9.4: the same player in both products, from the league's id map
+ * (`player_ids`). A gsis id two Sleeper ids share opens the rostered one first.
+ */
+export function playerLink(db: Db, id: { sleeper: string } | { gsis: string }): PlayerLink | null {
+  const row = (
+    'sleeper' in id
+      ? db
+          .prepare(
+            `SELECT player_id, gsis_id, nflverse_team FROM player_ids
+             WHERE player_id = ? AND (gsis_id IS NOT NULL OR nflverse_team IS NOT NULL)`
+          )
+          .get(id.sleeper)
+      : db
+          .prepare(
+            `SELECT i.player_id, i.gsis_id, i.nflverse_team FROM player_ids i WHERE i.gsis_id = ?
+             ORDER BY EXISTS (SELECT 1 FROM roster_players rp WHERE rp.player_id = i.player_id) DESC,
+                      i.player_id
+             LIMIT 1`
+          )
+          .get(id.gsis)
+  ) as { player_id: string; gsis_id: string | null; nflverse_team: string | null } | undefined
+  return row ? { sleeper: row.player_id, gsis: row.gsis_id, team: row.nflverse_team } : null
 }

@@ -33,7 +33,8 @@ export class StatsQueryError extends Error {}
 
 export const MAX_METRICS = 40
 export const DEFAULT_LIMIT = 100
-export const MAX_LIMIT = 1000
+/** A grouped query has a row per player and group: a season of DBs by quarter has about 1,500. */
+export const MAX_LIMIT = 5000
 /** Spec §6.1: `minSample` is for 17 games; it scales with the weeks a row covers. */
 export const FULL_SEASON = 17
 
@@ -168,6 +169,7 @@ const SCOPE_FIELDS = [
   'positions',
   'teams',
   'opponents',
+  'home',
   'players',
   'qualifiedOnly'
 ]
@@ -238,6 +240,7 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
   }
   if (scope.teams !== undefined) texts(scope.teams, 'scope.teams', TEAM_CODE)
   if (scope.opponents !== undefined) texts(scope.opponents, 'scope.opponents', TEAM_CODE)
+  if (scope.home !== undefined) flag(scope.home, 'scope.home')
   if (scope.players !== undefined) texts(scope.players, 'scope.players', GSIS)
   if (scope.qualifiedOnly !== undefined) flag(scope.qualifiedOnly, 'scope.qualifiedOnly')
   const groupBy = q.groupBy ?? []
@@ -267,6 +270,7 @@ function validate(q: StatsQuery, ctx: CompileContext): Checked {
     scope.weeks !== undefined ||
     scope.lastNGames !== undefined ||
     scope.opponents !== undefined ||
+    scope.home !== undefined ||
     scope.teams !== undefined ||
     groupBy.some((g) => g !== 'season')
   ) {
@@ -395,7 +399,9 @@ function situationWhere(
   }
   if (s.withoutOnField !== undefined) {
     part()
-    where.push(`NOT EXISTS (${onField(texts(s.withoutOnField, 'situation.withoutOnField', GSIS))})`)
+    // Only plays participation lists: a play it does not cover is not one he sat out.
+    const ids = texts(s.withoutOnField, 'situation.withoutOnField', GSIS)
+    where.push(`${ON_FIELD_KNOWN} AND NOT EXISTS (${onField(ids)})`)
   }
   return where
 }
@@ -513,6 +519,7 @@ function tableAgg(
     if (entity) {
       if (q.scope.teams) where.push(`w.team IN ${params.list(q.scope.teams)}`)
       if (q.scope.opponents) where.push(`w.opponent IN ${params.list(q.scope.opponents)}`)
+      if (q.scope.home !== undefined) where.push(`w.home = ${params.add(q.scope.home)}`)
       if (player && q.scope.players) where.push(`w.gsis_id IN ${params.list(q.scope.players)}`)
     }
     if (!player && !season) where.push('w.games = 1')
@@ -661,6 +668,10 @@ function playAgg(
     }
     if (q.scope.teams) w.push(`${team} IN ${params.list(q.scope.teams)}`)
     if (q.scope.opponents) w.push(`${opp} IN ${params.list(q.scope.opponents)}`)
+    if (q.scope.home !== undefined) {
+      const side = q.scope.home ? 'home_team' : 'away_team'
+      w.push(`EXISTS (SELECT 1 FROM games g WHERE g.game_id = p.game_id AND g.${side} = ${team})`)
+    }
     if (player && q.scope.players) w.push(`${id} IN ${params.list(q.scope.players)}`)
     return w
   }
@@ -934,7 +945,9 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
       // A team meets an opponent about once a season.
       if (c.groupBy.includes('opponent')) return bySeason ? 1 : seasons
       if (q.scope.opponents) return q.scope.opponents.length * (bySeason ? 1 : seasons)
-      return bySeason ? weeks / Math.max(1, seasons) : weeks
+      // Home or road: about half the games.
+      const half = q.scope.home === undefined ? 1 : 0.5
+      return (bySeason ? weeks / Math.max(1, seasons) : weeks) * half
     },
     notes: [...notes]
   }

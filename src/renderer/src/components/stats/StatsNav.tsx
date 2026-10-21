@@ -5,12 +5,15 @@ import { cn } from '@/lib/utils'
 import type { StatsStatus } from '@shared/stats/types'
 import type { UpdateState } from '@shared/types'
 
-/** `team` is the team dashboard (spec §9.3), `teams` the team leaderboard. */
-export type StatsScreen = 'home' | 'players' | 'team' | 'teams' | 'glossary'
+/**
+ * `player` and `team` are the dashboards (spec §9.4, §9.3), `players` and `teams` the
+ * leaderboards.
+ */
+export type StatsScreen = 'home' | 'player' | 'players' | 'team' | 'teams' | 'glossary'
 
 const ITEMS: { id: StatsScreen | 'games'; label: string }[] = [
   { id: 'home', label: 'Leaderboards' },
-  { id: 'players', label: 'Players' },
+  { id: 'player', label: 'Players' },
   { id: 'team', label: 'Teams' },
   { id: 'games', label: 'Games' },
   { id: 'glossary', label: 'Glossary' }
@@ -30,7 +33,7 @@ interface StatsNavProps {
 
 /**
  * Stats nav (handoff "Stats nav"): 52px, mark + "Companion Stats", five items, Fantasy ↗, theme.
- * Teams opens the team dashboard.
+ * Players and Teams open the dashboards.
  */
 export function StatsNav({
   current,
@@ -57,8 +60,11 @@ export function StatsNav({
       <div className="flex gap-[22px] self-stretch text-[13.5px] leading-none font-medium">
         {ITEMS.map(({ id, label }) => {
           const soon = id === 'games'
-          // Teams opens the dashboard; the team leaderboard is under it.
-          const on = current === id || (id === 'team' && current === 'teams')
+          // Players and Teams open the dashboards; the leaderboards are under them.
+          const on =
+            current === id ||
+            (id === 'team' && current === 'teams') ||
+            (id === 'player' && current === 'players')
           return (
             <button
               key={id}

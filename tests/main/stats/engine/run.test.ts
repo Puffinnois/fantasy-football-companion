@@ -133,6 +133,59 @@ describe('runQuery (stats-analysis spec §7)', () => {
     expect(await sum(false)).toEqual([8 + 16 + 32 + 64, 4])
   })
 
+  it('splits home games from road games, by the weeks and by the plays', async () => {
+    const db = await seeded()
+    // Week 1: BUF hosts KC.
+    const carries = async (
+      home: boolean,
+      situation?: StatsQuery['situation']
+    ): Promise<unknown[]> => {
+      const r = await runQuery(
+        db,
+        {
+          entity: 'player',
+          metrics: ['carries'],
+          scope: { seasons: [2025], positions: ['RB'], home },
+          ...(situation ? { situation } : {})
+        },
+        CTX
+      )
+      return r.rows.map((x) => [x.id, x.values.carries.raw])
+    }
+    expect(await carries(true)).toEqual([[RB, 1]])
+    expect(await carries(false)).toEqual([[KC_RB, 1]])
+    expect(await carries(true, { quarter: [1] })).toEqual([[RB, 1]])
+    expect(await carries(false, { quarter: [1] })).toEqual([[KC_RB, 1]])
+    const team = await runQuery(
+      db,
+      { entity: 'team', metrics: ['off_epa_play'], scope: { seasons: [2025], home: false } },
+      CTX
+    )
+    expect(team.rows.map((x) => x.id)).toEqual(['KC'])
+  })
+
+  it('counts plays without a player on the field only where participation lists the play', async () => {
+    const db = await seeded()
+    const carries = async (without: string): Promise<unknown[]> => {
+      const r = await runQuery(
+        db,
+        {
+          entity: 'player',
+          metrics: ['carries'],
+          scope: { seasons: [2025], players: [RB] },
+          situation: { withoutOnField: [without] }
+        },
+        CTX
+      )
+      return r.rows.map((x) => x.values.carries.raw)
+    }
+    // Play 3, his carry: KC's back was not on the field.
+    expect(await carries(KC_RB)).toEqual([1])
+    // Participation not published for the play: not a play without him.
+    await db.exec('DELETE FROM on_field WHERE play_id = 3')
+    expect(await carries(KC_RB)).toEqual([])
+  })
+
   it('scales qualification to the share of plays each situational row keeps', async () => {
     const db = await seeded()
     const shares = async (q: Partial<StatsQuery>): Promise<unknown[]> => {

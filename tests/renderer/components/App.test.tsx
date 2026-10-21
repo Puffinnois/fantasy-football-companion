@@ -18,11 +18,15 @@ vi.mock('@/screens/stats/StatsApp', () => ({
   StatsApp: ({
     onOpenFantasy,
     scope,
-    onScope
+    onScope,
+    focus,
+    onOpenFantasyPlayer
   }: {
     onOpenFantasy: () => void
     scope: { season: number } | null
     onScope: (s: unknown) => void
+    focus: { kind: string; id?: string; team?: string; nonce: number } | null
+    onOpenFantasyPlayer: (id: string) => void
   }) => (
     <>
       <button type="button" onClick={onOpenFantasy}>
@@ -30,6 +34,10 @@ vi.mock('@/screens/stats/StatsApp', () => ({
       </button>
       <button type="button" onClick={() => onScope({ season: 2023 })}>
         Season {scope?.season ?? 'default'}
+      </button>
+      <span>Stats focus: {focus ? `${focus.kind} ${focus.id ?? focus.team}` : 'none'}</span>
+      <button type="button" onClick={() => onOpenFantasyPlayer('7564')}>
+        Open his file
       </button>
     </>
   )
@@ -42,7 +50,37 @@ vi.mock('@/components/TopNav', () => ({
   )
 }))
 vi.mock('@/screens/SetupScreen', () => ({ SetupScreen: () => <div>Setup screen</div> }))
-vi.mock('@/screens/LeagueScreen', () => ({ LeagueScreen: () => <div>League screen</div> }))
+vi.mock('@/screens/LeagueScreen', async () => {
+  const { useProductLinks } = await import('@/lib/productLinks')
+  return {
+    // A player file's "Full stats ↗" as the screens' panels call it.
+    LeagueScreen: () => {
+      const links = useProductLinks()
+      return (
+        <>
+          <div>League screen</div>
+          <button
+            type="button"
+            onClick={() => links?.openStats({ sleeper: '7564', gsis: '00-0036900', team: null })}
+          >
+            Full stats of Chase
+          </button>
+          <button
+            type="button"
+            onClick={() => links?.openStats({ sleeper: 'LAR', gsis: null, team: 'LA' })}
+          >
+            Full stats of the Rams
+          </button>
+        </>
+      )
+    }
+  }
+})
+vi.mock('@/screens/PlayersScreen', () => ({
+  PlayersScreen: ({ focus }: { focus: { playerId: string } | null }) => (
+    <div>Players screen on {focus?.playerId ?? 'nobody'}</div>
+  )
+}))
 vi.mock('@/components/UpdateDialog', () => ({ UpdateDialog: () => null }))
 
 const LEAGUE: League = {
@@ -88,5 +126,27 @@ describe('App: two products (stats-analysis spec §9.1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Stats product' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Fantasy nav on league' }))
     expect(await screen.findByRole('button', { name: 'Season 2023' })).toBeTruthy()
+  })
+
+  it('opens each product on the other’s player (spec §9.4)', async () => {
+    vi.mocked(api.league.get).mockResolvedValue(LEAGUE)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Full stats of Chase' }))
+    expect(await screen.findByText('Stats focus: player 00-0036900')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Open his file' }))
+    expect(await screen.findByText('Players screen on 7564')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Fantasy nav on players' }))
+    // Stats ↗ from the nav opens Stats without a focus.
+    expect(await screen.findByText('Stats focus: none')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Stats product' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Fantasy nav on players' }))
+    expect(screen.queryByText('League screen')).toBeNull()
+  })
+
+  it('opens a defense’s team dashboard', async () => {
+    vi.mocked(api.league.get).mockResolvedValue(LEAGUE)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Full stats of the Rams' }))
+    expect(await screen.findByText('Stats focus: team LA')).toBeTruthy()
   })
 })

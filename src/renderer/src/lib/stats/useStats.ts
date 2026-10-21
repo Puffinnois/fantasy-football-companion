@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
+import type { PlayerDetail } from '@shared/types'
 import type {
   GameForecast,
   MetricInfo,
+  OutlookQuery,
+  PlayerBio,
+  PlayerLink,
+  PlayerOutlook,
   StatsOwnership,
   StatsQuery,
   StatsResult,
@@ -16,6 +21,8 @@ export interface StatsData {
   catalogue: MetricInfo[]
   byId: ReadonlyMap<string, MetricInfo>
   ownership: StatsOwnership | null
+  /** The rosters' first answer arrived (the dashboards open on my top scorer only then). */
+  ownershipReady: boolean
   /** Bumped when a rebuild finished (spec §5.3): screens query again. */
   version: number
   error: string | null
@@ -29,6 +36,7 @@ export function useStatsData(leagueKey: number): StatsData {
   const [status, setStatus] = useState<StatsStatus | null>(null)
   const [catalogue, setCatalogue] = useState<MetricInfo[]>([])
   const [ownership, setOwnership] = useState<StatsOwnership | null>(null)
+  const [ownershipReady, setOwnershipReady] = useState(false)
   const [version, setVersion] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
@@ -53,6 +61,7 @@ export function useStatsData(leagueKey: number): StatsData {
       .ownership()
       .then((o) => alive && setOwnership(o))
       .catch(() => alive && setOwnership(null))
+      .finally(() => alive && setOwnershipReady(true))
     return () => {
       alive = false
     }
@@ -73,7 +82,7 @@ export function useStatsData(leagueKey: number): StatsData {
   }, [status?.busy])
 
   const byId = useMemo(() => new Map(catalogue.map((m) => [m.id, m])), [catalogue])
-  return { status, catalogue, byId, ownership, version, error }
+  return { status, catalogue, byId, ownership, ownershipReady, version, error }
 }
 
 export interface QueryState {
@@ -181,4 +190,108 @@ export function useTeamGames(
   }, [key, season, team])
   const current = done !== null && done.key === key
   return { games: current ? done.games : null, error: current ? done.error : null }
+}
+
+/** A read keyed by text (`version|request`): again when the key changes, a stale answer dropped. */
+function useKeyed<T>(
+  key: string | null,
+  run: (request: string) => Promise<T>
+): { data: T | null; loading: boolean; error: string | null } {
+  const [done, setDone] = useState<{ key: string; data: T | null; error: string | null } | null>(
+    null
+  )
+  useEffect(() => {
+    if (key === null) return
+    let cancelled = false
+    run(key.slice(key.indexOf('|') + 1))
+      .then((data) => !cancelled && setDone({ key, data, error: null }))
+      .catch((err) => !cancelled && setDone({ key, data: null, error: errorMessage(err) }))
+    return () => {
+      cancelled = true
+    }
+  }, [key, run])
+  const current = done !== null && done.key === key
+  return {
+    data: current ? done.data : null,
+    loading: key !== null && !current,
+    error: current ? done.error : null
+  }
+}
+
+const readBio = (request: string): Promise<PlayerBio> => api.stats.player(JSON.parse(request))
+const readOutlook = (request: string): Promise<PlayerOutlook> =>
+  api.stats.outlook(JSON.parse(request))
+const readGames = (request: string): Promise<GameForecast[]> => api.stats.games(JSON.parse(request))
+const readLink = (request: string): Promise<PlayerLink | null> =>
+  api.stats.link(JSON.parse(request))
+const readDetail = (request: string): Promise<PlayerDetail> => {
+  const { season, id } = JSON.parse(request) as { season: number; id: string }
+  return api.players.detail(season, id)
+}
+
+/** Spec §9.4: a player's identity and status now, again after a rebuild. */
+export function usePlayerBio(
+  player: string | null,
+  version: number
+): { bio: PlayerBio | null; error: string | null } {
+  const { data, error } = useKeyed(
+    player ? `${version}|${JSON.stringify({ player })}` : null,
+    readBio
+  )
+  return { bio: data, error }
+}
+
+/** Spec §8.5: a player's outlook (the Forecast tab). */
+export function usePlayerOutlook(
+  query: OutlookQuery | null,
+  version: number
+): { outlook: PlayerOutlook | null; error: string | null } {
+  const { data, error } = useKeyed(
+    query ? `${version}|${JSON.stringify(query)}` : null,
+    readOutlook
+  )
+  return { outlook: data, error }
+}
+
+/** Every game of a season (a player's log reads his team's side of each). */
+export function useSeasonGames(
+  season: number | null,
+  version: number
+): { games: GameForecast[] | null; error: string | null } {
+  const { data, error } = useKeyed(
+    season === null ? null : `${version}|${JSON.stringify({ season })}`,
+    readGames
+  )
+  return { games: data, error }
+}
+
+/**
+ * The same player in Fantasy (spec §9.4): his Sleeper id from the league's id map, read again when
+ * the league changes (`leagueKey`); null without a league or when the map has no such player,
+ * undefined while it is read.
+ */
+export function usePlayerLink(
+  gsis: string | null,
+  leagueKey: number | null
+): PlayerLink | null | undefined {
+  const { data, loading } = useKeyed(
+    gsis && leagueKey !== null ? `${leagueKey}|${JSON.stringify({ gsis })}` : null,
+    readLink
+  )
+  return loading ? undefined : data
+}
+
+/** Fantasy's file on a player (projections, rest of season, experts): with a league only. */
+export function useFantasyDetail(
+  season: number | null,
+  sleeperId: string | null,
+  leagueKey: number
+): { detail: PlayerDetail | null; error: string | null } {
+  const { data, error } = useKeyed(
+    season !== null && sleeperId
+      ? `${leagueKey}|${JSON.stringify({ season, id: sleeperId })}`
+      : null,
+    readDetail
+  )
+  return { detail: data, error }
 }

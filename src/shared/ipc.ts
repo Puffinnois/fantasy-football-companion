@@ -33,6 +33,9 @@ import type {
   LeaderboardBoard,
   MetricInfo,
   OutlookQuery,
+  PlayerBio,
+  PlayerBioQuery,
+  PlayerLink,
   PlayerOutlook,
   StatsOwnership,
   StatsQuery,
@@ -133,6 +136,13 @@ export interface Api {
     games(query: GamesQuery): Promise<GameForecast[]>
     /** A player's ceiling, floor, trend, regression flags and schedule (spec §8.5). */
     outlook(query: OutlookQuery): Promise<PlayerOutlook>
+    /** A player's identity and status now (spec §9.4). */
+    player(query: PlayerBioQuery): Promise<PlayerBio>
+    /**
+     * The same player in the other product (spec §9.4), from the league's id map: his gsis id
+     * (or a defense's team) from a Sleeper id, or his Sleeper id from a gsis id; null if unknown.
+     */
+    link(id: { sleeper: string } | { gsis: string }): Promise<PlayerLink | null>
     /** "Data through week N, updated <time>" (spec §5.3). */
     status(): Promise<StatsStatus>
     /** Fires when a rebuild finished: screens query again. Returns the unsubscribe function. */
@@ -188,6 +198,8 @@ export const IPC = {
   statsStatus: 'stats:status',
   statsGames: 'stats:games',
   statsOutlook: 'stats:outlook',
+  statsPlayer: 'stats:player',
+  statsLink: 'stats:link',
   statsChanged: 'stats:changed',
   statsOwnership: 'stats:ownership',
   statsViews: 'stats:views',

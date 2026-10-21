@@ -81,6 +81,8 @@ const api: Api = {
     catalogue: () => ipcRenderer.invoke(IPC.statsCatalogue),
     games: (query) => ipcRenderer.invoke(IPC.statsGames, query),
     outlook: (query) => ipcRenderer.invoke(IPC.statsOutlook, query),
+    player: (query) => ipcRenderer.invoke(IPC.statsPlayer, query),
+    link: (id) => ipcRenderer.invoke(IPC.statsLink, id),
     status: () => ipcRenderer.invoke(IPC.statsStatus),
     onChanged: (listener) => {
       const handler = (): void => listener()

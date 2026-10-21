@@ -55,6 +55,10 @@ export function statsQuerySchema(metricIds: string[]): Schema {
     positions: list({ enum: [...POSITION_GROUPS] }, 'Position groups (players).'),
     teams: list(team, 'Team codes (nflverse: LA, LV, WAS, …).'),
     opponents: list(team, 'Opponent team codes.'),
+    home: {
+      type: 'boolean',
+      description: 'Home games (true) or road games (false), as the schedule lists the home team.'
+    },
     players: list(gsis, 'gsis player ids.'),
     qualifiedOnly: { type: 'boolean', description: 'Only rows over the metric’s minimum sample.' }
   }
@@ -122,7 +126,7 @@ export function statsQuerySchema(metricIds: string[]): Schema {
       required: ['metric', 'dir'],
       additionalProperties: false
     },
-    limit: { type: 'integer', minimum: 1, maximum: 1000 },
+    limit: { type: 'integer', minimum: 1, maximum: 5000 },
     scoring: {
       enum: [...SCORINGS],
       description: 'Fantasy scoring; league needs an imported league.'

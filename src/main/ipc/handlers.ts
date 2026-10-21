@@ -6,7 +6,7 @@ import { runEngine, runEngineStream } from '@main/engine/runEngine'
 import { listExpertRanks } from '@main/db/repos/expertRanks'
 import { getLeague, leagueRosterPositions } from '@main/db/repos/leagues'
 import { listMatchups } from '@main/db/repos/matchups'
-import { leagueOwnership } from '@main/db/repos/ownership'
+import { leagueOwnership, playerLink } from '@main/db/repos/ownership'
 import { playersOptions, playersWeek } from '@main/db/repos/playersWeek'
 import { latestPointsWeek, NO_POINTS_CONTEXT } from '@main/db/repos/points'
 import { getRules, saveRules } from '@main/db/repos/rules'
@@ -49,6 +49,9 @@ import type {
   LeaderboardBoard,
   MetricInfo,
   OutlookQuery,
+  PlayerBio,
+  PlayerBioQuery,
+  PlayerLink,
   PlayerOutlook,
   StatsOwnership,
   StatsQuery,
@@ -346,6 +349,14 @@ export function registerIpcHandlers(ctx: AppContext): void {
   )
   ipcMain.handle(IPC.statsOutlook, (_event, query: OutlookQuery): Promise<PlayerOutlook> =>
     statsClient(ctx).outlook(query)
+  )
+  ipcMain.handle(IPC.statsPlayer, (_event, query: PlayerBioQuery): Promise<PlayerBio> =>
+    statsClient(ctx).player(query)
+  )
+  ipcMain.handle(
+    IPC.statsLink,
+    (_event, id: { sleeper: string } | { gsis: string }): PlayerLink | null =>
+      playerLink(ctx.db, id)
   )
   ipcMain.handle(IPC.statsStatus, (): Promise<StatsStatus> =>
     ctx.stats ? ctx.stats.status() : Promise.resolve(STATS_OFF)
