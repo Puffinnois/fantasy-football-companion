@@ -344,6 +344,26 @@ describe('the player dashboard (stats-analysis spec §9.4)', () => {
     expect(home.scope.positions).toEqual(['RB'])
   })
 
+  it('opens the position picked last in the rail, whichever answers first', async () => {
+    let release = (): void => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    stats.query.mockImplementation(async (q) => {
+      if (q.scope.positions?.[0] === 'DB') await gate
+      return answer(q)
+    })
+    await openPlayers()
+    const rail = screen.getByRole('complementary', { name: 'Players' })
+    fireEvent.click(within(rail).getByRole('radio', { name: 'DB' }))
+    fireEvent.click(within(rail).getByRole('radio', { name: 'QB' }))
+    expect(await screen.findByRole('tab', { name: 'Passing' })).toBeTruthy()
+    // DB's late answer does not take over.
+    await act(async () => {
+      release()
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+    expect(screen.getByRole('tab', { name: 'Passing' })).toBeTruthy()
+  })
+
   it('lists teammates from the team he played for that season, not his team now', async () => {
     stats.player.mockImplementation(async ({ player }) =>
       bio(player, player === 'p1' ? { position: 'RB', status: null, team: 'BUF' } : {})

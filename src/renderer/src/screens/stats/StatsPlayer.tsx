@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import { Mark } from '@/components/edition'
 import { StatsSelect } from '@/components/stats/controls'
@@ -154,8 +154,11 @@ export function StatsPlayer({
     rail.result
       ? railRows(rail.result, railPosition, metric, data.byId, data.ownership, search, player.id)
       : []
-  // A position picked in the rail opens its first player (the rail's own query, asked here).
+  // A position picked in the rail opens its first player (the rail's own query, asked here). The
+  // last pick wins, and a player chosen since cancels it.
+  const picks = useRef(0)
   const pick = (p: PositionGroup): void => {
+    const n = ++picks.current
     if (p === position) {
       setPicking(null)
       return
@@ -166,7 +169,7 @@ export function StatsPlayer({
       .query(railQuery(p, m, scope, data.status, data.byId))
       .then((r) => {
         const top = railRows(r, p, m, data.byId, null, '', null)[0]
-        if (top) onPlayer({ id: top.id, position: p })
+        if (top && picks.current === n) onPlayer({ id: top.id, position: p })
       })
       .catch(() => {})
   }
@@ -196,7 +199,10 @@ export function StatsPlayer({
         range={rangeLabel(scope, data.status)}
         byId={data.byId}
         selected={player.id}
-        onSelect={(id) => onPlayer({ id, position: railPosition })}
+        onSelect={(id) => {
+          picks.current++
+          onPlayer({ id, position: railPosition })
+        }}
       />
       <div className="min-w-0 flex-1 overflow-auto [scrollbar-width:thin]">
         {bioError ? (
