@@ -576,7 +576,7 @@ function LinesTab({
 }
 
 /** Handoff "Game log": a row per week, the result from his team's side, fantasy and expected points. */
-function GameLog({ data, scope, player, position }: TabProps): React.JSX.Element {
+function GameLog({ data, scope, player, position, bio }: TabProps): React.JSX.Element {
   const kind = kindOf(position)
   const q = useMemo(
     () => gameLogQuery(player, kind, scope, data.status),
@@ -585,7 +585,15 @@ function GameLog({ data, scope, player, position }: TabProps): React.JSX.Element
   const { result, error } = useStatsQuery(q, data.version, FRESH)
   const { games } = useSeasonGames(scope.season, data.version)
   if (!result) return <Loading error={error} />
-  const rows = gameLog(result, games, kind, data.byId, scope, data.status)
+  const rows = gameLog(
+    result,
+    games,
+    kind,
+    data.byId,
+    scope,
+    data.status,
+    scope.season === data.status?.through?.season ? (bio?.team ?? null) : null
+  )
   const cols = LOG_COLUMNS[kind]
   const fp = rows.some((r) => r.points !== null)
   const xfp = rows.some((r) => r.expected !== null)

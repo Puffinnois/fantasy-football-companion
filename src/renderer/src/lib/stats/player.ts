@@ -1285,7 +1285,9 @@ export function gameLog(
   kind: PlayerKind,
   byId: ReadonlyMap<string, MetricInfo>,
   scope: StatsScope,
-  status: StatsStatus | null
+  status: StatsStatus | null,
+  /** His team now, for the current season: a player with no row yet (PUP) missed its games. */
+  teamNow: string | null = null
 ): LogRow[] {
   const rows = (result?.rows ?? [])
     .map((r) => ({ r, week: Number(r.group.week) }))
@@ -1311,7 +1313,7 @@ export function gameLog(
   const teamNear = (week: number): string | null => {
     const known = rows.filter((x) => x.r.team !== null)
     const near = known.filter((x) => x.week <= week).at(-1) ?? known.find((x) => x.week > week)
-    return near?.r.team ?? null
+    return near?.r.team ?? teamNow
   }
   const played = (r: StatsRow, week: number): LogRow => {
     const team = r.team ?? teamNear(week) ?? ''

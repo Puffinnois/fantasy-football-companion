@@ -442,6 +442,21 @@ describe('the game log, splits and the rest (stats-analysis spec §9.4)', () => 
     expect(log[2].cells.every((c) => c === '')).toBe(true)
   })
 
+  it('logs a season he has not played yet on his team now (PUP): games he missed, not byes', () => {
+    const games = [
+      game({ gameId: '1', week: 1, homeScore: 27, awayScore: 20 }),
+      game({ gameId: '2', week: 2, home: 'PIT', away: 'CIN', homeScore: 30, awayScore: 10 })
+    ]
+    const log = gameLog(result(metrics, []), games, 'REC', byId, scope, STATUS, 'CIN')
+    expect(log.slice(0, 3).map((l) => [l.week, l.opponent, l.note])).toEqual([
+      ['W1', 'CLE', 'Did not play'],
+      ['W2', '@ PIT', 'Did not play'],
+      ['W3', '', 'Bye']
+    ])
+    // Without his team now (a past season), a week without his row stays unknown: a bye.
+    expect(gameLog(result(metrics, []), games, 'REC', byId, scope, STATUS)[0].note).toBe('Bye')
+  })
+
   it('names postseason rounds, and shows the postseason’s games only', () => {
     const r = result(metrics, [week(20, 'CIN', 'BUF', 70)])
     const games = [
