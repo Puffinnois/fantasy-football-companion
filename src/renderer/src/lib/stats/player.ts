@@ -814,6 +814,11 @@ export interface PlayerHeader {
   status: { tag: string; tone: 'bad' | 'warn'; title: string } | null
 }
 
+/** Sleeper's picture of a player (the renderer's CSP allows sleepercdn.com). */
+export function headshotUrl(sleeperId: string): string {
+  return `https://sleepercdn.com/content/nfl/players/thumb/${encodeURIComponent(sleeperId)}.jpg`
+}
+
 /** "Sep 25, 1999 · age 27". */
 export function bornOf(birthDate: string | null, today = new Date()): string | null {
   if (!birthDate) return null

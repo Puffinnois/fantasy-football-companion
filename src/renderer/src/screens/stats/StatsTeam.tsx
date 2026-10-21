@@ -1,6 +1,14 @@
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { MineDot, PosText, Segmented, StatsSelect } from '@/components/stats/controls'
+import { MineDot, Segmented, StatsSelect } from '@/components/stats/controls'
+import {
+  HeatCell,
+  Loading,
+  MiniTable,
+  NavButton,
+  PlayerName,
+  SectionHead
+} from '@/components/stats/parts'
 import { ScopeBar } from '@/components/stats/ScopeBar'
 import { StatSection, StatSections } from '@/components/stats/StatLines'
 import { WeekChart } from '@/components/stats/WeekChart'
@@ -53,16 +61,6 @@ interface TabProps {
   scope: StatsScope
   team: string
   games: TeamGame[] | null
-}
-
-const HEAT_BG: Record<string, string> = {
-  h3: 'bg-h3',
-  h2: 'bg-h2',
-  h1: 'bg-h1',
-  n: '',
-  l1: 'bg-l1',
-  l2: 'bg-l2',
-  l3: 'bg-l3'
 }
 
 /**
@@ -281,117 +279,6 @@ function Header({
         </div>
       )}
     </header>
-  )
-}
-
-function NavButton({
-  title,
-  onClick,
-  children
-}: {
-  title: string
-  onClick: () => void
-  children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      onClick={onClick}
-      className="flex size-[26px] cursor-pointer items-center justify-center rounded-[6px] border border-line bg-panel text-fg-2 hover:bg-hover hover:text-fg"
-    >
-      {children}
-    </button>
-  )
-}
-
-function Loading({ error }: { error?: string | null }): React.JSX.Element {
-  return error ? (
-    <div className="py-12 text-center text-[13px] text-bad">{error}</div>
-  ) : (
-    <div className="py-12 text-center text-[13px] text-fg-3">Loading…</div>
-  )
-}
-
-function SectionHead({ title, note }: { title: string; note?: string }): React.JSX.Element {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <h2 className="m-0 text-[15px] leading-none font-semibold tracking-[-0.01em]">{title}</h2>
-      {note && <span className="text-[12px] leading-none text-fg-3">{note}</span>}
-    </div>
-  )
-}
-
-/** A small mono table in the handoff's style: a header under a rule, 38px rows. */
-function MiniTable({
-  columns,
-  head,
-  rows,
-  left = [],
-  className
-}: {
-  columns: string
-  head: React.ReactNode[]
-  rows: { key: string; cells: React.ReactNode[] }[]
-  /** Columns read left to right (text); the first always is, numbers align right. */
-  left?: number[]
-  className?: string
-}): React.JSX.Element {
-  const align = (i: number): string => (i === 0 || left.includes(i) ? 'text-left' : 'text-right')
-  return (
-    <div
-      className={cn('flex flex-col font-mono text-[12.5px] tabular-nums', className)}
-      role="table"
-    >
-      <div
-        role="row"
-        className="grid h-7 items-end gap-x-3 border-b border-fg-3 pb-[7px] text-[11px] text-fg-3"
-        style={{ gridTemplateColumns: columns }}
-      >
-        {head.map((h, i) => (
-          <span key={i} role="columnheader" className={cn(align(i), i === 0 && 'font-sans')}>
-            {h}
-          </span>
-        ))}
-      </div>
-      {rows.map((r) => (
-        <div
-          key={r.key}
-          role="row"
-          className="grid h-[38px] items-center gap-x-3 border-b border-line-2"
-          style={{ gridTemplateColumns: columns }}
-        >
-          {r.cells.map((c, i) => (
-            <span key={i} role="cell" className={cn('min-w-0', align(i))}>
-              {c}
-            </span>
-          ))}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function PlayerName({
-  name,
-  position,
-  mine
-}: {
-  name: string
-  position: string | null
-  mine: boolean
-}): React.JSX.Element {
-  return (
-    <span className="flex min-w-0 items-center gap-[7px] font-sans text-[13px] font-medium whitespace-nowrap">
-      {position && (
-        <span className="w-[22px] shrink-0">
-          <PosText position={position} />
-        </span>
-      )}
-      <span className="truncate">{name}</span>
-      {mine && <MineDot />}
-    </span>
   )
 }
 
@@ -717,16 +604,7 @@ function Situational({ data, scope, team }: TabProps): React.JSX.Element {
             rows={splitRows(splits, team, data.byId, scope.season).map((r) => {
               const cell = (k: number): React.JSX.Element => {
                 const c = r.cells[k]
-                return (
-                  <span
-                    key={k}
-                    title={c.title || undefined}
-                    className={cn('-my-1 block rounded-[4px] px-1.5 py-1', HEAT_BG[c.heat])}
-                  >
-                    {c.value}
-                    {c.rank && <span className="ml-1.5 text-[10.5px] text-fg-3">{c.rank}</span>}
-                  </span>
-                )
+                return <HeatCell key={k} {...c} />
               }
               return {
                 key: r.key,
