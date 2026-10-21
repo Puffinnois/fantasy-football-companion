@@ -1,6 +1,6 @@
 # Plan AA — Stats analysis: the Stats screen
 
-**Status:** complete 2026-10-20. Merged to main as `0c71f1b` and tagged `v0.28.0` on `63d0321` (not pushed yet). Tasks 1–8 were executed from this text; each task's tests were seen failing, then passing, with the plan's counts plus the 3 of the untracked `tests/shared/playerImage.test.ts`.
+**Status:** complete 2026-10-20. Merged to main as `0c71f1b` and tagged `v0.28.0` on `63d0321` (pushed and published 2026-10-20). Tasks 1–8 were executed from this text; each task's tests were seen failing, then passing, with the plan's counts plus the 3 of the untracked `tests/shared/playerImage.test.ts`.
 
 Task 9 on the branch: `ALL GATES PASSED`. Boards 35 ms (per game 25 ms); leaderboard tabs 19–70 ms warm, cold within 10 ms of warm; 40 columns 233 ms; qualified counts as in the Planning findings. The walk-through ran on the branch's build with the dev league and without one; every screenshot matched its checklist, and again after the review fixes.
 
