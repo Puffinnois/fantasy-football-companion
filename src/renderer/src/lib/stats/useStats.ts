@@ -267,14 +267,18 @@ export function useSeasonGames(
 
 /**
  * The same player in Fantasy (spec §9.4): his Sleeper id from the league's id map, read again when
- * the league changes (`leagueKey`); null without a league.
+ * the league changes (`leagueKey`); null without a league or when the map has no such player,
+ * undefined while it is read.
  */
-export function usePlayerLink(gsis: string | null, leagueKey: number | null): PlayerLink | null {
-  const { data } = useKeyed(
+export function usePlayerLink(
+  gsis: string | null,
+  leagueKey: number | null
+): PlayerLink | null | undefined {
+  const { data, loading } = useKeyed(
     gsis && leagueKey !== null ? `${leagueKey}|${JSON.stringify({ gsis })}` : null,
     readLink
   )
-  return data
+  return loading ? undefined : data
 }
 
 /** Fantasy's file on a player (projections, rest of season, experts): with a league only. */

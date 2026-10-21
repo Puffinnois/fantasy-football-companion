@@ -356,6 +356,17 @@ describe('the player dashboard (stats-analysis spec §9.4)', () => {
     expect(mates().map((q) => q.scope.teams)).toEqual(mates().map(() => ['SEA']))
   })
 
+  it('says he is not in the league’s player list only once the list has answered', async () => {
+    const pending: ((link: null) => void)[] = []
+    stats.link.mockImplementation(() => new Promise((resolve) => pending.push(resolve)))
+    await openPlayers()
+    tab('Forecast')
+    expect(await screen.findByText('Range of outcomes')).toBeTruthy()
+    expect(screen.queryByText('Not in your league’s player list.')).toBeNull()
+    act(() => pending.forEach((resolve) => resolve(null)))
+    expect(await screen.findByText('Not in your league’s player list.')).toBeTruthy()
+  })
+
   it('forecasts: next game, range, role, running hot, weighted rates', async () => {
     await openPlayers()
     tab('Forecast')
