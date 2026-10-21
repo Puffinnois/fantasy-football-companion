@@ -237,8 +237,14 @@ export const TAB_SECTIONS: Record<
       lines: plain('elo', 'srs', 'adj_net_epa', 'adj_recent_off_epa', 'adj_recent_def_epa')
     },
     {
+      // The section names the measure; the catalogue's labels (up to 42 characters) truncated.
       title: 'Schedule strength',
-      lines: plain('sos_elo', 'sos_left_elo', 'sos_adj', 'sos_left_adj')
+      lines: [
+        { metric: 'sos_elo', label: 'Played (Elo)' },
+        { metric: 'sos_left_elo', label: 'Remaining (Elo)' },
+        { metric: 'sos_adj', label: 'Played (adj. EPA)' },
+        { metric: 'sos_left_adj', label: 'Remaining (adj. EPA)' }
+      ]
     },
     {
       title: 'Luck',

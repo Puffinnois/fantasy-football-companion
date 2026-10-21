@@ -95,6 +95,18 @@ const GAMES = teamGames(
 )
 
 describe('the team dashboard (spec §9.3)', () => {
+  it('names the schedule strength lines short enough to tell apart in the Schedule tab', () => {
+    const section = TAB_SECTIONS.forecast.find((s) => s.title === 'Schedule strength')!
+    // The catalogue's "Schedule strength played (adjusted EPA)" truncated to "Schedule strength
+    // play…" in the Schedule tab's side panel, so the Elo and EPA lines looked the same.
+    expect(section.lines.map((l) => [l.metric, l.label])).toEqual([
+      ['sos_elo', 'Played (Elo)'],
+      ['sos_left_elo', 'Remaining (Elo)'],
+      ['sos_adj', 'Played (adj. EPA)'],
+      ['sos_left_adj', 'Remaining (adj. EPA)']
+    ])
+  })
+
   it('has the spec’s nine tabs', () => {
     expect(TEAM_DASH_TABS.map((t) => t.label)).toEqual([
       'Overview',
