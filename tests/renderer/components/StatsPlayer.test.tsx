@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { StatsApp, type StatsFocus } from '@/screens/stats/StatsApp'
 import type { StatsScope } from '@/lib/stats/scope'
@@ -241,6 +241,29 @@ describe('the player dashboard (stats-analysis spec §9.4)', () => {
     expect((screen.getByRole('button', { name: 'Compare' }) as HTMLButtonElement).disabled).toBe(
       true
     )
+  })
+
+  it('waits for my top scorer while the league’s scoring is applied', async () => {
+    let changed = (): void => {}
+    stats.onChanged.mockImplementation((fn) => {
+      changed = fn
+      return () => {}
+    })
+    let scored = false
+    stats.query.mockImplementation(async (q) => {
+      if (!scored && q.scoring === 'league') {
+        throw new Error('the league’s scoring is still being applied')
+      }
+      return answer(q)
+    })
+    render(<Harness hasLeague />)
+    await waitFor(() => expect(stats.catalogue).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: 'Players' }))
+    await waitFor(() => expect(queries().some((q) => q.scope.players && q.limit === 1)).toBe(true))
+    expect(await screen.findByText('Loading…')).toBeTruthy()
+    scored = true
+    act(() => changed())
+    expect(await screen.findByRole('heading', { name: 'Player 1' })).toBeTruthy()
   })
 
   it('opens on the leading WR without a roster', async () => {

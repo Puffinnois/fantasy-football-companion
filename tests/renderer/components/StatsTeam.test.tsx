@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { StatsApp } from '@/screens/stats/StatsApp'
 import type { StatsScope } from '@/lib/stats/scope'
@@ -336,6 +336,27 @@ describe('the team dashboard (spec §9.3)', () => {
     const board = (await screen.findByText('Takeaways')).closest('section')!
     fireEvent.click(await within(board).findByText('ARI'))
     expect(await screen.findByRole('heading', { name: 'ARI' })).toBeTruthy()
+  })
+
+  it('waits for my top scorer while the league’s scoring is applied, then opens his team', async () => {
+    let changed = (): void => {}
+    stats.onChanged.mockImplementation((fn) => {
+      changed = fn
+      return () => {}
+    })
+    let scored = false
+    stats.query.mockImplementation(async (q) => {
+      if (!scored && q.scoring === 'league') {
+        throw new Error('the league’s scoring is still being applied')
+      }
+      return answer(q)
+    })
+    await openTeams()
+    await waitFor(() => expect(queries().some((q) => q.scope.players?.join() === 'p1')).toBe(true))
+    expect(await screen.findByText('Loading…')).toBeTruthy()
+    scored = true
+    act(() => changed())
+    expect(await screen.findByRole('heading', { name: 'SEA' })).toBeTruthy()
   })
 
   it('opens on the first team without a league', async () => {

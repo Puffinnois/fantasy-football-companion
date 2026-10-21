@@ -105,7 +105,9 @@ export function StatsApp({
   const leaders = useStatsQuery(leadersQuery, data.version)
   // With a league, wait for its rosters and my top scorer before choosing (no flash of the first).
   const rosters = !hasLeague || data.ownershipReady
-  const shownTeam = team ?? (!rosters || (topQuery && top.loading) ? null : defaultTeam(top.result))
+  // So does an error (the league's first scoring): the stats change when it is done.
+  const topWaiting = topQuery !== null && (top.loading || top.error !== null)
+  const shownTeam = team ?? (!rosters || topWaiting ? null : defaultTeam(top.result))
   // Once on screen, the default is the team: a new season or range does not switch it.
   if (team === null && screen === 'team' && shownTeam !== null) setTeam(shownTeam)
   const openTeam = (code: string): void => {
@@ -114,9 +116,7 @@ export function StatsApp({
   }
   const shownPlayer =
     player ??
-    (!rosters || (topQuery && top.loading) || leaders.loading
-      ? null
-      : defaultPlayer(top.result, leaders.result))
+    (!rosters || topWaiting || leaders.loading ? null : defaultPlayer(top.result, leaders.result))
   if (player === null && screen === 'player' && shownPlayer !== null) setPlayer(shownPlayer)
   const openPlayer = (id: string, position: PositionGroup | null): void => {
     setPlayer({ id, position })
