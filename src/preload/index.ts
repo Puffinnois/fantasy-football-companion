@@ -76,6 +76,31 @@ const api: Api = {
   app: {
     version: () => ipcRenderer.invoke(IPC.appVersion)
   },
+  dev: {
+    mode: () => ipcRenderer.invoke(IPC.devMode),
+    setMode: (on) => ipcRenderer.invoke(IPC.devSetMode, on),
+    onModeChanged: (listener) => {
+      const handler = (_event: IpcRendererEvent, on: boolean): void => listener(on)
+      ipcRenderer.on(IPC.devChanged, handler)
+      return () => {
+        ipcRenderer.removeListener(IPC.devChanged, handler)
+      }
+    },
+    capture: () => ipcRenderer.invoke(IPC.devCapture),
+    reportError: (error) => ipcRenderer.send(IPC.devReportError, error),
+    recentErrors: () => ipcRenderer.invoke(IPC.devRecentErrors),
+    notes: {
+      list: () => ipcRenderer.invoke(IPC.devNotesList),
+      save: (note) => ipcRenderer.invoke(IPC.devNotesSave, note),
+      setStatus: (id, status) => ipcRenderer.invoke(IPC.devNotesSetStatus, id, status),
+      remove: (id) => ipcRenderer.invoke(IPC.devNotesRemove, id),
+      image: (path) => ipcRenderer.invoke(IPC.devNotesImage, path),
+      folder: () => ipcRenderer.invoke(IPC.devNotesFolder),
+      openFolder: () => ipcRenderer.invoke(IPC.devNotesOpenFolder),
+      chooseFolder: () => ipcRenderer.invoke(IPC.devNotesChooseFolder),
+      copy: (ids) => ipcRenderer.invoke(IPC.devNotesCopy, ids)
+    }
+  },
   stats: {
     query: (query) => ipcRenderer.invoke(IPC.statsQuery, query),
     catalogue: () => ipcRenderer.invoke(IPC.statsCatalogue),

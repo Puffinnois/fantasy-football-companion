@@ -17,10 +17,17 @@ import { createSleeperClient } from '@main/sources/sleeper'
 import { createSleeperNewsClient } from '@main/sources/sleeperNews'
 import { startStatsWorker, type StatsClient } from '@main/stats/client'
 import { STATS_DERIVED_STEP, STATS_MODELS_STEP } from '@main/stats/sync'
+import { captureMainErrors, createErrorLog } from '@main/dev/errorLog'
+import { registerDevHandlers } from '@main/dev/ipc'
+import { createDevMode } from '@main/dev/mode'
 import { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
 
 let mainWindow: BrowserWindow | null = null
+
+// Dev-mode spec §4: the recent-errors buffer runs from launch, whatever the mode.
+const errorLog = createErrorLog()
+captureMainErrors(errorLog)
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -162,6 +169,12 @@ app.whenReady().then(async () => {
     })
   }
   registerIpcHandlers(ctx)
+  registerDevHandlers({
+    db: ctx.db,
+    mode: createDevMode({ db: ctx.db, packaged: app.isPackaged, argv: process.argv }),
+    errors: errorLog,
+    getWindow: () => mainWindow
+  })
   createWindow()
 
   retireWarehouse()
