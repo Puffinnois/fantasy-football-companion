@@ -1,6 +1,24 @@
 # Dev-notes plan — Dev mode and dev notes
 
-**Status:** written 2026-10-22, not started. Ships as `v0.31.0`. Stats-analysis Plans AD and AE keep their letters: this plan is named for its feature.
+**Status:** complete 2026-10-22. Merged to main as `b4042bc` and tagged `v0.31.0` on `ecf30b5` (not pushed yet). Stats-analysis Plans AD and AE keep their letters: this plan is named for its feature. Tasks 1–7 were executed from this text; each task's counts matched the plan (plus the 3 of the untracked `tests/shared/playerImage.test.ts`), and the tree was identical to the prototype's.
+
+Task 8: both walk-throughs passed on a fresh copy of the dev league, before and after the review fixes. The panel is in neither capture (screenshot 1280 × 800, snip exactly the 540 × 300 selected). Esc collapses the panel and leaves the player file open, and focus returns to the text after Snip. Dragging, dark theme, the Stats context, All notes, Go there and Dev mode off all work. Step 5 (the packaged default on Windows) waits for the first install of `v0.31.0`.
+
+Windows Package check green after all fixes (1,097 tests; `"ok":true`, `"query":true`).
+
+Final review (fresh reviewer, Opus): 1 Critical, 1 Important and 8 Minor findings. The Critical, the Important and five Minors are fixed, each test-first in its own commit:
+
+- (Critical) `d0f4fa3`: a note whose text left a code fence open (a pasted snippet) hid every later note. The next note then got a duplicate id, and deleting the first note removed the hidden ones. Unbalanced fences in the text are now closed on save. Every line of a multi-line error message is indented. The parser closes a fence only with the same character, at least as long, and a `##` heading followed by a meta line always starts a section.
+- (Important) `eed782f`: a hand-edited meta line could make Delete remove `notes.md` or any other file in the folder. Only `img/<name>.png` files are read or deleted now, and an image another note still lists is kept.
+- (Minor) `dc707c3`: Node warnings with a code (`[DEP0040] DeprecationWarning`) are left out, and repeats are collapsed before the cut to ten. `4d23c02`: Ctrl+Shift+N, the chip and ✎ open a collapsed panel expanded (`DevTools` keeps `collapsed`). One capture runs at a time, and main refuses more than six attachments. `9628e79`: a rename over a held `notes.md` (Windows EPERM / EBUSY / EACCES) is retried five times, and the temp file is removed on failure.
+
+Deferred (Minor):
+
+- Attachments are lost when Dev mode is switched off and on before saving (amendment C says until the app closes).
+- A CRLF `notes.md` is rewritten as LF.
+- Main does not type-check what the renderer sends (`tag`, `stack`), and the `dev:*` handlers also answer while Dev mode is off.
+
+The tests: 1,097 passed, 5 skipped in a clean checkout (1,100 in this working tree).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
