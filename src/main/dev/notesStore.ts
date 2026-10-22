@@ -20,6 +20,7 @@ import {
 export const NOTES_FILE = 'notes.md'
 const IMG_DIR = 'img'
 const PNG_DATA_URL = /^data:image\/png;base64,/
+const IMAGE_PATH = /^img\/[\w.-]+\.png$/
 
 export interface NotesStore {
   /** The folder in use now. */
@@ -57,11 +58,16 @@ export function createNotesStore(dir: () => string): NotesStore {
     renameSync(tmp, path)
   }
 
-  /** A path inside the folder, never outside it (a hand-edited meta line could say anything). */
-  const inside = (path: string): string | null => {
+  /**
+   * An image's file: `img/<name>.png` and nothing else, so a hand-edited meta line can never name
+   * `notes.md`, the folder, or a file outside it.
+   */
+  const imageFile = (path: string): string | null => {
+    if (!IMAGE_PATH.test(path)) return null
+    const imgDir = join(dir(), IMG_DIR)
     const full = normalize(join(dir(), path))
-    const rel = relative(dir(), full)
-    return rel === '' || rel.startsWith('..') || isAbsolute(rel) ? null : full
+    const rel = relative(imgDir, full)
+    return rel === '' || rel.startsWith('..') || isAbsolute(rel) || /[\\/]/.test(rel) ? null : full
   }
 
   return {
@@ -97,14 +103,17 @@ export function createNotesStore(dir: () => string): NotesStore {
       const notes = read()
       const note = listNotes(notes).find((n) => n.id === id)
       if (!note) return
-      write(removeNote(notes, id))
+      const rest = removeNote(notes, id)
+      write(rest)
+      // An image another note still lists (a hand edit) stays.
+      const kept = new Set(listNotes(rest).flatMap((n) => n.images))
       for (const path of note.images) {
-        const full = inside(path)
+        const full = kept.has(path) ? null : imageFile(path)
         if (full) rmSync(full, { force: true })
       }
     },
     image: (path) => {
-      const full = inside(path)
+      const full = imageFile(path)
       if (!full || !existsSync(full)) return null
       return `data:image/png;base64,${readFileSync(full).toString('base64')}`
     },

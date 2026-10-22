@@ -135,4 +135,26 @@ describe('the notes folder (dev-mode spec §5)', () => {
     store.remove('N-001')
     expect(store.list().map((n) => n.title)).toEqual(['Third note', 'Second note'])
   })
+
+  it('deletes only its own img/*.png files, whatever a hand-edited meta line says (final review I1)', () => {
+    const dir = tempDir()
+    const store = createNotesStore(() => dir)
+    store.save(note('First', [{ kind: 'snip', dataUrl: PNG }]), EXTRA)
+    store.save(note('Second', [{ kind: 'snip', dataUrl: PNG }]), EXTRA)
+    const path = join(dir, NOTES_FILE)
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace(
+        '"images":["img/N-001-1.png"]',
+        '"images":["notes.md","img/../notes.md","img","img/N-002-1.png","img/N-001-1.png"]'
+      )
+    )
+    expect(store.image('notes.md')).toBeNull()
+    expect(store.image('img/../notes.md')).toBeNull()
+    store.remove('N-001')
+    expect(store.list().map((n) => n.id)).toEqual(['N-002'])
+    // Another note's image stays; its own goes.
+    expect(existsSync(join(dir, 'img', 'N-002-1.png'))).toBe(true)
+    expect(existsSync(join(dir, 'img', 'N-001-1.png'))).toBe(false)
+  })
 })
