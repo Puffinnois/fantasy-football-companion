@@ -52,6 +52,12 @@ export function DevTools({ product, screen, onGo, children }: DevToolsProps): Re
   const registry = useMemo(() => new NoteContextRegistry(), [])
   const [on, setOnState] = useState(false)
   const [view, setView] = useState<PanelView | null>(null)
+  const [collapsed, setCollapsed] = useState(false)
+  // Opening the panel, by any way, shows it expanded.
+  const openNotes = useCallback((next: PanelView) => {
+    setView(next)
+    setCollapsed(false)
+  }, [])
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useErrorForwarding()
@@ -96,12 +102,12 @@ export function DevTools({ product, screen, onGo, children }: DevToolsProps): Re
         setOn(!on)
       } else if (e.code === 'KeyN' && on) {
         e.preventDefault()
-        setView('note')
+        openNotes('note')
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [on, setOn])
+  }, [on, setOn, openNotes])
 
   // Read when the panel asks, so it is where the developer is now.
   const productRef = useRef({ product, screen })
@@ -123,8 +129,8 @@ export function DevTools({ product, screen, onGo, children }: DevToolsProps): Re
   }, [registry])
 
   const state = useMemo<DevState>(
-    () => ({ on, setOn, openNotes: setView, openFolder }),
-    [on, setOn, openFolder]
+    () => ({ on, setOn, openNotes, openFolder }),
+    [on, setOn, openNotes, openFolder]
   )
 
   return (
@@ -137,7 +143,7 @@ export function DevTools({ product, screen, onGo, children }: DevToolsProps): Re
               <button
                 type="button"
                 data-dev-overlay=""
-                onClick={() => setView('note')}
+                onClick={() => openNotes('note')}
                 title="Write a dev note (Ctrl+Shift+N)"
                 className="fixed right-4 bottom-4 z-50 flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-panel px-3.5 py-2 text-[12.5px] font-semibold text-fg shadow-[0_6px_20px_var(--shadow-c)] hover:bg-hover"
               >
@@ -148,6 +154,8 @@ export function DevTools({ product, screen, onGo, children }: DevToolsProps): Re
             <NotesPanel
               view={view}
               onView={setView}
+              collapsed={collapsed}
+              onCollapsed={setCollapsed}
               where={where}
               onSaved={(id) => flash(`Saved ${id}`)}
               onGo={(context) => {

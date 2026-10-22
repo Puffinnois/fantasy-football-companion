@@ -8,6 +8,7 @@ import type { PanelView } from '@/lib/dev/devState'
 import { errorMessage } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import {
+  NOTE_MAX_IMAGES,
   NOTE_TAGS,
   tagLabel,
   whereSummary,
@@ -18,8 +19,6 @@ import {
   type NoteWhere
 } from '@shared/devNotes'
 
-/** Dev-mode spec §2: at most six attachments a note. */
-export const MAX_IMAGES = 6
 const DRAFT_KEY = 'companion.devNoteDraft'
 const MARGIN = 16
 
@@ -54,6 +53,9 @@ interface NotesPanelProps {
   /** null: closed (the draft is kept). */
   view: PanelView | null
   onView: (view: PanelView | null) => void
+  /** Kept by `DevTools`, so opening the panel again always expands it. */
+  collapsed: boolean
+  onCollapsed: (collapsed: boolean) => void
   /** Where the developer is now (spec §3). */
   where: () => NoteWhere
   onSaved: (id: string) => void
@@ -68,6 +70,8 @@ interface NotesPanelProps {
 export function NotesPanel({
   view,
   onView,
+  collapsed,
+  onCollapsed: setCollapsed,
   where: readWhere,
   onSaved,
   onGo,
@@ -79,7 +83,7 @@ export function NotesPanel({
   const [errors, setErrors] = useState<NoteError[]>([])
   const [withErrors, setWithErrors] = useState(true)
   const [showContext, setShowContext] = useState(false)
-  const [collapsed, setCollapsed] = useState(false)
+  const [capturing, setCapturing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   const [snipSource, setSnipSource] = useState<string | null>(null)
@@ -123,13 +127,17 @@ export function NotesPanel({
   }
 
   const shoot = async (snip: boolean): Promise<void> => {
+    if (capturing) return
     setProblem(null)
+    setCapturing(true)
     try {
       const shot = await captureWindow(api.dev.capture)
       if (snip) setSnipSource(shot)
       else setImages((list) => [...list, { kind: 'screenshot', dataUrl: shot }])
     } catch (err) {
       setProblem(errorMessage(err))
+    } finally {
+      setCapturing(false)
     }
     // Back to the text, so typing (and Esc) go to the panel.
     if (!snip) textRef.current?.focus()
@@ -178,7 +186,8 @@ export function NotesPanel({
   }
 
   if (view === null) return null
-  const full = images.length >= MAX_IMAGES
+  // One capture at a time: a second click while one runs could pass the limit.
+  const full = images.length >= NOTE_MAX_IMAGES || capturing
 
   return (
     <>
@@ -232,7 +241,7 @@ export function NotesPanel({
             type="button"
             aria-label={collapsed ? 'Expand' : 'Collapse'}
             title={collapsed ? 'Expand' : 'Collapse (Esc)'}
-            onClick={() => setCollapsed((c) => !c)}
+            onClick={() => setCollapsed(!collapsed)}
             className="flex size-7 cursor-pointer items-center justify-center rounded-[6px] text-fg-2 hover:bg-hover hover:text-fg"
           >
             {collapsed ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
@@ -300,7 +309,7 @@ export function NotesPanel({
                 Snip
               </button>
               <span className="text-[11.5px] text-fg-3">
-                {images.length}/{MAX_IMAGES}
+                {images.length}/{NOTE_MAX_IMAGES}
               </span>
             </div>
             {images.length > 0 && (

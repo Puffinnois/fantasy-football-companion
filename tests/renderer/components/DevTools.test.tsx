@@ -234,6 +234,39 @@ describe('writing a note (spec §2, §3)', () => {
   })
 })
 
+describe('final review fixes', () => {
+  it('Ctrl+Shift+N and the chip open a collapsed panel again', async () => {
+    renderTools()
+    fireEvent.click(await screen.findByRole('button', { name: /Note/ }))
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Note' }), { key: 'Escape' })
+    expect(screen.queryByRole('textbox', { name: 'Note' })).toBeNull()
+    press('KeyN')
+    expect(screen.getByRole('textbox', { name: 'Note' })).toBeTruthy()
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Note' }), { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'DEV' }))
+    fireEvent.click(screen.getByRole('button', { name: /New note/ }))
+    expect(screen.getByRole('textbox', { name: 'Note' })).toBeTruthy()
+  })
+
+  it('takes one capture at a time, so a double click never passes six', async () => {
+    let finish: (url: string) => void = () => {}
+    vi.mocked(api.dev.capture).mockImplementation(
+      () => new Promise<string>((resolve) => (finish = resolve))
+    )
+    renderTools()
+    fireEvent.click(await screen.findByRole('button', { name: /Note/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Screenshot' }))
+    await waitFor(() => expect(api.dev.capture).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('button', { name: 'Screenshot' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Snip' })).toHaveProperty('disabled', true)
+    fireEvent.click(screen.getByRole('button', { name: 'Screenshot' }))
+    await act(async () => finish(SHOT))
+    expect(api.dev.capture).toHaveBeenCalledTimes(1)
+    expect(screen.getAllByRole('img', { name: /Screenshot/ })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Screenshot' })).toHaveProperty('disabled', false)
+  })
+})
+
 describe('all notes (spec §6)', () => {
   it('filters, marks done, copies, deletes and goes there', async () => {
     const context = { product: 'fantasy', screen: 'trade', parts: {} } as never

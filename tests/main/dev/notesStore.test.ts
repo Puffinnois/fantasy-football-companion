@@ -157,4 +157,13 @@ describe('the notes folder (dev-mode spec §5)', () => {
     expect(existsSync(join(dir, 'img', 'N-002-1.png'))).toBe(true)
     expect(existsSync(join(dir, 'img', 'N-001-1.png'))).toBe(false)
   })
+
+  it('refuses more than six attachments and writes nothing (final review)', () => {
+    const dir = tempDir()
+    const store = createNotesStore(() => dir)
+    const seven = Array.from({ length: 7 }, () => ({ kind: 'snip' as const, dataUrl: PNG }))
+    expect(() => store.save(note('x', seven), EXTRA)).toThrow('at most 6')
+    expect(existsSync(join(dir, NOTES_FILE))).toBe(false)
+    expect(existsSync(join(dir, 'img'))).toBe(false)
+  })
 })

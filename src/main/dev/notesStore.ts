@@ -5,6 +5,7 @@ import {
   formatNotes,
   listNotes,
   nextNoteId,
+  NOTE_MAX_IMAGES,
   notesForClaude,
   parseNotes,
   removeNote,
@@ -76,6 +77,8 @@ export function createNotesStore(dir: () => string): NotesStore {
     save: (input, extra) => {
       const notes = read()
       const id = nextNoteId(notes)
+      if (input.images.length > NOTE_MAX_IMAGES)
+        throw new Error(`A note takes at most ${NOTE_MAX_IMAGES} images`)
       if (input.images.some((img) => !PNG_DATA_URL.test(img.dataUrl)))
         throw new Error('An attachment is not a PNG image')
       mkdirSync(join(dir(), IMG_DIR), { recursive: true })

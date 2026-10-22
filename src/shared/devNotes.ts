@@ -9,6 +9,9 @@ export type NoteStatus = 'open' | 'done'
 
 export const NOTE_TAGS: NoteTag[] = ['bug', 'idea', 'polish']
 
+/** Dev-mode spec §2: at most six attachments a note. */
+export const NOTE_MAX_IMAGES = 6
+
 const TAG_LABEL: Record<NoteTag, string> = { bug: 'Bug', idea: 'Idea', polish: 'Polish' }
 
 export function tagLabel(tag: NoteTag): string {
