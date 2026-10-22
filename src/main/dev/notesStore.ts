@@ -39,6 +39,25 @@ export interface NotesStore {
   forClaude(ids: string[]): string
 }
 
+/** Codes Windows gives while another program holds the file (antivirus, an editor). */
+const BUSY = new Set(['EPERM', 'EBUSY', 'EACCES'])
+const RENAME_TRIES = 5
+const RENAME_WAIT_MS = 50
+
+function renameWithRetry(from: string, to: string): void {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      renameSync(from, to)
+      return
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code ?? ''
+      if (!BUSY.has(code) || attempt >= RENAME_TRIES) throw err
+      // A short synchronous wait: main writes the file in one go, between two IPC calls.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, RENAME_WAIT_MS)
+    }
+  }
+}
+
 /**
  * The notes folder (dev-mode spec §5). Main owns the file: every change reads it, applies the
  * change and writes it atomically, so a hand edit made meanwhile is kept.
@@ -56,7 +75,12 @@ export function createNotesStore(dir: () => string): NotesStore {
     mkdirSync(dirname(path), { recursive: true })
     const tmp = `${path}.${process.pid}.tmp`
     writeFileSync(tmp, formatNotes(notes))
-    renameSync(tmp, path)
+    try {
+      renameWithRetry(tmp, path)
+    } catch (err) {
+      rmSync(tmp, { force: true })
+      throw err
+    }
   }
 
   /**
