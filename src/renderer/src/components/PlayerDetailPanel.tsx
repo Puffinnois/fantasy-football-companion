@@ -13,6 +13,7 @@ import {
 import { NewsSection } from '@/components/NewsSection'
 import { WeeklyChart } from '@/components/WeeklyChart'
 import { api } from '@/lib/api'
+import { useNoteContext } from '@/lib/dev/noteContext'
 import { errorMessage, fmtPct, fmtPoints } from '@/lib/format'
 import { cellText, columnGroups, rosAdjustLine } from '@/lib/playersTableView'
 import {
@@ -147,6 +148,21 @@ export function PlayerDetailPanel({
   const [watch, setWatch] = useState<{ playerId: string; on: boolean } | null>(null)
   const playerId = player?.playerId ?? null
   const key = playerId === null ? null : `${season}|${playerId}`
+  // Dev-mode spec §3: the open player file.
+  useNoteContext(
+    'player',
+    player
+      ? {
+          label: player.fullName,
+          data: {
+            playerId: player.playerId,
+            name: player.fullName,
+            position: player.position,
+            team: player.team
+          }
+        }
+      : null
+  )
   // Spec §9.4: "Full stats ↗" opens the player (a defense: its team) in Companion Stats.
   const links = useProductLinks()
   const [link, setLink] = useState<{ playerId: string; link: PlayerLink | null } | null>(null)

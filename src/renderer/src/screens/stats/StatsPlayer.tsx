@@ -9,6 +9,7 @@ import { ScopeBar } from '@/components/stats/ScopeBar'
 import { PercentileBar, StatSection, StatSections } from '@/components/stats/StatLines'
 import { WeekChart } from '@/components/stats/WeekChart'
 import { api } from '@/lib/api'
+import { useNoteContext } from '@/lib/dev/noteContext'
 import { fmtStat } from '@/lib/stats/format'
 import { qualifies } from '@/lib/stats/leaderboard'
 import {
@@ -137,6 +138,12 @@ export function StatsPlayer({
   onOpenFantasyPlayer?: (playerId: string) => void
 }): React.JSX.Element {
   const { bio, error: bioError } = usePlayerBio(player.id, data.version)
+  // Dev-mode spec §3: the dashboard's player and tab.
+  const known = bio?.id === player.id ? bio : null
+  useNoteContext('player', {
+    label: known?.name ?? player.id,
+    data: { id: player.id, name: known?.name ?? null, position: known?.position ?? null, tab }
+  })
   const position: PositionGroup | null =
     player.position ?? positionGroup(bio?.id === player.id ? bio.position : null)
   // The rail follows the player shown; a position picked in it shows until its leader opens.

@@ -76,12 +76,43 @@ vi.mock('@/screens/LeagueScreen', async () => {
     }
   }
 })
+vi.mock('@/screens/TradeScreen', () => ({ TradeScreen: () => <div>Trade screen</div> }))
 vi.mock('@/screens/PlayersScreen', () => ({
   PlayersScreen: ({ focus }: { focus: { playerId: string } | null }) => (
     <div>Players screen on {focus?.playerId ?? 'nobody'}</div>
   )
 }))
 vi.mock('@/components/UpdateDialog', () => ({ UpdateDialog: () => null }))
+// Dev mode is tested on its own; here only App's "Go there" (dev-mode spec §6).
+vi.mock('@/components/dev/DevTools', () => {
+  const where = (product: string, screen: string, parts: Record<string, unknown>): unknown => ({
+    product,
+    screen,
+    parts: Object.fromEntries(Object.entries(parts).map(([k, data]) => [k, { label: k, data }]))
+  })
+  return {
+    DevTools: ({ children, onGo }: { children: React.ReactNode; onGo: (c: unknown) => void }) => (
+      <>
+        {children}
+        <button type="button" onClick={() => onGo(where('fantasy', 'trade', {}))}>
+          Go to Trade
+        </button>
+        <button
+          type="button"
+          onClick={() => onGo(where('fantasy', 'lineup', { player: { playerId: '7564' } }))}
+        >
+          Go to a player file
+        </button>
+        <button
+          type="button"
+          onClick={() => onGo(where('stats', 'player', { player: { id: '00-0036900' } }))}
+        >
+          Go to a Stats player
+        </button>
+      </>
+    )
+  }
+})
 
 const LEAGUE: League = {
   leagueId: 'L1',
@@ -148,5 +179,17 @@ describe('App: two products (stats-analysis spec §9.1)', () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'Full stats of the Rams' }))
     expect(await screen.findByText('Stats focus: team LA')).toBeTruthy()
+  })
+
+  it('goes where a dev note was written (dev-mode spec §6)', async () => {
+    vi.mocked(api.league.get).mockResolvedValue(LEAGUE)
+    render(<App />)
+    expect(await screen.findByText('League screen')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Trade' }))
+    expect(screen.getByText('Trade screen')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to a player file' }))
+    expect(screen.getByText('Players screen on 7564')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to a Stats player' }))
+    expect(screen.getByText('Stats focus: player 00-0036900')).toBeTruthy()
   })
 })

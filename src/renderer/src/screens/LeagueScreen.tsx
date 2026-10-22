@@ -12,6 +12,7 @@ import {
   type Tone
 } from '@/components/edition'
 import { api } from '@/lib/api'
+import { useNoteContext } from '@/lib/dev/noteContext'
 import { errorMessage } from '@/lib/format'
 import {
   DEFAULT_PLAYOFF_TEAMS,
@@ -153,6 +154,11 @@ export function LeagueScreen({ onOpenPlayer }: LeagueScreenProps): React.JSX.Ele
   const [roster, setRoster] = useState<RosterPlayer[]>([])
   const [error, setError] = useState<string | null>(null)
   const [ctx, setCtx] = useState<PointsContext | null>(null)
+  const team = teams?.find((t) => t.rosterId === selected) ?? null
+  useNoteContext(
+    'team',
+    team ? { label: team.teamName ?? team.displayName, data: { rosterId: team.rosterId } } : null
+  )
   const [playoffTeams, setPlayoffTeams] = useState(DEFAULT_PLAYOFF_TEAMS)
 
   useEffect(() => {

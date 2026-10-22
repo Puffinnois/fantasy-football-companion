@@ -4,14 +4,17 @@ import { PlayerDetailPanel } from '@/components/PlayerDetailPanel'
 import { TradeBuilder } from '@/components/TradeBuilder'
 import { TradeSuggestions } from '@/components/TradeSuggestions'
 import { api } from '@/lib/api'
+import { useNoteContext } from '@/lib/dev/noteContext'
 import { errorMessage } from '@/lib/format'
 import {
   EMPTY_DEAL,
   addTeam,
   dealFromMoves,
   dealOf,
+  getsLine,
   proposalFrom,
   pruneDeal,
+  teamLabel,
   type BuilderDeal
 } from '@/lib/tradeBuilder'
 import { ordinalSuffix } from '@/lib/leagueView'
@@ -130,6 +133,15 @@ export function TradeScreen({ dataVersion }: TradeScreenProps): React.JSX.Elemen
 
   const pool = loaded?.key === key ? loaded.pool : null
   const notice = failed && (failed.key === key || failed.key === 'options') ? failed.message : null
+  // Dev-mode spec §3: the tab, and the deal on the builder.
+  const sides = pool && deal.picks.length > 0 ? [pool.me.rosterId, ...deal.teams] : []
+  useNoteContext('trade', {
+    label: [
+      tab,
+      ...sides.map((id) => `${teamLabel(pool!, id)} gets ${getsLine(deal, id, pool!)}`)
+    ].join(' · '),
+    data: { season, tab, deal }
+  })
 
   const changeDeal = (d: BuilderDeal): void => {
     dealSeq.current++
