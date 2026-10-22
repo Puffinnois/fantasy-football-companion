@@ -12,7 +12,7 @@
 - **Stored** as `dev_mode` (`'1'` / `'0'`) in `app_settings`. Absent → off in the packaged app, **on** when unpackaged (`npm run dev`).
 - **Switch:**
   - `Ctrl+Shift+D` anywhere in the app toggles it. A toast confirms: `Dev mode on` / `Dev mode off`.
-  - While on, both navs (Fantasy `TopNav` and the Stats nav) show a small **DEV** chip next to the version. Clicking it opens a menu: *Notes (Ctrl+Shift+N)*, *Open notes folder*, *Turn off Dev mode*.
+  - While on, both navs (Fantasy `TopNav` and the Stats nav) show a small **DEV** chip next to the version. Clicking it opens a menu: _Notes (Ctrl+Shift+N)_, _Open notes folder_, _Turn off Dev mode_.
   - `--dev-mode` on the command line turns it on for that launch only (handy for a shortcut on the Windows desktop).
 - **Not a lock.** Anyone who knows the shortcut can turn it on; it only shows tools, it never changes data or results.
 - **IPC:** `dev:get` → `boolean`, `dev:set(on)`, and a `dev:changed` event so both products update at once.
@@ -25,15 +25,15 @@
 
 **Fields.**
 
-| Field | Notes |
-| --- | --- |
-| Text | Required. Multi-line. The first line becomes the note's title (trimmed to 80 chars). |
-| Tag | `Bug` · `Idea` · `Polish` — one, default `Idea`. |
-| Attachments | 0–6 images, shown as thumbnails with ✕ to remove. |
-| Context | A one-line summary (`Fantasy › Players · Josh Allen · wk 8`) with ↻ to re-capture from where you are now and ▸ to see the full JSON. |
-| Include recent errors | Checkbox, on by default when there are any (§4), with the count. |
+| Field                 | Notes                                                                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Text                  | Required. Multi-line. The first line becomes the note's title (trimmed to 80 chars).                                                 |
+| Tag                   | `Bug` · `Idea` · `Polish` — one, default `Idea`.                                                                                     |
+| Attachments           | 0–6 images, shown as thumbnails with ✕ to remove.                                                                                    |
+| Context               | A one-line summary (`Fantasy › Players · Josh Allen · wk 8`) with ↻ to re-capture from where you are now and ▸ to see the full JSON. |
+| Include recent errors | Checkbox, on by default when there are any (§4), with the count.                                                                     |
 
-**Buttons:** *Screenshot*, *Snip*, *Save* (`Ctrl+Enter`), *Discard*, and *All notes* (§6).
+**Buttons:** _Screenshot_, _Snip_, _Save_ (`Ctrl+Enter`), _Discard_, and _All notes_ (§6).
 
 ### 2.1 The panel never appears in a capture
 
@@ -51,7 +51,7 @@ The whole window as it looks right now, without the panel (§2.1). Added as an a
 ### 2.3 Snip
 
 1. Capture the whole window as in §2.1 (so the region you pick is exactly what was on screen, frozen — menus and hovers stay as they were).
-2. Show that capture full-window in a snip overlay, dimmed, cursor a crosshair. Drag a rectangle; the selection shows undimmed with its size in px. Release to keep, drag again to redo, `Enter` / *Use* to confirm, `Esc` to cancel.
+2. Show that capture full-window in a snip overlay, dimmed, cursor a crosshair. Drag a rectangle; the selection shows undimmed with its size in px. Release to keep, drag again to redo, `Enter` / _Use_ to confirm, `Esc` to cancel.
 3. The crop is made at device-pixel resolution (selection × `devicePixelRatio`), so it stays sharp on a scaled display. Selections smaller than 8 × 8 px are ignored.
 4. The overlay closes and the panel returns with the crop as an attachment.
 
@@ -94,7 +94,7 @@ dev-notes/
     N-014-2.png
 ```
 
-*All notes* → *Change folder…* can point it elsewhere (stored as `dev_notes_dir`). Useful choice: the repo's `docs/dev-notes/` through `\\wsl.localhost\…`, so the packaged Windows app writes notes straight into the project. Default paths, for reference:
+_All notes_ → _Change folder…_ can point it elsewhere (stored as `dev_notes_dir`). Useful choice: the repo's `docs/dev-notes/` through `\\wsl.localhost\…`, so the packaged Windows app writes notes straight into the project. Default paths, for reference:
 
 - Packaged on Windows: `%APPDATA%\FantasyCompanion\dev-notes\` — from WSL: `/mnt/c/Users/<you>/AppData/Roaming/FantasyCompanion/dev-notes/`.
 - `npm run dev` in WSL: `~/.config/FantasyCompanion/dev-notes/` (a different store unless the folder is changed).
@@ -152,11 +152,11 @@ Maybe wrap to two lines or shrink the font.
 
 ## 6. All notes
 
-A second view of the panel lists notes newest first: id, tag, title, age, status, thumbnail. Filter: *Open* (default) / *Done* / *All*, and by tag.
+A second view of the panel lists notes newest first: id, tag, title, age, status, thumbnail. Filter: _Open_ (default) / _Done_ / _All_, and by tag.
 
-Per note: *Mark done* / *Reopen*, *Delete* (confirms; removes its images), *Copy for Claude* (the note's section as Markdown with image paths made absolute, ready to paste in a session), *Go there* (switches to the note's product and screen; opens the player/team when the context has one).
+Per note: _Mark done_ / _Reopen_, _Delete_ (confirms; removes its images), _Copy for Claude_ (the note's section as Markdown with image paths made absolute, ready to paste in a session), _Go there_ (switches to the note's product and screen; opens the player/team when the context has one).
 
-Footer: *Open folder*, *Change folder…*, *Copy all open for Claude*.
+Footer: _Open folder_, _Change folder…_, _Copy all open for Claude_.
 
 ## 7. Working the notes with Claude Code
 
@@ -188,3 +188,16 @@ No app change — this is how the format is meant to be used, recorded so the co
 - Syncing notes between machines (the folder choice covers sharing with the repo).
 - Annotating screenshots (arrows, text). Snip covers "show exactly this part"; drawing can come later.
 - Any other dev tool. Dev mode is built so more can be added behind it.
+
+## 11. Amendments (dev-notes plan, 2026-10-22)
+
+Taken while building the plan's prototype; the reference is `docs/reference/dev-notes.md`.
+
+- **A. No zoom field (§3).** Electron gives the page zoom to the preload only; `env.devicePixelRatio` already includes it. `env` is width, height, devicePixelRatio, theme.
+- **B. Errors (§4).** Origins are `main`, `renderer` and `sync`: the stats and engine workers' failures reach main's `console.error`, so they are `main`. Uncaught exceptions are observed with `uncaughtExceptionMonitor`, which leaves Electron's own handling as it is. Node's process warnings (`(node:…) ExperimentalWarning: …`) are not errors and are left out. The same error again is listed once, the newest, with `(×n)`. Times in the note are local, like its When line.
+- **C. The draft (§2).** Its text and tag survive a reload (`localStorage`); attachments stay in memory until the app closes (a PNG is too large for `localStorage`).
+- **D. When the context is read (§3).** When the panel opens on a new note and on ↻, together with the recent errors. The note's `time` and When line are the save time; main adds `app`, `league` and `time` at save.
+- **E. IPC (§8).** `dev:mode`, `dev:setMode`, `dev:changed`, `dev:capture`, `dev:reportError` (a send, not an invoke), `dev:recentErrors`, `dev:notesList`, `dev:notesSave`, `dev:notesSetStatus`, `dev:notesRemove`, `dev:notesImage` (a thumbnail as a data URL; paths outside the folder are refused), `dev:notesFolder`, `dev:notesOpenFolder`, `dev:notesChooseFolder`, `dev:notesCopy` (main writes the clipboard, image paths absolute).
+- **F. What screens add (§3).** As §3, plus the League screen's selected team and Waivers' mode. The trade part's label is the tab and each side's "gets" line.
+- **G. Esc and focus (§2).** Esc collapses the panel while focus is in it; after Screenshot or Snip, focus returns to the text. The snip overlay takes Esc and Enter first, so they never also close a player file under it.
+- **H. Go there (§6).** Fantasy: the note's screen, or Players with the player's file when the note has one. Stats: the note's player or team dashboard, else Stats on its last screen.
