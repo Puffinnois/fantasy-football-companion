@@ -3,7 +3,7 @@ import { listErrorsSince } from '@main/db/repos/syncLog'
 import type { NoteError } from '@shared/devNotes'
 
 const MAX_ENTRIES = 30
-const NODE_WARNING = /^\(node:\d+\) \w*Warning:/
+const NODE_WARNING = /^\(node:\d+\) (\[\w+\] )?\w*Warning:/
 const STACK_LINES = 8
 /** A note attaches the errors of the last 15 minutes, at most 10 (dev-mode spec §4). */
 export const RECENT_MS = 15 * 60 * 1000
@@ -11,7 +11,7 @@ export const RECENT_MAX = 10
 
 export interface ErrorLog {
   push(entry: NoteError): void
-  /** Newest first, within `RECENT_MS` of `now`, at most `RECENT_MAX`. */
+  /** Newest first, within `RECENT_MS` of `now`; `recentErrors` collapses repeats, then cuts. */
   recent(now: number): NoteError[]
 }
 
@@ -22,11 +22,7 @@ export function createErrorLog(): ErrorLog {
       entries.push({ ...entry, stack: trimStack(entry.stack) })
       if (entries.length > MAX_ENTRIES) entries.splice(0, entries.length - MAX_ENTRIES)
     },
-    recent: (now) =>
-      entries
-        .filter((e) => now - Date.parse(e.at) <= RECENT_MS)
-        .reverse()
-        .slice(0, RECENT_MAX)
+    recent: (now) => entries.filter((e) => now - Date.parse(e.at) <= RECENT_MS).reverse()
   }
 }
 

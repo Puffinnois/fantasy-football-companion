@@ -28,7 +28,7 @@ describe('the recent-errors buffer (dev-mode spec §4)', () => {
   it('keeps the last 30', () => {
     const log = createErrorLog()
     for (let i = 0; i < 35; i++) log.push(entry(0, `e${i}`))
-    expect(log.recent(T0)).toHaveLength(10)
+    expect(log.recent(T0)).toHaveLength(30)
     expect(log.recent(T0)[0].message).toBe('e34')
   })
 
@@ -84,6 +84,7 @@ describe('capturing main’s errors', () => {
     const log = createErrorLog()
     captureMainErrors(log, () => new Date(T0))
     console.error('(node:44633) ExperimentalWarning: SQLite is an experimental feature')
+    console.error('(node:44633) [DEP0040] DeprecationWarning: The `punycode` module is deprecated.')
     expect(log.recent(T0)).toEqual([])
   })
 })
@@ -122,6 +123,25 @@ describe('repeats', () => {
     expect(collapseRepeats([entry(1, 'same'), entry(2, 'other'), entry(3, 'same')])).toEqual([
       { ...entry(1, 'same'), message: 'same (×2)' },
       entry(2, 'other')
+    ])
+  })
+})
+
+describe('repeats before the cut (final review)', () => {
+  it('collapses repeats before keeping ten, so older different errors stay', () => {
+    const db = openDatabase(':memory:')
+    migrate(db)
+    const log = createErrorLog()
+    for (let i = 0; i < 5; i++) log.push(entry(10, `older ${i}`))
+    for (let i = 0; i < 12; i++) log.push(entry(1, 'retried'))
+    const shown = recentErrors({ db, errors: log }, new Date(T0))
+    expect(shown.map((e) => e.message)).toEqual([
+      'retried (×12)',
+      'older 4',
+      'older 3',
+      'older 2',
+      'older 1',
+      'older 0'
     ])
   })
 })
