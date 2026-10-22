@@ -124,4 +124,15 @@ describe('the notes folder (dev-mode spec §5)', () => {
     store.save(note('In B'), EXTRA)
     expect(store.list().map((n) => n.id)).toEqual(['N-001'])
   })
+
+  it('keeps every note after one whose text opens a code fence (final review C1)', () => {
+    const dir = tempDir()
+    const store = createNotesStore(() => dir)
+    store.save(note('Pasted snippet:\n```ts\nconst x = 1'), EXTRA)
+    store.save(note('Second note'), EXTRA)
+    store.save(note('Third note'), EXTRA)
+    expect(store.list().map((n) => n.id)).toEqual(['N-003', 'N-002', 'N-001'])
+    store.remove('N-001')
+    expect(store.list().map((n) => n.title)).toEqual(['Third note', 'Second note'])
+  })
 })

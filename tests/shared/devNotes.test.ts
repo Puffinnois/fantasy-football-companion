@@ -226,3 +226,44 @@ describe('copying notes for Claude (spec §6)', () => {
     expect(text.endsWith('</details>\n')).toBe(true)
   })
 })
+
+describe('code fences (final review C1)', () => {
+  it('closes a fence the text leaves open, so the next note is still a note', () => {
+    const raw = section('N-001', 'Pasted snippet:\n```ts\nconst x = 1')
+    expect(raw).toContain('const x = 1\n```\n')
+    const notes = listNotes(parseNotes(fileWith(raw, section('N-002', 'Second'))))
+    expect(notes.map((n) => n.id)).toEqual(['N-001', 'N-002'])
+    expect(notes[0].text).toBe('Pasted snippet:\n```ts\nconst x = 1\n```')
+  })
+
+  it('keeps a note with a meta line a note, after an unbalanced fence left by a hand edit', () => {
+    const content = fileWith(
+      section('N-001', 'One'),
+      section('N-002', 'Two'),
+      section('N-003', 'Three')
+    ).replace('\nOne\n', '\nOne\n~~~~\n')
+    const file = parseNotes(content)
+    expect(listNotes(file).map((n) => n.id)).toEqual(['N-001', 'N-002', 'N-003'])
+    expect(nextNoteId(file)).toBe('N-004')
+    expect(formatNotes(removeNote(file, 'N-001'))).toContain('## N-003')
+  })
+
+  it('closes a fence only with the same character, at least as long', () => {
+    const raw = section('N-001', 'Snippet\n````md\n```\n## inside\n```\n````')
+    const file = parseNotes(fileWith(raw, section('N-002', 'Two')))
+    expect(file.sections).toHaveLength(2)
+    expect(listNotes(file)[0].text).toContain('## inside')
+  })
+
+  it('indents every line of a multi-line error message', () => {
+    const raw = serializeNote(meta('N-001'), {
+      text: 'x',
+      context: CONTEXT,
+      errors: [{ ...ERROR, message: 'Error: bad\n```\n## N-999 fake', stack: null }],
+      kinds: []
+    })
+    expect(raw).toContain('Error: bad\n    ```\n    ## N-999 fake\n```')
+    const file = parseNotes(fileWith(raw, section('N-002', 'Two')))
+    expect(listNotes(file).map((n) => n.id)).toEqual(['N-001', 'N-002'])
+  })
+})

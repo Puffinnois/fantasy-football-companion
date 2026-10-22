@@ -115,7 +115,24 @@ To close a note, set \`"status":"done"\` in that line (or use the app). Images a
 
 const TITLE_MAX = 80
 const META_LINE = /^<!-- note (\{.*\}) -->[ \t]*$/m
-const FENCE = /^(```|~~~)/
+/** A fence opener (CommonMark): three or more backticks or tildes, an optional info string. */
+const FENCE = /^(`{3,}|~{3,})(.*)$/
+
+/** A fence line closes `open` when it uses the same character, at least as long, with no info. */
+function closesFence(line: string, open: string): boolean {
+  const m = FENCE.exec(line)
+  return m !== null && m[1][0] === open[0] && m[1].length >= open.length && m[2].trim() === ''
+}
+
+/** The fence still open after `lines`, or null. */
+function openFence(lines: string[]): string | null {
+  let open: string | null = null
+  for (const line of lines) {
+    if (open === null) open = FENCE.exec(line)?.[1] ?? null
+    else if (closesFence(line, open)) open = null
+  }
+  return open
+}
 
 /** The first non-empty line of the text, trimmed to 80 characters. */
 export function noteTitle(text: string): string {
@@ -160,12 +177,15 @@ function shortTime(iso: string): string {
 
 /** Lines that would start a new section, or a title, are escaped so the file keeps its shape. */
 function escapeText(text: string): string {
-  return text
+  const lines = text
     .replace(/\r\n?/g, '\n')
     .trim()
     .split('\n')
     .map((l) => (/^#{1,2}(\s|$)/.test(l) ? `\\${l}` : l))
-    .join('\n')
+  // A fence the text leaves open is closed, or it would swallow the rest of the file.
+  const open = openFence(lines)
+  if (open !== null) lines.push(open)
+  return lines.join('\n')
 }
 
 function headingLine(meta: Pick<NoteMeta, 'id' | 'tag' | 'status'>, title: string): string {
@@ -181,7 +201,8 @@ function errorLines(errors: NoteError[]): string {
     .map((e) => {
       // Local, like the note's When line.
       const time = new Date(e.at).toTimeString().slice(0, 8)
-      const head = `${time} ${e.origin.padEnd(8)} ${e.message}`
+      // Every line of the message is inside the fence: continuation lines are indented too.
+      const head = `${time} ${e.origin.padEnd(8)} ${e.message.replace(/\n/g, '\n    ')}`
       return e.stack ? `${head}\n${e.stack.replace(/^/gm, '    ')}` : head
     })
     .join('\n')
@@ -317,15 +338,25 @@ function readNote(raw: string): DevNote | null {
   }
 }
 
+/** The first non-empty line after `i` is a `<!-- note {...} -->` line. */
+function metaFollows(lines: string[], i: number): boolean {
+  const next = lines.slice(i + 1).find((l) => l.trim() !== '')
+  return next !== undefined && META_LINE.test(next)
+}
+
 /** Splits on lines starting with `## ` outside code fences (spec §5 "Hand edits"). */
 export function parseNotes(content: string): NotesFile {
   const text = content.replace(/\r\n?/g, '\n')
   const lines = text.split('\n')
   const starts: number[] = []
-  let fenced = false
+  let open: string | null = null
   lines.forEach((line, i) => {
-    if (FENCE.test(line)) fenced = !fenced
-    else if (!fenced && /^## /.test(line)) starts.push(i)
+    // A heading followed by a meta line is a note's start even inside a fence a hand edit left open.
+    if (/^## /.test(line) && (open === null || metaFollows(lines, i))) {
+      starts.push(i)
+      open = null
+    } else if (open === null) open = FENCE.exec(line)?.[1] ?? null
+    else if (closesFence(line, open)) open = null
   })
   if (starts.length === 0) return { header: text, sections: [] }
   const header = lines.slice(0, starts[0]).join('\n')
