@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { StatsNav, type StatsScreen } from '@/components/stats/StatsNav'
 import { api } from '@/lib/api'
+import { useNoteContext, useNoteScreen } from '@/lib/dev/noteContext'
 import { errorMessage } from '@/lib/format'
 import type { BoardDef } from '@/lib/stats/boards'
 import { bestFirst, defaultBoard, normalizeBoard } from '@/lib/stats/leaderboard'
@@ -128,6 +129,19 @@ export function StatsApp({
     setPlayer({ id, position })
     setScreen('player')
   }
+
+  // Dev-mode spec §3: Stats' screen, its scope, and the team dashboard's team.
+  useNoteScreen(screen)
+  useNoteContext('scope', {
+    label: `${effective.season}${effective.weeks ? ` wk ${effective.weeks[0]}–${effective.weeks[1]}` : ''} ${effective.seasonType} · ${effective.scoring}`,
+    data: { ...effective }
+  })
+  useNoteContext(
+    'team',
+    screen === 'team' && shownTeam
+      ? { label: shownTeam, data: { team: shownTeam, tab: teamTab } }
+      : null
+  )
 
   const openBoard = (board: LeaderboardBoard, selected: string | null): void => {
     setOpen((o) => ({ board, selected, nonce: (o?.nonce ?? 0) + 1 }))

@@ -11,6 +11,7 @@ import {
 } from '@/components/edition'
 import { PlayerDetailPanel } from '@/components/PlayerDetailPanel'
 import { api } from '@/lib/api'
+import { useNoteContext } from '@/lib/dev/noteContext'
 import { errorMessage, fmtSigned } from '@/lib/format'
 import { ordinalSuffix } from '@/lib/leagueView'
 import { fmtMarket } from '@/lib/tradeView'
@@ -529,6 +530,10 @@ export function WaiverScreen({ dataVersion }: WaiverScreenProps): React.JSX.Elem
   } | null>(null)
   const [streamFailed, setStreamFailed] = useState<{ key: string; message: string } | null>(null)
   const [streamChoice, setStreamChoice] = useState<Record<string, number>>({})
+  useNoteContext('mode', {
+    label: mode === 'ros' ? 'rest of season' : `streaming wk ${pickedWeek ?? 'next'}`,
+    data: { season, mode, week: pickedWeek, position: chip }
+  })
 
   useEffect(() => {
     void api.players

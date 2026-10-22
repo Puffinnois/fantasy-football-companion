@@ -1,3 +1,4 @@
+import { DevChip } from '@/components/dev/DevChip'
 import { Mark } from '@/components/edition'
 import { UpdatePill } from '@/components/UpdatePill'
 import { freshness } from '@/lib/stats/scope'
@@ -56,6 +57,7 @@ export function StatsNav({
         <span className="text-[15px] leading-none font-semibold tracking-[-0.01em]">
           Companion <span className="font-medium text-fg-3">Stats</span>
         </span>
+        <DevChip />
       </div>
       <div className="flex gap-[22px] self-stretch text-[13.5px] leading-none font-medium">
         {ITEMS.map(({ id, label }) => {

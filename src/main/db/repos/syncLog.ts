@@ -69,6 +69,16 @@ export function getLastFinishedSync(db: Db, source: string): SyncLogEntry | null
   return row ? toEntry(row) : null
 }
 
+/** Failed entries finished at or after `since` (ISO), newest first (dev-mode spec §4). */
+export function listErrorsSince(db: Db, since: string): SyncLogEntry[] {
+  const rows = db
+    .prepare(
+      "SELECT * FROM sync_log WHERE status = 'error' AND finished_at >= ? ORDER BY id DESC LIMIT 10"
+    )
+    .all(since) as unknown as Row[]
+  return rows.map(toEntry)
+}
+
 export function getLastError(db: Db): SyncLogEntry | null {
   const row = db
     .prepare("SELECT * FROM sync_log WHERE status = 'error' ORDER BY id DESC LIMIT 1")

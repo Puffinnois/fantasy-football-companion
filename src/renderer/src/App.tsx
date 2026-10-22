@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { DevTools } from '@/components/dev/DevTools'
 import { TopNav, type Screen } from '@/components/TopNav'
 import { UpdateDialog } from '@/components/UpdateDialog'
 import { SetupScreen } from '@/screens/SetupScreen'
@@ -14,6 +15,9 @@ import { api } from '@/lib/api'
 import { ProductLinksContext, type ProductLinks } from '@/lib/productLinks'
 import { useTheme } from '@/lib/theme'
 import { useUpdateState } from '@/lib/useUpdateState'
+import type { NoteContext } from '@shared/devNotes'
+
+const SCREENS: Screen[] = ['setup', 'league', 'rules', 'players', 'lineup', 'trade', 'waivers']
 
 /** Screens with an Edition masthead lay out their own scroll regions; the rest scroll as a page. */
 const FULL_BLEED: Screen[] = ['league', 'players', 'lineup', 'trade', 'waivers', 'rules', 'setup']
@@ -51,6 +55,30 @@ export default function App(): React.JSX.Element {
       }
     }),
     []
+  )
+
+  // Dev-mode spec §6 "Go there": the note's product and screen, and its player or team.
+  const goTo = useCallback(
+    (context: NoteContext) => {
+      const data = (key: string): Record<string, unknown> => context.parts[key]?.data ?? {}
+      if (context.product === 'stats') {
+        const player = data('player').id
+        const team = data('team').team
+        setStatsFocus((f) => {
+          const nonce = (f?.nonce ?? 0) + 1
+          if (typeof player === 'string') return { kind: 'player', id: player, nonce }
+          if (typeof team === 'string') return { kind: 'team', team, nonce }
+          return f
+        })
+        setProduct('stats')
+        return
+      }
+      setProduct('fantasy')
+      const player = data('player').playerId
+      if (typeof player === 'string') openPlayer(player)
+      else if (SCREENS.includes(context.screen as Screen)) setScreen(context.screen as Screen)
+    },
+    [openPlayer]
   )
 
   useEffect(() => {
@@ -109,7 +137,7 @@ export default function App(): React.JSX.Element {
 
   if (product === 'stats') {
     return (
-      <>
+      <DevTools product="stats" screen="home" onGo={goTo}>
         <StatsApp
           hasLeague={hasLeague}
           leagueKey={dataVersion}
@@ -130,54 +158,56 @@ export default function App(): React.JSX.Element {
           onScope={setStatsScope}
         />
         {updateDialog}
-      </>
+      </DevTools>
     )
   }
 
   return (
-    <ProductLinksContext.Provider value={links}>
-      <div className="flex h-full flex-col">
-        <TopNav
-          current={screen}
-          onNavigate={setScreen}
-          hasLeague={hasLeague}
-          update={update}
-          version={version}
-          onOpenUpdate={() => setUpdateOpen(true)}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          refreshKey={dataVersion}
-          onRefreshed={bumpData}
-          onOpenStats={() => {
-            setStatsFocus(null)
-            setProduct('stats')
-          }}
-        />
-        <main
-          className={
-            FULL_BLEED.includes(screen)
-              ? 'flex min-h-0 flex-1 flex-col'
-              : 'min-h-0 flex-1 overflow-auto px-8 py-6'
-          }
-        >
-          {screen === 'setup' && (
-            <SetupScreen
-              onImported={() => {
-                setHasLeague(true)
-                bumpData()
-              }}
-              onGoLeague={() => setScreen('league')}
-            />
-          )}
-          {screen === 'league' && <LeagueScreen key={dataVersion} onOpenPlayer={openPlayer} />}
-          {screen === 'rules' && <RulesScreen onSaved={bumpData} />}
-          {screen === 'players' && <PlayersScreen dataVersion={dataVersion} focus={focus} />}
-          {screen === 'lineup' && <LineupScreen dataVersion={dataVersion} />}
-          {screen === 'trade' && <TradeScreen dataVersion={dataVersion} />}
-          {screen === 'waivers' && <WaiverScreen dataVersion={dataVersion} />}
-        </main>
-        {updateDialog}
-      </div>
-    </ProductLinksContext.Provider>
+    <DevTools product="fantasy" screen={screen} onGo={goTo}>
+      <ProductLinksContext.Provider value={links}>
+        <div className="flex h-full flex-col">
+          <TopNav
+            current={screen}
+            onNavigate={setScreen}
+            hasLeague={hasLeague}
+            update={update}
+            version={version}
+            onOpenUpdate={() => setUpdateOpen(true)}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            refreshKey={dataVersion}
+            onRefreshed={bumpData}
+            onOpenStats={() => {
+              setStatsFocus(null)
+              setProduct('stats')
+            }}
+          />
+          <main
+            className={
+              FULL_BLEED.includes(screen)
+                ? 'flex min-h-0 flex-1 flex-col'
+                : 'min-h-0 flex-1 overflow-auto px-8 py-6'
+            }
+          >
+            {screen === 'setup' && (
+              <SetupScreen
+                onImported={() => {
+                  setHasLeague(true)
+                  bumpData()
+                }}
+                onGoLeague={() => setScreen('league')}
+              />
+            )}
+            {screen === 'league' && <LeagueScreen key={dataVersion} onOpenPlayer={openPlayer} />}
+            {screen === 'rules' && <RulesScreen onSaved={bumpData} />}
+            {screen === 'players' && <PlayersScreen dataVersion={dataVersion} focus={focus} />}
+            {screen === 'lineup' && <LineupScreen dataVersion={dataVersion} />}
+            {screen === 'trade' && <TradeScreen dataVersion={dataVersion} />}
+            {screen === 'waivers' && <WaiverScreen dataVersion={dataVersion} />}
+          </main>
+          {updateDialog}
+        </div>
+      </ProductLinksContext.Provider>
+    </DevTools>
   )
 }

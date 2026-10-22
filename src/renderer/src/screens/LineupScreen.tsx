@@ -12,6 +12,7 @@ import {
 } from '@/components/edition'
 import { PlayerDetailPanel } from '@/components/PlayerDetailPanel'
 import { api } from '@/lib/api'
+import { useNoteContext } from '@/lib/dev/noteContext'
 import { errorMessage } from '@/lib/format'
 import {
   benchFor,
@@ -132,6 +133,7 @@ export function LineupScreen({ dataVersion }: LineupScreenProps): React.JSX.Elem
   const [failed, setFailed] = useState<{ key: string; message: string } | null>(null)
   const [applied, setApplied] = useState<string | null>(null)
   const [selected, setSelected] = useState<DetailTarget | null>(null)
+  useNoteContext('week', week !== null ? { label: `wk ${week}`, data: { season, week } } : null)
 
   useEffect(() => {
     void api.players
