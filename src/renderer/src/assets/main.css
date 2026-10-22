@@ -270,3 +270,8 @@
     @apply py-16 text-center font-cond text-[16px] leading-none font-bold tracking-[0.14em] text-fg-3 uppercase;
   }
 }
+
+/* Dev-mode spec §2.1: dev overlays never appear in a capture; they keep their layout meanwhile. */
+html[data-dev-capture] [data-dev-overlay] {
+  visibility: hidden !important;
+}
