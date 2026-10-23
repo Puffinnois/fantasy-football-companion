@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { DevChip } from '@/components/dev/DevChip'
-import { Mark, VersionTag } from '@/components/edition'
+import { BackButton, Mark, VersionTag } from '@/components/edition'
 import { UpdatePill } from '@/components/UpdatePill'
 import { api } from '@/lib/api'
 import { errorMessage, relativeTime } from '@/lib/format'
@@ -25,6 +25,9 @@ interface TopNavProps {
   hasLeague: boolean
   update: UpdateState
   version: string | null
+  /** Back to the page before (N-002); off when there is none. */
+  canGoBack?: boolean
+  onBack?: () => void
   onOpenUpdate: () => void
   theme: 'light' | 'dark'
   onToggleTheme: () => void
@@ -123,6 +126,8 @@ export function TopNav({
   hasLeague,
   update,
   version,
+  canGoBack = false,
+  onBack,
   onOpenUpdate,
   theme,
   onToggleTheme,
@@ -133,6 +138,7 @@ export function TopNav({
   return (
     <nav className="flex h-[54px] shrink-0 items-center gap-7 border-b border-line px-8">
       <div className="flex items-center gap-[9px]">
+        <BackButton enabled={canGoBack} onBack={onBack} />
         <Mark />
         <span className="text-[15px] leading-none font-semibold tracking-[-0.01em]">Companion</span>
         <VersionTag version={version} />

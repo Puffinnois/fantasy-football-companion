@@ -3,6 +3,7 @@ import { StatsNav, type StatsScreen } from '@/components/stats/StatsNav'
 import { api } from '@/lib/api'
 import { useNoteContext, useNoteScreen } from '@/lib/dev/noteContext'
 import { errorMessage } from '@/lib/format'
+import type { NavLocation } from '@/lib/navHistory'
 import type { BoardDef } from '@/lib/stats/boards'
 import { bestFirst, defaultBoard, normalizeBoard } from '@/lib/stats/leaderboard'
 import { defaultPlayer, positionTab, railQuery, type PlayerTab } from '@/lib/stats/player'
@@ -17,9 +18,13 @@ import { StatsTeam } from '@/screens/stats/StatsTeam'
 import type { LeaderboardBoard, PositionGroup, StatsView } from '@shared/stats/types'
 import type { UpdateState } from '@shared/types'
 
-/** What Fantasy asks Stats to open (spec §9.4); a new nonce opens it again. */
+/** What Fantasy asks Stats to open (spec §9.4), or a page Back returns to; a new nonce opens it again. */
 export type StatsFocus =
-  { kind: 'player'; id: string; nonce: number } | { kind: 'team'; team: string; nonce: number }
+  | { kind: 'player'; id: string; nonce: number }
+  | { kind: 'team'; team: string; nonce: number }
+  | { kind: 'location'; location: StatsLocation; nonce: number }
+
+type StatsLocation = Extract<NavLocation, { product: 'stats' }>
 
 interface StatsAppProps {
   hasLeague: boolean
@@ -37,6 +42,10 @@ interface StatsAppProps {
   focus?: StatsFocus | null
   /** Opens a player's file in Fantasy, by his Sleeper id (spec §9.4). */
   onOpenFantasyPlayer?: (playerId: string) => void
+  /** Every page shown, for Back (N-002); not while a dashboard waits for its default. */
+  onLocation?: (location: NavLocation) => void
+  canGoBack?: boolean
+  onBack?: () => void
 }
 
 /**
@@ -55,7 +64,10 @@ export function StatsApp({
   scope: chosen,
   onScope: setChosen,
   focus = null,
-  onOpenFantasyPlayer
+  onOpenFantasyPlayer,
+  onLocation,
+  canGoBack = false,
+  onBack
 }: StatsAppProps): React.JSX.Element {
   const data = useStatsData(leagueKey)
   const [screen, setScreen] = useState<StatsScreen>('home')
@@ -73,7 +85,12 @@ export function StatsApp({
   const [focused, setFocused] = useState<number | null>(null)
   if (focus && focus.nonce !== focused) {
     setFocused(focus.nonce)
-    if (focus.kind === 'player') {
+    if (focus.kind === 'location') {
+      const to = focus.location
+      if (to.team !== null) setTeam(to.team)
+      if (to.player !== null) setPlayer(to.player)
+      setScreen(to.screen)
+    } else if (focus.kind === 'player') {
       setPlayer({ id: focus.id, position: null })
       setScreen('player')
     } else {
@@ -129,6 +146,24 @@ export function StatsApp({
     setPlayer({ id, position })
     setScreen('player')
   }
+
+  // N-002: the page for Back, once a dashboard has its team or player.
+  const locationTeam = screen === 'team' ? shownTeam : null
+  const locationPlayer = screen === 'player' ? shownPlayer : null
+  const shown =
+    (screen !== 'team' || locationTeam !== null) && (screen !== 'player' || locationPlayer !== null)
+  const locationKey = JSON.stringify([screen, locationTeam, locationPlayer?.id ?? null])
+  useEffect(() => {
+    if (shown && onLocation)
+      onLocation({
+        product: 'stats',
+        screen,
+        team: locationTeam,
+        player: locationPlayer && { id: locationPlayer.id, position: locationPlayer.position }
+      })
+    // The key holds the location's parts: a new object each render reports nothing new.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown, locationKey, onLocation])
 
   // Dev-mode spec §3: Stats' screen, its scope, and the team dashboard's team.
   useNoteScreen(screen)
@@ -189,6 +224,8 @@ export function StatsApp({
       <StatsNav
         current={screen}
         onNavigate={setScreen}
+        canGoBack={canGoBack}
+        onBack={onBack}
         status={data.status}
         hasLeague={hasLeague}
         onOpenFantasy={onOpenFantasy}

@@ -12,6 +12,7 @@ import { WaiverScreen } from '@/screens/WaiverScreen'
 import { StatsApp, type StatsFocus } from '@/screens/stats/StatsApp'
 import type { StatsScope } from '@/lib/stats/scope'
 import { api } from '@/lib/api'
+import { isBackGesture, useBackStack, type NavLocation } from '@/lib/navHistory'
 import { ProductLinksContext, type ProductLinks } from '@/lib/productLinks'
 import { useTheme } from '@/lib/theme'
 import { useUpdateState } from '@/lib/useUpdateState'
@@ -80,6 +81,46 @@ export default function App(): React.JSX.Element {
     },
     [openPlayer]
   )
+
+  // N-002: Back across both products. Fantasy reports its page here, Stats from StatsApp.
+  const history = useBackStack()
+  const { report } = history
+  const fantasyPlayer = screen === 'players' ? (focus?.playerId ?? null) : null
+  const fantasyShown = product === 'fantasy' && hasLeague !== null
+  useEffect(() => {
+    if (fantasyShown) report({ product: 'fantasy', screen, playerId: fantasyPlayer })
+  }, [fantasyShown, screen, fantasyPlayer, report])
+
+  const { back } = history
+  const goBack = useCallback(() => {
+    const to: NavLocation | null = back()
+    if (!to) return
+    if (to.product === 'stats') {
+      setStatsFocus((f) => ({ kind: 'location', location: to, nonce: (f?.nonce ?? 0) + 1 }))
+      setProduct('stats')
+      return
+    }
+    setProduct('fantasy')
+    setScreen(to.screen)
+    if (to.playerId !== null) {
+      const playerId = to.playerId
+      setFocus((f) => ({ playerId, nonce: (f?.nonce ?? 0) + 1 }))
+    }
+  }, [back])
+
+  useEffect(() => {
+    const onGesture = (e: KeyboardEvent | MouseEvent): void => {
+      if (!isBackGesture(e)) return
+      e.preventDefault()
+      goBack()
+    }
+    window.addEventListener('keydown', onGesture)
+    window.addEventListener('mouseup', onGesture)
+    return () => {
+      window.removeEventListener('keydown', onGesture)
+      window.removeEventListener('mouseup', onGesture)
+    }
+  }, [goBack])
 
   useEffect(() => {
     void api.app
@@ -156,6 +197,9 @@ export default function App(): React.JSX.Element {
           onToggleTheme={toggleTheme}
           scope={statsScope}
           onScope={setStatsScope}
+          onLocation={report}
+          canGoBack={history.canGoBack}
+          onBack={goBack}
         />
         {updateDialog}
       </DevTools>
@@ -169,6 +213,8 @@ export default function App(): React.JSX.Element {
           <TopNav
             current={screen}
             onNavigate={setScreen}
+            canGoBack={history.canGoBack}
+            onBack={goBack}
             hasLeague={hasLeague}
             update={update}
             version={version}

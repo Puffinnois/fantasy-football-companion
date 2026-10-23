@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react'
 import { injuryShort, posBg, slotKind, slotLabel, type Tone } from '@/lib/edition'
 import { cn } from '@/lib/utils'
 
@@ -142,6 +143,28 @@ export function OwnerTag({
       </span>
     )
   return <span className="min-w-0 truncate text-[13px] text-fg-2">{ownerName}</span>
+}
+
+/** ← at the start of both navs (N-002): the page before, across both products. Alt+← does the same. */
+export function BackButton({
+  enabled,
+  onBack
+}: {
+  enabled: boolean
+  onBack?: () => void
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-label="Back"
+      title="Back (Alt+←)"
+      disabled={!enabled}
+      onClick={onBack}
+      className="-ml-1.5 flex size-7 cursor-pointer items-center justify-center rounded-[6px] text-fg-2 hover:bg-hover hover:text-fg disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
+    >
+      <ArrowLeft className="size-4" />
+    </button>
+  )
 }
 
 /** "v0.31.0" beside the wordmark in both navs (N-008); nothing until the version is read. */

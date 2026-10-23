@@ -2,7 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
-import { StatsApp } from '@/screens/stats/StatsApp'
+import { StatsApp, type StatsFocus } from '@/screens/stats/StatsApp'
+import { useBackStack } from '@/lib/navHistory'
 import type { StatsScope } from '@/lib/stats/scope'
 import { api } from '@/lib/api'
 import type { StatsOwnership, StatsQuery, StatsView } from '@shared/stats/types'
@@ -233,5 +234,47 @@ describe('Companion Stats', () => {
       await screen.findByText('The stats database could not be opened on this computer.')
     ).toBeTruthy()
     expect(screen.getByText('Stats unavailable')).toBeTruthy()
+  })
+})
+
+/** App's Back, for Stats alone: the stack, and a focus that returns to its page. */
+function BackHarness(): React.JSX.Element {
+  const history = useBackStack()
+  const [focus, setFocus] = useState<StatsFocus | null>(null)
+  return (
+    <StatsApp
+      hasLeague
+      leagueKey={0}
+      onOpenFantasy={() => {}}
+      update={IDLE}
+      version="0.28.0"
+      onOpenUpdate={() => {}}
+      onToggleTheme={() => {}}
+      scope={null}
+      onScope={() => {}}
+      focus={focus}
+      onLocation={history.report}
+      canGoBack={history.canGoBack}
+      onBack={() => {
+        const to = history.back()
+        if (to?.product === 'stats')
+          setFocus((f) => ({ kind: 'location', location: to, nonce: (f?.nonce ?? 0) + 1 }))
+      }}
+    />
+  )
+}
+
+describe('Back in Stats (N-002)', () => {
+  it('returns to the page before from the nav’s ←', async () => {
+    render(<BackHarness />)
+    expect(screen.getByRole('heading', { name: 'Leaderboards' })).toBeTruthy()
+    const back = screen.getByRole('button', { name: 'Back' })
+    expect(back).toHaveProperty('disabled', true)
+    fireEvent.click(screen.getByRole('button', { name: 'Glossary' }))
+    expect(await screen.findByRole('heading', { name: 'Glossary' })).toBeTruthy()
+    await waitFor(() => expect(back).toHaveProperty('disabled', false))
+    fireEvent.click(back)
+    expect(await screen.findByRole('heading', { name: 'Leaderboards' })).toBeTruthy()
+    expect(back).toHaveProperty('disabled', true)
   })
 })

@@ -14,39 +14,108 @@ vi.mock('@/lib/api', () => ({
 }))
 vi.mock('@/lib/useUpdateState', () => ({ useUpdateState: () => ({ status: 'idle' }) }))
 // The products' screens are tested on their own; here only which one shows.
-vi.mock('@/screens/stats/StatsApp', () => ({
-  StatsApp: ({
+vi.mock('@/screens/stats/StatsApp', async () => {
+  const { useEffect, useState } = await import('react')
+  type Focus =
+    | { kind: 'player'; id: string; nonce: number }
+    | { kind: 'team'; team: string; nonce: number }
+    | {
+        kind: 'location'
+        location: { screen: string; team: string | null; player: { id: string } | null }
+        nonce: number
+      }
+  // Its page as StatsApp reports it for Back (N-002): from the focus, or the Glossary button.
+  const pageOf = (f: Focus | null): string =>
+    !f
+      ? 'home'
+      : f.kind === 'location'
+        ? [f.location.screen, f.location.team ?? f.location.player?.id].filter(Boolean).join(' ')
+        : f.kind === 'player'
+          ? `player ${f.id}`
+          : `team ${f.team}`
+  const StatsApp = ({
     onOpenFantasy,
     scope,
     onScope,
     focus,
-    onOpenFantasyPlayer
+    onOpenFantasyPlayer,
+    onLocation,
+    canGoBack,
+    onBack
   }: {
     onOpenFantasy: () => void
     scope: { season: number } | null
     onScope: (s: unknown) => void
-    focus: { kind: string; id?: string; team?: string; nonce: number } | null
+    focus: Focus | null
     onOpenFantasyPlayer: (id: string) => void
+    onLocation: (l: unknown) => void
+    canGoBack: boolean
+    onBack: () => void
+  }): React.JSX.Element => {
+    const [page, setPage] = useState(() => pageOf(focus))
+    const [seen, setSeen] = useState(focus?.nonce ?? 0)
+    if (focus && focus.nonce !== seen) {
+      setSeen(focus.nonce)
+      setPage(pageOf(focus))
+    }
+    useEffect(() => {
+      const [screen, id] = page.split(' ')
+      onLocation({
+        product: 'stats',
+        screen,
+        team: screen === 'team' ? id : null,
+        player: screen === 'player' ? { id, position: null } : null
+      })
+    }, [page, onLocation])
+    return (
+      <>
+        <span>Stats on {page}</span>
+        <button type="button" disabled={!canGoBack} onClick={onBack}>
+          Stats back
+        </button>
+        <button type="button" onClick={() => setPage('glossary')}>
+          Stats glossary
+        </button>
+        <button type="button" onClick={onOpenFantasy}>
+          Stats product
+        </button>
+        <button type="button" onClick={() => onScope({ season: 2023 })}>
+          Season {scope?.season ?? 'default'}
+        </button>
+        <span>
+          Stats focus:{' '}
+          {focus && focus.kind !== 'location'
+            ? `${focus.kind} ${focus.kind === 'player' ? focus.id : focus.team}`
+            : 'none'}
+        </span>
+        <button type="button" onClick={() => onOpenFantasyPlayer('7564')}>
+          Open his file
+        </button>
+      </>
+    )
+  }
+  return { StatsApp }
+})
+vi.mock('@/components/TopNav', () => ({
+  TopNav: ({
+    current,
+    onOpenStats,
+    canGoBack,
+    onBack
+  }: {
+    current: string
+    onOpenStats: () => void
+    canGoBack: boolean
+    onBack: () => void
   }) => (
     <>
-      <button type="button" onClick={onOpenFantasy}>
-        Stats product
+      <button type="button" onClick={onOpenStats}>
+        Fantasy nav on {current}
       </button>
-      <button type="button" onClick={() => onScope({ season: 2023 })}>
-        Season {scope?.season ?? 'default'}
-      </button>
-      <span>Stats focus: {focus ? `${focus.kind} ${focus.id ?? focus.team}` : 'none'}</span>
-      <button type="button" onClick={() => onOpenFantasyPlayer('7564')}>
-        Open his file
+      <button type="button" disabled={!canGoBack} onClick={onBack}>
+        Fantasy back
       </button>
     </>
-  )
-}))
-vi.mock('@/components/TopNav', () => ({
-  TopNav: ({ current, onOpenStats }: { current: string; onOpenStats: () => void }) => (
-    <button type="button" onClick={onOpenStats}>
-      Fantasy nav on {current}
-    </button>
   )
 }))
 vi.mock('@/screens/SetupScreen', () => ({ SetupScreen: () => <div>Setup screen</div> }))
@@ -191,5 +260,61 @@ describe('App: two products (stats-analysis spec §9.1)', () => {
     expect(screen.getByText('Players screen on 7564')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Go to a Stats player' }))
     expect(screen.getByText('Stats focus: player 00-0036900')).toBeTruthy()
+  })
+})
+
+describe('App: Back (N-002)', () => {
+  const back = (name: 'Fantasy back' | 'Stats back'): void => {
+    const button = screen.getByRole('button', { name })
+    expect(button).toHaveProperty('disabled', false)
+    fireEvent.click(button)
+  }
+
+  it('goes back through Fantasy screens, reopening a player file', async () => {
+    vi.mocked(api.league.get).mockResolvedValue(LEAGUE)
+    render(<App />)
+    expect(await screen.findByText('League screen')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Fantasy back' })).toHaveProperty('disabled', true)
+    fireEvent.click(screen.getByRole('button', { name: 'Go to a player file' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Trade' }))
+    expect(screen.getByText('Trade screen')).toBeTruthy()
+    back('Fantasy back')
+    expect(await screen.findByText('Players screen on 7564')).toBeTruthy()
+    back('Fantasy back')
+    expect(await screen.findByText('League screen')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Fantasy back' })).toHaveProperty('disabled', true)
+  })
+
+  it('goes back across the products: a Stats page, then the Fantasy screen before it', async () => {
+    vi.mocked(api.league.get).mockResolvedValue(LEAGUE)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Full stats of Chase' }))
+    expect(await screen.findByText('Stats on player 00-0036900')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Stats glossary' }))
+    expect(await screen.findByText('Stats on glossary')).toBeTruthy()
+    back('Stats back')
+    expect(await screen.findByText('Stats on player 00-0036900')).toBeTruthy()
+    back('Stats back')
+    expect(await screen.findByText('League screen')).toBeTruthy()
+    // And forward again by the links, then back into Stats from Fantasy.
+    fireEvent.click(screen.getByRole('button', { name: 'Full stats of the Rams' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Open his file' }))
+    expect(await screen.findByText('Players screen on 7564')).toBeTruthy()
+    back('Fantasy back')
+    expect(await screen.findByText('Stats on team LA')).toBeTruthy()
+  })
+
+  it('goes back with Alt+←, but not while typing', async () => {
+    vi.mocked(api.league.get).mockResolvedValue(LEAGUE)
+    render(<App />)
+    expect(await screen.findByText('League screen')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Trade' }))
+    const input = document.createElement('input')
+    document.body.append(input)
+    fireEvent.keyDown(input, { key: 'ArrowLeft', altKey: true })
+    expect(screen.getByText('Trade screen')).toBeTruthy()
+    input.remove()
+    fireEvent.keyDown(window, { key: 'ArrowLeft', altKey: true })
+    expect(await screen.findByText('League screen')).toBeTruthy()
   })
 })

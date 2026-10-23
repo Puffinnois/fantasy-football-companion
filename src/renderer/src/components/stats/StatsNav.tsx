@@ -1,5 +1,5 @@
 import { DevChip } from '@/components/dev/DevChip'
-import { Mark, VersionTag } from '@/components/edition'
+import { BackButton, Mark, VersionTag } from '@/components/edition'
 import { UpdatePill } from '@/components/UpdatePill'
 import { freshness } from '@/lib/stats/scope'
 import { cn } from '@/lib/utils'
@@ -28,6 +28,9 @@ interface StatsNavProps {
   onOpenFantasy: () => void
   update: UpdateState
   version: string | null
+  /** Back to the page before (N-002); off when there is none. */
+  canGoBack?: boolean
+  onBack?: () => void
   onOpenUpdate: () => void
   onToggleTheme: () => void
 }
@@ -44,12 +47,15 @@ export function StatsNav({
   onOpenFantasy,
   update,
   version,
+  canGoBack = false,
+  onBack,
   onOpenUpdate,
   onToggleTheme
 }: StatsNavProps): React.JSX.Element {
   return (
     <nav className="flex h-[52px] shrink-0 items-center gap-[30px] border-b border-line px-6">
       <div className="flex items-center gap-[9px]">
+        <BackButton enabled={canGoBack} onBack={onBack} />
         <Mark product="stats" />
         <span className="text-[15px] leading-none font-semibold tracking-[-0.01em]">
           Companion <span className="font-medium text-fg-3">Stats</span>
