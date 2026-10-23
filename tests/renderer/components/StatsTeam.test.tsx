@@ -165,7 +165,7 @@ describe('the team dashboard (spec §9.3)', () => {
     expect(screen.getByText('−6.5')).toBeTruthy()
     const strip = screen.getByLabelText('Results')
     expect(within(strip).getByText('W 27–20')).toBeTruthy()
-    expect(within(strip).getByText('@LA')).toBeTruthy()
+    expect(within(strip).getByText('@LAR')).toBeTruthy()
     expect(within(strip).getAllByText('BYE')).toHaveLength(4)
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
       'Overview',
@@ -275,7 +275,7 @@ describe('the team dashboard (spec §9.3)', () => {
     expect(await screen.findByRole('heading', { name: 'PIT' })).toBeTruthy()
     await waitFor(() => expect(stats.games).toHaveBeenLastCalledWith({ season: 2026, team: 'PIT' }))
     fireEvent.change(screen.getByRole('combobox', { name: 'Team' }), { target: { value: 'LA' } })
-    expect(await screen.findByRole('heading', { name: 'LA' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'LAR' })).toBeTruthy()
     expect(screen.getByText(/Los Angeles Rams/)).toBeTruthy()
   })
 
@@ -311,7 +311,7 @@ describe('the team dashboard (spec §9.3)', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Schedule' }))
     expect(await screen.findByText('2026 schedule')).toBeTruthy()
-    expect(screen.getByText('@ LA')).toBeTruthy()
+    expect(screen.getByText('@ LAR')).toBeTruthy()
     expect(await screen.findByText('Schedule strength')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('tab', { name: 'Forecast' }))

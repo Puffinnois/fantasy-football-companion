@@ -51,7 +51,7 @@ import {
 } from '@/lib/stats/team'
 import { useStatsQueries, useStatsQuery, useTeamGames, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
-import { STATS_TEAMS, TEAM_NAMES } from '@shared/stats/nflTeams'
+import { STATS_TEAMS, TEAM_NAMES, teamAbbr } from '@shared/stats/nflTeams'
 import type { MetricInfo, PositionGroup, StatsResult } from '@shared/stats/types'
 
 /** The dashboard is about one team: never another team's (or tab's) answers while its own load. */
@@ -206,7 +206,7 @@ function Header({
             <StatsSelect
               title="Team"
               value={team}
-              options={STATS_TEAMS.map((t) => ({ value: t, label: t }))}
+              options={STATS_TEAMS.map((t) => ({ value: t, label: teamAbbr(t) }))}
               onChange={onTeam}
               className="h-[26px] font-mono"
             />
@@ -226,7 +226,7 @@ function Header({
           </div>
           <div className="flex items-end gap-[22px]">
             <h1 className="m-0 font-sans text-[52px] leading-[0.85] font-bold tracking-[-0.04em]">
-              {team}
+              {teamAbbr(team)}
             </h1>
             <div className="flex gap-px overflow-hidden rounded-[8px] bg-line shadow-[0_0_0_1px_var(--line)]">
               {tiles.map(([label, value, tone]) => (
@@ -429,7 +429,7 @@ function Overview({
                 : { ...s, label: 'Offense' }
             )}
             format={(x) => fmtStat(x, { unit: 'epa', decimals: 2 })}
-            label={`${team} EPA per play by week`}
+            label={`${teamAbbr(team)} EPA per play by week`}
           />
         </section>
       </div>
@@ -456,7 +456,7 @@ function NextGame({ game, team }: { game: TeamGame; team: string }): React.JSX.E
     >
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="m-0 text-[15px] leading-none font-semibold tracking-[-0.01em]">
-          Next: {v.where === 'Away' ? '@' : 'vs'} {v.opponent}
+          Next: {v.where === 'Away' ? '@' : 'vs'} {teamAbbr(v.opponent)}
         </h2>
         <span className="text-[12px] leading-none text-fg-3">
           {v.when} · {v.where}
@@ -897,7 +897,7 @@ function Forecast({ data, scope, team, games }: TabProps): React.JSX.Element {
             }))}
             domain={[0, 1]}
             format={(x) => fmtStat(x, { unit: 'pct', decimals: 0 })}
-            label={`${team} playoff and division odds by week`}
+            label={`${teamAbbr(team)} playoff and division odds by week`}
           />
         </section>
         <section className="flex flex-col gap-2.5">
@@ -911,7 +911,7 @@ function Forecast({ data, scope, team, games }: TabProps): React.JSX.Element {
               label: k === 0 ? 'Offense' : 'Defense (allowed)'
             }))}
             format={(x) => fmtStat(x, { unit: 'epa', decimals: 2 })}
-            label={`${team} adjusted EPA per play by week`}
+            label={`${teamAbbr(team)} adjusted EPA per play by week`}
           />
         </section>
       </div>

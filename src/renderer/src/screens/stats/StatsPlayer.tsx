@@ -74,6 +74,7 @@ import {
   type StatsData
 } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
+import { teamAbbr } from '@shared/stats/nflTeams'
 import type { PlayerBio, PositionGroup, StatsRow } from '@shared/stats/types'
 
 /** The dashboard is about one player: never another player's (or tab's) answers while his own load. */
@@ -354,7 +355,7 @@ function Header({
                 onClick={() => onOpenTeam(team)}
                 className="cursor-pointer underline decoration-line underline-offset-[3px] hover:text-cobalt"
               >
-                {team}
+                {teamAbbr(team)}
               </button>
             )}
             <span className="text-fg-3">·</span>
@@ -892,7 +893,7 @@ function Forecast({ data, scope, player, position, bio, league }: TabProps): Rea
             <div className="flex flex-col gap-3 rounded-[10px] bg-panel p-4 shadow-[0_0_0_1px_var(--line)]">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-[15px] leading-none font-semibold">
-                  {next.where === 'Away' ? '@' : 'vs'} {next.opponent}
+                  {next.where === 'Away' ? '@' : 'vs'} {teamAbbr(next.opponent)}
                 </span>
                 <span className="text-[12px] leading-none text-fg-3">
                   {next.when} · {next.where}
@@ -900,7 +901,7 @@ function Forecast({ data, scope, player, position, bio, league }: TabProps): Rea
               </div>
               <StatSection
                 section={{
-                  title: `${next.opponent}’s defense`,
+                  title: `${teamAbbr(next.opponent)}’s defense`,
                   note: 'Among the 32: 1st allows the least',
                   lines: next.lines
                 }}
@@ -1072,7 +1073,7 @@ function Projections({
         [
           'Next game (Sleeper)',
           v.next
-            ? `${v.next.points} pts · week ${v.next.week}${v.next.opponent ? ` vs ${v.next.opponent}` : ''}`
+            ? `${v.next.points} pts · week ${v.next.week}${v.next.opponent ? ` vs ${teamAbbr(v.next.opponent)}` : ''}`
             : '—'
         ],
         ['Rest of season', `${v.ros} pts${v.rosRank ? ` · ${v.rosRank}` : ''}`],
@@ -1129,11 +1130,14 @@ function Profile({ data, scope, position, bio }: TabProps): React.JSX.Element {
     [
       'Draft',
       bio.draft
-        ? `${bio.draft.year} · round ${bio.draft.round}, pick ${bio.draft.pick}${bio.draft.team ? ` · ${bio.draft.team}` : ''}`
+        ? `${bio.draft.year} · round ${bio.draft.round}, pick ${bio.draft.pick}${bio.draft.team ? ` · ${teamAbbr(bio.draft.team)}` : ''}`
         : 'Undrafted'
     ],
     ['Rookie season', bio.rookieSeason ? String(bio.rookieSeason) : null],
-    ['Team now', bio.team ? `${bio.team}${bio.jersey !== null ? ` · #${bio.jersey}` : ''}` : null]
+    [
+      'Team now',
+      bio.team ? `${teamAbbr(bio.team)}${bio.jersey !== null ? ` · #${bio.jersey}` : ''}` : null
+    ]
   ]
   return (
     <div className="flex flex-col gap-8">

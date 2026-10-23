@@ -12,6 +12,7 @@ import {
 import { minGames, rangeLabel, type StatsScope } from '@/lib/stats/scope'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
+import { teamAbbr } from '@shared/stats/nflTeams'
 import type { StatsView } from '@shared/stats/types'
 
 const POS_TEXT: Record<string, string> = {
@@ -63,10 +64,12 @@ function Row({
       </span>
       <div className="flex min-w-0 flex-col gap-[5px]">
         <div className="flex min-w-0 items-baseline gap-1.5 whitespace-nowrap">
-          <span className="truncate text-[13px] leading-[1.1] font-medium">{row.name}</span>
+          <span className="truncate text-[13px] leading-[1.1] font-medium">
+            {teamAbbr(row.name)}
+          </span>
           {row.team && row.team !== row.name && (
             <span className="shrink-0 font-mono text-[10.5px] leading-none text-fg-3">
-              {row.team}
+              {teamAbbr(row.team)}
             </span>
           )}
           {row.mine && <MineDot />}

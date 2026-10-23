@@ -331,7 +331,7 @@ describe('the player dashboard (stats-analysis spec §9.4)', () => {
     tab('Game log')
     const log = await screen.findByRole('table')
     expect(within(log).getByText('W 27–20')).toBeTruthy()
-    expect(within(log).getByText('@ LA')).toBeTruthy()
+    expect(within(log).getByText('@ LAR')).toBeTruthy()
     expect(within(log).getByText('L 10–30')).toBeTruthy()
     // Weeks 4–6: SEA has no game in this schedule.
     expect(within(log).getAllByText('Bye').length).toBe(3)
@@ -509,7 +509,7 @@ describe('the player dashboard (stats-analysis spec §9.4)', () => {
   it('opens a defense’s team, and shows no Fantasy chip without a league', async () => {
     stats.games.mockResolvedValue(GAMES)
     render(<Harness hasLeague={false} focus={{ kind: 'team', team: 'LA', nonce: 1 }} />)
-    expect(await screen.findByRole('heading', { name: 'LA' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'LAR' })).toBeTruthy()
     cleanup()
     stats.ownership.mockResolvedValue(null)
     render(

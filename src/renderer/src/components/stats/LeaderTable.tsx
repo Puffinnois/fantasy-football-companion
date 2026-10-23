@@ -11,6 +11,7 @@ import type {
   StatsResultColumn,
   StatsRow
 } from '@shared/stats/types'
+import { teamAbbr } from '@shared/stats/nflTeams'
 
 const HEAT: Record<Heat, string> = {
   h3: 'bg-h3 font-semibold',
@@ -193,7 +194,9 @@ export function LeaderTable({
                 <div className="grid w-[300px] grid-cols-[34px_minmax(0,1fr)_42px_34px] items-center gap-x-2 pr-2.5 pl-3">
                   <span className="font-mono text-[12px] leading-none text-fg-3">{i + 1}</span>
                   <div className="flex min-w-0 items-center gap-1.5">
-                    <span className="truncate text-[13px] leading-[1.1] font-medium">{r.name}</span>
+                    <span className="truncate text-[13px] leading-[1.1] font-medium">
+                      {player ? r.name : teamAbbr(r.name)}
+                    </span>
                     {!ok && (
                       <span
                         title="Below the qualifying sample"
@@ -205,7 +208,7 @@ export function LeaderTable({
                     <OwnerMark owner={owner} />
                   </div>
                   <span className="font-mono text-[12px] leading-none text-fg-2">
-                    {player ? r.team : ''}
+                    {player && r.team ? teamAbbr(r.team) : ''}
                   </span>
                   <span>{player && <PosText position={r.position} />}</span>
                 </div>

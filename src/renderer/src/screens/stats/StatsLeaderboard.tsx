@@ -28,6 +28,7 @@ import { rangeLabel, type StatsScope } from '@/lib/stats/scope'
 import { useStatsQuery, type StatsData } from '@/lib/stats/useStats'
 import { cn } from '@/lib/utils'
 import { NFL_TEAMS, toNflverseTeam } from '@shared/teams'
+import { teamAbbr } from '@shared/stats/nflTeams'
 import type {
   Entity,
   LeaderboardBoard,
@@ -305,7 +306,7 @@ export function StatsLeaderboard({
             value={board.team ?? ''}
             options={[
               { value: '', label: 'All teams' },
-              ...TEAMS.map((t) => ({ value: t, label: t }))
+              ...TEAMS.map((t) => ({ value: t, label: teamAbbr(t) }))
             ]}
             onChange={(t) => update({ team: t || null })}
             className="w-[110px]"

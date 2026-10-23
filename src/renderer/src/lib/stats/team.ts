@@ -8,7 +8,7 @@ import type {
   StatsRow,
   StatsStatus
 } from '@shared/stats/types'
-import { DIVISIONS, divisionOf, STATS_TEAMS } from '@shared/stats/nflTeams'
+import { DIVISIONS, divisionOf, STATS_TEAMS, teamAbbr } from '@shared/stats/nflTeams'
 import { cellTitle, fmtStat, heatOf, ordinal, type Heat } from './format'
 import { queryScope, rangeLabel, regularWeeks, weeksOf, type StatsScope } from './scope'
 
@@ -574,7 +574,7 @@ export function resultCards(
   const card = (g: TeamGame): ResultCard => ({
     key: g.gameId,
     week: g.round ?? `W${g.week}`,
-    opponent: `${g.home || g.neutral ? '' : '@'}${g.opponent}`,
+    opponent: `${g.home || g.neutral ? '' : '@'}${teamAbbr(g.opponent)}`,
     score: g.played ? `${g.result} ${g.pointsFor}–${g.pointsAgainst}` : null,
     result: g.result
   })
@@ -605,8 +605,9 @@ export function roundOf(season: number, week: number): string {
 
 /** Why a dashboard is empty: the team played no games in the scope (a bye, missed playoffs). */
 export function noGamesNote(team: string, scope: StatsScope, status: StatsStatus | null): string {
-  if (scope.seasonType === 'POST') return `${team} did not play in the ${scope.season} postseason.`
-  return `${team} played no games in ${rangeLabel(scope, status)}.`
+  if (scope.seasonType === 'POST')
+    return `${teamAbbr(team)} did not play in the ${scope.season} postseason.`
+  return `${teamAbbr(team)} played no games in ${rangeLabel(scope, status)}.`
 }
 
 /**
@@ -635,7 +636,7 @@ const pct0 = (x: number): string => `${Math.round(x * 100)}%`
 const spreadText = (team: string, margin: number): string =>
   Math.abs(margin) < 0.25
     ? 'Pick’em'
-    : `${team} ${margin > 0 ? '−' : '+'}${Math.abs(margin).toFixed(1)}`
+    : `${teamAbbr(team)} ${margin > 0 ? '−' : '+'}${Math.abs(margin).toFixed(1)}`
 
 export function nextGameView(g: TeamGame, team: string): NextGameView {
   const date = g.gameday
@@ -1132,7 +1133,7 @@ export function scheduleRows(games: readonly TeamGame[], team: string): Schedule
           day: 'numeric'
         })
       : '',
-    opponent: `${g.neutral ? 'vs ' : g.home ? '' : '@ '}${g.opponent}`,
+    opponent: `${g.neutral ? 'vs ' : g.home ? '' : '@ '}${teamAbbr(g.opponent)}`,
     result: g.result,
     score: g.played ? `${g.result} ${g.pointsFor}–${g.pointsAgainst}` : '',
     elo: pct0(g.eloWinProb),

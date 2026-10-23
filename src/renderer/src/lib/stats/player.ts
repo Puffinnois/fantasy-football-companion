@@ -11,6 +11,7 @@ import type {
   StatsRow,
   StatsStatus
 } from '@shared/stats/types'
+import { teamAbbr } from '@shared/stats/nflTeams'
 import { fmtStat, heatOf, ordinal, reliabilityOf, type Heat } from './format'
 import { qualifies, rankWithinTab, searchKey, tabOf, type TabDef } from './leaderboard'
 import {
@@ -856,7 +857,7 @@ export function sizeOf(height: number | null, weight: number | null): string | n
 export function draftOf(bio: Pick<PlayerBio, 'draft'>): string {
   const d = bio.draft
   if (!d) return 'Undrafted'
-  return `${d.year} Round ${d.round}, pick ${d.pick}${d.team ? ` (${d.team})` : ''}`
+  return `${d.year} Round ${d.round}, pick ${d.pick}${d.team ? ` (${teamAbbr(d.team)})` : ''}`
 }
 
 /** A status chip (handoff tone rules): Questionable warns; Doubtful, Out and the reserve lists are bad. */
@@ -1161,7 +1162,7 @@ export function careerRows(
     .filter((x) => Number.isFinite(x.season))
     .sort((a, b) => b.season - a.season)
     .map(({ r, season }) =>
-      lineRow(String(season), `${season}${r.team ? ` ${r.team}` : ''}`, r, kind, byId)
+      lineRow(String(season), `${season}${r.team ? ` ${teamAbbr(r.team)}` : ''}`, r, kind, byId)
     )
 }
 
@@ -1323,7 +1324,7 @@ export function gameLog(
     return {
       key: `w${week}`,
       week: label(week),
-      opponent: `${away ? '@ ' : ''}${opp}`,
+      opponent: `${away ? '@ ' : ''}${teamAbbr(opp)}`,
       score: g?.played ? `${g.result} ${g.pointsFor}–${g.pointsAgainst}` : null,
       result: g?.result ?? null,
       note: null,
@@ -1346,7 +1347,7 @@ export function gameLog(
     out.push({
       key: `w${w}`,
       week: `W${w}`,
-      opponent: g ? `${!g.home && !g.neutral ? '@ ' : ''}${g.opponent}` : '',
+      opponent: g ? `${!g.home && !g.neutral ? '@ ' : ''}${teamAbbr(g.opponent)}` : '',
       score: null,
       result: null,
       note: g ? (g.played ? 'Did not play' : 'Not played yet') : 'Bye',
@@ -1554,7 +1555,7 @@ export function opponentRows(
     .sort((a, b) => String(a.group.opponent).localeCompare(String(b.group.opponent)))
     .map((r) => ({
       key: String(r.group.opponent),
-      label: String(r.group.opponent),
+      label: teamAbbr(String(r.group.opponent)),
       games: String(r.games),
       cells: metrics.map((id) => valueOf(r, id, byId))
     }))

@@ -4,6 +4,7 @@ import { OwnerMark, PosText, StatsSelect } from '@/components/stats/controls'
 import type { Heat } from '@/lib/stats/format'
 import { RAIL_POSITIONS, railMetrics, type RailRow } from '@/lib/stats/player'
 import { cn } from '@/lib/utils'
+import { teamAbbr } from '@shared/stats/nflTeams'
 import type { MetricInfo, PositionGroup } from '@shared/stats/types'
 
 /** Rows the rail shows at first, and each "Show more" adds. */
@@ -164,7 +165,7 @@ export function PlayerRail({
                 <span className="truncate text-[13px] leading-[1.1] font-medium">{r.name}</span>
                 <span className="flex items-center gap-[5px] font-mono text-[11px] leading-none text-fg-3">
                   <PosText position={r.position} />
-                  {r.team}
+                  {r.team && teamAbbr(r.team)}
                   <OwnerMark owner={r.owner} />
                 </span>
               </span>

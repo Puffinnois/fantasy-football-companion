@@ -50,6 +50,11 @@ export const TEAM_NAMES: Record<string, string> = {
   WAS: 'Washington Commanders'
 }
 
+/** The code a screen shows: nflverse keys the Rams `LA`, but everyone reads LAR. Display only. */
+export function teamAbbr(team: string): string {
+  return team === 'LA' ? 'LAR' : team
+}
+
 /** "NFC North"; null for a code the table does not know. */
 export function divisionOf(team: string): string | null {
   return Object.entries(DIVISIONS).find(([, teams]) => teams.includes(team))?.[0] ?? null

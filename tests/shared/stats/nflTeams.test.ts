@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DIVISIONS, divisionOf, STATS_TEAMS, TEAM_NAMES } from '@shared/stats/nflTeams'
+import { DIVISIONS, divisionOf, STATS_TEAMS, TEAM_NAMES, teamAbbr } from '@shared/stats/nflTeams'
 
 describe('NFL teams as the stats rows key them', () => {
   it('has 32 teams in eight divisions of four, each named', () => {
@@ -15,5 +15,12 @@ describe('NFL teams as the stats rows key them', () => {
     expect(divisionOf('LA')).toBe('NFC West')
     expect(divisionOf('DET')).toBe('NFC North')
     expect(divisionOf('LAR')).toBeNull()
+  })
+})
+
+describe('teamAbbr', () => {
+  it('shows the Rams as LAR and leaves every other code alone', () => {
+    expect(teamAbbr('LA')).toBe('LAR')
+    expect(STATS_TEAMS.filter((t) => teamAbbr(t) !== t)).toEqual(['LA'])
   })
 })
