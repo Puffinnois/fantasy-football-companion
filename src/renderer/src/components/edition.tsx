@@ -144,6 +144,12 @@ export function OwnerTag({
   return <span className="min-w-0 truncate text-[13px] text-fg-2">{ownerName}</span>
 }
 
+/** "v0.31.0" beside the wordmark in both navs (N-008); nothing until the version is read. */
+export function VersionTag({ version }: { version: string | null }): React.JSX.Element | null {
+  if (version === null) return null
+  return <span className="font-mono text-[11px] leading-none text-fg-3">v{version}</span>
+}
+
 /** The Companion mark: three stacked bars on an amber (Fantasy) or cobalt (Stats) square. */
 export function Mark({
   product = 'fantasy',

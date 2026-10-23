@@ -1,5 +1,5 @@
 import { DevChip } from '@/components/dev/DevChip'
-import { Mark } from '@/components/edition'
+import { Mark, VersionTag } from '@/components/edition'
 import { UpdatePill } from '@/components/UpdatePill'
 import { freshness } from '@/lib/stats/scope'
 import { cn } from '@/lib/utils'
@@ -49,14 +49,12 @@ export function StatsNav({
 }: StatsNavProps): React.JSX.Element {
   return (
     <nav className="flex h-[52px] shrink-0 items-center gap-[30px] border-b border-line px-6">
-      <div
-        className="flex items-center gap-[9px]"
-        title={version !== null ? `Companion v${version}` : undefined}
-      >
+      <div className="flex items-center gap-[9px]">
         <Mark product="stats" />
         <span className="text-[15px] leading-none font-semibold tracking-[-0.01em]">
           Companion <span className="font-medium text-fg-3">Stats</span>
         </span>
+        <VersionTag version={version} />
         <DevChip />
       </div>
       <div className="flex gap-[22px] self-stretch text-[13.5px] leading-none font-medium">

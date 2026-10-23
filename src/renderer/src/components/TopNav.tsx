@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { DevChip } from '@/components/dev/DevChip'
-import { Mark } from '@/components/edition'
+import { Mark, VersionTag } from '@/components/edition'
 import { UpdatePill } from '@/components/UpdatePill'
 import { api } from '@/lib/api'
 import { errorMessage, relativeTime } from '@/lib/format'
@@ -132,12 +132,10 @@ export function TopNav({
 }: TopNavProps): React.JSX.Element {
   return (
     <nav className="flex h-[54px] shrink-0 items-center gap-7 border-b border-line px-8">
-      <div
-        className="flex items-center gap-[9px]"
-        title={version !== null ? `Companion v${version}` : undefined}
-      >
+      <div className="flex items-center gap-[9px]">
         <Mark />
         <span className="text-[15px] leading-none font-semibold tracking-[-0.01em]">Companion</span>
+        <VersionTag version={version} />
         <DevChip />
       </div>
       <div className="flex gap-[22px] self-stretch font-cond text-[15px] leading-none font-bold tracking-[0.08em] uppercase">
