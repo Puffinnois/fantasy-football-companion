@@ -42,7 +42,7 @@ interface StatsAppProps {
   focus?: StatsFocus | null
   /** Opens a player's file in Fantasy, by his Sleeper id (spec §9.4). */
   onOpenFantasyPlayer?: (playerId: string) => void
-  /** Every page shown, for Back (N-002); not while a dashboard waits for its default. */
+  /** Every page shown, for Back (N-002). */
   onLocation?: (location: NavLocation) => void
   canGoBack?: boolean
   onBack?: () => void
@@ -147,23 +147,21 @@ export function StatsApp({
     setScreen('player')
   }
 
-  // N-002: the page for Back, once a dashboard has its team or player.
+  // N-002: the page for Back. A dashboard waiting for its default is a page too, with no team or
+  // player yet: Back from it returns to the page before, and its default then fills it in.
   const locationTeam = screen === 'team' ? shownTeam : null
   const locationPlayer = screen === 'player' ? shownPlayer : null
-  const shown =
-    (screen !== 'team' || locationTeam !== null) && (screen !== 'player' || locationPlayer !== null)
   const locationKey = JSON.stringify([screen, locationTeam, locationPlayer?.id ?? null])
   useEffect(() => {
-    if (shown && onLocation)
-      onLocation({
-        product: 'stats',
-        screen,
-        team: locationTeam,
-        player: locationPlayer && { id: locationPlayer.id, position: locationPlayer.position }
-      })
+    onLocation?.({
+      product: 'stats',
+      screen,
+      team: locationTeam,
+      player: locationPlayer && { id: locationPlayer.id, position: locationPlayer.position }
+    })
     // The key holds the location's parts: a new object each render reports nothing new.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shown, locationKey, onLocation])
+  }, [locationKey, onLocation])
 
   // Dev-mode spec §3: Stats' screen, its scope, and the team dashboard's team.
   useNoteScreen(screen)

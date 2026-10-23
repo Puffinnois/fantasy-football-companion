@@ -23,6 +23,14 @@ export const BACK_LIMIT = 50
 const keyOf = (l: NavLocation): string =>
   JSON.stringify(l.product === 'stats' ? { ...l, player: l.player?.id ?? null } : l)
 
+/** A dashboard that was waiting for its default, now showing it: the same page. */
+function fillsIn(was: NavLocation, now: NavLocation): boolean {
+  if (was.product !== 'stats' || now.product !== 'stats' || was.screen !== now.screen) return false
+  return (
+    (was.screen === 'team' && was.team === null) || (was.screen === 'player' && was.player === null)
+  )
+}
+
 export interface BackStack {
   canGoBack: boolean
   /** Called with every page shown; a new one puts the page before it on the stack. */
@@ -39,7 +47,7 @@ export function useBackStack(): BackStack {
   const report = useCallback((location: NavLocation) => {
     const was = current.current
     current.current = location
-    if (was === null || keyOf(was) === keyOf(location)) return
+    if (was === null || keyOf(was) === keyOf(location) || fillsIn(was, location)) return
     if (restoring.current) {
       restoring.current = false
       return

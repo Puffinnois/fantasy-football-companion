@@ -147,8 +147,22 @@ vi.mock('@/screens/LeagueScreen', async () => {
 })
 vi.mock('@/screens/TradeScreen', () => ({ TradeScreen: () => <div>Trade screen</div> }))
 vi.mock('@/screens/PlayersScreen', () => ({
-  PlayersScreen: ({ focus }: { focus: { playerId: string } | null }) => (
-    <div>Players screen on {focus?.playerId ?? 'nobody'}</div>
+  PlayersScreen: ({
+    focus,
+    onFile
+  }: {
+    focus: { playerId: string } | null
+    onFile: (id: string | null) => void
+  }) => (
+    <>
+      <div>Players screen on {focus?.playerId ?? 'nobody'}</div>
+      <button type="button" onClick={() => onFile('4984')}>
+        Open Allen’s file
+      </button>
+      <button type="button" onClick={() => onFile(null)}>
+        Close the file
+      </button>
+    </>
   )
 }))
 vi.mock('@/components/UpdateDialog', () => ({ UpdateDialog: () => null }))
@@ -302,6 +316,24 @@ describe('App: Back (N-002)', () => {
     expect(await screen.findByText('Players screen on 7564')).toBeTruthy()
     back('Fantasy back')
     expect(await screen.findByText('Stats on team LA')).toBeTruthy()
+  })
+
+  it('reopens the file last open on Players, or none once it was closed', async () => {
+    vi.mocked(api.league.get).mockResolvedValue(LEAGUE)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Go to a player file' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open Allen’s file' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Trade' }))
+    back('Fantasy back')
+    expect(await screen.findByText('Players screen on 4984')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close the file' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Trade' }))
+    back('Fantasy back')
+    expect(await screen.findByText('Players screen on nobody')).toBeTruthy()
+    back('Fantasy back')
+    expect(await screen.findByText('Players screen on 4984')).toBeTruthy()
+    back('Fantasy back')
+    expect(await screen.findByText('Players screen on 7564')).toBeTruthy()
   })
 
   it('goes back with Alt+←, but not while typing', async () => {

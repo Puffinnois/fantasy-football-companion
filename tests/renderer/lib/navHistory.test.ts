@@ -57,6 +57,20 @@ describe('the back stack (N-002)', () => {
     expect(to).toEqual(statsPlayer('00-1', 'WR'))
   })
 
+  it('takes a waiting dashboard getting its default as the same page', () => {
+    const { result } = renderHook(() => useBackStack())
+    act(() => result.current.report(statsPlayer('00-1', null)))
+    const waiting: NavLocation = { product: 'stats', screen: 'team', team: null, player: null }
+    act(() => result.current.report(waiting))
+    act(() => result.current.report({ ...waiting, team: 'DET' }))
+    let to: NavLocation | null = null
+    act(() => {
+      to = result.current.back()
+    })
+    // The player before, not the waiting page.
+    expect(to).toEqual(statsPlayer('00-1', null))
+  })
+
   it(`keeps the last ${BACK_LIMIT} pages`, () => {
     const { result } = renderHook(() => useBackStack())
     act(() => {

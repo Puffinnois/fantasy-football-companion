@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronLeft, ChevronRight, Info, Search, Star } from 'lucide-react'
 import {
   EditionFooter,
@@ -99,11 +99,14 @@ interface PlayersScreenProps {
   dataVersion: number
   /** Open this player's file once the rows are in (League roster click); the nonce re-focuses the same id. */
   focus?: { playerId: string; nonce: number } | null
+  /** The open file's player each time it changes, for Back (N-002); null once it closes. */
+  onFile?: (playerId: string | null) => void
 }
 
 export function PlayersScreen({
   dataVersion,
-  focus = null
+  focus = null,
+  onFile
 }: PlayersScreenProps): React.JSX.Element {
   const [options, setOptions] = useState<PlayersOptions | null>(null)
   const [teams, setTeams] = useState<Team[]>([])
@@ -179,6 +182,15 @@ export function PlayersScreen({
     const hit = rows.find((r) => r.playerId === focus.playerId)
     if (hit) setSelected(hit)
   }
+
+  // Not on mount: the screen opens with no file, and a focus fills one in.
+  const fileId = selected?.playerId ?? null
+  const reportedFile = useRef<string | null | undefined>(undefined)
+  useEffect(() => {
+    const was = reportedFile.current
+    reportedFile.current = fileId
+    if (was !== undefined && was !== fileId) onFile?.(fileId)
+  }, [fileId, onFile])
 
   const closePanel = useCallback(() => setSelected(null), [])
   const patchWatched = useCallback((playerId: string, watched: boolean) => {

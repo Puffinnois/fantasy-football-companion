@@ -37,8 +37,11 @@ export default function App(): React.JSX.Element {
   const [theme, toggleTheme] = useTheme()
   // League roster row → Players board with that player's file open; the nonce re-focuses the same id.
   const [focus, setFocus] = useState<{ playerId: string; nonce: number } | null>(null)
+  // The Players screen's open file, for Back (N-002): the focused one, or one clicked there.
+  const [fantasyFile, setFantasyFile] = useState<string | null>(null)
   const openPlayer = useCallback((playerId: string) => {
     setFocus((f) => ({ playerId, nonce: (f?.nonce ?? 0) + 1 }))
+    setFantasyFile(playerId)
     setScreen('players')
   }, [])
   // Spec §9.4: a player file's "Full stats ↗" opens Stats on his dashboard (a defense: its team).
@@ -85,7 +88,7 @@ export default function App(): React.JSX.Element {
   // N-002: Back across both products. Fantasy reports its page here, Stats from StatsApp.
   const history = useBackStack()
   const { report } = history
-  const fantasyPlayer = screen === 'players' ? (focus?.playerId ?? null) : null
+  const fantasyPlayer = screen === 'players' ? fantasyFile : null
   const fantasyShown = product === 'fantasy' && hasLeague !== null
   useEffect(() => {
     if (fantasyShown) report({ product: 'fantasy', screen, playerId: fantasyPlayer })
@@ -102,10 +105,11 @@ export default function App(): React.JSX.Element {
     }
     setProduct('fantasy')
     setScreen(to.screen)
-    if (to.playerId !== null) {
-      const playerId = to.playerId
-      setFocus((f) => ({ playerId, nonce: (f?.nonce ?? 0) + 1 }))
-    }
+    if (to.screen !== 'players') return
+    setFantasyFile(to.playerId)
+    const playerId = to.playerId
+    // No file: drop the focus, or the board would reopen the last one.
+    setFocus((f) => (playerId === null ? null : { playerId, nonce: (f?.nonce ?? 0) + 1 }))
   }, [back])
 
   useEffect(() => {
@@ -246,7 +250,9 @@ export default function App(): React.JSX.Element {
             )}
             {screen === 'league' && <LeagueScreen key={dataVersion} onOpenPlayer={openPlayer} />}
             {screen === 'rules' && <RulesScreen onSaved={bumpData} />}
-            {screen === 'players' && <PlayersScreen dataVersion={dataVersion} focus={focus} />}
+            {screen === 'players' && (
+              <PlayersScreen dataVersion={dataVersion} focus={focus} onFile={setFantasyFile} />
+            )}
             {screen === 'lineup' && <LineupScreen dataVersion={dataVersion} />}
             {screen === 'trade' && <TradeScreen dataVersion={dataVersion} />}
             {screen === 'waivers' && <WaiverScreen dataVersion={dataVersion} />}
