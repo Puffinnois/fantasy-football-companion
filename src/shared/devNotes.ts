@@ -199,7 +199,8 @@ function metaLine(meta: NoteMeta): string {
   return `<!-- note ${JSON.stringify(meta)} -->`
 }
 
-function errorLines(errors: NoteError[]): string {
+/** The errors as the note's text block writes them, one per line with indented stacks. */
+export function formatErrors(errors: NoteError[]): string {
   return errors
     .map((e) => {
       // Local, like the note's When line.
@@ -261,7 +262,7 @@ export function serializeNote(
       `<details><summary>Recent errors (${input.errors.length})</summary>`,
       '',
       '```text',
-      errorLines(input.errors),
+      formatErrors(input.errors),
       '```',
       '',
       '</details>',

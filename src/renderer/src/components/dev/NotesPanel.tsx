@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import {
   NOTE_MAX_IMAGES,
   NOTE_TAGS,
+  formatErrors,
   tagLabel,
   whereSummary,
   type NoteContext,
@@ -81,7 +82,9 @@ export function NotesPanel({
   const [images, setImages] = useState<NoteImageDraft[]>([])
   const [where, setWhere] = useState<NoteWhere | null>(null)
   const [errors, setErrors] = useState<NoteError[]>([])
-  const [withErrors, setWithErrors] = useState(true)
+  // Off by default (N-005): the errors go in only when ticked, after a look if wanted.
+  const [withErrors, setWithErrors] = useState(false)
+  const [showErrors, setShowErrors] = useState(false)
   const [showContext, setShowContext] = useState(false)
   const [capturing, setCapturing] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -121,7 +124,8 @@ export function NotesPanel({
     setImages([])
     setWhere(null)
     setErrors([])
-    setWithErrors(true)
+    setWithErrors(false)
+    setShowErrors(false)
     setShowContext(false)
     setProblem(null)
   }
@@ -359,17 +363,34 @@ export function NotesPanel({
                   {JSON.stringify(where, null, 2)}
                 </pre>
               )}
-              <label className="mt-1.5 flex items-center gap-2 text-fg-2">
-                <input
-                  type="checkbox"
-                  checked={withErrors && errors.length > 0}
-                  disabled={errors.length === 0}
-                  onChange={(e) => setWithErrors(e.target.checked)}
-                />
-                {errors.length === 0
-                  ? 'No recent errors'
-                  : `Include recent errors (${errors.length})`}
-              </label>
+              <div className="mt-1.5 flex items-center gap-2 text-fg-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={withErrors && errors.length > 0}
+                    disabled={errors.length === 0}
+                    onChange={(e) => setWithErrors(e.target.checked)}
+                  />
+                  {errors.length === 0
+                    ? 'No recent errors'
+                    : `Include recent errors (${errors.length})`}
+                </label>
+                {errors.length > 0 && (
+                  <button
+                    type="button"
+                    aria-expanded={showErrors}
+                    onClick={() => setShowErrors((s) => !s)}
+                    className="cursor-pointer text-fg-2 underline hover:text-fg"
+                  >
+                    {showErrors ? 'Hide' : 'Show'}
+                  </button>
+                )}
+              </div>
+              {showErrors && errors.length > 0 && (
+                <pre className="mt-1.5 max-h-[160px] overflow-auto font-mono text-[10.5px] leading-[1.4] text-fg-2">
+                  {formatErrors(errors)}
+                </pre>
+              )}
             </div>
             {problem && <p className="m-0 text-bad">{problem}</p>}
             <div className="flex items-center gap-2">

@@ -151,6 +151,11 @@ describe('writing a note (spec §2, §3)', () => {
     fireEvent.change(text, { target: { value: 'Trade card cuts names\nmore' } })
     fireEvent.click(screen.getByRole('radio', { name: 'Bug' }))
     expect(await screen.findByText('Include recent errors (1)')).toBeTruthy()
+    const tick = screen.getByRole('checkbox')
+    expect(tick).toHaveProperty('checked', false)
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }))
+    expect(screen.getByText(/renderer\s+TypeError: boom/)).toBeTruthy()
+    fireEvent.click(tick)
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(api.dev.notes.save).toHaveBeenCalledTimes(1))
     const saved = vi.mocked(api.dev.notes.save).mock.calls[0][0]
@@ -170,13 +175,13 @@ describe('writing a note (spec §2, §3)', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('leaves the errors out when unticked; saves nothing without text', async () => {
+  it('leaves the errors out by default; saves nothing without text', async () => {
     renderTools()
     fireEvent.click(await screen.findByRole('button', { name: /Note/ }))
     const save = screen.getByRole('button', { name: 'Save' })
     expect(save).toHaveProperty('disabled', true)
     fireEvent.change(screen.getByRole('textbox', { name: 'Note' }), { target: { value: 'x' } })
-    fireEvent.click(await screen.findByRole('checkbox'))
+    expect(await screen.findByText('Include recent errors (1)')).toBeTruthy()
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Note' }), {
       key: 'Enter',
       ctrlKey: true
