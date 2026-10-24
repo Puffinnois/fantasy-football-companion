@@ -32,6 +32,10 @@ export function teamComponentNames(): string[] {
     'drive_start_sum',
     'def_drives',
     'def_drive_points',
+    'rz_drives',
+    'rz_td_drives',
+    'def_rz_drives',
+    'def_rz_td_drives',
     'pace_secs',
     'pace_plays',
     'implied_points',
@@ -66,7 +70,9 @@ export function teamWeekSelect(have: Have, season: number): Built {
              any_value(p.fixed_drive_result) = 'Touchdown' AS td,
              count(*) FILTER (p.counts AND p.play_type IN ('pass', 'run')) <= 3
                AND any_value(p.fixed_drive_result) = 'Punt' AS three_out,
-             arg_min(p.yardline_100, p.play_id) AS start_yardline
+             arg_min(p.yardline_100, p.play_id) AS start_yardline,
+             -- A snap inside the 20: the try after a touchdown carries the drive too (from the 15).
+             coalesce(bool_or(p.yardline_100 <= 20) FILTER (p.counts AND p.is_snap), false) AS rz
       FROM plays p
       WHERE p.posteam IS NOT NULL AND p.fixed_drive IS NOT NULL AND p.season = ${season}
         AND coalesce(p.kickoff_attempt, 0) = 0
@@ -75,7 +81,8 @@ export function teamWeekSelect(have: Have, season: number): Built {
     drives AS (
       SELECT game_id, team, count(*) AS drives, sum(points) AS drive_points,
              count(*) FILTER (td) AS td_drives, count(*) FILTER (three_out) AS three_and_outs,
-             sum(start_yardline) AS drive_start_sum
+             sum(start_yardline) AS drive_start_sum,
+             count(*) FILTER (rz) AS rz_drives, count(*) FILTER (rz AND td) AS rz_td_drives
       FROM drive GROUP BY ALL
     ),
     pace AS (
@@ -108,6 +115,8 @@ export function teamWeekSelect(have: Have, season: number): Built {
            o.* EXCLUDE (team, game_id), d.* EXCLUDE (team, game_id),
            dr.drives, dr.drive_points, dr.td_drives, dr.three_and_outs, dr.drive_start_sum,
            od.drives AS def_drives, od.drive_points AS def_drive_points,
+           dr.rz_drives, dr.rz_td_drives,
+           od.rz_drives AS def_rz_drives, od.rz_td_drives AS def_rz_td_drives,
            pc.pace_secs, pc.pace_plays,
            ${Object.entries(TEAM_BOX_COMPONENTS)
              .map(([name, col]) => `${boxCols.has(col) ? `b.${col}` : 'NULL::DOUBLE'} AS ${name}`)

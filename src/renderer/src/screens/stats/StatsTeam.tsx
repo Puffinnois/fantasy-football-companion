@@ -64,6 +64,8 @@ interface TabProps {
   games: TeamGame[] | null
   /** A player's name opens his dashboard (spec §9.4). */
   onOpenPlayer?: (id: string, position: PositionGroup | null) => void
+  /** A stat line's trend icon: Trends on that metric (spec §9.5). */
+  onTrend?: (metric: string) => void
 }
 
 /**
@@ -80,7 +82,9 @@ export function StatsTeam({
   tab,
   onTab,
   onOpenLeaderboard,
-  onOpenPlayer
+  onOpenPlayer,
+  onCompare,
+  onTrend
 }: {
   data: StatsData
   scope: StatsScope
@@ -93,6 +97,9 @@ export function StatsTeam({
   /** The team leaderboard (spec §9.2). */
   onOpenLeaderboard: () => void
   onOpenPlayer?: (id: string, position: PositionGroup | null) => void
+  /** Compare the team with the two nearest it in Elo (spec §9.5). */
+  onCompare?: () => void
+  onTrend?: (metric: string) => void
 }): React.JSX.Element {
   const { games: raw, error: gamesError } = useTeamGames(scope.season, team, data.version)
   const games = useMemo(() => (raw ? teamGames(raw, team) : null), [raw, team])
@@ -102,7 +109,7 @@ export function StatsTeam({
     [scope, data.status]
   )
   const { results: ratings } = useStatsQueries(overview, data.version, FRESH)
-  const props: TabProps = { data, scope, team, games, onOpenPlayer }
+  const props: TabProps = { data, scope, team, games, onOpenPlayer, onTrend }
 
   return (
     <div className="flex flex-col gap-5 px-8 pt-[22px] pb-8">
@@ -115,6 +122,7 @@ export function StatsTeam({
         onTeam={onTeam}
         games={games}
         place={scope.seasonType === 'REG' ? standing(ratings?.get('all'), team) : null}
+        onCompare={onCompare}
       />
       <div className="flex items-end justify-between gap-4 border-b border-line">
         <div role="tablist" aria-label="Team dashboard" className="flex gap-[22px]">
@@ -170,7 +178,8 @@ function Header({
   team,
   onTeam,
   games,
-  place
+  place,
+  onCompare
 }: {
   data: StatsData
   scope: StatsScope
@@ -180,6 +189,7 @@ function Header({
   onTeam: (team: string) => void
   games: TeamGame[] | null
   place: string | null
+  onCompare?: () => void
 }): React.JSX.Element {
   const inScope = games ? gamesInScope(games, scope, data.status) : []
   // Until the team's games arrive, no tile shows another team's record.
@@ -246,7 +256,19 @@ function Header({
             </div>
           </div>
         </div>
-        <ScopeBar scope={scope} status={data.status} hasLeague={hasLeague} onChange={onScope} />
+        <div className="flex shrink-0 flex-col items-end gap-3">
+          <ScopeBar scope={scope} status={data.status} hasLeague={hasLeague} onChange={onScope} />
+          {onCompare && (
+            <button
+              type="button"
+              onClick={onCompare}
+              title="Compare with the two teams nearest in Elo"
+              className="flex h-8 cursor-pointer items-center rounded-[8px] bg-cobalt px-3.5 text-[12.5px] font-medium text-on-cobalt hover:opacity-90"
+            >
+              Compare
+            </button>
+          )}
+        </div>
       </div>
       {cards.length > 0 && (
         <div className="flex gap-1.5 overflow-x-auto pb-1" role="list" aria-label="Results">
@@ -308,7 +330,8 @@ function Overview({
   team,
   games,
   ratings,
-  onOpenPlayer
+  onOpenPlayer,
+  onTrend
 }: TabProps & { ratings: Map<SplitKey, StatsResult> | null }): React.JSX.Element {
   const open = (id: string, position: string | null): (() => void) | undefined =>
     onOpenPlayer ? () => onOpenPlayer(id, positionGroup(position)) : undefined
@@ -419,7 +442,7 @@ function Overview({
       </div>
       <div className="flex flex-col gap-7">
         {next && <NextGame game={next} team={team} />}
-        {sections && <StatSection section={sections[0]} />}
+        {sections && <StatSection section={sections[0]} onTrend={onTrend} />}
         <section className="flex flex-col gap-2.5">
           <SectionHead title="EPA per play by week" note="Offense, and allowed by the defense" />
           <WeekChart
@@ -481,7 +504,8 @@ function LinesTab({
   team,
   sections,
   tab,
-  onOpenPlayer
+  onOpenPlayer,
+  onTrend
 }: TabProps & { sections: SectionDef[]; tab: TeamTab }): React.JSX.Element {
   const queries = useMemo(
     () => sectionQueries(sections, scope, data.status),
@@ -491,7 +515,10 @@ function LinesTab({
   return (
     <div className="flex flex-col gap-8">
       {results ? (
-        <StatSections sections={sectionViews(sections, results, team, data.byId, scope.season)} />
+        <StatSections
+          sections={sectionViews(sections, results, team, data.byId, scope.season)}
+          onTrend={onTrend}
+        />
       ) : (
         <Loading error={error} />
       )}

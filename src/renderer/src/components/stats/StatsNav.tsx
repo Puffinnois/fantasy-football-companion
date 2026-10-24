@@ -8,14 +8,15 @@ import type { UpdateState } from '@shared/types'
 
 /**
  * `player` and `team` are the dashboards (spec §9.4, §9.3), `players` and `teams` the
- * leaderboards.
+ * leaderboards, `explore` Compare and Trends (§9.5).
  */
-export type StatsScreen = 'home' | 'player' | 'players' | 'team' | 'teams' | 'glossary'
+export type StatsScreen = 'home' | 'player' | 'players' | 'team' | 'teams' | 'explore' | 'glossary'
 
 const ITEMS: { id: StatsScreen | 'games'; label: string }[] = [
   { id: 'home', label: 'Leaderboards' },
   { id: 'player', label: 'Players' },
   { id: 'team', label: 'Teams' },
+  { id: 'explore', label: 'Explore' },
   { id: 'games', label: 'Games' },
   { id: 'glossary', label: 'Glossary' }
 ]
@@ -36,8 +37,8 @@ interface StatsNavProps {
 }
 
 /**
- * Stats nav (handoff "Stats nav"): 52px, mark + "Companion Stats", five items, Fantasy ↗, theme.
- * Players and Teams open the dashboards.
+ * Stats nav (handoff "Stats nav"): 52px, mark + "Companion Stats", six items, Fantasy ↗, theme.
+ * Players and Teams open the dashboards, Explore Compare and Trends.
  */
 export function StatsNav({
   current,

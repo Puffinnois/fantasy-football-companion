@@ -623,6 +623,15 @@ export const CORE_METRICS: Record<PositionGroup, string[]> = {
   OL: ['snap_share', 'on_field_epa']
 }
 
+/** A position chip's fill (defenders, punters and teams in slate). */
+export const POS_BG: Record<string, string> = {
+  QB: 'bg-pos-qb',
+  RB: 'bg-pos-rb',
+  WR: 'bg-pos-wr',
+  TE: 'bg-pos-te',
+  K: 'bg-pos-k'
+}
+
 /** Whether a metric is about this position (spec §6.1 `positions`). */
 export function appliesToPosition(info: MetricInfo | undefined, position: PositionGroup): boolean {
   return !!info && (info.positions === 'all' || info.positions.includes(position))

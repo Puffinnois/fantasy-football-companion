@@ -69,6 +69,29 @@ describe('the metric catalogue (stats-analysis spec §6)', () => {
     expect(Object.keys(schema.properties.situation.properties ?? {})).toContain('withOnField')
   })
 
+  it('reads a defense’s sacks and pressures as its own, red-zone drives both ways', () => {
+    const m = (id: string): (typeof CATALOGUE)[number] => CATALOGUE.find((x) => x.id === id)!
+    // A defense's sack and pressure rates are what it does to the passer: higher is better.
+    expect([m('def_sack_rate'), m('def_pressure_rate')].map((x) => [x.label, x.direction])).toEqual(
+      [
+        ['Sack rate (defense)', 'higher'],
+        ['Pressure rate (defense)', 'higher']
+      ]
+    )
+    expect(m('off_rz_td_pct')).toMatchObject({
+      label: 'Red-zone TD rate',
+      sample: 'rz_drives',
+      side: 'offense',
+      direction: 'higher'
+    })
+    expect(m('def_rz_td_pct')).toMatchObject({
+      label: 'Red-zone TD rate allowed',
+      sample: 'def_rz_drives',
+      side: 'defense',
+      direction: 'lower'
+    })
+  })
+
   it('names what every sample counts (spec §9.2)', () => {
     expect(CATALOGUE.filter((m) => !SAMPLE_LABELS[m.sample]).map((m) => m.sample)).toEqual([])
   })

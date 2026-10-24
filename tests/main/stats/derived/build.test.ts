@@ -179,6 +179,11 @@ describe('the derived tables (stats-analysis spec §5)', () => {
       td_drives: 1,
       drive_points: 7,
       def_drives: 1,
+      // The touchdown drive reached the 8; KC's one drive never got inside the 20.
+      rz_drives: 1,
+      rz_td_drives: 1,
+      def_rz_drives: 0,
+      def_rz_td_drives: 0,
       line_margin: 2.5,
       total_line: 48.5,
       implied_points: 25.5
@@ -192,6 +197,33 @@ describe('the derived tables (stats-analysis spec §5)', () => {
       games: 1,
       wins: 0
     })
+  })
+
+  it('reaches the red zone only by a snap inside the 20, not by the try after a touchdown', async () => {
+    const db = await openTestDb()
+    await seedGame(db)
+    // KC's 75-yard touchdown, its extra point (from the 15) and a failed two-point try (from the
+    // 2) after another long drive: neither drive had a snap inside the 20.
+    await db.exec(`INSERT INTO src_pbp BY NAME
+      SELECT * FROM (VALUES
+        (90, 'KC', 'BUF', 'pass', 1.0, NULL::DOUBLE, 75.0, 4.0, 'Touchdown'),
+        (91, 'KC', 'BUF', 'extra_point', NULL, NULL, 15.0, 4.0, 'Touchdown'),
+        (92, 'KC', 'BUF', 'pass', 1.0, NULL, 60.0, 5.0, 'Touchdown'),
+        (93, 'KC', 'BUF', 'pass', 1.0, 1.0, 2.0, 5.0, 'Touchdown')
+      ) t(play_id, posteam, defteam, play_type, pass, two_point_attempt, yardline_100, fixed_drive,
+          fixed_drive_result)
+      CROSS JOIN (SELECT 2025 AS season, 1 AS week, 'REG' AS season_type, 'g1' AS game_id)`)
+    await rebuildDerived(db, { seasons: 'all', league: null })
+    expect(
+      await db.get<R>(
+        "SELECT td_drives, rz_drives, rz_td_drives FROM team_week WHERE team = 'KC' AND week = 1"
+      )
+    ).toEqual({ td_drives: 2, rz_drives: 0, rz_td_drives: 0 })
+    expect(
+      await db.get<R>(
+        "SELECT rz_drives, rz_td_drives, def_rz_drives FROM team_week WHERE team = 'BUF' AND week = 1"
+      )
+    ).toEqual({ rz_drives: 1, rz_td_drives: 1, def_rz_drives: 0 })
   })
 
   it('estimates routes in a season without participation', async () => {

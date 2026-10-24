@@ -81,6 +81,10 @@ describe('compileQuery (stats-analysis spec §7.2)', () => {
     )
     // Home or road: half the games.
     expect(compile({ scope: { seasons: [2025], home: false } }).rowWeeks(18, 1)).toBe(9)
+    // A row per season qualifies against its own season's weeks (a partial season too).
+    expect(compile({ scope: { seasons: [2025, 2026] }, groupBy: ['season'] }).bySeason).toBe(true)
+    expect(compile({ groupBy: ['season', 'week'] }).bySeason).toBe(false)
+    expect(compile({ scope: { seasons: [2024, 2025] } }).bySeason).toBe(false)
   })
 
   it('notes coverage the answer depends on', () => {

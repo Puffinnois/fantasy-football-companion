@@ -237,9 +237,9 @@ describe('the player dashboard (stats-analysis spec §9.4)', () => {
       expect(within(rail).getAllByRole('button', { name: /Player \d/ })).toHaveLength(3)
     )
     expect(within(rail).getByRole('button', { current: true }).textContent).toContain('Player 1')
-    // Compare comes with Plan AD.
+    // Compare (Plan AD1) opens Explore with him seeded.
     expect((screen.getByRole('button', { name: 'Compare' }) as HTMLButtonElement).disabled).toBe(
-      true
+      false
     )
   })
 

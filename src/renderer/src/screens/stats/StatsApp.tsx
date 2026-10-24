@@ -5,11 +5,14 @@ import { useNoteContext, useNoteScreen } from '@/lib/dev/noteContext'
 import { errorMessage } from '@/lib/format'
 import type { NavLocation } from '@/lib/navHistory'
 import type { BoardDef } from '@/lib/stats/boards'
+import { DEFAULT_COMPARE, type CompareState } from '@/lib/stats/compare'
 import { bestFirst, defaultBoard, normalizeBoard } from '@/lib/stats/leaderboard'
 import { defaultPlayer, positionTab, railQuery, type PlayerTab } from '@/lib/stats/player'
 import { defaultScope, type StatsScope } from '@/lib/stats/scope'
 import { defaultTeam, topScorerQuery, type TeamTab } from '@/lib/stats/team'
+import { DEFAULT_TRENDS, type TrendsState } from '@/lib/stats/trends'
 import { useStatsData, useStatsQuery } from '@/lib/stats/useStats'
+import { StatsExplore, type ExploreTab } from '@/screens/stats/StatsExplore'
 import { StatsGlossary } from '@/screens/stats/StatsGlossary'
 import { StatsHome } from '@/screens/stats/StatsHome'
 import { StatsLeaderboard, type LeaderboardOpen } from '@/screens/stats/StatsLeaderboard'
@@ -81,6 +84,10 @@ export function StatsApp({
   // The player dashboard (spec §9.4): the player chosen this session, else my top scorer.
   const [player, setPlayer] = useState<PlayerRef | null>(null)
   const [playerTab, setPlayerTab] = useState<PlayerTab>('overview')
+  // Explore (spec §9.5): its tab and each tab's state, kept for the session.
+  const [exploreTab, setExploreTab] = useState<ExploreTab>('compare')
+  const [compare, setCompare] = useState<CompareState>(DEFAULT_COMPARE)
+  const [trends, setTrends] = useState<TrendsState>(DEFAULT_TRENDS)
   // A focus from Fantasy opens its dashboard once.
   const [focused, setFocused] = useState<number | null>(null)
   if (focus && focus.nonce !== focused) {
@@ -145,6 +152,35 @@ export function StatsApp({
   const openPlayer = (id: string, position: PositionGroup | null): void => {
     setPlayer({ id, position })
     setScreen('player')
+  }
+  // A dashboard's Compare: that player and his position's top two, or that team and the two
+  // nearest it in Elo.
+  const openCompare = (
+    entity: CompareState['entity'],
+    id: string,
+    position: PositionGroup
+  ): void => {
+    setCompare((c) => ({ ...c, entity, position, slots: null, seed: id }))
+    setExploreTab('compare')
+    setScreen('explore')
+  }
+  // A stat line's trend icon: that metric over his (its) seasons.
+  const openTrends = (
+    entity: TrendsState['entity'],
+    id: string,
+    position: PositionGroup | null,
+    metric: string
+  ): void => {
+    setTrends((t) => ({
+      ...t,
+      entity,
+      id,
+      position: position ?? t.position,
+      metric,
+      comparisons: []
+    }))
+    setExploreTab('trends')
+    setScreen('explore')
   }
 
   // N-002: the page for Back. A dashboard waiting for its default is a page too, with no team or
@@ -280,6 +316,8 @@ export function StatsApp({
                   onTab={setTeamTab}
                   onOpenLeaderboard={() => setScreen('teams')}
                   onOpenPlayer={openPlayer}
+                  onCompare={() => openCompare('team', shownTeam, 'WR')}
+                  onTrend={(metric) => openTrends('team', shownTeam, null, metric)}
                 />
               ) : (
                 waiting
@@ -301,10 +339,39 @@ export function StatsApp({
                   onOpenLeaderboard={(position) =>
                     openBoard(defaultBoard('player', position, data.byId), shownPlayer.id)
                   }
+                  onCompare={(position) => openCompare('player', shownPlayer.id, position)}
+                  onTrend={(position, metric) =>
+                    openTrends('player', shownPlayer.id, position, metric)
+                  }
                 />
               ) : (
                 waiting
               ))}
+            {screen === 'explore' && (
+              <StatsExplore
+                data={data}
+                scope={effective}
+                onScope={setChosen}
+                hasLeague={hasLeague}
+                tab={exploreTab}
+                onTab={setExploreTab}
+                compare={compare}
+                onCompare={setCompare}
+                trends={trends}
+                onTrends={setTrends}
+                trendsFallback={
+                  trends.entity === 'team'
+                    ? team
+                      ? { id: team, position: null }
+                      : null
+                    : player?.position
+                      ? { id: player.id, position: player.position }
+                      : null
+                }
+                onOpenPlayer={openPlayer}
+                onOpenTeam={openTeam}
+              />
+            )}
             {screen === 'glossary' && <StatsGlossary catalogue={data.catalogue} />}
             {viewsError && <div className="px-8 pb-4 text-[12px] text-bad">{viewsError}</div>}
           </>
