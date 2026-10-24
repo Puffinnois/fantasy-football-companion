@@ -182,6 +182,17 @@ describe('Compare (stats-analysis spec §9.5)', () => {
     expect(teams[0]).toEqual({ value: 'ARI', label: 'ARI · Arizona Cardinals' })
   })
 
+  it('names the Rams LAR in the choices, as every screen does', () => {
+    const res = result(
+      ['rec_yds'],
+      [row('p0', 'Puka Nacua', { rec_yds: value(900) }, { team: 'LA' })]
+    )
+    const pool = comparePool('player', 'WR', res)
+    expect(slotOptions('player', 'WR', res, pool, null)[0].label).toBe('Puka Nacua · LAR')
+    const rams = slotOptions('team', 'WR', undefined, new Set(), null).find((o) => o.value === 'LA')
+    expect(rams).toEqual({ value: 'LA', label: 'LAR · Los Angeles Rams' })
+  })
+
   it('writes the cards: a player’s name and games, a team’s record, place and Elo', () => {
     const res = receivers()
     expect(playerCard(res, 'p0', comparePool('player', 'WR', res))).toEqual({

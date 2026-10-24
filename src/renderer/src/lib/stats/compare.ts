@@ -3,7 +3,7 @@ import { qualifies } from '@/lib/stats/leaderboard'
 import { appliesToPosition, inFantasy, positionTab, TILES } from '@/lib/stats/player'
 import { queryScope, type StatsScope } from '@/lib/stats/scope'
 import { missingFor, standing, STANDING_METRICS, teamRank, type WeekSeries } from '@/lib/stats/team'
-import { STATS_TEAMS, TEAM_NAMES } from '@shared/stats/nflTeams'
+import { STATS_TEAMS, TEAM_NAMES, teamAbbr } from '@shared/stats/nflTeams'
 import type {
   MetricInfo,
   PositionGroup,
@@ -353,7 +353,7 @@ export function slotOptions(
   ownership: StatsOwnership | null
 ): { value: string; label: string }[] {
   if (entity === 'team') {
-    return STATS_TEAMS.map((t) => ({ value: t, label: `${t} · ${TEAM_NAMES[t] ?? t}` }))
+    return STATS_TEAMS.map((t) => ({ value: t, label: `${teamAbbr(t)} · ${TEAM_NAMES[t] ?? t}` }))
   }
   if (!result) return []
   const mine = (id: string): boolean => ownership?.players[id]?.mine === true
@@ -362,7 +362,7 @@ export function slotOptions(
   return [...order.filter((r) => mine(r.id)), ...order.filter((r) => !mine(r.id)), ...rest].map(
     (r) => ({
       value: r.id,
-      label: `${r.name} · ${r.team ?? 'FA'}${mine(r.id) ? ' · your team' : ''}`
+      label: `${r.name} · ${r.team ? teamAbbr(r.team) : 'FA'}${mine(r.id) ? ' · your team' : ''}`
     })
   )
 }
