@@ -1,6 +1,6 @@
 # Plan AD1 — Stats analysis: Explore, Compare and Trends
 
-**Status:** written 2026-10-24, not executed. Generated from the prototype's task commits (branch `proto/plan-ad1`), replayed on a clean copy of `main` with typecheck, lint and the full suite green after each task; the final tree is byte-identical to the prototype.
+**Status:** written 2026-10-24, not executed. Generated from the prototype's task commits (branch `proto/plan-ad1`), replayed on a clean copy of `main` with typecheck, lint and the full suite green after each task; the final tree is byte-identical to the prototype. Spec amendments A–H approved by the user 2026-10-24.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
