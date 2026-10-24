@@ -2,8 +2,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { PercentileBar, StatSection } from '@/components/stats/StatLines'
+import { SeasonChart } from '@/components/stats/SeasonChart'
 import { WeekChart } from '@/components/stats/WeekChart'
 import type { SectionView } from '@/lib/stats/team'
+import type { TrendPoint } from '@/lib/stats/trends'
 import { catalogueMap } from '../../fixtures/statsScreens'
 
 afterEach(cleanup)
@@ -114,6 +116,71 @@ describe('the dashboard’s stat lines and charts', () => {
     // The end label carries its series' swatch.
     const end = chart.querySelector('[data-end="a"]')!
     expect(end.querySelector('rect')!.getAttribute('fill')).toBe('var(--s1)')
+  })
+
+  it('keeps a slot’s colour and shape, dashes the median, and flips a lower-is-better axis', () => {
+    const points = (vs: number[]): { week: number; value: number }[] =>
+      vs.map((value, i) => ({ week: i + 1, value }))
+    const props = {
+      label: 'Slots',
+      format: (v: number) => v.toFixed(2),
+      series: [
+        { id: 'a', slot: 0, label: 'BUF', points: points([0.1, 0.2]) },
+        { id: 'c', slot: 2, label: 'MIA', points: points([-0.1, 0]) }
+      ],
+      reference: { id: 'median', label: 'League median', points: points([0, 0]) }
+    }
+    const { rerender } = render(<WeekChart {...props} />)
+    const chart = screen.getByRole('img', { name: 'Slots' })
+    expect(chart.querySelector('[data-reference]')!.getAttribute('stroke-dasharray')).toBe('5 4')
+    // Slot 3 (an open slot 2 between) keeps --s3 and draws diamonds.
+    const diamonds = [...chart.querySelectorAll('path[fill="var(--s3)"]')]
+    expect(diamonds).toHaveLength(2)
+    expect(screen.getByText('League median')).toBeTruthy()
+    const top = (): number =>
+      Number(chart.querySelector('rect[fill="var(--s1)"]')!.getAttribute('y'))
+    const y = top()
+    rerender(<WeekChart {...props} flip />)
+    expect(top()).toBeGreaterThan(y)
+  })
+
+  it('charts seasons: the band and median, a season not qualified hollow, team changes', () => {
+    const point = (season: number, value: number | null, qualified = true): TrendPoint => ({
+      season,
+      value,
+      qualified,
+      percentile: qualified ? 60 : null,
+      rank: qualified ? 10 : null,
+      of: 90,
+      sample: 300,
+      estimated: false
+    })
+    render(
+      <SeasonChart
+        label="YPRR by season"
+        format={(v) => v.toFixed(2)}
+        series={[
+          { id: 'p1', label: 'Okafor', points: [point(2024, 1.9), point(2025, 2.2, false)] },
+          { id: 'p2', label: 'Reyes', points: [point(2024, 1.5), point(2025, 1.6)] }
+        ]}
+        band={[
+          { season: 2024, p25: 1.3, median: 1.6, p75: 2 },
+          { season: 2025, p25: 1.2, median: 1.6, p75: 1.9 }
+        ]}
+        marks={new Map([[2025, 'BUF']])}
+        ages={new Map([[2025, 25]])}
+        hoverInfo={(season) => ({ title: String(season), lines: ['2.20'] })}
+      />
+    )
+    const chart = screen.getByRole('img', { name: 'YPRR by season' })
+    expect(chart.querySelector('[data-band]')).toBeTruthy()
+    expect(chart.querySelector('[data-median]')!.getAttribute('stroke-dasharray')).toBe('5 4')
+    // Only the main series marks a season below the qualifier hollow.
+    expect(chart.querySelectorAll('[data-hollow]')).toHaveLength(1)
+    expect(chart.querySelector('[data-team-mark]')!.textContent).toBe('BUF')
+    expect(screen.getByText('age 25')).toBeTruthy()
+    fireEvent.mouseEnter(chart.querySelectorAll('rect[fill="transparent"]')[1])
+    expect(within(screen.getByRole('tooltip')).getByText('2025')).toBeTruthy()
   })
 
   it('says so when the range has no games', () => {

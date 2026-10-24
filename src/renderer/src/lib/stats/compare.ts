@@ -22,6 +22,26 @@ export type Slots = [string | null, string | null, string | null]
 
 export const NO_SLOTS: Slots = [null, null, null]
 
+/** What Compare shows, kept by StatsApp across tabs; `slots` null until the defaults are chosen. */
+export interface CompareState {
+  entity: CompareEntity
+  position: PositionGroup
+  perGame: boolean
+  slots: Slots | null
+  /** The player or team Compare was opened from (a dashboard's Compare button). */
+  seed: string | null
+  side: 'offense' | 'defense'
+}
+
+export const DEFAULT_COMPARE: CompareState = {
+  entity: 'player',
+  position: 'WR',
+  perGame: true,
+  slots: null,
+  seed: null,
+  side: 'offense'
+}
+
 /**
  * Compare › Teams rows (handoff README §7): offense, defense, special teams and situational,
  * percentiles among the 32. An "allowed" metric is better lower: its percentile says so.

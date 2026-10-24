@@ -40,6 +40,7 @@ import {
   playerTabs,
   pointsSeries,
   positionGroup,
+  POS_BG,
   positionTab,
   profileQuery,
   projectionView,
@@ -80,14 +81,6 @@ import type { PlayerBio, PositionGroup, StatsRow } from '@shared/stats/types'
 /** The dashboard is about one player: never another player's (or tab's) answers while his own load. */
 const FRESH = { keepLast: false }
 
-const POS_BG: Record<string, string> = {
-  QB: 'bg-pos-qb',
-  RB: 'bg-pos-rb',
-  WR: 'bg-pos-wr',
-  TE: 'bg-pos-te',
-  K: 'bg-pos-k'
-}
-
 interface TabProps {
   data: StatsData
   scope: StatsScope
@@ -96,6 +89,8 @@ interface TabProps {
   bio: PlayerBio | null
   /** The league's key with a league (Fantasy's projections), null without one. */
   league: number | null
+  /** A stat line's trend icon: Trends on that metric (spec §9.5). */
+  onTrend?: (metric: string) => void
 }
 
 /** The player shown: his gsis id and the position group his dashboard follows. */
@@ -120,7 +115,9 @@ export function StatsPlayer({
   onOpenTeam,
   onOpenLeaderboard,
   leagueKey = 0,
-  onOpenFantasyPlayer
+  onOpenFantasyPlayer,
+  onCompare,
+  onTrend
 }: {
   data: StatsData
   scope: StatsScope
@@ -137,6 +134,10 @@ export function StatsPlayer({
   leagueKey?: number
   /** His file in Companion Fantasy (spec §9.4), with a league. */
   onOpenFantasyPlayer?: (playerId: string) => void
+  /** Compare him with his position's top two (spec §9.5). */
+  onCompare?: (position: PositionGroup) => void
+  /** Trends on a metric of his (spec §9.5). */
+  onTrend?: (position: PositionGroup, metric: string) => void
 }): React.JSX.Element {
   const { bio, error: bioError } = usePlayerBio(player.id, data.version)
   // Dev-mode spec §3: the dashboard's player and tab.
@@ -255,6 +256,7 @@ export function StatsPlayer({
               onOpenTeam={onOpenTeam}
               leagueKey={leagueKey}
               onOpenFantasyPlayer={onOpenFantasyPlayer}
+              onCompare={onCompare && (() => onCompare(position))}
             />
             <div className="flex items-end justify-between gap-4 border-b border-line">
               <div role="tablist" aria-label="Player dashboard" className="flex gap-[22px]">
@@ -298,6 +300,7 @@ export function StatsPlayer({
               position={position}
               bio={bio}
               league={hasLeague ? leagueKey : null}
+              onTrend={onTrend && ((m) => onTrend(position, m))}
             />
           </div>
         )}
@@ -336,7 +339,8 @@ function Header({
   rank,
   onOpenTeam,
   leagueKey,
-  onOpenFantasyPlayer
+  onOpenFantasyPlayer,
+  onCompare
 }: {
   data: StatsData
   scope: StatsScope
@@ -350,6 +354,7 @@ function Header({
   onOpenTeam: (team: string) => void
   leagueKey: number
   onOpenFantasyPlayer?: (playerId: string) => void
+  onCompare?: () => void
 }): React.JSX.Element {
   const h = playerHeader(bio, row, scope, data.status)
   const team = row?.team ?? bio.team
@@ -422,9 +427,10 @@ function Header({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            disabled
-            title="Compare comes in a later update"
-            className="flex h-8 cursor-default items-center rounded-[8px] bg-cobalt px-3.5 text-[12.5px] font-medium text-on-cobalt opacity-40"
+            disabled={!onCompare}
+            onClick={onCompare}
+            title="Compare him with his position’s top two"
+            className="flex h-8 cursor-pointer items-center rounded-[8px] bg-cobalt px-3.5 text-[12.5px] font-medium text-on-cobalt hover:opacity-90 disabled:cursor-default disabled:opacity-40"
           >
             Compare
           </button>
@@ -452,7 +458,7 @@ function Header({
 }
 
 /** The handoff's tiles, the percentile rankings, fantasy points by week, the season and the career. */
-function Overview({ data, scope, player, position, bio }: TabProps): React.JSX.Element {
+function Overview({ data, scope, player, position, bio, onTrend }: TabProps): React.JSX.Element {
   const kind = kindOf(position)
   const sections = useMemo(() => overviewSections(position, data.byId), [position, data.byId])
   const queries = useMemo(
@@ -517,7 +523,10 @@ function Overview({ data, scope, player, position, bio }: TabProps): React.JSX.E
       </div>
       <div className="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start gap-8">
         {views[0] ? (
-          <StatSection section={{ ...views[0], note: `vs ${pool} qualified ${position}s` }} />
+          <StatSection
+            section={{ ...views[0], note: `vs ${pool} qualified ${position}s` }}
+            onTrend={onTrend}
+          />
         ) : (
           <span />
         )}
@@ -596,7 +605,8 @@ function LinesTab({
   scope,
   player,
   position,
-  tab
+  tab,
+  onTrend
 }: TabProps & { tab: PlayerTab }): React.JSX.Element {
   const sections = useMemo(() => sectionsFor(tab, position, data.byId), [tab, position, data.byId])
   const queries = useMemo(
@@ -608,6 +618,7 @@ function LinesTab({
   return (
     <StatSections
       sections={playerSectionViews(sections, results, player, position, data.byId, scope.season)}
+      onTrend={onTrend}
     />
   )
 }

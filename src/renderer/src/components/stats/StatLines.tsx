@@ -1,3 +1,4 @@
+import { TrendingUp } from 'lucide-react'
 import { MetricHover, ReliabilityMarker } from '@/components/stats/MetricCard'
 import type { SectionView, StatLine } from '@/lib/stats/team'
 import { cn } from '@/lib/utils'
@@ -49,7 +50,14 @@ export function PercentileBar({
   )
 }
 
-function Line({ line }: { line: StatLine }): React.JSX.Element {
+function Line({
+  line,
+  onTrend
+}: {
+  line: StatLine
+  /** Opens Trends on this metric (spec §9.5); a situational line has none. */
+  onTrend?: (metric: string) => void
+}): React.JSX.Element {
   const label = (
     <span
       tabIndex={0}
@@ -65,9 +73,20 @@ function Line({ line }: { line: StatLine }): React.JSX.Element {
   const neutral = line.info?.direction === 'neutral'
   return (
     <div
-      className="grid h-[34px] grid-cols-[minmax(150px,1fr)_76px_minmax(110px,150px)_88px] items-center gap-3.5 border-t border-line-2"
+      className="group relative grid h-[34px] grid-cols-[minmax(150px,1fr)_76px_minmax(110px,150px)_88px] items-center gap-3.5 border-t border-line-2"
       data-metric={line.key}
     >
+      {onTrend && line.key.startsWith('all:') && (
+        <button
+          type="button"
+          onClick={() => onTrend(line.metric)}
+          aria-label={`${line.label} by season`}
+          title="See it by season in Trends"
+          className="absolute top-1/2 -left-7 flex size-[22px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-[6px] text-cobalt opacity-0 shadow-[0_0_0_1px_var(--line)] group-hover:opacity-100 hover:bg-hover focus-visible:opacity-100"
+        >
+          <TrendingUp className="size-3.5" />
+        </button>
+      )}
       {line.info ? (
         <MetricHover info={line.info} missing={line.missing}>
           {label}
@@ -110,9 +129,11 @@ function Line({ line }: { line: StatLine }): React.JSX.Element {
  * rank, league mean; a note beside the title says what the data covers.
  */
 export function StatSection({
-  section
+  section,
+  onTrend
 }: {
   section: SectionView & { note?: string }
+  onTrend?: (metric: string) => void
 }): React.JSX.Element {
   return (
     <section className="flex flex-col gap-2">
@@ -126,7 +147,7 @@ export function StatSection({
       </div>
       <div className="flex flex-col border-b border-line-2">
         {section.lines.map((l) => (
-          <Line key={l.key} line={l} />
+          <Line key={l.key} line={l} onTrend={onTrend} />
         ))}
       </div>
     </section>
@@ -135,14 +156,16 @@ export function StatSection({
 
 /** Sections in two columns. */
 export function StatSections({
-  sections
+  sections,
+  onTrend
 }: {
   sections: (SectionView & { note?: string })[]
+  onTrend?: (metric: string) => void
 }): React.JSX.Element {
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(520px,1fr))] items-start gap-x-10 gap-y-7">
       {sections.map((s) => (
-        <StatSection key={s.title} section={s} />
+        <StatSection key={s.title} section={s} onTrend={onTrend} />
       ))}
     </div>
   )

@@ -17,6 +17,29 @@ import type {
 /** Trends (spec §9.5): a metric by season, 2019 → now, for a player or a team. */
 export type TrendEntity = 'player' | 'team'
 
+/** What Trends shows, kept by StatsApp across tabs. */
+export interface TrendsState {
+  entity: TrendEntity
+  /** Null: the player or team a dashboard showed last, while `follow`; else none until a search. */
+  id: string | null
+  position: PositionGroup
+  metric: string | null
+  comparisons: string[]
+  perGame: boolean
+  /** Until something is picked here, Trends follows the dashboards' player (or team). */
+  follow: boolean
+}
+
+export const DEFAULT_TRENDS: TrendsState = {
+  entity: 'player',
+  id: null,
+  position: 'WR',
+  metric: null,
+  comparisons: [],
+  perGame: true,
+  follow: true
+}
+
 /** Up to two more series for context: --s2 (square) and --s3 (diamond). */
 export const MAX_COMPARISONS = 2
 
