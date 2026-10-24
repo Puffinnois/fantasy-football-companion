@@ -93,7 +93,8 @@ describe('season simulation (stats-analysis spec §8.1)', () => {
     expect([odds.get('BUF')!.wins, odds.get('MIA')!.wins, odds.get('NE')!.wins]).toEqual([4, 4, 3])
   })
 
-  it('wins a game with its Elo probability', () => {
+  // Ten thousand runs, each seeding all 32 teams: about 3 s alone, too near the 5 s default.
+  it('wins a game with its Elo probability', { timeout: 30_000 }, () => {
     const games: SimGame[] = [{ week: 1, home: 'KC', away: 'NYJ', homeField: 0, result: null }]
     const strong = new Map(ratings).set('KC', 1700).set('NYJ', 1300)
     const odds = new Map(
