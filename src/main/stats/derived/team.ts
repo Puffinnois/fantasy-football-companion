@@ -71,7 +71,8 @@ export function teamWeekSelect(have: Have, season: number): Built {
              count(*) FILTER (p.counts AND p.play_type IN ('pass', 'run')) <= 3
                AND any_value(p.fixed_drive_result) = 'Punt' AS three_out,
              arg_min(p.yardline_100, p.play_id) AS start_yardline,
-             coalesce(bool_or(p.yardline_100 <= 20), false) AS rz
+             -- A snap inside the 20: the try after a touchdown carries the drive too (from the 15).
+             coalesce(bool_or(p.yardline_100 <= 20) FILTER (p.counts AND p.is_snap), false) AS rz
       FROM plays p
       WHERE p.posteam IS NOT NULL AND p.fixed_drive IS NOT NULL AND p.season = ${season}
         AND coalesce(p.kickoff_attempt, 0) = 0
