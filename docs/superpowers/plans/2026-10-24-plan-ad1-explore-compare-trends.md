@@ -1,6 +1,17 @@
 # Plan AD1 — Stats analysis: Explore, Compare and Trends
 
-**Status:** written 2026-10-24, not executed. Generated from the prototype's task commits (branch `proto/plan-ad1`), replayed on a clean copy of `main` with typecheck, lint and the full suite green after each task; the final tree is byte-identical to the prototype. Spec amendments A–H approved by the user 2026-10-24.
+**Status:** complete 2026-10-24. Merged to main as `92397fa` and tagged `v0.34.0` on `eb641b3` (not pushed yet). Tasks 1–4 were executed from this text: each task's tests were seen failing as the plan says, then passing, and each commit's tree was identical to the prototype's. Counts, with the 3 of the untracked `tests/shared/playerImage.test.ts` (run with `--maxWorkers=3`: at full parallelism the DuckDB tests time out at random on this machine): 1,114 → 1,135 → 1,145.
+
+Task 5: `ALL GATES PASSED`. The rebuild took 27.8 s; 2026's qualified counts by season equal a 2026-only query's (WR 98, QB 34, DB 158); Compare 23–146 ms over the nine positions and the teams (QB, the first query, 146 ms; the rest under 100 ms), its weekly chart 16–58 ms; Trends 42–174 ms; the seeds, the 2024–25 trades and the one-season case as planned. Every screenshot of the walk-through matched its checklist, light and dark. Shots 06–07 showed a stale "97 · #2" from Compare: nothing in the DOM there, and gone after a forced repaint (a stale compositor tile under WSLg, not the page). In the app on the scored profile, three runs: Explore to Compare 143–157 ms, a position 158–165 ms, Teams 116–127 ms, a seeded Compare 91–104 ms, Trends from a stat line 237–242 ms, a team's Compare 139–171 ms.
+
+Fixes, each test-first in its own commit:
+
+- (Walk-through) `d36a4f1`: Compare's swap selects named the Rams "LA" ("Puka Nacua · LA", "LA · Los Angeles Rams") while the cards read LAR (N-001); they use `teamAbbr` now.
+- (Final review, Critical) `1439dde`: the try after a touchdown carries the drive's `fixed_drive` and is snapped from the 15 (or the 2), so every touchdown drive counted as a red-zone drive: 2025's red-zone TD rate read 61.1 % (1,324 of 1,329 touchdown drives) instead of 56.9 %. A drive reaches the red zone by a scrimmage snap inside the 20 (`counts AND is_snap`). The planning finding's 60.7 % (47.5–71.7 %) was the inflated figure; corrected, 2025 averages 57.2 % (43.5–68.3 %), so Task 5's "every team between 45 % and 75 %" no longer holds (the lowest is 43.5 %). Spec §22 E and the database reference are corrected. `DERIVED_VERSION` stays 3 (not shipped).
+
+Final review (fresh reviewer, Opus): 1 Critical (above), no Important, 6 Minor, left as they are at the user's choice: an unqualified slot can lead a row; a team's counts in Trends default to per game; the team dashboard's Compare resets Compare's player position to WR; a seeded player with no row in scope shows his id; the remove × shows with two slots filled (the handoff: three); Explore's tabs have no `tabpanel` linkage (as the dashboards). The review also noted no run test covers a by-season query at the play grain.
+
+Windows Package check green after the fixes (1,144 tests; `"query":true`). The tests: 1,147 passed, 5 skipped (1,144 in a clean checkout).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
