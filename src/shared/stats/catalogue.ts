@@ -2159,9 +2159,13 @@ function teamPair(
   label: string,
   short: string,
   description: string,
-  o: Opts & { defense?: MetricDef['direction'] }
+  o: Opts & {
+    defense?: MetricDef['direction']
+    /** The defense's own label, short label and description, when "allowed" would misread it. */
+    defenseText?: [string, string, string]
+  }
 ): MetricDef[] {
-  const { defense, ...rest } = o
+  const { defense, defenseText, ...rest } = o
   const side = (prefix: 'off' | 'def'): Opts => ({
     ...rest,
     value: rest.value.replaceAll('{x_', `{${prefix}_`),
@@ -2169,24 +2173,23 @@ function teamPair(
   })
   const flip = (d: MetricDef['direction']): MetricDef['direction'] =>
     d === 'higher' ? 'lower' : d === 'lower' ? 'higher' : 'neutral'
+  const [defLabel, defShort, defDescription] = defenseText ?? [
+    `${label} allowed`,
+    `${short} All`,
+    `Allowed by the defense: ${description.charAt(0).toLowerCase()}${description.slice(1)}`
+  ]
   return [
     metric(`off_${id}`, label, short, description, {
       ...side('off'),
       entity: 'team',
       side: 'offense'
     }),
-    metric(
-      `def_${id}`,
-      `${label} allowed`,
-      `${short} All`,
-      `Allowed by the defense: ${description.charAt(0).toLowerCase()}${description.slice(1)}`,
-      {
-        ...side('def'),
-        entity: 'team',
-        side: 'defense',
-        direction: defense ?? flip(rest.direction ?? 'higher')
-      }
-    )
+    metric(`def_${id}`, defLabel, defShort, defDescription, {
+      ...side('def'),
+      entity: 'team',
+      side: 'defense',
+      direction: defense ?? flip(rest.direction ?? 'higher')
+    })
   ]
 }
 
@@ -2371,7 +2374,8 @@ const TEAM: MetricDef[] = [
     sample: 'x_dropbacks',
     unit: 'pct',
     direction: 'lower',
-    defense: 'higher'
+    defense: 'higher',
+    defenseText: ['Sack rate (defense)', 'Sk% Def', 'The defense’s sacks per dropback faced.']
   }),
   ...teamPair(
     'pressure_rate',
@@ -2385,6 +2389,11 @@ const TEAM: MetricDef[] = [
       family: 'advanced',
       direction: 'lower',
       defense: 'higher',
+      defenseText: [
+        'Pressure rate (defense)',
+        'Prss% Def',
+        'Share of dropbacks faced the defense pressured (participation, through the prior season).'
+      ],
       sources: PART,
       lastSeason: 'prior'
     }
@@ -2440,6 +2449,26 @@ const TEAM: MetricDef[] = [
     'TD Dr%',
     'Share of drives ending in a touchdown.',
     { value: ratio('td_drives', 'drives'), sample: 'drives', unit: 'pct', family: 'advanced' }
+  ),
+  team(
+    'off_rz_td_pct',
+    'Red-zone TD rate',
+    'RZ TD%',
+    'Share of drives reaching the opponent’s 20 that end in a touchdown.',
+    { value: ratio('rz_td_drives', 'rz_drives'), sample: 'rz_drives', unit: 'pct' }
+  ),
+  team(
+    'def_rz_td_pct',
+    'Red-zone TD rate allowed',
+    'RZ TD% All',
+    'Share of the opponents’ drives reaching the defense’s 20 that end in a touchdown.',
+    {
+      value: ratio('def_rz_td_drives', 'def_rz_drives'),
+      sample: 'def_rz_drives',
+      unit: 'pct',
+      side: 'defense',
+      direction: 'lower'
+    }
   ),
   team(
     'three_and_out_rate',

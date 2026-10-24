@@ -61,6 +61,27 @@ describe('runQuery (stats-analysis spec §7)', () => {
     expect(r.columns[1]).toMatchObject({ id: 'catch_rate', unit: 'pct', seasons: [2025] })
   })
 
+  it('qualifies each season of a by-season query against that season’s weeks', async () => {
+    const db = await seeded()
+    // A full 2024 before 2025's one week: the average (9 weeks) would hold 2025 to half a season.
+    await db.exec(`INSERT INTO team_week (team, season, season_type, week, games)
+                   SELECT 'BUF', 2024, 'REG', w, 1 FROM range(1, 18) t(w)`)
+    const r = await runQuery(
+      db,
+      {
+        entity: 'player',
+        metrics: ['target_share'],
+        scope: { seasons: [2024, 2025], positions: ['WR'] },
+        groupBy: ['season']
+      },
+      CTX
+    )
+    // 30 targets per 17 games: one week needs 1.8; his 2 qualify.
+    expect(r.rows.map((x) => [x.id, x.group.season, x.values.target_share.qualified])).toEqual([
+      [WR, 2025, true]
+    ])
+  })
+
   it('splits by situation from the plays', async () => {
     const db = await seeded()
     const r = await runQuery(

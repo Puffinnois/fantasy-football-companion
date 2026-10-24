@@ -97,6 +97,12 @@ export interface Compiled {
   transform: Transform
   weeksSql: string
   weeksParams: Value[]
+  /**
+   * A row per season (no finer week grain): each season qualifies against its own weeks, so a
+   * season in progress is not held to the average of the seasons in scope. `weeksSql` then
+   * answers one row per season and `$factor` reads the row's season.
+   */
+  bySeason: boolean
   /** `$factor` is replaced by the qualification factor before it runs. */
   sql: string
   params: Value[]
@@ -902,6 +908,8 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
 
   // Qualification scales `minSample` to the weeks a row covers (and, at the play grain, to the
   // share of plays it keeps: 150 routes over a season is about 45 when pressured).
+  const bySeason =
+    c.groupBy.includes('season') && !c.groupBy.includes('week') && q.scope.lastNGames === undefined
   const wp = new Params()
   const weeksWhere = [
     `season IN ${wp.list(q.scope.seasons)}`,
@@ -933,9 +941,10 @@ export function compileQuery(q: StatsQuery, ctx: CompileContext): Compiled {
     grain: c.grain,
     metrics: c.metrics,
     transform: c.transform,
-    weeksSql: `SELECT count(DISTINCT (season, season_type, week))::INTEGER AS weeks FROM team_week
-               WHERE ${weeksWhere.join(' AND ')}`,
+    weeksSql: `SELECT ${bySeason ? 'season, ' : ''}count(DISTINCT (season, season_type, week))::INTEGER AS weeks
+               FROM team_week WHERE ${weeksWhere.join(' AND ')}${bySeason ? ' GROUP BY season' : ''}`,
     weeksParams: wp.values,
+    bySeason,
     sql,
     params: params.values,
     rowWeeks: (weeks, seasons) => {

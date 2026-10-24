@@ -179,6 +179,11 @@ describe('the derived tables (stats-analysis spec §5)', () => {
       td_drives: 1,
       drive_points: 7,
       def_drives: 1,
+      // The touchdown drive reached the 8; KC's one drive never got inside the 20.
+      rz_drives: 1,
+      rz_td_drives: 1,
+      def_rz_drives: 0,
+      def_rz_td_drives: 0,
       line_margin: 2.5,
       total_line: 48.5,
       implied_points: 25.5
