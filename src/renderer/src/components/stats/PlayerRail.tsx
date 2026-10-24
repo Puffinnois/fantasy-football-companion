@@ -5,10 +5,19 @@ import type { Heat } from '@/lib/stats/format'
 import { RAIL_POSITIONS, railMetrics, type RailRow } from '@/lib/stats/player'
 import { cn } from '@/lib/utils'
 import { teamAbbr } from '@shared/stats/nflTeams'
+import { NFL_TEAMS, toNflverseTeam } from '@shared/teams'
 import type { MetricInfo, PositionGroup } from '@shared/stats/types'
 
 /** Rows the rail shows at first, and each "Show more" adds. */
 const PAGE = 25
+
+const TEAMS = [...NFL_TEAMS]
+  .map(toNflverseTeam)
+  .sort((a, b) => teamAbbr(a).localeCompare(teamAbbr(b)))
+const TEAM_OPTIONS = [
+  { value: '', label: 'All teams' },
+  ...TEAMS.map((t) => ({ value: t, label: teamAbbr(t) }))
+]
 
 const CHIP: Record<Heat, string> = {
   h3: 'bg-good-s text-good font-semibold',
@@ -21,7 +30,7 @@ const CHIP: Record<Heat, string> = {
 }
 
 /**
- * The handoff's profile list (332px rail): a position, a search, a rank-by metric, the qualified
+ * The handoff's profile list (332px rail): a position, a search, a team, a rank-by metric, the qualified
  * players best first with the value in a shaded chip. ↑ / ↓ (or J / K) move the selection.
  */
 export function PlayerRail({
@@ -30,6 +39,8 @@ export function PlayerRail({
   metric,
   onMetric,
   rows,
+  team,
+  onTeam,
   loading,
   error,
   range,
@@ -43,6 +54,9 @@ export function PlayerRail({
   onMetric: (metric: string) => void
   /** Before the search: the rail filters them itself. */
   rows: (search: string) => RailRow[]
+  /** Only this team's players (nflverse abbreviation), or every team. */
+  team: string | null
+  onTeam: (team: string | null) => void
   loading: boolean
   error: string | null
   range: string
@@ -115,17 +129,27 @@ export function PlayerRail({
             </button>
           ))}
         </div>
+        <label className="flex h-7 min-w-0 items-center gap-1.5 rounded-[6px] border border-line bg-panel px-2 text-fg-3">
+          <Search className="size-[13px] shrink-0" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Player"
+            aria-label="Search players"
+            className="min-w-0 flex-1 bg-transparent text-[12.5px] text-fg outline-none"
+          />
+        </label>
         <div className="flex gap-1.5">
-          <label className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-[6px] border border-line bg-panel px-2 text-fg-3">
-            <Search className="size-[13px] shrink-0" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Player"
-              aria-label="Search players"
-              className="min-w-0 flex-1 bg-transparent text-[12.5px] text-fg outline-none"
-            />
-          </label>
+          <StatsSelect
+            title="Team"
+            value={team ?? ''}
+            options={TEAM_OPTIONS}
+            onChange={(t) => {
+              setLimit(PAGE)
+              onTeam(t || null)
+            }}
+            className="min-w-0 flex-1"
+          />
           <StatsSelect
             title="Rank by"
             value={metric}
@@ -137,7 +161,8 @@ export function PlayerRail({
       </div>
       <div className="flex shrink-0 justify-between border-b border-line-2 px-3.5 py-2 font-mono text-[11px] leading-none text-fg-3">
         <span>
-          {shownRows.length} PLAYERS · {range.toUpperCase()}
+          {shownRows.length} PLAYERS · {team ? `${teamAbbr(team)} · ` : ''}
+          {range.toUpperCase()}
         </span>
         <span>{info?.short ?? ''}</span>
       </div>
@@ -194,7 +219,11 @@ export function PlayerRail({
         )}
         {!loading && !error && shownRows.length === 0 && (
           <div className="px-3.5 py-10 text-center text-[12.5px] text-fg-3">
-            {search ? 'No player by that name.' : 'No qualified player in this range.'}
+            {search
+              ? 'No player by that name.'
+              : team
+                ? `No qualified ${teamAbbr(team)} player in this range.`
+                : 'No qualified player in this range.'}
           </div>
         )}
       </div>

@@ -158,9 +158,20 @@ export function StatsPlayer({
     [railPosition, metric, scope, data.status, data.byId]
   )
   const rail = useStatsQuery(rq, data.version)
+  // A team picked in the rail stays across positions (dev note N-004).
+  const [railTeam, setRailTeam] = useState<string | null>(null)
   const railFor = (search: string): ReturnType<typeof railRows> =>
     rail.result
-      ? railRows(rail.result, railPosition, metric, data.byId, data.ownership, search, player.id)
+      ? railRows(
+          rail.result,
+          railPosition,
+          metric,
+          data.byId,
+          data.ownership,
+          search,
+          railTeam,
+          player.id
+        )
       : []
   // A position picked in the rail opens its first player (the rail's own query, asked here). The
   // last pick wins, and a player chosen since cancels it.
@@ -176,10 +187,20 @@ export function StatsPlayer({
     void api.stats
       .query(railQuery(p, m, scope, data.status, data.byId))
       .then((r) => {
-        const top = railRows(r, p, m, data.byId, null, '', null)[0]
+        const top = railRows(r, p, m, data.byId, null, '', railTeam, null)[0]
         if (top && picks.current === n) onPlayer({ id: top.id, position: p })
       })
       .catch(() => {})
+  }
+  // A team picked opens its first player, unless the player shown is on it.
+  const pickTeam = (team: string | null): void => {
+    setRailTeam(team)
+    if (!team || !rail.result || railPosition !== position) return
+    const rows = railRows(rail.result, railPosition, metric, data.byId, null, '', team, null)
+    if (rows.length && !rows.some((r) => r.id === player.id)) {
+      picks.current++
+      onPlayer({ id: rows[0].id, position: railPosition })
+    }
   }
 
   // His row in scope (the rail's query): undefined until it is known.
@@ -202,6 +223,8 @@ export function StatsPlayer({
         metric={metric}
         onMetric={(m) => setRankBy((r) => ({ ...r, [railPosition]: m }))}
         rows={railFor}
+        team={railTeam}
+        onTeam={pickTeam}
         loading={rail.loading}
         error={rail.error}
         range={rangeLabel(scope, data.status)}

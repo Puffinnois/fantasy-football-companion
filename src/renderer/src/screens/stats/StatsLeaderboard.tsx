@@ -66,7 +66,9 @@ const QUALIFY: Record<string, string> = {
   def_snap_share: 'defensive snaps'
 }
 
-const TEAMS = [...NFL_TEAMS].map(toNflverseTeam).sort()
+const TEAMS = [...NFL_TEAMS]
+  .map(toNflverseTeam)
+  .sort((a, b) => teamAbbr(a).localeCompare(teamAbbr(b)))
 
 /** What opens a leaderboard: a board's "All →", a row, a saved view. The nonce re-applies it. */
 export interface LeaderboardOpen {

@@ -1007,7 +1007,8 @@ export interface RailRow {
 
 /**
  * The rail (handoff profile list): the qualified players, best first, with the value as a shaded
- * chip; the player shown stays listed even below the qualifier. A search narrows the list.
+ * chip; the player shown stays listed even below the qualifier. A search and a team (nflverse
+ * abbreviation) narrow the list; ranks stay league-wide.
  */
 export function railRows(
   result: StatsResult,
@@ -1016,6 +1017,7 @@ export function railRows(
   byId: ReadonlyMap<string, MetricInfo>,
   ownership: StatsOwnership | null,
   search: string,
+  team: string | null,
   keep: string | null
 ): RailRow[] {
   const tab = positionTab(position)
@@ -1045,7 +1047,10 @@ export function railRows(
       }
     })
     .filter(
-      (r) => (r.qualified || r.id === keep) && (!needle || searchKey(r.name).includes(needle))
+      (r) =>
+        (r.qualified || r.id === keep) &&
+        (!team || r.team === team) &&
+        (!needle || searchKey(r.name).includes(needle))
     )
 }
 

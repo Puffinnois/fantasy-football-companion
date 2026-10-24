@@ -333,7 +333,7 @@ describe('the player dashboard model (stats-analysis spec §9.4)', () => {
     expect(railQuery('QB', 'qb_epa_db', scope, STATUS, byId).metrics).toEqual(['qb_epa_db'])
     const r = receivers(['rec_yds', 'target_share'])
     const own = { players: { p2: { name: 'Me', mine: true } }, teams: {} }
-    const rows = railRows(r, 'WR', 'rec_yds', byId, own, '', null)
+    const rows = railRows(r, 'WR', 'rec_yds', byId, own, '', null, null)
     expect(rows.map((x) => [x.id, x.rank, x.value])).toEqual([
       ['p0', 1, '30'],
       ['p1', 2, '20'],
@@ -342,10 +342,34 @@ describe('the player dashboard model (stats-analysis spec §9.4)', () => {
     expect(rows[2].owner).toEqual({ name: 'Me', mine: true })
     expect(rows[0].heat).toBe('h3')
     // The shown player stays, unranked, below the qualifier; the search keeps true ranks.
-    expect(railRows(r, 'WR', 'rec_yds', byId, null, '', 'p3').map((x) => x.id)).toContain('p3')
+    expect(railRows(r, 'WR', 'rec_yds', byId, null, '', null, 'p3').map((x) => x.id)).toContain(
+      'p3'
+    )
     expect(
-      railRows(r, 'WR', 'rec_yds', byId, null, 'low', null).map((x) => [x.id, x.rank])
+      railRows(r, 'WR', 'rec_yds', byId, null, 'low', null, null).map((x) => [x.id, x.rank])
     ).toEqual([['p2', 3]])
+  })
+
+  it('narrows the rail to one team, keeping league ranks (dev note N-004)', () => {
+    const all = receivers(['rec_yds', 'target_share'])
+    const r = {
+      ...all,
+      rows: all.rows.map((x) => (x.id === 'p1' || x.id === 'p2' ? { ...x, team: 'LA' } : x))
+    }
+    expect(
+      railRows(r, 'WR', 'rec_yds', byId, null, '', 'LA', null).map((x) => [x.id, x.rank])
+    ).toEqual([
+      ['p1', 2],
+      ['p2', 3]
+    ])
+    // The shown player leaves the list when he is on another team; the search still narrows.
+    expect(railRows(r, 'WR', 'rec_yds', byId, null, '', 'LA', 'p0').map((x) => x.id)).toEqual([
+      'p1',
+      'p2'
+    ])
+    expect(railRows(r, 'WR', 'rec_yds', byId, null, 'low', 'LA', null).map((x) => x.id)).toEqual([
+      'p2'
+    ])
   })
 
   it('opens on my top scorer, else the first leader', () => {
