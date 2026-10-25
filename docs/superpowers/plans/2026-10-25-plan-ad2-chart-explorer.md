@@ -1,6 +1,14 @@
 # Plan AD2 — Stats analysis: the chart explorer
 
-**Status:** written 2026-10-25, not executed. Generated from the prototype's task commits (branch `proto/plan-ad2`), replayed on a clean copy of `main` with typecheck, lint and the full suite green after each task; the final tree is byte-identical to the prototype.
+**Status:** complete 2026-10-25. Merged to main as `13df7aa` and tagged `v0.35.0` on `57fe245` (not pushed yet). Tasks 0–3 were executed from this text: each task's tests were seen failing as the plan says, then passing, and every file and diff applied as written. Counts, with the 3 of the untracked `tests/shared/playerImage.test.ts`: 1,147 → 1,158 → 1,163, and 1,164 after the review fix.
+
+Task 4: `ALL GATES PASSED`, every number as in the Planning findings (WR volume against efficiency 95 dots, r +0.59, means 5.74 / 1.803; every preset 14–49 ms in the worker, size and colour 32 ms; the axes without 2026 data QB 5, RB 1, WR 5, TE 5, K 0, P 0, DL 2, LB 3, DB 2, teams 7; week 1 TE 44, K 16, QB 32; teams' pressure against sack rate missing for 2026, r 0.66 in 2025). Every screenshot of the walk-through matched its checklist, light and dark (19 and 20 are the same hover on Flowers: the mouse stayed there from 03 and the driver's `:last-of-type` then picks the hovered dot, painted last; a driver artefact). In the app, three runs on the walked profile: 31–120 ms for every timed step. Windows Package check green (`"query":true`).
+
+Fixes, test-first in their own commit:
+
+- (Final review, Important) `374cbb8`: a pick whose row left the chart (another season, Totals, Qualified only) still showed in the header as a raw id, shifted the slot colours, blocked new picks and reached Compare. `chartView` lists the picks still plotted with their names (`view.picks`); the header, the three-pick limit and Compare read those. The re-walk caught a first version that dropped a pick made between renders (two shift-clicks in one event loop turn); the test batches them now. The walk-through was run again after it: no timeout, the picks into Compare as shown.
+
+Final review (fresh reviewer, Opus): no Critical, 1 Important (above), Minor findings left open for the user: sorting by a size or colour column that is then set to None leaves the table unsorted; a team filter with no qualified player shows an empty plot with "n 0"; the dots are not keyboard-reachable (the table's buttons are); the hover card can run below the plot for a dot near the bottom; Compare is not given the chart's Totals / Per game; the "few" note counts the qualified with Qualified only off; the means' label says "qualified" when it falls back to every row; the postseason "few" state offers no widening action.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -112,7 +120,7 @@ These are the ways this plan is most likely to hurt a user that the spec's test 
 
 ### Task 0: Branch
 
-- [ ] **Step 1: Branch off main**
+- [x] **Step 1: Branch off main**
 
 ```bash
 git checkout main && git status --short && git checkout -b feat/chart-explorer-ad2
@@ -130,7 +138,7 @@ One pure module the screen reads: `ChartState` and its reset, the presets per po
 
 - Create: `src/renderer/src/lib/stats/chart.ts`, `tests/renderer/lib/statsChart.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/renderer/lib/statsChart.test.ts`:
 
@@ -434,7 +442,7 @@ describe('the chart explorer (stats-analysis spec §9.5)', () => {
 })
 ```
 
-- [ ] **Step 2: Run them and see them fail**
+- [x] **Step 2: Run them and see them fail**
 
 ```bash
 npx vitest run tests/renderer/lib/statsChart.test.ts
@@ -442,7 +450,7 @@ npx vitest run tests/renderer/lib/statsChart.test.ts
 
 Expected: the file fails to import `@/lib/stats/chart` (no tests run).
 
-- [ ] **Step 3: The model**
+- [x] **Step 3: The model**
 
 Create `src/renderer/src/lib/stats/chart.ts`:
 
@@ -1055,7 +1063,7 @@ export function compareFromPicks(
 }
 ```
 
-- [ ] **Step 4: Run them and see them pass**
+- [x] **Step 4: Run them and see them pass**
 
 ```bash
 npx vitest run tests/renderer/lib/statsChart.test.ts
@@ -1063,7 +1071,7 @@ npx vitest run tests/renderer/lib/statsChart.test.ts
 
 Expected: 1 passed: 11 passed.
 
-- [ ] **Step 5: Format, typecheck, lint, the whole suite**
+- [x] **Step 5: Format, typecheck, lint, the whole suite**
 
 ```bash
 npx prettier --check src/renderer/src/lib/stats/chart.ts tests/renderer/lib/statsChart.test.ts
@@ -1074,7 +1082,7 @@ npx vitest run
 
 Expected: prettier and typecheck clean, no lint problems, 1155 passed, 5 skipped.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/renderer/src/lib/stats/chart.ts tests/renderer/lib/statsChart.test.ts
@@ -1101,7 +1109,7 @@ Explore enables Chart and opens on it the first time. `StatsChart` has the bar, 
 - Create: `src/renderer/src/components/stats/Scatter.tsx`, `src/renderer/src/screens/stats/StatsChart.tsx`
 - Modify: `src/renderer/src/components/stats/StatLines.tsx`, `src/renderer/src/components/stats/parts.tsx`, `src/renderer/src/lib/stats/format.ts`, `src/renderer/src/screens/stats/StatsApp.tsx`, `src/renderer/src/screens/stats/StatsExplore.tsx`, `src/renderer/src/screens/stats/StatsTrends.tsx`, `tests/renderer/components/StatsExplore.test.tsx`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Modify `tests/renderer/components/StatsExplore.test.tsx`:
 
@@ -1297,7 +1305,7 @@ index ae2ec9f..234ced5 100644
 +})
 ```
 
-- [ ] **Step 2: Run them and see them fail**
+- [x] **Step 2: Run them and see them fail**
 
 ```bash
 npx vitest run tests/renderer/components/StatsExplore.test.tsx
@@ -1305,7 +1313,7 @@ npx vitest run tests/renderer/components/StatsExplore.test.tsx
 
 Expected: 1 test file fails: 6 failed | 7 passed. The Chart tab is disabled and Explore opens on Compare.
 
-- [ ] **Step 3: The scatter, the screen, the routes**
+- [x] **Step 3: The scatter, the screen, the routes**
 
 Create `src/renderer/src/components/stats/Scatter.tsx`:
 
@@ -2511,7 +2519,7 @@ index 47fad5f..f77320c 100644
    on,
 ```
 
-- [ ] **Step 4: Run them and see them pass**
+- [x] **Step 4: Run them and see them pass**
 
 ```bash
 npx vitest run tests/renderer/components/StatsExplore.test.tsx
@@ -2519,7 +2527,7 @@ npx vitest run tests/renderer/components/StatsExplore.test.tsx
 
 Expected: 1 passed: 13 passed.
 
-- [ ] **Step 5: Format, typecheck, lint, the whole suite**
+- [x] **Step 5: Format, typecheck, lint, the whole suite**
 
 ```bash
 npx prettier --check src/renderer/src/components/stats/Scatter.tsx src/renderer/src/components/stats/StatLines.tsx src/renderer/src/components/stats/parts.tsx src/renderer/src/lib/stats/format.ts src/renderer/src/screens/stats/StatsApp.tsx src/renderer/src/screens/stats/StatsChart.tsx src/renderer/src/screens/stats/StatsExplore.tsx src/renderer/src/screens/stats/StatsTrends.tsx tests/renderer/components/StatsExplore.test.tsx
@@ -2530,7 +2538,7 @@ npx vitest run
 
 Expected: prettier and typecheck clean, no lint problems, 1160 passed, 5 skipped.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/renderer/src/components/stats/Scatter.tsx src/renderer/src/components/stats/StatLines.tsx src/renderer/src/components/stats/parts.tsx src/renderer/src/lib/stats/format.ts src/renderer/src/screens/stats/StatsApp.tsx src/renderer/src/screens/stats/StatsChart.tsx src/renderer/src/screens/stats/StatsExplore.tsx src/renderer/src/screens/stats/StatsTrends.tsx tests/renderer/components/StatsExplore.test.tsx
@@ -2562,7 +2570,7 @@ The spec gets §23 (the amendments); the screens reference gets Explore › Char
 
 - Modify: `docs/reference/stats-screens.md`, `docs/superpowers/specs/2026-10-15-stats-analysis-design.md`
 
-- [ ] **Step 1: `docs/reference/stats-screens.md`**
+- [x] **Step 1: `docs/reference/stats-screens.md`**
 
 Modify `docs/reference/stats-screens.md`:
 
@@ -2599,7 +2607,7 @@ index ee23992..b557bb7 100644
 +Measured on the live database (2026 week 6): the home's eight boards on screen in about 90 ms, a leaderboard tab 100–210 ms from click to table, a sort 120 ms, a 40-column query 265 ms. The team dashboard: Teams 140 ms from click to the Overview, a tab 65–150 ms, Situational (eleven queries) 275 ms. The player dashboard: Players 230–290 ms from click to the Overview, a tab 70–135 ms, Splits 265–480 ms, a rail position 135–275 ms. Explore (2026 week 7): the chart on screen 60–106 ms from click, a position 41–105 ms, Teams 28–70 ms; Compare on screen 160–205 ms from click, a position or Players / Teams 135–185 ms; the Trends tab 245–255 ms, a new metric 220–290 ms.
 ```
 
-- [ ] **Step 2: `docs/superpowers/specs/2026-10-15-stats-analysis-design.md`**
+- [x] **Step 2: `docs/superpowers/specs/2026-10-15-stats-analysis-design.md`**
 
 Modify `docs/superpowers/specs/2026-10-15-stats-analysis-design.md`:
 
@@ -2627,7 +2635,7 @@ index 96ef252..17fc442 100644
 +- **H. Measured** (2026 week 7): every preset's query 15–47 ms in the worker (with size and colour 32 ms), 30–167 qualified dots; in the app (three runs), Explore to the chart on screen 60–106 ms, a position 41–105 ms, Teams 28–70 ms, Compare from the picks 85–92 ms (budget 300 ms, §11).
 ```
 
-- [ ] **Step 3: Format and commit**
+- [x] **Step 3: Format and commit**
 
 ```bash
 npx prettier --check docs/reference/stats-screens.md docs/superpowers/specs/2026-10-15-stats-analysis-design.md
@@ -2654,7 +2662,7 @@ Only `stats:participation:2026 skipped` is expected. A failed step (`stats:pbp:2
 
 The walk-through also copies the dev profile's `companion.db` (`~/.config/FantasyCompanion/companion.db`), so the scratch app has the dev league. The dev profile itself is only read.
 
-- [ ] **Step 1: The chart's queries on live data**
+- [x] **Step 1: The chart's queries on live data**
 
 Create `tests/zz-ad2-live.test.ts` (it copies `base.duckdb` to `work.duckdb` itself):
 
@@ -2835,7 +2843,7 @@ Expected: 1 passed, and `findings.txt` ends with `ALL GATES PASSED`. Check it ag
 - week 1 alone still charts (TE 44, K 16, QB 32 dots);
 - the teams' pressure against sack rate: 2026 `missing` ("Pressure rate is not published for 2026 yet."), 2025 ready (r 0.66).
 
-- [ ] **Step 2: The app, walked through**
+- [x] **Step 2: The app, walked through**
 
 The driver is Plan AA's: copy `drive.mjs` from Plan AC's Task 7 Step 3 into `~/project/ffc-proto-ad2-live/` (Plan AD1's folder has it too). Build the app, make the scratch profile, and save these steps as `~/project/ffc-proto-ad2-live/steps-ad2.json` (a tab, a radio and a nav button are clicked by their text through `eval`, since the nav has a Teams button and Explore a Teams radio; a dot is shift-clicked from the table's rows):
 
@@ -3148,11 +3156,11 @@ Expected: no `NOT FOUND`, `NO OPTION` or `timeout` in the output; the timed step
 | 18    | 2025 postseason TE: "Too few qualifiers to chart", "6 TEs qualify on both axes in the postseason.", "Show all 31 TEs"                                                                                                                                                                                                                                                                           |
 | 19–21 | Dark: WR chart, hover card, teams                                                                                                                                                                                                                                                                                                                                                               |
 
-- [ ] **Step 3: Speed in the app**
+- [x] **Step 3: Speed in the app**
 
 Time Explore on the walk-through's profile after its run (the league is scored then): run the timed `eval` steps of Step 2 again, three times (Explore to the chart, RB, QB, DL, Teams, Players, WR). Expected: under 300 ms each (measured: 28–126 ms).
 
-- [ ] **Step 4: Clean up**
+- [x] **Step 4: Clean up**
 
 ```bash
 rm tests/zz-ad2-live.test.ts
@@ -3165,7 +3173,7 @@ Expected: only the unrelated changes of Global Constraints. Keep `~/project/ffc-
 
 ### Task 5: Verify, merge, release
 
-- [ ] **Step 1: Final verification**
+- [x] **Step 1: Final verification**
 
 ```bash
 npm run typecheck && npx eslint src tests electron.vite.config.ts && npx vitest run && npx electron-vite build
@@ -3173,7 +3181,7 @@ npm run typecheck && npx eslint src tests electron.vite.config.ts && npx vitest 
 
 Expected: clean; 1160 passed | 5 skipped (1163 with the untracked `playerImage` tests); the build succeeds.
 
-- [ ] **Step 2: The Windows suite and self-test**
+- [x] **Step 2: The Windows suite and self-test**
 
 **Ask the user before pushing.** Then:
 
@@ -3185,11 +3193,11 @@ git push origin --delete check/plan-ad2
 
 Expected: green. The log shows `"query":true`.
 
-- [ ] **Step 3: Final review**
+- [x] **Step 3: Final review**
 
 Ask a fresh reviewer (Opus) to review `git diff main...feat/chart-explorer-ad2`. It reviews against spec §9.5 and §11, the amendments, the handoff and the Review Focus list. Fix Critical and Important findings, each in its own commit, test first. Re-run Step 1 after them, and the Task 4 walk-through after a screen change.
 
-- [ ] **Step 4: Merge and bump**
+- [x] **Step 4: Merge and bump**
 
 ```bash
 git checkout main && git merge --no-ff feat/chart-explorer-ad2 -m "merge: feat/chart-explorer-ad2 (plan AD2)"
@@ -3198,7 +3206,7 @@ git add package.json package-lock.json && git commit -m "build: bump version to 
 git branch -d feat/chart-explorer-ad2
 ```
 
-- [ ] **Step 5: Status block**
+- [x] **Step 5: Status block**
 
 Replace this plan's Status line with the outcome:
 
