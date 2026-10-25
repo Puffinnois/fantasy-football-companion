@@ -5,6 +5,7 @@ import { useNoteContext, useNoteScreen } from '@/lib/dev/noteContext'
 import { errorMessage } from '@/lib/format'
 import type { NavLocation } from '@/lib/navHistory'
 import type { BoardDef } from '@/lib/stats/boards'
+import { compareFromPicks, DEFAULT_CHART, type ChartState } from '@/lib/stats/chart'
 import { DEFAULT_COMPARE, type CompareState } from '@/lib/stats/compare'
 import { bestFirst, defaultBoard, normalizeBoard } from '@/lib/stats/leaderboard'
 import { defaultPlayer, positionTab, railQuery, type PlayerTab } from '@/lib/stats/player'
@@ -85,7 +86,8 @@ export function StatsApp({
   const [player, setPlayer] = useState<PlayerRef | null>(null)
   const [playerTab, setPlayerTab] = useState<PlayerTab>('overview')
   // Explore (spec §9.5): its tab and each tab's state, kept for the session.
-  const [exploreTab, setExploreTab] = useState<ExploreTab>('compare')
+  const [exploreTab, setExploreTab] = useState<ExploreTab>('chart')
+  const [chart, setChart] = useState<ChartState>(DEFAULT_CHART)
   const [compare, setCompare] = useState<CompareState>(DEFAULT_COMPARE)
   const [trends, setTrends] = useState<TrendsState>(DEFAULT_TRENDS)
   // A focus from Fantasy opens its dashboard once.
@@ -163,6 +165,11 @@ export function StatsApp({
     setCompare((c) => ({ ...c, entity, position, slots: null, seed: id }))
     setExploreTab('compare')
     setScreen('explore')
+  }
+  // The chart's picks: Compare with them in its slots.
+  const compareChart = (c: ChartState): void => {
+    setCompare((s) => ({ ...s, ...compareFromPicks(c.entity, c.position, c.picks) }))
+    setExploreTab('compare')
   }
   // A stat line's trend icon: that metric over his (its) seasons.
   const openTrends = (
@@ -355,6 +362,9 @@ export function StatsApp({
                 hasLeague={hasLeague}
                 tab={exploreTab}
                 onTab={setExploreTab}
+                chart={chart}
+                onChart={setChart}
+                onCompareChart={compareChart}
                 compare={compare}
                 onCompare={setCompare}
                 trends={trends}
