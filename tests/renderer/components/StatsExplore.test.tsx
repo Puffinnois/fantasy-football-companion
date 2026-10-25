@@ -154,8 +154,14 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
+/** Explore › Compare. */
+async function openCompare(): Promise<void> {
+  await open('Explore')
+  fireEvent.click(await screen.findByRole('tab', { name: 'Compare' }))
+}
+
 describe('Explore: Compare and Trends (stats-analysis spec §9.5)', () => {
-  it('sits between Teams and Games: Compare first, the chart explorer later', async () => {
+  it('sits between Teams and Games: Chart first, then Compare and Trends', async () => {
     await open('Explore')
     const nav = screen.getByRole('navigation')
     expect(
@@ -165,16 +171,17 @@ describe('Explore: Compare and Trends (stats-analysis spec §9.5)', () => {
     ).toEqual(expect.arrayContaining(['Teams', 'Explore', 'Games']))
     const tabs = within(screen.getByRole('tablist', { name: 'Explore' })).getAllByRole('tab')
     expect(tabs.map((t) => [t.textContent, (t as HTMLButtonElement).disabled])).toEqual([
-      ['Chart', true],
+      ['Chart', false],
       ['Compare', false],
       ['Trends', false]
     ])
-    expect(screen.getByRole('tab', { name: 'Compare', selected: true })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Chart', selected: true })).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Compare' }))
     expect(await screen.findByRole('heading', { name: 'Head to head' })).toBeTruthy()
   })
 
   it('compares the position’s top three, leads rows, removes and adds a player', async () => {
-    await open('Explore')
+    await openCompare()
     fireEvent.click(await screen.findByRole('radio', { name: 'WR' }))
     expect(await swaps()).toEqual(['p0', 'p1', 'p2'])
     // p0 has the best value in every row with a better side.
@@ -198,7 +205,7 @@ describe('Explore: Compare and Trends (stats-analysis spec §9.5)', () => {
   })
 
   it('compares teams: the top three by Elo, their record, division place and Elo', async () => {
-    await open('Explore')
+    await openCompare()
     fireEvent.click(await screen.findByRole('radio', { name: 'Teams' }))
     expect(await swaps('team')).toEqual(['KC', 'BUF', 'MIA'])
     expect(screen.getByText('1,650')).toBeTruthy()
@@ -273,5 +280,140 @@ describe('Explore: Compare and Trends (stats-analysis spec §9.5)', () => {
     // Another position leaves him: a search picks the next one.
     fireEvent.click(screen.getByRole('radio', { name: 'WR' }))
     expect(await screen.findByText('Find a WR to see his seasons.')).toBeTruthy()
+  })
+})
+
+/** A WR chart query (the whole position), or the 32 teams'; no grouping. Other TEs: `answer`. */
+const isChart = (q: StatsQuery): boolean =>
+  !q.groupBy &&
+  ((q.entity === 'player' && q.limit === 5000 && q.scope.positions?.[0] === 'WR') ||
+    (q.entity === 'team' && q.limit === 40))
+
+/** Twelve WRs (w0 … w11), targets and YPRR rising together; p1 is mine. Twelve teams. */
+function chartAnswer(q: StatsQuery): ReturnType<typeof result> {
+  if (q.entity === 'team') {
+    const teams = [
+      'ARI',
+      'ATL',
+      'BAL',
+      'BUF',
+      'CAR',
+      'CHI',
+      'CIN',
+      'CLE',
+      'DAL',
+      'DEN',
+      'DET',
+      'GB'
+    ]
+    return result(
+      q.metrics,
+      teams.map((t, i) =>
+        row(t, t, Object.fromEntries(q.metrics.map((m) => [m, value(i / 100)])), {
+          team: t,
+          position: null
+        })
+      )
+    )
+  }
+  const ids = ['p1', ...Array.from({ length: 11 }, (_, i) => `w${i}`)]
+  return result(
+    q.metrics,
+    ids.map((id, i) =>
+      row(
+        id,
+        id === 'p1' ? 'Player One' : `Receiver ${String.fromCharCode(65 + i)}`,
+        Object.fromEntries(q.metrics.map((m) => [m, value(i + 1, { sample: 50 })])),
+        { position: 'WR', team: 'BUF' }
+      )
+    )
+  )
+}
+
+describe('Explore: the chart explorer (stats-analysis spec §9.5)', () => {
+  beforeEach(() => {
+    stats.query.mockImplementation(async (q) => (isChart(q) ? chartAnswer(q) : answer(q)))
+  })
+
+  it('opens on a WR’s volume against his efficiency, my player ringed and labelled', async () => {
+    await open('Explore')
+    expect(
+      await screen.findByRole('heading', { name: 'Yards per route run vs targets' })
+    ).toBeTruthy()
+    await waitFor(() => expect(document.querySelectorAll('[data-dot]')).toHaveLength(12))
+    const query = stats.query.mock.calls.map((c) => c[0]).find(isChart)!
+    expect(query).toMatchObject({ transform: 'perGame', scope: { positions: ['WR'] } })
+    expect(screen.getByRole('button', { name: 'Volume vs efficiency', pressed: true })).toBeTruthy()
+    // Mine paints last, its label among the first.
+    expect(document.querySelectorAll('[data-dot]')[11].getAttribute('data-dot')).toBe('p1')
+    expect(screen.getByText('P. One', { selector: 'text' })).toBeTruthy()
+    expect(screen.getByText('+1.00')).toBeTruthy()
+    // An axis by hand leaves the preset.
+    fireEvent.change(screen.getByRole('combobox', { name: 'Y axis' }), {
+      target: { value: 'air_yards_share' }
+    })
+    expect(await screen.findByRole('heading', { name: 'Air-yards share vs targets' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Targets vs air yards', pressed: true })).toBeTruthy()
+  })
+
+  it('opens a dot’s dashboard; shift-clicks two and compares them', async () => {
+    await open('Explore')
+    await waitFor(() => expect(document.querySelectorAll('[data-dot]')).toHaveLength(12))
+    const dot = (id: string): Element => document.querySelector(`[data-dot="${id}"]`)!
+    fireEvent.click(dot('w4'), { shiftKey: true })
+    fireEvent.click(dot('w2'), { shiftKey: true })
+    fireEvent.click(await screen.findByRole('button', { name: 'Compare these →' }))
+    expect(await screen.findByRole('tab', { name: 'Compare', selected: true })).toBeTruthy()
+    expect(await swaps()).toEqual(['w4', 'w2'])
+    expect(screen.getByText('Add a third player…')).toBeTruthy()
+    // Back on Chart, the picks are kept; a plain click opens the dashboard.
+    fireEvent.click(screen.getByRole('tab', { name: 'Chart' }))
+    await waitFor(() => expect(document.querySelectorAll('[data-dot]')).toHaveLength(12))
+    fireEvent.click(dot('w4'))
+    expect(await screen.findByRole('tablist', { name: 'Player dashboard' })).toBeTruthy()
+  })
+
+  it('charts the teams, every one labelled', async () => {
+    await open('Explore')
+    fireEvent.click(await screen.findByRole('radio', { name: 'Teams' }))
+    expect(
+      await screen.findByRole('heading', { name: 'EPA per play allowed vs EPA per play' })
+    ).toBeTruthy()
+    await waitFor(() => expect(document.querySelectorAll('[data-dot]')).toHaveLength(12))
+    expect(screen.getByText('Good offense, good defense')).toBeTruthy()
+    expect(screen.queryByRole('radio', { name: 'Per game' })).toBeNull()
+  })
+
+  it('says when too few qualify, and offers everyone', async () => {
+    await open('Explore')
+    fireEvent.click(await screen.findByRole('radio', { name: 'TE' }))
+    // A TE's chart query reaches the fixture's four players, three of them qualified.
+    expect(await screen.findByText('Too few qualifiers to chart')).toBeTruthy()
+    expect(screen.getByText(/^3 TEs qualify on both axes/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Show all 4 TEs' }))
+    expect(await screen.findByText('Too few qualifiers to chart')).toBeTruthy()
+  })
+
+  it('says when an axis is not published for the season, and offers the one before', async () => {
+    stats.query.mockImplementation(async (q) => {
+      const r = isChart(q) ? chartAnswer(q) : answer(q)
+      return {
+        ...r,
+        columns: r.columns.map((c) => (c.id === 'off_pressure_rate' ? { ...c, seasons: [] } : c))
+      }
+    })
+    await open('Explore')
+    fireEvent.click(await screen.findByRole('radio', { name: 'Teams' }))
+    await screen.findByRole('heading', { name: 'EPA per play allowed vs EPA per play' })
+    fireEvent.change(screen.getByRole('combobox', { name: 'X axis' }), {
+      target: { value: 'off_pressure_rate' }
+    })
+    expect(await screen.findByText('Pressure rate is not published for 2026 yet.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Use 2025' }))
+    await waitFor(() =>
+      expect(
+        stats.query.mock.calls.some((c) => isChart(c[0]) && c[0].scope.seasons[0] === 2025)
+      ).toBe(true)
+    )
   })
 })

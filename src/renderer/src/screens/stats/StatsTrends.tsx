@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { Segmented } from '@/components/stats/controls'
-import { Loading } from '@/components/stats/parts'
+import { Loading, PctChip } from '@/components/stats/parts'
 import { SeasonChart, type SeasonSeries } from '@/components/stats/SeasonChart'
 import { Swatch } from '@/components/stats/WeekChart'
 import { familyLabel, fmtStat, ordinal } from '@/lib/stats/format'
@@ -516,33 +516,6 @@ function SeasonTable({
 }
 
 /** The handoff's soft percentile chip: ≥75 good, ≤25 bad; "NQ" outlined below the qualifier. */
-function PctChip({
-  percentile,
-  qualified
-}: {
-  percentile: number | null
-  qualified: boolean
-}): React.JSX.Element {
-  if (percentile === null) {
-    return (
-      <span className="flex h-[18px] min-w-[30px] items-center justify-center rounded-[4px] px-1 font-mono text-[10.5px] font-semibold text-fg-3 shadow-[inset_0_0_0_1px_var(--line)]">
-        {qualified ? '—' : 'NQ'}
-      </span>
-    )
-  }
-  const n = Math.round(percentile)
-  return (
-    <span
-      className={cn(
-        'flex h-[18px] min-w-[30px] items-center justify-center rounded-[4px] px-1 font-mono text-[10.5px] font-semibold',
-        n >= 75 ? 'bg-good-s text-good' : n <= 25 ? 'bg-bad-s text-bad' : 'text-fg-3'
-      )}
-    >
-      {n}
-    </span>
-  )
-}
-
 function GlanceCard({
   view,
   on,

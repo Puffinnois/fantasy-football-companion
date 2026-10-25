@@ -42,6 +42,18 @@ export function heatOf(percentile: number | null, direction: MetricInfo['directi
   return 'n'
 }
 
+/**
+ * The handoff's heat scale (Stats Profile): green above the median, red below, stronger toward the
+ * ends; a metric with no better side stays grey.
+ */
+export function heatColor(p: number, neutral: boolean): string {
+  if (neutral) return 'var(--fg-3)'
+  const t = Math.min(1, Math.abs(p - 0.5) / 0.5)
+  return p >= 0.5
+    ? `oklch(${(0.66 - 0.06 * t).toFixed(3)} ${(0.02 + 0.13 * t).toFixed(3)} 150)`
+    : `oklch(${(0.66 - 0.04 * t).toFixed(3)} ${(0.02 + 0.17 * t).toFixed(3)} 25)`
+}
+
 /** "1st", "22nd", "73rd", "11th". */
 export function ordinal(n: number): string {
   const r = Math.round(n)

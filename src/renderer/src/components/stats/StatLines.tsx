@@ -1,19 +1,8 @@
 import { TrendingUp } from 'lucide-react'
 import { MetricHover, ReliabilityMarker } from '@/components/stats/MetricCard'
+import { heatColor } from '@/lib/stats/format'
 import type { SectionView, StatLine } from '@/lib/stats/team'
 import { cn } from '@/lib/utils'
-
-/**
- * The handoff's heat scale (Stats Profile): green above the median, red below, stronger toward the
- * ends; a metric with no better side stays grey.
- */
-function heatColor(p: number, neutral: boolean): string {
-  if (neutral) return 'var(--fg-3)'
-  const t = Math.min(1, Math.abs(p - 0.5) / 0.5)
-  return p >= 0.5
-    ? `oklch(${(0.66 - 0.06 * t).toFixed(3)} ${(0.02 + 0.13 * t).toFixed(3)} 150)`
-    : `oklch(${(0.66 - 0.04 * t).toFixed(3)} ${(0.02 + 0.17 * t).toFixed(3)} 25)`
-}
 
 /** Handoff "Percentile rankings": a track, a fill to the percentile, the number in a pill. */
 export function PercentileBar({
