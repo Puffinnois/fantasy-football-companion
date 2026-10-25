@@ -84,7 +84,18 @@ Players in the nav opens it on the player viewed last; the first time, on my top
 
 ## Explore
 
-Explore in the nav opens the tab used last (Compare the first time). Its sub-tabs sit at the left of the bar, the scope bar at its right: Chart (the chart explorer, Plan AD2; disabled), Compare, Trends. Each tab keeps its players, teams and choices for the session; Back returns to the page before Explore.
+Explore in the nav opens the tab used last (Chart the first time). Its sub-tabs sit at the left of the bar, the scope bar at its right: Chart, Compare, Trends. Each tab keeps its players, teams and choices for the session; Back returns to the page before Explore.
+
+### Chart
+
+Any metric against any other (handoff "15. Chart explorer"): players at one position (the nine of the rail) or the 32 teams.
+
+- **Bar:** Players / Teams, the position, Totals / Per game (players).
+- **Controls (left column):** presets (a volume against an efficiency per position, WR "Volume vs efficiency" first; teams "Offense vs defense EPA" and "Pass vs rush EPA"); the Y and X axes, every metric with a season grain by family, "↓" on a lower-is-better one, and a button to swap them; size by and colour by a third metric's percentile (metrics with a better side), with the colour key; a team, qualified only, my players and a search; the qualifying rule and how many qualify on both axes.
+- **Scatter:** a dot per row (the qualified only, by default), up and right always better (a lower-is-better axis runs reversed), the qualified means dashed with the four corners in words. Rings: my players amber, a search's finds ink, the hovered cobalt, the picks in the series colours. Labels: the picks and finds, mine, then the six players farthest from the crowd, or every team; none overlaps. Hover: the name, team and position, each metric's value and percentile chip, games and the sample, "Click to open". A click opens the dashboard; shift-click picks up to three, and "Compare these" opens Compare with them.
+- **Under it:** r as plotted (positive is better on both), how many are shown, the means; a table (#, name, team, each metric with its percentile chip and "est.") sorted by a column's percentile, best first (again for worst first), or by name; the engine's notes.
+- **States:** "Too few qualifiers to chart" under 10 dots (the postseason at TE: 6), with "Use weeks 1–7" and "Show all 31 TEs" where they help; "Pressure rate is not published for 2026 yet." with "Use 2025".
+- Percentiles are among the position's qualified players who meet each metric's own sample (Compare's pool).
 
 ### Compare
 
@@ -117,4 +128,4 @@ Every core and extended metric, players or teams, by family or search, with the 
 
 ## Speed
 
-Measured on the live database (2026 week 6): the home's eight boards on screen in about 90 ms, a leaderboard tab 100–210 ms from click to table, a sort 120 ms, a 40-column query 265 ms. The team dashboard: Teams 140 ms from click to the Overview, a tab 65–150 ms, Situational (eleven queries) 275 ms. The player dashboard: Players 230–290 ms from click to the Overview, a tab 70–135 ms, Splits 265–480 ms, a rail position 135–275 ms. Explore (2026 week 7): Compare on screen 160–205 ms from click, a position or Players / Teams 135–185 ms; the Trends tab 245–255 ms, a new metric 220–290 ms.
+Measured on the live database (2026 week 6): the home's eight boards on screen in about 90 ms, a leaderboard tab 100–210 ms from click to table, a sort 120 ms, a 40-column query 265 ms. The team dashboard: Teams 140 ms from click to the Overview, a tab 65–150 ms, Situational (eleven queries) 275 ms. The player dashboard: Players 230–290 ms from click to the Overview, a tab 70–135 ms, Splits 265–480 ms, a rail position 135–275 ms. Explore (2026 week 7): the chart on screen 60–106 ms from click, a position 41–105 ms, Teams 28–70 ms; Compare on screen 160–205 ms from click, a position or Players / Teams 135–185 ms; the Trends tab 245–255 ms, a new metric 220–290 ms.
