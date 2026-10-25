@@ -186,6 +186,16 @@ describe('the chart explorer (stats-analysis spec §9.5)', () => {
     expect(v.dots.filter((d) => d.matched).map((d) => d.id)).toEqual(['w2'])
     expect(v.dots.find((d) => d.id === 'w5')!.pick).toBe(0)
     expect(v.dots.find((d) => d.id === 'w1')!.pick).toBe(1)
+    // A pick that left the chart is dropped; the header and Compare read these.
+    expect(v.picks).toEqual([
+      { id: 'w5', name: 'Receiver F' },
+      { id: 'w1', name: 'Receiver B' }
+    ])
+    // A team filter hides a pick's dot, not the pick or its name.
+    const buf = ready(
+      chartView(receivers(), state({ team: 'BUF', picks: ['w5'] }), byId, null, 2026)
+    )
+    expect(buf.picks).toEqual([{ id: 'w5', name: 'Receiver F' }])
     // One letter finds nothing.
     const one = ready(chartView(receivers(), state({ search: 'r' }), byId, null, 2026))
     expect(one.dots.some((d) => d.matched)).toBe(false)

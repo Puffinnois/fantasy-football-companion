@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { StatsApp } from '@/screens/stats/StatsApp'
 import type { StatsScope } from '@/lib/stats/scope'
@@ -360,8 +360,11 @@ describe('Explore: the chart explorer (stats-analysis spec §9.5)', () => {
     await open('Explore')
     await waitFor(() => expect(document.querySelectorAll('[data-dot]')).toHaveLength(12))
     const dot = (id: string): Element => document.querySelector(`[data-dot="${id}"]`)!
-    fireEvent.click(dot('w4'), { shiftKey: true })
-    fireEvent.click(dot('w2'), { shiftKey: true })
+    // Two shift-clicks before a render (as fast as a driver clicks) both count.
+    act(() => {
+      fireEvent.click(dot('w4'), { shiftKey: true })
+      fireEvent.click(dot('w2'), { shiftKey: true })
+    })
     fireEvent.click(await screen.findByRole('button', { name: 'Compare these →' }))
     expect(await screen.findByRole('tab', { name: 'Compare', selected: true })).toBeTruthy()
     expect(await swaps()).toEqual(['w4', 'w2'])
@@ -371,6 +374,30 @@ describe('Explore: the chart explorer (stats-analysis spec §9.5)', () => {
     await waitFor(() => expect(document.querySelectorAll('[data-dot]')).toHaveLength(12))
     fireEvent.click(dot('w4'))
     expect(await screen.findByRole('tablist', { name: 'Player dashboard' })).toBeTruthy()
+  })
+
+  it('drops a pick that left the chart from the header and Compare', async () => {
+    await open('Explore')
+    await waitFor(() => expect(document.querySelectorAll('[data-dot]')).toHaveLength(12))
+    const dot = (id: string): Element => document.querySelector(`[data-dot="${id}"]`)!
+    fireEvent.click(dot('w4'), { shiftKey: true })
+    fireEvent.click(dot('w2'), { shiftKey: true })
+    // The header names them (spans; the scatter's labels are SVG text).
+    expect(await screen.findByText('R. F', { selector: 'span' })).toBeTruthy()
+    // Totals: w4 has no row any more.
+    stats.query.mockImplementation(async (q) => {
+      if (!isChart(q)) return answer(q)
+      const r = chartAnswer(q)
+      return { ...r, rows: r.rows.filter((row) => row.id !== 'w4') }
+    })
+    fireEvent.click(screen.getByRole('radio', { name: 'Totals' }))
+    await waitFor(() => expect(document.querySelectorAll('[data-dot]')).toHaveLength(11))
+    expect(screen.queryByText('w4', { selector: 'span' })).toBeNull()
+    expect(screen.queryByText('R. F', { selector: 'span' })).toBeNull()
+    expect(screen.getByText('R. D', { selector: 'span' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Compare these →' }))
+    expect(await screen.findByRole('tab', { name: 'Compare', selected: true })).toBeTruthy()
+    expect(await swaps()).toEqual(['w2'])
   })
 
   it('charts the teams, every one labelled', async () => {

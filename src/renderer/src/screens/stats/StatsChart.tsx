@@ -96,11 +96,16 @@ export function StatsChart({
   const range = rangeLabel(scope, data.status)
   const fmt = (id: string) => (v: number | null) => chartValue(info(id), v, perGame)
   const open = (d: ChartDot): void => (isPlayer ? onOpenPlayer(d.id, position) : onOpenTeam(d.id))
+  // The picks still plotted: a pick that left the chart is neither shown nor compared.
+  const picks = view?.kind === 'ready' ? view.picks : []
+  const live = picks.map((p) => p.id)
+  // Gone as of this render; a pick made since (two quick clicks) is kept.
+  const gone = view?.kind === 'ready' ? state.picks.filter((id) => !live.includes(id)) : []
   const pick = (d: ChartDot): void =>
     onState((s) => {
-      const at = s.picks.indexOf(d.id)
-      if (at >= 0) return { ...s, picks: s.picks.filter((id) => id !== d.id) }
-      return s.picks.length < MAX_PICKS ? { ...s, picks: [...s.picks, d.id] } : s
+      if (s.picks.includes(d.id)) return { ...s, picks: s.picks.filter((id) => id !== d.id) }
+      const kept = s.picks.filter((id) => !gone.includes(id))
+      return kept.length < MAX_PICKS ? { ...s, picks: [...kept, d.id] } : s
     })
 
   const tab = positionTab(position)
@@ -323,14 +328,9 @@ export function StatsChart({
             </div>
             <Picks
               entity={entity}
-              picks={state.picks}
-              names={
-                new Map(
-                  view?.kind === 'ready' ? view.dots.map((d) => [d.id, shortName(entity, d)]) : []
-                )
-              }
+              picks={picks}
               onClear={() => set({ picks: [] })}
-              onCompare={() => onCompare(state)}
+              onCompare={() => onCompare({ ...state, picks: live })}
             />
           </div>
           {error ? (
@@ -401,13 +401,11 @@ function isWide(scope: StatsScope, data: StatsData): boolean {
 function Picks({
   entity,
   picks,
-  names,
   onClear,
   onCompare
 }: {
   entity: ChartState['entity']
-  picks: string[]
-  names: ReadonlyMap<string, string>
+  picks: { id: string; name: string }[]
   onClear: () => void
   onCompare: () => void
 }): React.JSX.Element {
@@ -420,10 +418,10 @@ function Picks({
   }
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {picks.map((id, k) => (
-        <span key={id} className="flex items-center gap-1.5 text-[12.5px] font-medium text-fg">
+      {picks.map((p, k) => (
+        <span key={p.id} className="flex items-center gap-1.5 text-[12.5px] font-medium text-fg">
           <Swatch slot={k} />
-          {names.get(id) ?? (entity === 'team' ? teamAbbr(id) : id)}
+          {shortName(entity, p)}
         </span>
       ))}
       <button

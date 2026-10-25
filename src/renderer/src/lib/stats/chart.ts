@@ -228,6 +228,8 @@ export type ChartView =
       r: number | null
       /** Qualified rows on both axes. */
       qualified: number
+      /** The picks still plotted, in order (a team filter may hide their dots): Compare's slots. */
+      picks: { id: string; name: string }[]
     }
 
 /** A row's value of a metric. */
@@ -269,7 +271,8 @@ export function chartView(
   const finds = (r: StatsRow): boolean =>
     needle.length > 1 &&
     (searchKey(r.name).includes(needle) || (!isPlayer && searchKey(teamAbbr(r.id)) === needle))
-  const picks = state.picks.filter((id) => plotted.some((r) => r.id === id))
+  const picked = state.picks.flatMap((id) => plotted.filter((r) => r.id === id))
+  const picks = picked.map((r) => r.id)
   const dot = (r: StatsRow): ChartDot => ({
     id: r.id,
     name: r.name,
@@ -306,7 +309,8 @@ export function chartView(
       shown.map((d) => d.x * sign(axes.x)),
       shown.map((d) => d.y * sign(axes.y))
     ),
-    qualified: pool.length
+    qualified: pool.length,
+    picks: picked.map((r) => ({ id: r.id, name: r.name }))
   }
 }
 
