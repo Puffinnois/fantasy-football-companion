@@ -233,6 +233,20 @@ describe('Games (stats-analysis spec §9.5, Plan AE)', () => {
     await waitFor(() => expect(stats.games).toHaveBeenCalledWith({ season: 2026, team: 'KC' }))
   })
 
+  it('has no projection column for a postseason game: Sleeper projects the regular season', async () => {
+    stats.games.mockResolvedValue([
+      ...GAMES.slice(0, 4),
+      game({ gameId: 'p1', seasonType: 'POST', week: 19, home: 'KC', away: 'BUF', gameday: day(6) })
+    ])
+    await openGames()
+    await waitFor(() => expect(railTeams()).toHaveLength(1))
+    expect((screen.getByRole('combobox', { name: 'Week' }) as HTMLSelectElement).value).toBe('19')
+    const buf = await screen.findByLabelText('BUF key players')
+    expect(within(buf).queryByText('PROJ')).toBeNull()
+    expect(within(buf).queryByText('—')).toBeNull()
+    expect(players.week).not.toHaveBeenCalled()
+  })
+
   it('names the key players only once it knows who played: never one out of the last game', async () => {
     let release = (): void => {}
     const held = new Promise<void>((r) => (release = r))

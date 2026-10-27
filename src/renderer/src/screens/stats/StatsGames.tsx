@@ -323,7 +323,9 @@ export function StatsGames({
                             key={k.team}
                             side={k}
                             series={i === 0 ? 1 : 2}
-                            lastHead={played ? 'FP' : hasLeague ? 'PROJ' : ''}
+                            lastHead={
+                              played ? 'FP' : hasLeague && game.seasonType === 'REG' ? 'PROJ' : ''
+                            }
                             onOpenPlayer={onOpenPlayer}
                           />
                         ))}
