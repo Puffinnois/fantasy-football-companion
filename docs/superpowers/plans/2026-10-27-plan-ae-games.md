@@ -1,6 +1,6 @@
 # Plan AE — Stats analysis: Games and the matchup preview
 
-**Status:** not started. Written 2026-10-27 from the prototype on `proto/plan-ae` (4 task commits), replayed on a clean copy of `main` as written. Spec amendments A–H (§24) need the user's approval before Task 1.
+**Status:** not started. Written 2026-10-27 from the prototype on `proto/plan-ae` (4 task commits), replayed on a clean copy of `main` as written. Spec amendments A–H (§24) approved by the user 2026-10-27.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
