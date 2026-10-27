@@ -229,6 +229,8 @@ export interface GameForecast {
   week: number
   /** YYYY-MM-DD. */
   gameday: string | null
+  /** The kickoff as an ISO time in UTC (nflverse lists Eastern time); null without a time. */
+  kickoff: string | null
   home: string
   away: string
   neutral: boolean

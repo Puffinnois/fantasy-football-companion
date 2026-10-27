@@ -7,6 +7,7 @@ import type { NavLocation } from '@/lib/navHistory'
 import type { BoardDef } from '@/lib/stats/boards'
 import { compareFromPicks, DEFAULT_CHART, type ChartState } from '@/lib/stats/chart'
 import { DEFAULT_COMPARE, type CompareState } from '@/lib/stats/compare'
+import { DEFAULT_GAMES, type GamesState } from '@/lib/stats/games'
 import { bestFirst, defaultBoard, normalizeBoard } from '@/lib/stats/leaderboard'
 import { defaultPlayer, positionTab, railQuery, type PlayerTab } from '@/lib/stats/player'
 import { defaultScope, type StatsScope } from '@/lib/stats/scope'
@@ -14,6 +15,7 @@ import { defaultTeam, topScorerQuery, type TeamTab } from '@/lib/stats/team'
 import { DEFAULT_TRENDS, type TrendsState } from '@/lib/stats/trends'
 import { useStatsData, useStatsQuery } from '@/lib/stats/useStats'
 import { StatsExplore, type ExploreTab } from '@/screens/stats/StatsExplore'
+import { StatsGames } from '@/screens/stats/StatsGames'
 import { StatsGlossary } from '@/screens/stats/StatsGlossary'
 import { StatsHome } from '@/screens/stats/StatsHome'
 import { StatsLeaderboard, type LeaderboardOpen } from '@/screens/stats/StatsLeaderboard'
@@ -55,7 +57,7 @@ interface StatsAppProps {
 /**
  * Companion Stats (stats-analysis spec §9, design handoff "Companion Stats"): its own shell and
  * nav, the scope shared by every screen (§9.1), the Stats home and the leaderboards (§9.2), the
- * team and player dashboards (§9.3, §9.4).
+ * team and player dashboards (§9.3, §9.4), Explore and Games (§9.5).
  */
 export function StatsApp({
   hasLeague,
@@ -90,6 +92,8 @@ export function StatsApp({
   const [chart, setChart] = useState<ChartState>(DEFAULT_CHART)
   const [compare, setCompare] = useState<CompareState>(DEFAULT_COMPARE)
   const [trends, setTrends] = useState<TrendsState>(DEFAULT_TRENDS)
+  // Games (spec §9.5): the week and game chosen, kept for the session.
+  const [games, setGames] = useState<GamesState>(DEFAULT_GAMES)
   // A focus from Fantasy opens its dashboard once.
   const [focused, setFocused] = useState<number | null>(null)
   if (focus && focus.nonce !== focused) {
@@ -380,6 +384,19 @@ export function StatsApp({
                 }
                 onOpenPlayer={openPlayer}
                 onOpenTeam={openTeam}
+              />
+            )}
+            {screen === 'games' && (
+              <StatsGames
+                data={data}
+                scope={effective}
+                onScope={setChosen}
+                hasLeague={hasLeague}
+                leagueKey={leagueKey}
+                state={games}
+                onState={setGames}
+                onOpenTeam={openTeam}
+                onOpenPlayer={openPlayer}
               />
             )}
             {screen === 'glossary' && <StatsGlossary catalogue={data.catalogue} />}

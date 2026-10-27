@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
+import { projectionMap } from '@/lib/stats/games'
 import type { PlayerDetail } from '@shared/types'
 import type {
   GameForecast,
@@ -227,6 +228,40 @@ const readLink = (request: string): Promise<PlayerLink | null> =>
 const readDetail = (request: string): Promise<PlayerDetail> => {
   const { season, id } = JSON.parse(request) as { season: number; id: string }
   return api.players.detail(season, id)
+}
+
+const readProjections = async (request: string): Promise<Map<string, number>> => {
+  const { ids, season, week } = JSON.parse(request) as {
+    ids: string[]
+    season: number
+    week: number
+  }
+  const [fantasy, links] = await Promise.all([
+    api.players.week({ season, week }),
+    Promise.all(
+      ids.map(async (gsis) => [gsis, (await api.stats.link({ gsis }))?.sleeper ?? null] as const)
+    )
+  ])
+  return projectionMap(fantasy.rows, new Map(links))
+}
+
+/**
+ * Sleeper's projections of a week for some players (Games, Plan AE), by gsis id, from Fantasy's
+ * file: with a league only (null without one, or while they are read).
+ */
+export function useWeekProjections(
+  ids: readonly string[] | null,
+  season: number,
+  week: number,
+  leagueKey: number
+): ReadonlyMap<string, number> | null {
+  const { data } = useKeyed(
+    ids && ids.length
+      ? `${leagueKey}|${JSON.stringify({ ids: [...ids].sort(), season, week })}`
+      : null,
+    readProjections
+  )
+  return data
 }
 
 /** Spec §9.4: a player's identity and status now, again after a rebuild. */

@@ -31,6 +31,8 @@ export async function gameForecasts(db: StatsDb, q: GamesQuery): Promise<GameFor
   const g = col(await inspect(db), 'games', 'g')
   const rows = await db.all<Record<string, unknown>>(
     `SELECT e.*, ${g('gameday', 'VARCHAR')}::VARCHAR AS gameday,
+            epoch_ms(timezone('America/New_York', try_strptime(${g('gameday', 'VARCHAR')} || ' ' ||
+              ${g('gametime', 'VARCHAR')}, '%Y-%m-%d %H:%M'))) AS kickoff_ms,
             coalesce(${g('location', 'VARCHAR')} = 'Neutral', false) AS neutral,
             g.home_score, g.away_score, ${g('spread_line')} AS spread_line,
             ${g('total_line')} AS total_line, ${g('roof', 'VARCHAR')} AS roof,
@@ -47,6 +49,7 @@ export async function gameForecasts(db: StatsDb, q: GamesQuery): Promise<GameFor
     seasonType: r.season_type as 'REG' | 'POST',
     week: Number(r.week),
     gameday: (r.gameday as string | null) ?? null,
+    kickoff: num(r.kickoff_ms) === null ? null : new Date(num(r.kickoff_ms)!).toISOString(),
     home: String(r.home_team),
     away: String(r.away_team),
     neutral: r.neutral === true,

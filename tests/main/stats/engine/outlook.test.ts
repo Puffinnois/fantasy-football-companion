@@ -115,6 +115,11 @@ describe('the player outlook (stats-analysis spec §8.5)', () => {
       ['g2', null, null, -1.5]
     ])
     expect(games[1].homeWinProb).toBeGreaterThan(0)
+    // The kickoff in UTC: nflverse lists Eastern time (1:00 PM EDT); none without a time.
+    expect(games.map((g) => [g.gameday, g.kickoff])).toEqual([
+      ['2025-09-07', '2025-09-07T17:00:00.000Z'],
+      ['2025-09-14', null]
+    ])
     await expect(gameForecasts(db, { season: 2025, team: 'buf' })).rejects.toThrow('team code')
   })
 })

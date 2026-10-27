@@ -8,11 +8,12 @@ import type { UpdateState } from '@shared/types'
 
 /**
  * `player` and `team` are the dashboards (spec §9.4, §9.3), `players` and `teams` the
- * leaderboards, `explore` Compare and Trends (§9.5).
+ * leaderboards, `explore` Chart, Compare and Trends, `games` the week's games (§9.5).
  */
-export type StatsScreen = 'home' | 'player' | 'players' | 'team' | 'teams' | 'explore' | 'glossary'
+export type StatsScreen =
+  'home' | 'player' | 'players' | 'team' | 'teams' | 'explore' | 'games' | 'glossary'
 
-const ITEMS: { id: StatsScreen | 'games'; label: string }[] = [
+const ITEMS: { id: StatsScreen; label: string }[] = [
   { id: 'home', label: 'Leaderboards' },
   { id: 'player', label: 'Players' },
   { id: 'team', label: 'Teams' },
@@ -38,7 +39,7 @@ interface StatsNavProps {
 
 /**
  * Stats nav (handoff "Stats nav"): 52px, mark + "Companion Stats", six items, Fantasy ↗, theme.
- * Players and Teams open the dashboards, Explore Compare and Trends.
+ * Players and Teams open the dashboards, Explore its tools, Games the week's games.
  */
 export function StatsNav({
   current,
@@ -66,7 +67,6 @@ export function StatsNav({
       </div>
       <div className="flex gap-[22px] self-stretch text-[13.5px] leading-none font-medium">
         {ITEMS.map(({ id, label }) => {
-          const soon = id === 'games'
           // Players and Teams open the dashboards; the leaderboards are under them.
           const on =
             current === id ||
@@ -76,15 +76,11 @@ export function StatsNav({
             <button
               key={id}
               type="button"
-              disabled={soon}
-              title={soon ? 'Game previews come in a later update' : undefined}
               aria-current={on ? 'page' : undefined}
-              onClick={() => !soon && onNavigate(id)}
+              onClick={() => onNavigate(id)}
               className={cn(
-                'flex cursor-pointer items-center disabled:cursor-default disabled:opacity-40',
-                on
-                  ? 'text-fg shadow-[inset_0_-2px_0_var(--cobalt)]'
-                  : 'text-fg-2 hover:text-fg disabled:hover:text-fg-2'
+                'flex cursor-pointer items-center',
+                on ? 'text-fg shadow-[inset_0_-2px_0_var(--cobalt)]' : 'text-fg-2 hover:text-fg'
               )}
             >
               {label}
