@@ -1,5 +1,6 @@
 import { kickoffLabel } from '@/lib/playersTableView'
 import { fmtStat, ordinal } from '@/lib/stats/format'
+import { FIRST_SEASON } from '@/lib/stats/scope'
 import { roundOf, teamRank } from '@/lib/stats/team'
 import { TEAM_NAMES, teamAbbr } from '@shared/stats/nflTeams'
 import type { Scoring } from '@shared/stats/scoring'
@@ -70,7 +71,11 @@ export function defaultWeek(games: readonly GameForecast[], today = new Date()):
   return games[0]?.week ?? null
 }
 
-/** My fantasy players' teams this season: the games with my players are marked and come first. */
+/**
+ * My fantasy players' teams: the games with my players are marked and come first. The season
+ * before counts too: a player who has not played yet this season (week 1, injured) is on the team
+ * of his latest game.
+ */
 export function myPlayersQuery(
   ownership: StatsOwnership | null,
   season: number
@@ -82,7 +87,11 @@ export function myPlayersQuery(
   return {
     entity: 'player',
     metrics: ['games'],
-    scope: { seasons: [season], seasonType: 'ALL', players: mine },
+    scope: {
+      seasons: season > FIRST_SEASON ? [season - 1, season] : [season],
+      seasonType: 'ALL',
+      players: mine
+    },
     transform: 'raw',
     sort: { metric: 'games', dir: 'desc' },
     limit: 100

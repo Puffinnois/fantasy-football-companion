@@ -154,6 +154,9 @@ describe('the week and its games (stats-analysis spec §9.5, Plan AE)', () => {
     }
     const q = myPlayersQuery(own, 2026)!
     expect(q.scope.players).toEqual(['p1'])
+    // The season before too: before he plays this season, a player is on his last team.
+    expect(q.scope.seasons).toEqual([2025, 2026])
+    expect(myPlayersQuery(own, 2019)!.scope.seasons).toEqual([2019])
     const players = result(['games'], [row('p1', 'Me', { games: value(5) }, { team: 'BUF' })])
     expect([...myTeams(own, players)].sort()).toEqual(['BUF', 'NYJ'])
     expect(myPlayersQuery({ players: {}, teams: {} }, 2026)).toBeNull()
