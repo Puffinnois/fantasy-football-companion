@@ -42,6 +42,7 @@ function game(over: Partial<GameForecast>): GameForecast {
     seasonType: 'REG',
     week: 1,
     gameday: '2026-09-13',
+    kickoff: null,
     home: 'DET',
     away: 'GB',
     neutral: false,
