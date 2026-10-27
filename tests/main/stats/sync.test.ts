@@ -201,7 +201,8 @@ describe('refreshStats', () => {
   })
 })
 
-describe('the derived rebuild (stats-analysis spec §5.2)', () => {
+// DuckDB rebuilds: about 2.5 s alone, past vitest's 5 s default when the whole suite runs at once.
+describe('the derived rebuild (stats-analysis spec §5.2)', { timeout: 30_000 }, () => {
   const entry = (source: string, rowsWritten: number, status = 'ok'): StatsLogEntry => ({
     id: 1,
     source,
