@@ -1,6 +1,19 @@
 # Plan AE — Stats analysis: Games and the matchup preview
 
-**Status:** not started. Written 2026-10-27 from the prototype on `proto/plan-ae` (4 task commits), replayed on a clean copy of `main` as written. Spec amendments A–H (§24) approved by the user 2026-10-27.
+**Status:** complete 2026-10-27. Merged to main as `df894a6` and tagged `v0.36.0` on `e6e5cf6` (not pushed yet). Tasks 1–4 were applied from this text step by step: each task's tests were seen failing as the plan says, then passing, and each task commit is identical to the prototype's. Counts, with the 3 of the untracked `tests/shared/playerImage.test.ts`: 1,164 → 1,183 → 1,186, and 1,190 after the fixes below (Windows Package check: 1,187 of a clean checkout, `"query":true`). Spec amendments A–H (§24) approved by the user 2026-10-27.
+
+Task 5: `ALL GATES PASSED` (re-run after the fixes: a preview's queries 58–110 ms, a box score's 43–83 ms; `short` 0, `noRusher` 0, `noMatchup` 0, `missingRows` 213). The walk-through matched its checklist, light and dark, with and without a league (shot 06 shows the rail's second game, IND @ MIN: its row above is corrected). In the app, three runs alone: Games 130–222 ms (the first after launch included), another game 40–41 ms, a final week's box score 95–136 ms, the Preview tab 16–25 ms.
+
+Fixes, test-first in their own commit:
+
+- `cb7364b` test(stats): "the derived rebuild" tests in `sync.test.ts` (about 2.5 s alone, before and after this plan) timed out at vitest's 5 s under the whole suite: 30 s, as the service tests.
+- (Walk-through) `cec0ff5`: on a new game the key players rendered from the season's rows before the players of the last game (or the final game's box score) and the pass rushers had loaded, a flash of players who would not play. They wait for both now.
+- (Final review, Important) `018257e`: my games were not marked before my players' first game of the season; my players' teams read the season before too.
+- (Final review, Important) `c5dc6bb`: a week 1 game not played yet chooses its key players and pass rushers from last season's teams, so offseason moves are missing. A warning line says so; the real fix (a roster read from `src_rosters`) is left for the user to decide.
+- (Final review, Minor) `7d04f52`: TAKE counted a defender's recoveries of his own team's fumbles; it is the team's `def_turnovers` now (a fourth, one-metric box query; reference and spec §24 E amended).
+- (Final review, Minor) `2ebc000`: no PROJ column for a postseason game (Sleeper projects the regular season). `30669c6`: a line says PROJ is under the league's scoring when the screen's is another.
+
+Final review (fresh reviewer, Opus): no Critical; left open for the user: a starter hurt in his team's last game still leads the key players (the injury report and reserve list could filter the pool), and the week 1 roster read above.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -108,7 +121,7 @@ These are the ways this plan is most likely to hurt a user that the spec's test 
 
 ### Task 0: Branch
 
-- [ ] **Step 1: Branch off main**
+- [x] **Step 1: Branch off main**
 
 ```bash
 git checkout main && git status --short && git checkout -b feat/games-ae
@@ -127,7 +140,7 @@ Expected: `git status --short` lists only the unrelated changes named in Global 
 - Modify: `src/shared/stats/types.ts`, `src/main/stats/engine/games.ts`
 - Modify (tests): `tests/fixtures/statsDerived.ts`, `tests/main/stats/engine/outlook.test.ts`, `tests/renderer/components/StatsPlayer.test.tsx`, `tests/renderer/components/StatsTeam.test.tsx`, `tests/renderer/lib/statsPlayer.test.ts`, `tests/renderer/lib/statsTeam.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Modify `tests/fixtures/statsDerived.ts`:
 
@@ -177,7 +190,7 @@ index 277a784..ffcb054 100644
  })
 ```
 
-- [ ] **Step 2: Run it and see it fail**
+- [x] **Step 2: Run it and see it fail**
 
 ```bash
 npx vitest run tests/main/stats/engine/outlook.test.ts
@@ -185,7 +198,7 @@ npx vitest run tests/main/stats/engine/outlook.test.ts
 
 Expected: FAIL in "answers for a player, with the rest of his schedule": the kickoffs read `undefined`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Modify `src/shared/stats/types.ts`:
 
@@ -301,7 +314,7 @@ index 9c87149..ad49c3e 100644
      neutral: false,
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 ```bash
 npx vitest run tests/main/stats/engine/outlook.test.ts && npm run typecheck && npx vitest run
@@ -309,7 +322,7 @@ npx vitest run tests/main/stats/engine/outlook.test.ts && npm run typecheck && n
 
 Expected: 4 passed; typecheck clean; the suite 1161 passed | 5 skipped.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npx prettier --check src/shared/stats/types.ts src/main/stats/engine/games.ts tests/fixtures/statsDerived.ts tests/main/stats/engine/outlook.test.ts tests/renderer/components/StatsPlayer.test.tsx tests/renderer/components/StatsTeam.test.tsx tests/renderer/lib/statsPlayer.test.ts tests/renderer/lib/statsTeam.test.ts
@@ -327,7 +340,7 @@ One pure module the screen reads: the weeks and the default week, the rail (my g
 
 - Create: `src/renderer/src/lib/stats/games.ts`, `tests/renderer/lib/statsGames.test.ts`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/renderer/lib/statsGames.test.ts`:
 
@@ -921,7 +934,7 @@ describe('the box score (handoff "9. Game")', () => {
 })
 ```
 
-- [ ] **Step 2: Run them and see them fail**
+- [x] **Step 2: Run them and see them fail**
 
 ```bash
 npx vitest run tests/renderer/lib/statsGames.test.ts
@@ -929,7 +942,7 @@ npx vitest run tests/renderer/lib/statsGames.test.ts
 
 Expected: FAIL: `Failed to resolve import "@/lib/stats/games"`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/renderer/src/lib/stats/games.ts`:
 
@@ -1954,7 +1967,7 @@ export function boxView(
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 ```bash
 npx vitest run tests/renderer/lib/statsGames.test.ts && npm run typecheck && npx eslint src tests electron.vite.config.ts && npx vitest run
@@ -1962,7 +1975,7 @@ npx vitest run tests/renderer/lib/statsGames.test.ts && npm run typecheck && npx
 
 Expected: 19 passed; typecheck and lint clean; the suite 1180 passed | 5 skipped.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npx prettier --check src/renderer/src/lib/stats/games.ts tests/renderer/lib/statsGames.test.ts
@@ -1981,7 +1994,7 @@ git commit -m "feat(stats): the Games model"
 - Create: `src/renderer/src/screens/stats/StatsGames.tsx`, `tests/renderer/components/StatsGames.test.tsx`
 - Modify: `src/renderer/src/lib/stats/useStats.ts`, `src/renderer/src/components/stats/StatsNav.tsx`, `src/renderer/src/screens/stats/StatsApp.tsx`, `tests/renderer/components/StatsShell.test.tsx`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/renderer/components/StatsGames.test.tsx`:
 
@@ -2242,7 +2255,7 @@ index 42a5a17..1b95ca2 100644
      expect(screen.getByText('Data through 2026 week 6 · updating…')).toBeTruthy()
 ```
 
-- [ ] **Step 2: Run them and see them fail**
+- [x] **Step 2: Run them and see them fail**
 
 ```bash
 npx vitest run tests/renderer/components/StatsGames.test.tsx tests/renderer/components/StatsShell.test.tsx
@@ -2250,7 +2263,7 @@ npx vitest run tests/renderer/components/StatsGames.test.tsx tests/renderer/comp
 
 Expected: FAIL: the Games screen's 3 tests (no "Games" list: the button is disabled) and the nav's ("Games" not called).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Modify `src/renderer/src/lib/stats/useStats.ts`:
 
@@ -3300,7 +3313,7 @@ function Box({
 }
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 ```bash
 npx vitest run tests/renderer/components/StatsGames.test.tsx tests/renderer/components/StatsShell.test.tsx && npm run typecheck && npx eslint src tests electron.vite.config.ts && npx vitest run
@@ -3308,7 +3321,7 @@ npx vitest run tests/renderer/components/StatsGames.test.tsx tests/renderer/comp
 
 Expected: both files pass; typecheck and lint clean; the suite 1183 passed | 5 skipped.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npx prettier --check src/renderer/src/screens/stats/StatsGames.tsx tests/renderer/components/StatsGames.test.tsx src/renderer/src/lib/stats/useStats.ts src/renderer/src/components/stats/StatsNav.tsx src/renderer/src/screens/stats/StatsApp.tsx tests/renderer/components/StatsShell.test.tsx
@@ -3326,7 +3339,7 @@ The screens reference gets Games and its speeds; the spec gets §24 (the amendme
 
 - Modify: `docs/reference/stats-screens.md`, `docs/superpowers/specs/2026-10-15-stats-analysis-design.md`
 
-- [ ] **Step 1: `docs/reference/stats-screens.md`**
+- [x] **Step 1: `docs/reference/stats-screens.md`**
 
 Modify `docs/reference/stats-screens.md`:
 
@@ -3380,7 +3393,7 @@ index b557bb7..89ff248 100644
 +Measured on the live database (2026 week 6): the home's eight boards on screen in about 90 ms, a leaderboard tab 100–210 ms from click to table, a sort 120 ms, a 40-column query 265 ms. The team dashboard: Teams 140 ms from click to the Overview, a tab 65–150 ms, Situational (eleven queries) 275 ms. The player dashboard: Players 230–290 ms from click to the Overview, a tab 70–135 ms, Splits 265–480 ms, a rail position 135–275 ms. Explore (2026 week 7): the chart on screen 60–106 ms from click, a position 41–105 ms, Teams 28–70 ms; Compare on screen 160–205 ms from click, a position or Players / Teams 135–185 ms; the Trends tab 245–255 ms, a new metric 220–290 ms. Games (2026 week 7 data): on screen 219–225 ms from click (342 ms the first time after launch), another game 37–42 ms, a final week's box score 141–156 ms, the Preview tab 29–44 ms; in the worker, a preview's queries at once 84–204 ms, a box score's 64–132 ms.
 ```
 
-- [ ] **Step 2: `docs/superpowers/specs/2026-10-15-stats-analysis-design.md`**
+- [x] **Step 2: `docs/superpowers/specs/2026-10-15-stats-analysis-design.md`**
 
 Modify `docs/superpowers/specs/2026-10-15-stats-analysis-design.md`:
 
@@ -3416,7 +3429,7 @@ index 17fc442..322d8f1 100644
 +- **H. Measured** (2026 week 7 data, week 8 next): every game of 2026 weeks 1–8, 2025 (every fourth week and the postseason) and 2019 weeks 1–2: a preview's queries at once 84–204 ms (median 142), a box score's 64–132 ms; every team had its five key players, a pass rusher and matchup ranks. Weather is thin: none for games not played yet, none in 2026 since week 5 (45 of 272 games), 107 of 284 in 2022. In the app (three runs): Games on screen 219–225 ms from click (342 ms the first time after launch), another game 37–42 ms, a final week's box score 141–156 ms, the Preview tab 29–44 ms (budget 300 ms, §11).
 ```
 
-- [ ] **Step 3: Format and commit**
+- [x] **Step 3: Format and commit**
 
 ```bash
 npx prettier --check docs/reference/stats-screens.md docs/superpowers/specs/2026-10-15-stats-analysis-design.md
@@ -3443,7 +3456,7 @@ Only `stats:participation:2026 skipped` is expected. A failed step (`stats:pbp:2
 
 The walk-through also copies the dev profile's `companion.db` (`~/.config/FantasyCompanion/companion.db`), so the scratch app has the dev league. The dev profile itself is only read.
 
-- [ ] **Step 1: Every preview and box score on live data**
+- [x] **Step 1: Every preview and box score on live data**
 
 Create `tests/zz-ae-live.test.ts`:
 
@@ -3624,7 +3637,7 @@ Expected: 1 passed, and `findings.txt` ends with `ALL GATES PASSED`. Check it ag
 - the preview batch over 226 games 84–204 ms (median 142), the box batch over 212 games 64–132 ms (median 107), both p90 under 300 ms;
 - `gaps`: `short` 0 (every team has its five key players), `noRusher` 0, `noMatchup` 0; `missingRows` about 210 (pressure rate, not published for 2026, on both sides of each 2026 game after week 1).
 
-- [ ] **Step 2: The app, walked through**
+- [x] **Step 2: The app, walked through**
 
 The driver is Plan AA's: copy `drive.mjs` from Plan AC's Task 7 Step 3 (`docs/superpowers/plans/2026-10-21-plan-ac-player-dashboard.md`) into `~/project/ffc-proto-ae-live/`. Save the steps:
 
@@ -3822,14 +3835,14 @@ Expected: no `NOT FOUND` in the output. Each screenshot shows:
 | 03    | KC @ DEN: "Sun, Nov 1 · 4:25 PM", "KC −1.5", "Elo likes DEN more than the market does (65% against 47%)."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | 04    | Week 7: the rail with the scores, the winner bold; NE @ CHI 24–30 on its Box score ("Week 7 · 2026"): top five Drake Maye 28.4, Luther Burden III 23.7, Rhamondre Stevenson 22.5, Caleb Williams 22.1, Colston Loveland 19.9; NE's and CHI's passing, rushing and receiving tables                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | 05    | Lower: the receiving tables, Kicking (NE Andy Borregales FG 1/1 7.0; CHI Cairo Santos FG 3/4 14.0) and Defense (NE SACK 3 TAKE 0 TD 0; CHI SACK 2 TAKE 1 TD 0)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| 06    | Its Preview: "The forecast before kickoff", "CHI won 30–24 · the favorite won", "Team stats: weeks 1–6, before the game", the key players' points scored (FP)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 06    | The rail's second game, IND @ MIN, on its Preview: "The forecast before kickoff", "MIN won 16–10 · the favorite won", "Team stats: weeks 1–6, before the game", the key players' points scored (FP)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 07    | 2025 Wild card: "6 GAMES" and no byes; LAR 34 at CAR 31 on its box score (Puka Nacua 34.5)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | 08    | 2019 Week 1, Preview: LAR 30 at CAR 27, the forecast (87°F, wind 3 mph, "At kickoff."), "The stats start with the 2019 season: no games before this one to compare the teams by."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | 09    | Dark: week 8, CAR @ GB                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 10    | A team in the header: the Carolina Panthers' dashboard                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 11–12 | No league: no amber dots, no PROJ column, "Import a league in Fantasy to see Sleeper's projection for each player this week and to mark your players."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
-- [ ] **Step 3: Speed in the app**
+- [x] **Step 3: Speed in the app**
 
 Create `~/project/ffc-proto-ae-live/steps-ae-timing.json`:
 
@@ -3981,7 +3994,7 @@ APP=$PWD node $L/drive.mjs $L/gui/profile-timing $L/steps-ae-timing.json $L/gui/
 
 Run it alone (a test run beside it doubles the times). Expected: each timed step under 300 ms but the first "Games" of the run, the first read after launch (measured: Games 219–225 ms and 342 ms first, another game 37–42 ms, a final week's box score 141–156 ms, the Preview tab 29–44 ms).
 
-- [ ] **Step 4: Clean up**
+- [x] **Step 4: Clean up**
 
 ```bash
 rm tests/zz-ae-live.test.ts
@@ -3994,7 +4007,7 @@ Expected: only the unrelated changes of Global Constraints. Keep `~/project/ffc-
 
 ### Task 6: Verify, merge, release
 
-- [ ] **Step 1: Final verification**
+- [x] **Step 1: Final verification**
 
 ```bash
 npm run typecheck && npx eslint src tests electron.vite.config.ts && npx vitest run && npx electron-vite build
@@ -4002,7 +4015,7 @@ npm run typecheck && npx eslint src tests electron.vite.config.ts && npx vitest 
 
 Expected: clean; 1183 passed | 5 skipped (1186 with the untracked `playerImage` tests); the build succeeds.
 
-- [ ] **Step 2: The Windows suite and self-test**
+- [x] **Step 2: The Windows suite and self-test**
 
 **Ask the user before pushing.** Then:
 
@@ -4014,11 +4027,11 @@ git push origin --delete check/plan-ae
 
 Expected: green. The log shows `"query":true`.
 
-- [ ] **Step 3: Final review**
+- [x] **Step 3: Final review**
 
 Ask a fresh reviewer (Opus) to review `git diff main...feat/games-ae`. It reviews against spec §8.1, §9.5 and §11, the amendments, the handoff, the "Stats Games" canvas and the Review Focus list. Fix Critical and Important findings, each in its own commit, test first. Re-run Step 1 after them, and the Task 5 walk-through after a screen change.
 
-- [ ] **Step 4: Merge and bump**
+- [x] **Step 4: Merge and bump**
 
 ```bash
 git checkout main && git merge --no-ff feat/games-ae -m "merge: feat/games-ae (plan AE)"
@@ -4027,7 +4040,7 @@ git add package.json package-lock.json && git commit -m "build: bump version to 
 git branch -d feat/games-ae
 ```
 
-- [ ] **Step 5: Status block**
+- [x] **Step 5: Status block**
 
 Replace this plan's Status line with the outcome:
 
