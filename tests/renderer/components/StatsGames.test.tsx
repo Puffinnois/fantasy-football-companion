@@ -204,6 +204,16 @@ describe('Games (stats-analysis spec §9.5, Plan AE)', () => {
     await waitFor(() => expect(within(buf).getByText('14.3')).toBeTruthy())
     expect(players.week).toHaveBeenCalledWith({ season: 2026, week: 3 })
     expect(within(buf).getByText(/Kansas Rusher \(KC LB\)/)).toBeTruthy()
+    // The projection is under the league's scoring: said when the screen's is another.
+    expect(screen.queryByText(/under your league’s scoring/)).toBeNull()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Fantasy scoring' }), {
+      target: { value: 'ppr' }
+    })
+    expect(
+      await screen.findByText(
+        'PROJ is Sleeper’s projection under your league’s scoring; the points per game are PPR.'
+      )
+    ).toBeTruthy()
   })
 
   it('opens a final game on its box score; its preview is the forecast before kickoff', async () => {

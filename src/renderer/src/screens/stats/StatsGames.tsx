@@ -332,6 +332,12 @@ export function StatsGames({
                       </div>
                     )}
                     {offseason && <span className="text-[12px] text-warn">{offseason}</span>}
+                    {!played && projected && projected.size > 0 && scope.scoring !== 'league' && (
+                      <span className="text-[12px] text-fg-3">
+                        PROJ is Sleeper’s projection under your league’s scoring; the points per
+                        game are {SCORING_LABELS[scope.scoring]}.
+                      </span>
+                    )}
                     {!hasLeague && !played && (
                       <span className="text-[12px] text-fg-3">
                         Import a league in Fantasy to see Sleeper&apos;s projection for each player
