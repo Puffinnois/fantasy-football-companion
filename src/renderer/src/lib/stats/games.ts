@@ -707,26 +707,28 @@ export const BOX_METRICS = [
   'fg_made',
   'fg_att',
   'sacks',
-  'def_ints',
-  'fumble_recoveries',
   'def_tds'
 ]
 
-/** The box score as three queries that run at once: passing, rushing and receiving, the rest. */
+/**
+ * The box score as queries that run at once: the players' passing, rushing and receiving, and the
+ * rest; and each team's takeaways (the opponents' interceptions and lost fumbles: a defender's
+ * fumble recoveries count his own team's fumbles too).
+ */
 export function boxQueries(
   g: GameForecast,
   scoring: Scoring
-): Map<'pass' | 'run' | 'rest', StatsQuery> {
+): Map<'pass' | 'run' | 'rest' | 'team', StatsQuery> {
+  const scope = {
+    seasons: [g.season],
+    seasonType: g.seasonType,
+    weeks: [g.week, g.week] as [number, number],
+    teams: [g.away, g.home]
+  }
   const q = (metrics: string[], positions: PositionGroup[]): StatsQuery => ({
     entity: 'player',
     metrics,
-    scope: {
-      seasons: [g.season],
-      seasonType: g.seasonType,
-      weeks: [g.week, g.week],
-      teams: [g.away, g.home],
-      positions
-    },
+    scope: { ...scope, positions },
     transform: 'raw',
     sort: { metric: metrics[0], dir: 'desc' },
     scoring,
@@ -740,7 +742,18 @@ export function boxQueries(
   return new Map([
     ['pass', q(pass, ['QB', 'RB', 'WR', 'TE', 'K'])],
     ['run', q(run, ['QB', 'RB', 'WR', 'TE'])],
-    ['rest', q(rest, ['K', 'DL', 'LB', 'DB'])]
+    ['rest', q(rest, ['K', 'DL', 'LB', 'DB'])],
+    [
+      'team',
+      {
+        entity: 'team',
+        metrics: ['def_turnovers'],
+        scope,
+        transform: 'raw',
+        sort: { metric: 'def_turnovers', dir: 'desc' },
+        limit: 40
+      }
+    ]
   ])
 }
 
@@ -1013,7 +1026,12 @@ export function boxView(
         : null,
       defense: {
         sacks: one(sum('sacks')).replace(/\.0$/, ''),
-        takeaways: n0(sum('def_ints') + sum('fumble_recoveries')),
+        takeaways: n0(
+          num(
+            result.rows.find((r) => r.id === team && r.position === null),
+            'def_turnovers'
+          )
+        ),
         tds: n0(sum('def_tds'))
       }
     }

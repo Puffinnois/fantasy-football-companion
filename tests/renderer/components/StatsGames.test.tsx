@@ -217,7 +217,7 @@ describe('Games (stats-analysis spec §9.5, Plan AE)', () => {
     const box = stats.query.mock.calls
       .map((c) => c[0])
       .filter((q) => !q.groupBy && q.scope.weeks?.[0] === 2 && q.scope.weeks[1] === 2)
-    expect(box).toHaveLength(3)
+    expect(box).toHaveLength(4)
     fireEvent.click(screen.getByRole('tab', { name: 'Preview' }))
     expect(await screen.findByText('The forecast before kickoff')).toBeTruthy()
     expect(screen.getByText('BUF won 23–13 · an upset')).toBeTruthy()

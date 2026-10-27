@@ -568,14 +568,19 @@ describe('the box score (handoff "9. Game")', () => {
         team: 'BUF',
         position: 'QB'
       }),
-      row('bt', 'Buf Te', v({ fantasy_points: 1, targets: 2 }), { team: 'BUF', position: 'TE' })
+      row('bt', 'Buf Te', v({ fantasy_points: 1, targets: 2 }), { team: 'BUF', position: 'TE' }),
+      // The teams' takeaways: KC's DL recovered his own team's fumble, which is not one.
+      row('KC', 'KC', v({ def_turnovers: 1 }), { team: 'KC', position: null }),
+      row('BUF', 'BUF', v({ def_turnovers: 2 }), { team: 'BUF', position: null })
     ])
   }
 
-  it('asks for the game in three narrow queries', () => {
+  it('asks for the game in narrow queries: the players’ three, the teams’ takeaways', () => {
     const qs = boxQueries(g, 'ppr')
-    expect([...qs.keys()]).toEqual(['pass', 'run', 'rest'])
-    expect([...qs.values()].flatMap((q) => q.metrics)).toEqual(BOX_METRICS)
+    expect([...qs.keys()]).toEqual(['pass', 'run', 'rest', 'team'])
+    const players = [...qs.values()].filter((q) => q.entity === 'player')
+    expect(players.flatMap((q) => q.metrics)).toEqual(BOX_METRICS)
+    expect(qs.get('team')).toMatchObject({ entity: 'team', metrics: ['def_turnovers'] })
     for (const q of qs.values())
       expect(q.scope).toMatchObject({
         seasons: [2026],
@@ -598,7 +603,8 @@ describe('the box score (handoff "9. Game")', () => {
     expect(kc.tables[1].rows[0].cells).toEqual(['18', '90', '5.0', '1'])
     expect(kc.tables[2].rows[0]).toMatchObject({ cells: ['7/9', '110', '1'], mine: true })
     expect(kc.kicker).toEqual({ id: 'k', name: 'Kc K', fg: '2/3', fp: '9.0' })
-    expect(kc.defense).toEqual({ sacks: '2.5', takeaways: '2', tds: '1' })
+    expect(kc.defense).toEqual({ sacks: '2.5', takeaways: '1', tds: '1' })
+    expect(buf.defense.takeaways).toBe('2')
     expect(buf.tables.map((t) => t.title)).toEqual(['Passing', 'Receiving'])
     expect(buf.kicker).toBeNull()
     expect(v.top.map((t) => t.id)).toEqual(['qb', 'wr', 'rb', 'k', 'bq'])
