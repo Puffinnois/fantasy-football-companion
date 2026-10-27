@@ -11,6 +11,7 @@ import {
   forecastView,
   headerView,
   isPlayed,
+  keyNote,
   keyPool,
   keySide,
   lastGames,
@@ -154,6 +155,8 @@ export function StatsGames({
         )
       : null
   const projected = useWeekProjections(keyIds, season, game?.week ?? 0, leagueKey)
+  // Week 1: the key players come from last season's teams.
+  const offseason = game && before ? keyNote(game, last, before) : null
   const keys =
     game && pooled
       ? [sideOf(game.away, game.home, projected), sideOf(game.home, game.away, projected)]
@@ -326,6 +329,7 @@ export function StatsGames({
                         ))}
                       </div>
                     )}
+                    {offseason && <span className="text-[12px] text-warn">{offseason}</span>}
                     {!hasLeague && !played && (
                       <span className="text-[12px] text-fg-3">
                         Import a league in Fantasy to see Sleeper&apos;s projection for each player

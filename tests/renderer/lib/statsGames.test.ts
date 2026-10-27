@@ -10,6 +10,7 @@ import {
   forecastView,
   headerView,
   homeLine,
+  keyNote,
   keyPool,
   keySide,
   lastGames,
@@ -470,6 +471,26 @@ describe('key matchups', () => {
     )
     const q = rushersQuery(beforeGame(game({ week: 5 }))!, ['BUF', 'KC'])
     expect(q.scope).toMatchObject({ teams: ['BUF', 'KC'], positions: ['DL', 'LB', 'DB'] })
+  })
+
+  it('says when a team has not played yet: its players come from last season’s teams', () => {
+    const opener = game({ week: 1, kickoff: null, gameday: '2026-09-10' })
+    const before = beforeGame(opener)!
+    expect(keyNote(opener, lastGames([opener], opener), before)).toBe(
+      'BUF and KC have not played yet in 2026: their key players and pass rushers come from the 2025 season, without the offseason’s moves.'
+    )
+    // One team played week 1, the other not: only the one without a game is named.
+    const late = game({ week: 1, kickoff: null, gameday: '2026-09-14' })
+    expect(keyNote(late, { KC: undefined }, before)).toMatch(/^BUF and KC have not/)
+    expect(keyNote(late, { KC: 1 }, before)).toBe(
+      'BUF has not played yet in 2026: its key players and pass rushers come from the 2025 season, without the offseason’s moves.'
+    )
+    // Later weeks read this season.
+    const later = game({ week: 2 })
+    expect(keyNote(later, lastGames([later], later), beforeGame(later)!)).toBeNull()
+    expect(keyNote(SEASON[7], lastGames(SEASON, SEASON[7]), beforeGame(SEASON[7])!)).toBeNull()
+    // A final game reads its box score.
+    expect(keyNote(SEASON[0], {}, beforeGame(game({ week: 2 }))!)).toBeNull()
   })
 
   it('reads the players’ points before the game, at the four positions', () => {

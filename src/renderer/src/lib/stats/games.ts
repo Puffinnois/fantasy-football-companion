@@ -633,6 +633,23 @@ export function lastGames(
 }
 
 /**
+ * Before a team's first game of the season (week 1, read from the season before), its key players
+ * and pass rusher are chosen from last season's teams: a player who moved in the offseason is on
+ * the wrong one. Says so; null otherwise (and for a final game, which reads its box score).
+ */
+export function keyNote(
+  g: GameForecast,
+  last: Partial<Record<string, number>>,
+  before: BeforeScope
+): string | null {
+  if (isPlayed(g) || before.season >= g.season) return null
+  const waiting = [g.away, g.home].filter((t) => last[t] === undefined).map(teamAbbr)
+  if (!waiting.length) return null
+  const one = waiting.length === 1
+  return `${waiting.join(' and ')} ${one ? 'has' : 'have'} not played yet in ${g.season}: ${one ? 'its' : 'their'} key players and pass rushers come from ${before.label}, without the offseason’s moves.`
+}
+
+/**
  * Who played in each team's last game (before a game not played yet): the key players are chosen
  * among them, so a player out for the season is not. A final game reads its own box score.
  */
