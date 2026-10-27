@@ -141,20 +141,21 @@ export function StatsGames({
       range: before?.label ?? ''
     })
   // Sleeper's projections for the key players of a game not played yet, with a league.
+  // The key players wait for who plays (the last game's players, or a final game's box score)
+  // and for the pass rushers: chosen from the season's rows alone, the injured would lead.
+  const pooled =
+    seasonPlayers.result !== null &&
+    !rushers.loading &&
+    (played ? box !== null : !lastPlayers.loading)
   const keyIds =
-    game &&
-    hasLeague &&
-    !played &&
-    game.seasonType === 'REG' &&
-    seasonPlayers.result &&
-    !lastPlayers.loading
+    game && hasLeague && !played && game.seasonType === 'REG' && pooled
       ? [sideOf(game.away, game.home, null), sideOf(game.home, game.away, null)].flatMap((s) =>
           s.players.map((p) => p.id)
         )
       : null
   const projected = useWeekProjections(keyIds, season, game?.week ?? 0, leagueKey)
   const keys =
-    game && seasonPlayers.result
+    game && pooled
       ? [sideOf(game.away, game.home, projected), sideOf(game.home, game.away, projected)]
       : null
 

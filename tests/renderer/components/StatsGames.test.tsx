@@ -76,8 +76,9 @@ const GAMES: GameForecast[] = [
 ]
 const TEAMS = ['BUF', 'KC', 'MIA', 'NE']
 
-/** [id, name, team, position] */
+/** [id, name, team, position]; bw0, BUF's leading WR, missed its last game. */
 const PLAYERS: [string, string, string, string][] = [
+  ['bw0', 'Buffalo Starter', 'BUF', 'WR'],
   ['bq', 'Buffalo Passer', 'BUF', 'QB'],
   ['br', 'Buffalo Back', 'BUF', 'RB'],
   ['bw1', 'Buffalo Wideout', 'BUF', 'WR'],
@@ -116,9 +117,11 @@ function answer(q: StatsQuery): ReturnType<typeof result> {
     const [a, b] = s.weeks!
     return result(
       q.metrics,
-      rows.flatMap((r) =>
-        Array.from({ length: b - a + 1 }, (_, k) => ({ ...r, group: { week: a + k } }))
-      )
+      rows
+        .filter((r) => r.id !== 'bw0')
+        .flatMap((r) =>
+          Array.from({ length: b - a + 1 }, (_, k) => ({ ...r, group: { week: a + k } }))
+        )
     )
   }
   return result(q.metrics, rows)
@@ -228,5 +231,44 @@ describe('Games (stats-analysis spec §9.5, Plan AE)', () => {
     expect(players.week).not.toHaveBeenCalled()
     fireEvent.click(screen.getByTitle('Open the Kansas City Chiefs dashboard'))
     await waitFor(() => expect(stats.games).toHaveBeenCalledWith({ season: 2026, team: 'KC' }))
+  })
+
+  it('names the key players only once it knows who played: never one out of the last game', async () => {
+    let release = (): void => {}
+    const held = new Promise<void>((r) => (release = r))
+    stats.query.mockImplementation(async (q) => {
+      if (q.groupBy?.includes('week')) await held
+      return answer(q)
+    })
+    await openGames()
+    // The phases are on screen while the players of the last game load.
+    expect(await screen.findByLabelText('BUF offense against KC defense')).toBeTruthy()
+    expect(screen.queryByLabelText('BUF key players')).toBeNull()
+    expect(screen.queryByText('Buffalo Starter')).toBeNull()
+    release()
+    const buf = await screen.findByLabelText('BUF key players')
+    expect(within(buf).queryByText('Buffalo Starter')).toBeNull()
+    expect(within(buf).getByText('Buffalo Wideout')).toBeTruthy()
+  })
+
+  it('a final game’s key players wait for its box score', async () => {
+    let release = (): void => {}
+    const held = new Promise<void>((r) => (release = r))
+    stats.query.mockImplementation(async (q) => {
+      // The box score of week 2 (not the players of a last game, grouped by week).
+      if (!q.groupBy && q.scope.weeks?.[0] === 2 && q.scope.weeks[1] === 2) await held
+      return answer(q)
+    })
+    await openGames()
+    await waitFor(() => expect(railTeams()).toHaveLength(2))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Week' }), { target: { value: '2' } })
+    fireEvent.click(await screen.findByRole('tab', { name: 'Preview' }))
+    expect(await screen.findByLabelText('BUF offense against NE defense')).toBeTruthy()
+    expect(screen.queryByLabelText('BUF key players')).toBeNull()
+    release()
+    const buf = await screen.findByLabelText('BUF key players')
+    // He played this one: his points scored.
+    expect(within(buf).getByText('Buffalo Starter')).toBeTruthy()
+    expect(within(buf).getAllByText('scored').length).toBeGreaterThan(0)
   })
 })
