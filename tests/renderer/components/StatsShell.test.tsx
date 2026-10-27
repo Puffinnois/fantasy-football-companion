@@ -96,7 +96,9 @@ describe('the Stats nav', () => {
     expect(screen.getByRole('button', { name: 'Leaderboards' }).getAttribute('aria-current')).toBe(
       'page'
     )
-    expect((screen.getByRole('button', { name: 'Games' }) as HTMLButtonElement).disabled).toBe(true)
+    // Games opens the week's games (Plan AE).
+    fireEvent.click(screen.getByRole('button', { name: 'Games' }))
+    expect(onNavigate).toHaveBeenCalledWith('games')
     fireEvent.click(screen.getByRole('button', { name: 'Glossary' }))
     expect(onNavigate).toHaveBeenCalledWith('glossary')
     expect(screen.getByText('Data through 2026 week 6 · updating…')).toBeTruthy()
