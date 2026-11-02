@@ -189,6 +189,7 @@ export function compactAnswer(
       return { kind: 'call', name: 'player_stats', args: filled(out) }
     case 'team_stats':
       Object.assign(out, { team: b.teams[0].code, metrics: a.metrics }, time, flags, opponent)
+      if (b.slots.side) out.side = b.slots.side
       if (a.by && a.by !== 'none') out.by = a.by
       return { kind: 'call', name: 'team_stats', args: filled(out) }
     case 'compare': {

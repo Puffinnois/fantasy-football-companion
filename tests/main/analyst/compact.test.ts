@@ -138,6 +138,19 @@ describe('the compact profile (Ask spec §3.2)', () => {
     expect(order('Best YPRR among WRs with at least 200 routes', 'yprr')).toBe('best')
   })
 
+  it('reads a team’s defense when the question says so', () => {
+    const d = block('Bills defense in 2025')
+    expect(compactAnswer(d, compactCall(d)!, { metrics: ['default'] })).toEqual({
+      kind: 'call',
+      name: 'team_stats',
+      args: { team: 'BUF', seasons: [2025], side: 'defense' }
+    })
+    const o = block('How is the Lions’ offense this season?')
+    expect(compactAnswer(o, compactCall(o)!, { metrics: ['default'] })).toMatchObject({
+      args: { team: 'DET', side: 'offense' }
+    })
+  })
+
   it('answers `other` by asking for more candidates', () => {
     const b = block('How many yards per carry does Bijan average?')
     expect(compactAnswer(b, compactCall(b)!, { metrics: ['other'] })).toEqual({ kind: 'other' })

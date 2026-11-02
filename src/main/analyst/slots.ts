@@ -36,6 +36,8 @@ export interface Slots {
    * metric's direction: the compact profile turns it into an order (compact.ts).
    */
   end: 'worst' | 'low' | 'high' | null
+  /** A team's unit, when the question names one ("Bills defense"). */
+  side: 'offense' | 'defense' | null
 }
 
 const FLAGS: [RegExp, Flag][] = [
@@ -112,6 +114,11 @@ export function detectSlots(question: string): Slots {
     groupings,
     rostered,
     limit: top ? Number(top[1]) : null,
-    end: endOf(t)
+    end: endOf(t),
+    side: / (defense|defenses|defensive|defence) /.test(t)
+      ? 'defense'
+      : / (offense|offenses|offensive|offence) /.test(t)
+        ? 'offense'
+        : null
   }
 }
