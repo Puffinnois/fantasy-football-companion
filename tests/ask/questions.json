@@ -161,7 +161,8 @@
         "tool": "leaderboard",
         "args": {
           "metric": "sack_rate",
-          "position": "QB"
+          "position": "QB",
+          "order": "worst"
         }
       },
       "id": "leaderboard-11",
@@ -261,7 +262,8 @@
       "reference": {
         "tool": "leaderboard",
         "args": {
-          "metric": "drop_rate"
+          "metric": "drop_rate",
+          "order": "worst"
         }
       },
       "id": "leaderboard-18",
@@ -1045,7 +1047,8 @@
         "args": {
           "team": "DET",
           "metrics": ["off_epa_play"],
-          "by": "week"
+          "by": "week",
+          "side": "offense"
         }
       },
       "id": "split-16",
