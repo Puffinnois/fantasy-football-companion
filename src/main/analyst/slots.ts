@@ -30,8 +30,12 @@ export interface Slots {
   groupings: Grouping[]
   rostered: 'mine' | 'free' | null
   limit: number | null
-  /** "worst", "lowest", "fewest": the bottom of a ranking. */
-  ascending: boolean
+  /**
+   * Which end of the scale the question asks for: `worst` ("worst", "bottom"), or the `low` or
+   * `high` values ("lowest", "fewest"; "most", "highest"). Which of those is best depends on the
+   * metric's direction: the compact profile turns it into an order (compact.ts).
+   */
+  end: 'worst' | 'low' | 'high' | null
 }
 
 const FLAGS: [RegExp, Flag][] = [
@@ -80,6 +84,15 @@ const NAMED_IN_METRIC: [RegExp, Flag][] = [
   [/ (neutral pass rate|neutral pace|neutral proe|neutral situation proe)/, 'neutral']
 ]
 
+function endOf(t: string): Slots['end'] {
+  if (/ (worst|bottom) /.test(t)) return 'worst'
+  // "At least 200 routes" is a threshold.
+  const u = t.replace(/ at least /g, ' ')
+  if (/ (lowest|least|fewest|smallest) /.test(u)) return 'low'
+  if (/ (most|highest|largest|biggest) /.test(u)) return 'high'
+  return null
+}
+
 export function detectSlots(question: string): Slots {
   const t = padded(question)
   const named = new Set(NAMED_IN_METRIC.filter(([rx]) => rx.test(t)).map(([, f]) => f))
@@ -99,6 +112,6 @@ export function detectSlots(question: string): Slots {
     groupings,
     rostered,
     limit: top ? Number(top[1]) : null,
-    ascending: / (worst|lowest|least|fewest|bottom) /.test(t)
+    end: endOf(t)
   }
 }

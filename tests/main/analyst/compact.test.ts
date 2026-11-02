@@ -120,6 +120,24 @@ describe('the compact profile (Ask spec §3.2)', () => {
     })
   })
 
+  it('turns the end of the scale the question asks for into an order by the metric’s direction', () => {
+    const order = (q: string, metric: string): unknown => {
+      const b = block(q)
+      const a = compactAnswer(b, compactCall(b)!, { metric })
+      return a.kind === 'call' ? (a.args.order ?? 'best') : null
+    }
+    // A passer rating allowed is better low: the lowest are the best.
+    expect(
+      order('Cornerbacks with the lowest passer rating allowed last season', 'coverage_rating')
+    ).toBe('best')
+    // Interceptions are better low: the most are the worst.
+    expect(order('Which QB has thrown the most interceptions?', 'pass_int')).toBe('worst')
+    expect(order('Which QB has thrown the fewest interceptions?', 'pass_int')).toBe('best')
+    expect(order('Lowest yards per carry among RBs', 'rush_ypc')).toBe('worst')
+    expect(order('Worst defenses against the run', 'def_rush_epa')).toBe('worst')
+    expect(order('Best YPRR among WRs with at least 200 routes', 'yprr')).toBe('best')
+  })
+
   it('answers `other` by asking for more candidates', () => {
     const b = block('How many yards per carry does Bijan average?')
     expect(compactAnswer(b, compactCall(b)!, { metrics: ['other'] })).toEqual({ kind: 'other' })

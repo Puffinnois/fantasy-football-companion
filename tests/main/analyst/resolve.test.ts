@@ -140,7 +140,11 @@ describe('slots', () => {
     })
     expect(detectSlots('best free-agent TE').rostered).toBe('free')
     expect(detectSlots('targets on my team').rostered).toBe('mine')
-    expect(detectSlots('worst 5 defenses')).toMatchObject({ limit: 5, ascending: true })
+    expect(detectSlots('worst 5 defenses')).toMatchObject({ limit: 5, end: 'worst' })
+    expect(detectSlots('lowest passer rating allowed').end).toBe('low')
+    expect(detectSlots('who has thrown the most interceptions').end).toBe('high')
+    // "At least" is a threshold, not the low end.
+    expect(detectSlots('best YPRR among WRs with at least 200 routes').end).toBeNull()
   })
 })
 

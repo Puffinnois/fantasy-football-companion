@@ -1,4 +1,5 @@
 import type { ToolName } from '@shared/ask'
+import { METRICS } from '@shared/stats/catalogue'
 import { POSITION_GROUPS } from '@shared/stats/types'
 import type { CompactTool } from './classify'
 import type { ContextBlock } from './resolve'
@@ -173,7 +174,14 @@ export function compactAnswer(
       if (b.teams[0]) out.team = b.teams[0].code
       if (b.slots.rostered) out.rostered = b.slots.rostered
       if (b.slots.limit) out.limit = b.slots.limit
-      if (b.slots.ascending) out.order = 'worst'
+      {
+        // The low values of a lower-is-better metric are its best; its high values its worst.
+        const lower = METRICS.get(String(a.metric))?.direction === 'lower'
+        const end = b.slots.end
+        if (end === 'worst' || (end === 'low' && !lower) || (end === 'high' && lower)) {
+          out.order = 'worst'
+        }
+      }
       return { kind: 'call', name: 'leaderboard', args: filled(out) }
     case 'player_stats':
       Object.assign(out, { player: b.players[0].id, metrics: a.metrics }, time, flags, opponent)
