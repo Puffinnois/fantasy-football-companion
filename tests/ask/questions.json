@@ -1,0 +1,2377 @@
+{
+  "about": "Ask spec §7: the evaluation questions. Each has a category, what the app must do (answer, ask, decline, answer_or_ask), and a reference tool call that answers it on the frozen database. Dev questions tune the brief and the profiles; held-out ones only gate (never tuned on). Paraphrases are added in Plan AG.",
+  "frozen": {
+    "season": 2026,
+    "through": 7,
+    "seasonType": "REG",
+    "note": "A copy of stats.duckdb through 2026 week 7 (v0.36.0, derived 3, models 1); its path comes from FFC_ASK_DB."
+  },
+  "questions": [
+    {
+      "category": "leaderboard",
+      "question": "Who leads WRs in yards per route run since week 5?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "yprr",
+          "position": "WR",
+          "seasons": [2026],
+          "weeks": [5, 7]
+        }
+      },
+      "id": "leaderboard-01",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Best tight end by targets per route run this season",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "tprr",
+          "position": "TE",
+          "seasons": [2026]
+        }
+      },
+      "id": "leaderboard-02",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Which QBs had the best CPOE in 2025?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "cpoe",
+          "position": "QB",
+          "seasons": [2025]
+        }
+      },
+      "id": "leaderboard-03",
+      "split": "heldout"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Top 5 running backs in rush yards over expected per carry",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "ryoe_att",
+          "position": "RB",
+          "limit": 5
+        }
+      },
+      "id": "leaderboard-04",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Which defenses blitz the most?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "def_blitz_rate"
+        }
+      },
+      "id": "leaderboard-05",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Which teams have the best playoff odds right now?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "playoff_pct"
+        }
+      },
+      "id": "leaderboard-06",
+      "split": "heldout"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Most red-zone carries among running backs last season",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "rz_carries",
+          "position": "RB",
+          "seasons": [2025]
+        }
+      },
+      "id": "leaderboard-07",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Who has the highest target share among WRs over the last 3 weeks?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "target_share",
+          "position": "WR",
+          "seasons": [2026],
+          "weeks": [5, 7]
+        }
+      },
+      "id": "leaderboard-08",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Most receiving yards this season",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "rec_yds",
+          "seasons": [2026]
+        }
+      },
+      "id": "leaderboard-09",
+      "split": "heldout"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Rushing touchdown leaders in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "rush_td",
+          "seasons": [2025]
+        }
+      },
+      "id": "leaderboard-10",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Which QB gets sacked the most often?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "sack_rate",
+          "position": "QB"
+        }
+      },
+      "id": "leaderboard-11",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Best quarterbacks by EPA per dropback since week 4",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "qb_epa_db",
+          "position": "QB",
+          "seasons": [2026],
+          "weeks": [4, 7]
+        }
+      },
+      "id": "leaderboard-12",
+      "split": "heldout"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Who gets the most separation from defenders?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "separation"
+        }
+      },
+      "id": "leaderboard-13",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Which receivers have the most boom weeks this year?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "boom_rate",
+          "position": "WR",
+          "seasons": [2026]
+        }
+      },
+      "id": "leaderboard-14",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Highest fantasy points per game among RBs",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "fantasy_ppg",
+          "position": "RB"
+        }
+      },
+      "id": "leaderboard-15",
+      "split": "heldout"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Who scores the most PPG at tight end?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "fantasy_ppg",
+          "position": "TE"
+        }
+      },
+      "id": "leaderboard-16",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Expected fantasy points leaders at WR in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "expected_points",
+          "position": "WR",
+          "seasons": [2025]
+        }
+      },
+      "id": "leaderboard-17",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Who drops the most catchable passes?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "drop_rate"
+        }
+      },
+      "id": "leaderboard-18",
+      "split": "heldout"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Which offenses play fastest in neutral situations?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "neutral_pace"
+        }
+      },
+      "id": "leaderboard-19",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Teams with the highest implied team total",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "implied_points"
+        }
+      },
+      "id": "leaderboard-20",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Which teams pass more than expected?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "proe"
+        }
+      },
+      "id": "leaderboard-21",
+      "split": "heldout"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Best pass defenses by EPA per dropback allowed in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "def_pass_epa",
+          "seasons": [2025]
+        }
+      },
+      "id": "leaderboard-22",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Who are the worst 5 defenses against the run?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "def_rush_epa",
+          "order": "worst",
+          "limit": 5
+        }
+      },
+      "id": "leaderboard-23",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Edge rushers with the most sacks in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "sacks",
+          "seasons": [2025]
+        }
+      },
+      "id": "leaderboard-24",
+      "split": "heldout"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Cornerbacks with the lowest passer rating allowed last season",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "coverage_rating",
+          "position": "DB",
+          "seasons": [2025]
+        }
+      },
+      "id": "leaderboard-25",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Best long-distance kicker in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "fg_pct_50p",
+          "position": "K",
+          "seasons": [2025]
+        }
+      },
+      "id": "leaderboard-26",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Kickers ranked by field goals over expected",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "fgoe"
+        }
+      },
+      "id": "leaderboard-27",
+      "split": "heldout"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Which teams have the easiest remaining schedule?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "sos_left_elo"
+        }
+      },
+      "id": "leaderboard-28",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "QBs who get rid of the ball fastest",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "time_to_throw",
+          "position": "QB"
+        }
+      },
+      "id": "leaderboard-29",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Which defenses play the most man coverage in 2025?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "def_man_rate",
+          "seasons": [2025]
+        }
+      },
+      "id": "leaderboard-30",
+      "split": "heldout"
+    },
+    {
+      "category": "leaderboard",
+      "question": "High value touches leaders at running back",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "high_value_touches",
+          "position": "RB"
+        }
+      },
+      "id": "leaderboard-31",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Yards after contact per carry leaders in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "yac_att",
+          "position": "RB",
+          "seasons": [2025]
+        }
+      },
+      "id": "leaderboard-32",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "WOPR leaders this season",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "wopr",
+          "seasons": [2026]
+        }
+      },
+      "id": "leaderboard-33",
+      "split": "heldout"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Who leads the league in air yards share?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "air_yards_share"
+        }
+      },
+      "id": "leaderboard-34",
+      "split": "dev"
+    },
+    {
+      "category": "leaderboard",
+      "question": "Best free-agent TE by target share",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "target_share",
+          "position": "TE",
+          "rostered": "free"
+        }
+      },
+      "needsLeague": true,
+      "id": "leaderboard-35",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "How many passing TDs did Josh Allen throw in 2025?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0034857",
+          "metrics": ["pass_td"],
+          "seasons": [2025]
+        }
+      },
+      "id": "lookup-01",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "Bijan Robinson's rushing yards this season",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0038542",
+          "metrics": ["rush_yds"],
+          "seasons": [2026]
+        }
+      },
+      "id": "lookup-02",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "How many receptions did CeeDee Lamb have in 2025?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0036358",
+          "metrics": ["receptions"],
+          "seasons": [2025]
+        }
+      },
+      "id": "lookup-03",
+      "split": "heldout"
+    },
+    {
+      "category": "lookup",
+      "question": "Lamar Jackson's rushing yards in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0034796",
+          "metrics": ["rush_yds"],
+          "seasons": [2025]
+        }
+      },
+      "id": "lookup-04",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "Brock Bowers' yards per route run in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0039338",
+          "metrics": ["yprr"],
+          "seasons": [2025]
+        }
+      },
+      "id": "lookup-05",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "What is Puka Nacua's target share this year?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0039075",
+          "metrics": ["target_share"],
+          "seasons": [2026]
+        }
+      },
+      "id": "lookup-06",
+      "split": "heldout"
+    },
+    {
+      "category": "lookup",
+      "question": "How is Jahmyr Gibbs doing this season?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0039139",
+          "seasons": [2026]
+        }
+      },
+      "id": "lookup-07",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "Drake Maye's CPOE in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0039851",
+          "metrics": ["cpoe"],
+          "seasons": [2025]
+        }
+      },
+      "id": "lookup-08",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "How many targets does Trey McBride have?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0037744",
+          "metrics": ["targets"]
+        }
+      },
+      "id": "lookup-09",
+      "split": "heldout"
+    },
+    {
+      "category": "lookup",
+      "question": "Saquon Barkley's yards per carry last season",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0034844",
+          "metrics": ["rush_ypc"],
+          "seasons": [2025]
+        }
+      },
+      "id": "lookup-10",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "cmc rushing yards last 4 games",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0033280",
+          "metrics": ["rush_yds"],
+          "last_games": 4,
+          "seasons": [2026]
+        }
+      },
+      "id": "lookup-11",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "Justin Jefferson's catch rate this season",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0036322",
+          "metrics": ["catch_rate"],
+          "seasons": [2026]
+        }
+      },
+      "id": "lookup-12",
+      "split": "heldout"
+    },
+    {
+      "category": "lookup",
+      "question": "How many sacks does T.J. Watt have this year?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0033886",
+          "metrics": ["sacks"],
+          "seasons": [2026]
+        }
+      },
+      "id": "lookup-13",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "Brandon Aubrey's field goal percentage in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0037692",
+          "metrics": ["fg_pct"],
+          "seasons": [2025]
+        }
+      },
+      "id": "lookup-14",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "Jaxon Smith-Njigba's receiving yards this season",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0038543",
+          "metrics": ["rec_yds"],
+          "seasons": [2026]
+        }
+      },
+      "id": "lookup-15",
+      "split": "heldout"
+    },
+    {
+      "category": "lookup",
+      "question": "Jayden Daniels' rushing yards in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0039910",
+          "metrics": ["rush_yds"],
+          "seasons": [2025]
+        }
+      },
+      "id": "lookup-16",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "Derrick Henry's rushing touchdowns since 2023",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0032764",
+          "metrics": ["rush_td"],
+          "seasons": [2023, 2024, 2025, 2026]
+        }
+      },
+      "id": "lookup-17",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "Josh Allen EPA per dropback this year",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0034857",
+          "metrics": ["qb_epa_db"],
+          "seasons": [2026]
+        }
+      },
+      "id": "lookup-18",
+      "split": "heldout"
+    },
+    {
+      "category": "lookup",
+      "question": "Christian McCaffery yards after contact in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0033280",
+          "metrics": ["yac_att"],
+          "seasons": [2025]
+        }
+      },
+      "id": "lookup-19",
+      "split": "dev"
+    },
+    {
+      "category": "lookup",
+      "question": "Ashton Jeanty's snap share this season",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0040122",
+          "metrics": ["snap_share"],
+          "seasons": [2026]
+        }
+      },
+      "id": "lookup-20",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "How does Ja'Marr Chase do against man coverage in 2025?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0036900",
+          "seasons": [2025],
+          "coverage": "man"
+        }
+      },
+      "id": "split-01",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Show me Bijan Robinson's game log this season",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0038542",
+          "seasons": [2026],
+          "by": "week"
+        }
+      },
+      "id": "split-02",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "What is Josh Allen's EPA per dropback when he's pressured in 2025?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0034857",
+          "metrics": ["qb_epa_db"],
+          "seasons": [2025],
+          "pressure": true
+        }
+      },
+      "id": "split-03",
+      "split": "heldout"
+    },
+    {
+      "category": "split",
+      "question": "How many yards per carry does Derrick Henry average in the red zone?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0032764",
+          "metrics": ["rush_ypc"],
+          "red_zone": true
+        }
+      },
+      "id": "split-04",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Puka Nacua's target share by week",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0039075",
+          "metrics": ["target_share"],
+          "by": "week"
+        }
+      },
+      "id": "split-05",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "man vs zone splits for Garrett Wilson in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0037740",
+          "seasons": [2025],
+          "by": "coverage"
+        }
+      },
+      "id": "split-06",
+      "split": "heldout"
+    },
+    {
+      "category": "split",
+      "question": "Josh Allen EPA per dropback by down in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0034857",
+          "metrics": ["qb_epa_db"],
+          "seasons": [2025],
+          "by": "down"
+        }
+      },
+      "id": "split-07",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Justin Jefferson catch rate on third down in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0036322",
+          "metrics": ["catch_rate"],
+          "seasons": [2025],
+          "third_down": true
+        }
+      },
+      "id": "split-08",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Chase Brown carries in the red zone this season",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0038597",
+          "metrics": ["carries"],
+          "seasons": [2026],
+          "red_zone": true
+        }
+      },
+      "id": "split-09",
+      "split": "heldout"
+    },
+    {
+      "category": "split",
+      "question": "How does Patrick Mahomes play against the blitz in 2025?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0033873",
+          "seasons": [2025],
+          "blitz": true
+        }
+      },
+      "id": "split-10",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Jalen Hurts' EPA on play action in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0036389",
+          "metrics": ["qb_epa_db"],
+          "seasons": [2025],
+          "play_action": true
+        }
+      },
+      "id": "split-11",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Amon-Ra St. Brown's game log in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0036963",
+          "seasons": [2025],
+          "by": "week"
+        }
+      },
+      "id": "split-12",
+      "split": "heldout"
+    },
+    {
+      "category": "split",
+      "question": "How does Lamar Jackson do at home vs on the road this season?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0034796",
+          "seasons": [2026],
+          "home": true
+        }
+      },
+      "id": "split-13",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Kyren Williams' carries inside the 5 in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0037840",
+          "metrics": ["carries"],
+          "seasons": [2025],
+          "goal_line": true
+        }
+      },
+      "id": "split-14",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Travis Kelce targets by season since 2022",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0030506",
+          "metrics": ["targets"],
+          "seasons": [2022, 2023, 2024, 2025, 2026],
+          "by": "season"
+        }
+      },
+      "id": "split-15",
+      "split": "heldout"
+    },
+    {
+      "category": "split",
+      "question": "Detroit offensive EPA per play by week",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "DET",
+          "metrics": ["off_epa_play"],
+          "by": "week"
+        }
+      },
+      "id": "split-16",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Baltimore's defense on third down in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "BAL",
+          "side": "defense",
+          "seasons": [2025],
+          "third_down": true
+        }
+      },
+      "id": "split-17",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Chiefs offense in the red zone this year",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "KC",
+          "side": "offense",
+          "seasons": [2026],
+          "red_zone": true
+        }
+      },
+      "id": "split-18",
+      "split": "heldout"
+    },
+    {
+      "category": "split",
+      "question": "Ja'Marr Chase yards per route run against the Ravens since 2022",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0036900",
+          "metrics": ["yprr"],
+          "seasons": [2022, 2023, 2024, 2025, 2026],
+          "opponent": "BAL"
+        }
+      },
+      "id": "split-19",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Which RBs have the most rushing yards against the Ravens since 2023?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "rush_yds",
+          "position": "RB",
+          "seasons": [2023, 2024, 2025, 2026],
+          "opponent": "BAL"
+        }
+      },
+      "id": "split-20",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Best WRs by yards per route run against zone coverage in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "yprr",
+          "position": "WR",
+          "seasons": [2025],
+          "coverage": "zone"
+        }
+      },
+      "id": "split-21",
+      "split": "heldout"
+    },
+    {
+      "category": "split",
+      "question": "Which QBs have the best EPA under pressure in 2025?",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "pressured_epa",
+          "position": "QB",
+          "seasons": [2025]
+        }
+      },
+      "id": "split-22",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Most red zone targets among tight ends this year",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "targets",
+          "position": "TE",
+          "seasons": [2026],
+          "red_zone": true
+        }
+      },
+      "id": "split-23",
+      "split": "dev"
+    },
+    {
+      "category": "split",
+      "question": "Best rushing success rate on third down in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "rush_success",
+          "seasons": [2025],
+          "third_down": true
+        }
+      },
+      "id": "split-24",
+      "split": "heldout"
+    },
+    {
+      "category": "split",
+      "question": "Sam LaPorta targets in two-minute situations in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0039065",
+          "metrics": ["targets"],
+          "seasons": [2025],
+          "two_minute": true
+        }
+      },
+      "id": "split-25",
+      "split": "dev"
+    },
+    {
+      "category": "compare",
+      "question": "Compare Ja'Marr Chase and CeeDee Lamb in yards per route run",
+      "expect": "answer",
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["00-0036900", "00-0036358"],
+          "metrics": ["yprr"]
+        }
+      },
+      "id": "compare-01",
+      "split": "dev"
+    },
+    {
+      "category": "compare",
+      "question": "Bijan vs Gibbs: fantasy points per game this season",
+      "expect": "answer",
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["00-0038542", "00-0039139"],
+          "metrics": ["fantasy_ppg"],
+          "seasons": [2026]
+        }
+      },
+      "id": "compare-02",
+      "split": "dev"
+    },
+    {
+      "category": "compare",
+      "question": "Who has more yards per route run, Puka or JSN?",
+      "expect": "answer",
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["00-0039075", "00-0038543"],
+          "metrics": ["yprr"]
+        }
+      },
+      "id": "compare-03",
+      "split": "heldout"
+    },
+    {
+      "category": "compare",
+      "question": "Compare the Ravens and Bengals offenses by EPA per play",
+      "expect": "answer",
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["BAL", "CIN"],
+          "metrics": ["off_epa_play"]
+        }
+      },
+      "id": "compare-04",
+      "split": "dev"
+    },
+    {
+      "category": "compare",
+      "question": "Kyren Williams vs Bijan Robinson yards after contact over the last 3 weeks",
+      "expect": "answer",
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["00-0037840", "00-0038542"],
+          "metrics": ["yac_att"],
+          "seasons": [2026],
+          "weeks": [5, 7]
+        }
+      },
+      "id": "compare-05",
+      "split": "dev"
+    },
+    {
+      "category": "compare",
+      "question": "Josh Allen or Lamar Jackson: who has the better EPA per dropback in 2025?",
+      "expect": "answer",
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["00-0034857", "00-0034796"],
+          "metrics": ["qb_epa_db"],
+          "seasons": [2025]
+        }
+      },
+      "id": "compare-06",
+      "split": "heldout"
+    },
+    {
+      "category": "compare",
+      "question": "Compare Brock Bowers, Trey McBride and George Kittle by target share in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["00-0039338", "00-0037744", "00-0033288"],
+          "metrics": ["target_share"],
+          "seasons": [2025]
+        }
+      },
+      "id": "compare-07",
+      "split": "dev"
+    },
+    {
+      "category": "compare",
+      "question": "Eagles vs Cowboys defense: EPA per play allowed this year",
+      "expect": "answer",
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["PHI", "DAL"],
+          "metrics": ["def_epa_play"],
+          "seasons": [2026]
+        }
+      },
+      "id": "compare-08",
+      "split": "dev"
+    },
+    {
+      "category": "compare",
+      "question": "Saquon Barkley and Derrick Henry rushing yards in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["00-0034844", "00-0032764"],
+          "metrics": ["rush_yds"],
+          "seasons": [2025]
+        }
+      },
+      "id": "compare-09",
+      "split": "heldout"
+    },
+    {
+      "category": "compare",
+      "question": "Malik Nabers vs Garrett Wilson targets per route run",
+      "expect": "answer",
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["00-0039337", "00-0037740"],
+          "metrics": ["tprr"]
+        }
+      },
+      "id": "compare-10",
+      "split": "dev"
+    },
+    {
+      "category": "compare",
+      "question": "Compare Jordan Love and Drake Maye in CPOE last season",
+      "expect": "answer",
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["00-0036264", "00-0039851"],
+          "metrics": ["cpoe"],
+          "seasons": [2025]
+        }
+      },
+      "id": "compare-11",
+      "split": "dev"
+    },
+    {
+      "category": "compare",
+      "question": "Bills vs Chiefs: playoff odds",
+      "expect": "answer",
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["BUF", "KC"],
+          "metrics": ["playoff_pct"]
+        }
+      },
+      "id": "compare-12",
+      "split": "heldout"
+    },
+    {
+      "category": "trend",
+      "question": "Josh Allen's EPA per dropback over the years",
+      "expect": "answer",
+      "reference": {
+        "tool": "trend",
+        "args": {
+          "id": "00-0034857",
+          "metric": "qb_epa_db"
+        }
+      },
+      "id": "trend-01",
+      "split": "dev"
+    },
+    {
+      "category": "trend",
+      "question": "Travis Kelce's yards per route run by season since 2019",
+      "expect": "answer",
+      "reference": {
+        "tool": "trend",
+        "args": {
+          "id": "00-0030506",
+          "metric": "yprr",
+          "from": 2019
+        }
+      },
+      "id": "trend-02",
+      "split": "dev"
+    },
+    {
+      "category": "trend",
+      "question": "Derrick Henry's yards per carry trend",
+      "expect": "answer",
+      "reference": {
+        "tool": "trend",
+        "args": {
+          "id": "00-0032764",
+          "metric": "rush_ypc"
+        }
+      },
+      "id": "trend-03",
+      "split": "heldout"
+    },
+    {
+      "category": "trend",
+      "question": "The Chiefs' offensive EPA per play year by year",
+      "expect": "answer",
+      "reference": {
+        "tool": "trend",
+        "args": {
+          "id": "KC",
+          "metric": "off_epa_play"
+        }
+      },
+      "id": "trend-04",
+      "split": "dev"
+    },
+    {
+      "category": "trend",
+      "question": "Aaron Rodgers' CPOE across his seasons since 2019",
+      "expect": "answer",
+      "reference": {
+        "tool": "trend",
+        "args": {
+          "id": "00-0023459",
+          "metric": "cpoe"
+        }
+      },
+      "id": "trend-05",
+      "split": "dev"
+    },
+    {
+      "category": "trend",
+      "question": "Davante Adams' target share career trend",
+      "expect": "answer",
+      "reference": {
+        "tool": "trend",
+        "args": {
+          "id": "00-0031381",
+          "metric": "target_share"
+        }
+      },
+      "id": "trend-06",
+      "split": "heldout"
+    },
+    {
+      "category": "trend",
+      "question": "Ravens' rushing EPA since 2020",
+      "expect": "answer",
+      "reference": {
+        "tool": "trend",
+        "args": {
+          "id": "BAL",
+          "metric": "off_rush_epa",
+          "from": 2020
+        }
+      },
+      "id": "trend-07",
+      "split": "dev"
+    },
+    {
+      "category": "trend",
+      "question": "Alvin Kamara's yards after contact over time",
+      "expect": "answer",
+      "reference": {
+        "tool": "trend",
+        "args": {
+          "id": "00-0033906",
+          "metric": "yac_att"
+        }
+      },
+      "id": "trend-08",
+      "split": "dev"
+    },
+    {
+      "category": "team",
+      "question": "How good is the Ravens' run defense this year?",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "BAL",
+          "side": "defense",
+          "metrics": ["def_rush_epa"],
+          "seasons": [2026]
+        }
+      },
+      "id": "team-01",
+      "split": "dev"
+    },
+    {
+      "category": "team",
+      "question": "How is the Lions' offense this season?",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "DET",
+          "side": "offense",
+          "seasons": [2026]
+        }
+      },
+      "id": "team-02",
+      "split": "dev"
+    },
+    {
+      "category": "team",
+      "question": "Bills defense in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "BUF",
+          "side": "defense",
+          "seasons": [2025]
+        }
+      },
+      "id": "team-03",
+      "split": "heldout"
+    },
+    {
+      "category": "team",
+      "question": "What's the Eagles' pass rate over expected?",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "PHI",
+          "metrics": ["proe"]
+        }
+      },
+      "id": "team-04",
+      "split": "dev"
+    },
+    {
+      "category": "team",
+      "question": "Niners' Elo rating right now",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "SF",
+          "metrics": ["elo"]
+        }
+      },
+      "id": "team-05",
+      "split": "dev"
+    },
+    {
+      "category": "team",
+      "question": "How often do the Steelers blitz?",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "PIT",
+          "metrics": ["def_blitz_rate"]
+        }
+      },
+      "id": "team-06",
+      "split": "heldout"
+    },
+    {
+      "category": "team",
+      "question": "The Packers' points per drive in 2025",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "GB",
+          "metrics": ["points_per_drive"],
+          "seasons": [2025]
+        }
+      },
+      "id": "team-07",
+      "split": "dev"
+    },
+    {
+      "category": "team",
+      "question": "Jets' third down conversion rate this year",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "NYJ",
+          "metrics": ["off_third_down_pct"],
+          "seasons": [2026]
+        }
+      },
+      "id": "team-08",
+      "split": "dev"
+    },
+    {
+      "category": "team",
+      "question": "What are the Chargers' playoff odds?",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "LAC",
+          "metrics": ["playoff_pct"]
+        }
+      },
+      "id": "team-09",
+      "split": "heldout"
+    },
+    {
+      "category": "team",
+      "question": "How many fantasy points do the Cowboys allow to WRs?",
+      "expect": "answer",
+      "reference": {
+        "tool": "team_stats",
+        "args": {
+          "team": "DAL",
+          "metrics": ["fpa_wr"]
+        }
+      },
+      "id": "team-10",
+      "split": "dev"
+    },
+    {
+      "category": "games",
+      "question": "Who do the Packers play next week?",
+      "expect": "answer",
+      "reference": {
+        "tool": "games",
+        "args": {
+          "season": 2026,
+          "week": 8,
+          "team": "GB"
+        }
+      },
+      "id": "games-01",
+      "split": "dev"
+    },
+    {
+      "category": "games",
+      "question": "What are the games in week 8?",
+      "expect": "answer",
+      "reference": {
+        "tool": "games",
+        "args": {
+          "season": 2026,
+          "week": 8
+        }
+      },
+      "id": "games-02",
+      "split": "dev"
+    },
+    {
+      "category": "games",
+      "question": "Who won the Bills game in week 3?",
+      "expect": "answer",
+      "reference": {
+        "tool": "games",
+        "args": {
+          "season": 2026,
+          "week": 3,
+          "team": "BUF"
+        }
+      },
+      "id": "games-03",
+      "split": "heldout"
+    },
+    {
+      "category": "games",
+      "question": "Show the Chiefs' schedule this season",
+      "expect": "answer",
+      "reference": {
+        "tool": "games",
+        "args": {
+          "season": 2026,
+          "team": "KC"
+        }
+      },
+      "id": "games-04",
+      "split": "dev"
+    },
+    {
+      "category": "games",
+      "question": "Box score of the Lions game in week 5",
+      "expect": "answer",
+      "reference": {
+        "tool": "games",
+        "args": {
+          "season": 2026,
+          "week": 5,
+          "team": "DET"
+        }
+      },
+      "id": "games-05",
+      "split": "dev"
+    },
+    {
+      "category": "outlook",
+      "question": "Is Jordan Love due for regression?",
+      "expect": "answer",
+      "reference": {
+        "tool": "outlook",
+        "args": {
+          "player": "00-0036264"
+        }
+      },
+      "id": "outlook-01",
+      "split": "dev"
+    },
+    {
+      "category": "outlook",
+      "question": "What's Bijan Robinson's ceiling and floor this season?",
+      "expect": "answer",
+      "reference": {
+        "tool": "outlook",
+        "args": {
+          "player": "00-0038542"
+        }
+      },
+      "id": "outlook-02",
+      "split": "dev"
+    },
+    {
+      "category": "outlook",
+      "question": "Is Puka Nacua running hot?",
+      "expect": "answer",
+      "reference": {
+        "tool": "outlook",
+        "args": {
+          "player": "00-0039075"
+        }
+      },
+      "id": "outlook-03",
+      "split": "heldout"
+    },
+    {
+      "category": "outlook",
+      "question": "What's the outlook for Breece Hall?",
+      "expect": "answer",
+      "reference": {
+        "tool": "outlook",
+        "args": {
+          "player": "00-0038120"
+        }
+      },
+      "id": "outlook-04",
+      "split": "dev"
+    },
+    {
+      "category": "outlook",
+      "question": "Is Mike Evans a sell high?",
+      "expect": "answer",
+      "reference": {
+        "tool": "outlook",
+        "args": {
+          "player": "00-0031408"
+        }
+      },
+      "id": "outlook-05",
+      "split": "dev"
+    },
+    {
+      "category": "league",
+      "question": "Who owns Puka Nacua?",
+      "expect": "answer",
+      "reference": {
+        "tool": "league",
+        "args": {
+          "what": "owner_of",
+          "player": "00-0039075"
+        }
+      },
+      "needsLeague": true,
+      "id": "league-01",
+      "split": "dev"
+    },
+    {
+      "category": "league",
+      "question": "Show my roster",
+      "expect": "answer",
+      "reference": {
+        "tool": "league",
+        "args": {
+          "what": "my_roster"
+        }
+      },
+      "needsLeague": true,
+      "id": "league-02",
+      "split": "dev"
+    },
+    {
+      "category": "league",
+      "question": "How is scoring set up in my league?",
+      "expect": "answer",
+      "reference": {
+        "tool": "league",
+        "args": {
+          "what": "scoring"
+        }
+      },
+      "needsLeague": true,
+      "id": "league-03",
+      "split": "heldout"
+    },
+    {
+      "category": "league",
+      "question": "Who has Ja'Marr Chase rostered?",
+      "expect": "answer",
+      "reference": {
+        "tool": "league",
+        "args": {
+          "what": "owner_of",
+          "player": "00-0036900"
+        }
+      },
+      "needsLeague": true,
+      "id": "league-04",
+      "split": "dev"
+    },
+    {
+      "category": "league",
+      "question": "Best free agent running backs by fantasy points per game",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "fantasy_ppg",
+          "position": "RB",
+          "rostered": "free"
+        }
+      },
+      "needsLeague": true,
+      "id": "league-05",
+      "split": "dev"
+    },
+    {
+      "category": "league",
+      "question": "Yards per route run of the receivers on my team",
+      "expect": "answer",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "yprr",
+          "rostered": "mine"
+        }
+      },
+      "needsLeague": true,
+      "id": "league-06",
+      "split": "heldout"
+    },
+    {
+      "category": "definition",
+      "question": "What does WOPR mean?",
+      "expect": "answer",
+      "reference": {
+        "tool": "describe",
+        "args": {
+          "metric": "wopr"
+        }
+      },
+      "id": "definition-01",
+      "split": "dev"
+    },
+    {
+      "category": "definition",
+      "question": "What is RYOE?",
+      "expect": "answer",
+      "reference": {
+        "tool": "describe",
+        "args": {
+          "metric": "ryoe"
+        }
+      },
+      "id": "definition-02",
+      "split": "dev"
+    },
+    {
+      "category": "definition",
+      "question": "What does PROE mean?",
+      "expect": "answer",
+      "reference": {
+        "tool": "describe",
+        "args": {
+          "metric": "proe"
+        }
+      },
+      "id": "definition-03",
+      "split": "heldout"
+    },
+    {
+      "category": "definition",
+      "question": "Define yards per route run",
+      "expect": "answer",
+      "reference": {
+        "tool": "describe",
+        "args": {
+          "metric": "yprr"
+        }
+      },
+      "id": "definition-04",
+      "split": "dev"
+    },
+    {
+      "category": "definition",
+      "question": "What is CPOE?",
+      "expect": "answer",
+      "reference": {
+        "tool": "describe",
+        "args": {
+          "metric": "cpoe"
+        }
+      },
+      "id": "definition-05",
+      "split": "dev"
+    },
+    {
+      "category": "definition",
+      "question": "Explain air yards share",
+      "expect": "answer",
+      "reference": {
+        "tool": "describe",
+        "args": {
+          "metric": "air_yards_share"
+        }
+      },
+      "id": "definition-06",
+      "split": "heldout"
+    },
+    {
+      "category": "ambiguous",
+      "question": "How many sacks does Byron Young have this season?",
+      "expect": "ask",
+      "reference": null,
+      "id": "ambiguous-01",
+      "split": "dev"
+    },
+    {
+      "category": "ambiguous",
+      "question": "Jaylon Jones passer rating allowed in 2025",
+      "expect": "ask",
+      "reference": null,
+      "id": "ambiguous-02",
+      "split": "dev"
+    },
+    {
+      "category": "ambiguous",
+      "question": "Jordan Phillips pressures last season",
+      "expect": "ask",
+      "reference": null,
+      "id": "ambiguous-03",
+      "split": "heldout"
+    },
+    {
+      "category": "ambiguous",
+      "question": "Marcus Harris tackles this year",
+      "expect": "ask",
+      "reference": null,
+      "id": "ambiguous-04",
+      "split": "dev"
+    },
+    {
+      "category": "ambiguous",
+      "question": "Jonah Williams snaps this season",
+      "expect": "ask",
+      "reference": null,
+      "id": "ambiguous-05",
+      "split": "dev"
+    },
+    {
+      "category": "vague",
+      "question": "Who has been good lately at WR?",
+      "expect": "answer_or_ask",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "fantasy_ppg",
+          "position": "WR",
+          "seasons": [2026],
+          "last_games": 4
+        }
+      },
+      "id": "vague-01",
+      "split": "dev"
+    },
+    {
+      "category": "vague",
+      "question": "Best running back this year?",
+      "expect": "answer_or_ask",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "fantasy_ppg",
+          "position": "RB",
+          "seasons": [2026]
+        }
+      },
+      "id": "vague-02",
+      "split": "dev"
+    },
+    {
+      "category": "vague",
+      "question": "Which defense is good?",
+      "expect": "answer_or_ask",
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "def_epa_play"
+        }
+      },
+      "id": "vague-03",
+      "split": "heldout"
+    },
+    {
+      "category": "vague",
+      "question": "Is Breece Hall good?",
+      "expect": "answer_or_ask",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0038120"
+        }
+      },
+      "id": "vague-04",
+      "split": "dev"
+    },
+    {
+      "category": "leading",
+      "question": "Isn't Bijan Robinson declining lately?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0038542",
+          "by": "week",
+          "seasons": [2026]
+        }
+      },
+      "id": "leading-01",
+      "split": "dev"
+    },
+    {
+      "category": "leading",
+      "question": "Mahomes is washed, right? Look at his EPA per dropback",
+      "expect": "answer",
+      "reference": {
+        "tool": "trend",
+        "args": {
+          "id": "00-0033873",
+          "metric": "qb_epa_db"
+        }
+      },
+      "id": "leading-02",
+      "split": "dev"
+    },
+    {
+      "category": "leading",
+      "question": "Ja'Marr Chase struggles against man coverage, doesn't he?",
+      "expect": "answer",
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0036900",
+          "by": "coverage",
+          "seasons": [2025]
+        }
+      },
+      "id": "leading-03",
+      "split": "heldout"
+    },
+    {
+      "category": "leading",
+      "question": "Derrick Henry is slowing down, isn't he?",
+      "expect": "answer",
+      "reference": {
+        "tool": "trend",
+        "args": {
+          "id": "00-0032764",
+          "metric": "rush_ypc"
+        }
+      },
+      "id": "leading-04",
+      "split": "dev"
+    },
+    {
+      "category": "unanswerable",
+      "question": "How many rushing yards did Barry Sanders have in 1997?",
+      "expect": "decline",
+      "reference": null,
+      "id": "unanswerable-01",
+      "split": "dev"
+    },
+    {
+      "category": "unanswerable",
+      "question": "What was Tom Brady's passer rating in 2015?",
+      "expect": "decline",
+      "reference": null,
+      "id": "unanswerable-02",
+      "split": "dev"
+    },
+    {
+      "category": "unanswerable",
+      "question": "What is Josh Allen's salary?",
+      "expect": "decline",
+      "reference": null,
+      "id": "unanswerable-03",
+      "split": "heldout"
+    },
+    {
+      "category": "unanswerable",
+      "question": "Who will win the Super Bowl in 2030?",
+      "expect": "decline",
+      "reference": null,
+      "id": "unanswerable-04",
+      "split": "dev"
+    },
+    {
+      "category": "unanswerable",
+      "question": "How fast does CeeDee Lamb run in practice?",
+      "expect": "decline",
+      "reference": null,
+      "id": "unanswerable-05",
+      "split": "dev"
+    },
+    {
+      "category": "advice",
+      "question": "Should I start Bijan or Gibbs this week?",
+      "expect": "decline",
+      "reference": null,
+      "id": "advice-01",
+      "split": "dev"
+    },
+    {
+      "category": "advice",
+      "question": "Should I trade Puka for Brock Bowers?",
+      "expect": "decline",
+      "reference": null,
+      "id": "advice-02",
+      "split": "dev"
+    },
+    {
+      "category": "advice",
+      "question": "Who should I pick up off waivers?",
+      "expect": "decline",
+      "reference": null,
+      "id": "advice-03",
+      "split": "heldout"
+    },
+    {
+      "category": "advice",
+      "question": "Start or sit Jordan Love?",
+      "expect": "decline",
+      "reference": null,
+      "id": "advice-04",
+      "split": "dev"
+    },
+    {
+      "category": "advice",
+      "question": "Should I drop Tee Higgins?",
+      "expect": "decline",
+      "reference": null,
+      "id": "advice-05",
+      "split": "dev"
+    },
+    {
+      "category": "followup",
+      "question": "now 2024",
+      "expect": "answer",
+      "previous": {
+        "question": "Who leads WRs in yards per route run this season?",
+        "reference": {
+          "tool": "leaderboard",
+          "args": {
+            "metric": "yprr",
+            "position": "WR",
+            "seasons": [2026]
+          }
+        }
+      },
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "yprr",
+          "position": "WR",
+          "seasons": [2024]
+        }
+      },
+      "id": "followup-01",
+      "split": "dev"
+    },
+    {
+      "category": "followup",
+      "question": "only in the red zone",
+      "expect": "answer",
+      "previous": {
+        "question": "Who leads WRs in targets this season?",
+        "reference": {
+          "tool": "leaderboard",
+          "args": {
+            "metric": "targets",
+            "position": "WR",
+            "seasons": [2026]
+          }
+        }
+      },
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "targets",
+          "position": "WR",
+          "seasons": [2026],
+          "red_zone": true
+        }
+      },
+      "id": "followup-02",
+      "split": "dev"
+    },
+    {
+      "category": "followup",
+      "question": "and Gibbs?",
+      "expect": "answer",
+      "previous": {
+        "question": "Bijan Robinson's rushing yards this season",
+        "reference": {
+          "tool": "player_stats",
+          "args": {
+            "player": "00-0038542",
+            "metrics": ["rush_yds"],
+            "seasons": [2026]
+          }
+        }
+      },
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0039139",
+          "metrics": ["rush_yds"],
+          "seasons": [2026]
+        }
+      },
+      "id": "followup-03",
+      "split": "heldout"
+    },
+    {
+      "category": "followup",
+      "question": "what about against the run?",
+      "expect": "answer",
+      "previous": {
+        "question": "Best pass defenses by EPA allowed in 2025",
+        "reference": {
+          "tool": "leaderboard",
+          "args": {
+            "metric": "def_pass_epa",
+            "seasons": [2025]
+          }
+        }
+      },
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "def_rush_epa",
+          "seasons": [2025]
+        }
+      },
+      "id": "followup-04",
+      "split": "dev"
+    },
+    {
+      "category": "followup",
+      "question": "by week",
+      "expect": "answer",
+      "previous": {
+        "question": "Josh Allen's EPA per dropback in 2025",
+        "reference": {
+          "tool": "player_stats",
+          "args": {
+            "player": "00-0034857",
+            "metrics": ["qb_epa_db"],
+            "seasons": [2025]
+          }
+        }
+      },
+      "reference": {
+        "tool": "player_stats",
+        "args": {
+          "player": "00-0034857",
+          "metrics": ["qb_epa_db"],
+          "seasons": [2025],
+          "by": "week"
+        }
+      },
+      "id": "followup-05",
+      "split": "dev"
+    },
+    {
+      "category": "followup",
+      "question": "just the top 3",
+      "expect": "answer",
+      "previous": {
+        "question": "Top 10 TEs by target share this year",
+        "reference": {
+          "tool": "leaderboard",
+          "args": {
+            "metric": "target_share",
+            "position": "TE",
+            "seasons": [2026]
+          }
+        }
+      },
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "target_share",
+          "position": "TE",
+          "seasons": [2026],
+          "limit": 3
+        }
+      },
+      "id": "followup-06",
+      "split": "heldout"
+    },
+    {
+      "category": "followup",
+      "question": "add Justin Jefferson",
+      "expect": "answer",
+      "previous": {
+        "question": "Compare Chase and Lamb in yards per route run",
+        "reference": {
+          "tool": "compare",
+          "args": {
+            "ids": ["00-0036900", "00-0036358"],
+            "metrics": ["yprr"]
+          }
+        }
+      },
+      "reference": {
+        "tool": "compare",
+        "args": {
+          "ids": ["00-0036900", "00-0036358", "00-0036322"],
+          "metrics": ["yprr"]
+        }
+      },
+      "id": "followup-07",
+      "split": "dev"
+    },
+    {
+      "category": "followup",
+      "question": "and which blitz the least?",
+      "expect": "answer",
+      "previous": {
+        "question": "Which defenses blitz the most?",
+        "reference": {
+          "tool": "leaderboard",
+          "args": {
+            "metric": "def_blitz_rate"
+          }
+        }
+      },
+      "reference": {
+        "tool": "leaderboard",
+        "args": {
+          "metric": "def_blitz_rate",
+          "order": "worst"
+        }
+      },
+      "id": "followup-08",
+      "split": "dev"
+    }
+  ]
+}
