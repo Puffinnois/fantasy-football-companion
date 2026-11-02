@@ -98,7 +98,7 @@ describe('errors teach (Ask spec §3.3)', () => {
       'arguments.player is not valid ("Bijan"). "Bijan" matched 00-0038542 Bijan Robinson (RB, ATL).'
     )
     expect(err((await run('leaderboard', { metric: 'yprr', position: 'QB' })).out)).toBe(
-      'yprr applies to RB, WR, TE, not QB; did you mean position: WR?'
+      'yprr applies to RB, WR, TE, not QB; use one of those positions'
     )
     expect(err((await run('leaderboard', { metric: 'yprr', player: CHASE })).out)).toMatch(
       /arguments.player is not an argument; the arguments are metric, also, position/
@@ -236,6 +236,29 @@ describe('leaderboard', () => {
     })
     expect(err((await run('leaderboard', { metric: 'def_rush_epa', position: 'DL' })).out)).toBe(
       'def_rush_epa is a team metric; leave out position'
+    )
+  })
+
+  it('says when every qualified row is rostered', async () => {
+    const league: LeagueReader = {
+      teams: () => [],
+      roster: () => [],
+      ownership: () => ({ players: { [CHASE]: { name: 'Mine', mine: true } }, teams: {} }),
+      rules: () => null
+    }
+    const rows = [statsRow(CHASE, "Ja'Marr Chase", { yprr: { raw: 2.4, rank: 1 } })]
+    const r = ok(
+      (
+        await run(
+          'leaderboard',
+          { metric: 'yprr', rostered: 'free' },
+          fake(() => rows),
+          league
+        )
+      ).out
+    )
+    expect(r.notes.at(-1)).toBe(
+      'Every qualified row is rostered in the league: no free agent qualifies.'
     )
   })
 
@@ -605,6 +628,26 @@ describe('the analyst (Ask spec §5.3)', () => {
     updatedAt = '2026-11-03T00:00:00Z'
     const after = ok(await analyst.run('leaderboard', { metric: 'yprr' }, await analyst.turn()))
     expect([people, stats.queries.length, after.cached]).toEqual([2, 2, false])
+  })
+
+  it('forgets its cache when the league’s scoring changes', async () => {
+    const stats = fake(() => [
+      statsRow(CHASE, "Ja'Marr Chase", { fantasy_ppg: { raw: 18, rank: 1 } })
+    ])
+    let rec = 1
+    const league = (): LeagueReader => ({
+      teams: () => [],
+      roster: () => [],
+      ownership: () => ({ players: {}, teams: {} }),
+      rules: () => ({ scoring: { rec }, positionOverrides: {} }) as unknown as Rules
+    })
+    const analyst = createAnalyst({ stats: stats.stats, league })
+    await analyst.run('leaderboard', { metric: 'fantasy_ppg' }, await analyst.turn())
+    rec = 0.5
+    const after = ok(
+      await analyst.run('leaderboard', { metric: 'fantasy_ppg' }, await analyst.turn())
+    )
+    expect([stats.queries.length, after.cached]).toEqual([2, false])
   })
 
   it('needs a built warehouse', async () => {

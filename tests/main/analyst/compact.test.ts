@@ -151,6 +151,14 @@ describe('the compact profile (Ask spec §3.2)', () => {
     })
   })
 
+  it('offers the league questions the resolver can fill', () => {
+    const b = block('Show my roster')
+    const what = (
+      compactCall(b)!.schema.properties!.args as { properties: { what: { enum: string[] } } }
+    ).properties.what.enum
+    expect(what).toEqual(['my_roster', 'scoring'])
+  })
+
   it('answers `other` by asking for more candidates', () => {
     const b = block('How many yards per carry does Bijan average?')
     expect(compactAnswer(b, compactCall(b)!, { metrics: ['other'] })).toEqual({ kind: 'other' })

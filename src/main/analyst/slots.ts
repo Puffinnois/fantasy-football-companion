@@ -108,7 +108,8 @@ export function detectSlots(question: string): Slots {
       : / (my team|my roster|my players|on my team|i have|mine) /.test(t)
         ? 'mine'
         : null
-  const top = t.match(/ (?:top|best|first|worst|bottom) (\d{1,2}) /)
+  // "The first 6 weeks" is time, not a row count.
+  const top = t.match(/ (?:top|best|first|worst|bottom) (\d{1,2}) (?!weeks|games)/)
   return {
     flags: split ? flags.filter((f) => f !== 'man_coverage' && f !== 'zone_coverage') : flags,
     groupings,

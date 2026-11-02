@@ -117,7 +117,7 @@ const everyday = (key: string): boolean => COMMON_WORDS.has(key) || FOOTBALL_WOR
 /** Position words in a question: "the QB", "receivers". */
 const POSITION_WORDS: [RegExp, string[]][] = [
   [/\b(qbs?|quarterbacks?)\b/, ['QB']],
-  [/\b(rbs?|running ?backs?|backs?)\b/, ['RB']],
+  [/\b(rbs?|running ?backs?)\b/, ['RB']],
   [/\b(wrs?|wide ?receivers?|wideouts?)\b/, ['WR']],
   [/\b(tes?|tight ?ends?)\b/, ['TE']],
   [/\b(receivers?|pass catchers?)\b/, ['WR', 'TE', 'RB']],

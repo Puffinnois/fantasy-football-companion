@@ -99,10 +99,7 @@ export function compactCall(b: ContextBlock): CompactCall | null {
       break
     case 'league':
       args.what = {
-        enum:
-          b.players.length > 0
-            ? ['owner_of', 'my_roster', 'scoring']
-            : ['my_roster', 'roster', 'scoring']
+        enum: b.players.length > 0 ? ['owner_of', 'my_roster', 'scoring'] : ['my_roster', 'scoring']
       }
       break
     case 'outlook':

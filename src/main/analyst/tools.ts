@@ -101,7 +101,7 @@ const BY: GroupBy[] = [
 ]
 const DETAIL: Schema = {
   enum: ['concise', 'full'],
-  description: 'concise (default): up to 15 rows and 6 columns; full: everything.'
+  description: 'concise (default): up to 15 rows and 5 metrics; full: 50 rows and 12.'
 }
 const CHART: Schema = {
   enum: ['table', 'bar', 'line', 'scatter'],
@@ -413,16 +413,15 @@ function checkPosition(metric: string, position: string | undefined): void {
   const m = metricOf(metric)
   if (!position || m.positions === 'all' || m.positions.includes(position as never)) return
   const fits = m.positions.join(', ')
-  fail(
-    `${metric} applies to ${fits}, not ${position}; did you mean position: ${m.positions[m.positions.length > 1 ? 1 : 0]}?`
-  )
+  fail(`${metric} applies to ${fits}, not ${position}; use one of those positions`)
 }
 
 // ---------------------------------------------------------------------------------------------
 // Text for the model
 
 const ROWS = { concise: 15, full: 50 }
-const COLUMNS = { concise: 4, full: 12 }
+/** Metrics shown beside the first (amendment J: 5 in all when concise, 12 when full). */
+const COLUMNS = { concise: 4, full: 11 }
 
 function seasonsText(scope: StatsQuery['scope']): string {
   const s = [...scope.seasons].sort()
@@ -565,7 +564,11 @@ export function createAnalyst(deps: AnalystDeps): Analyst {
       week: status.through.week,
       seasonType: status.through.seasonType
     }
-    const next = `${status.through.season}|${status.through.seasonType}|${status.through.week}|${status.updatedAt}`
+    // The league's scoring is part of it: a rescoring changes fantasy points without a refresh.
+    const league = deps.league()
+    const rules = league?.rules() ?? null
+    const scoring = rules ? JSON.stringify([rules.scoring, rules.positionOverrides]) : ''
+    const next = `${status.through.season}|${status.through.seasonType}|${status.through.week}|${status.updatedAt}|${scoring}`
     if (next !== stamp) {
       const [info, all] = await Promise.all([deps.stats.catalogue(), deps.stats.people()])
       catalogue = new Map(info.map((m) => [m.id, m]))
@@ -574,7 +577,7 @@ export function createAnalyst(deps: AnalystDeps): Analyst {
       stamp = next
     }
     const seasons = Array.from({ length: now.season - 2019 + 1 }, (_, i) => 2019 + i)
-    return { now, seasons, catalogue, people, league: deps.league(), splits: 0 }
+    return { now, seasons, catalogue, people, league, splits: 0 }
   }
 
   /** Ask spec §5.3: an exact cache keyed on the query; cleared when the warehouse changes. */
@@ -767,9 +770,11 @@ const leaderboard: Handler = async (a, turn, io) => {
     const rows = namedRow && !top.includes(namedRow) ? [...top, namedRow] : top
     result = { ...result, rows }
   }
+  let allRostered = false
   if (rostered === 'free' && owned) {
     const taken = m.entity === 'player' ? owned.players : owned.teams
     const rows = result.rows.filter((r) => !taken[r.id]).slice(0, limit)
+    allRostered = rows.length === 0 && result.rows.length > 0
     result = { ...result, rows, total: rows.length }
   }
   const info = turn.catalogue.get(id)
@@ -783,13 +788,15 @@ const leaderboard: Handler = async (a, turn, io) => {
         : `${TEAM_NAMES[named]} (${named}) has no qualified value here.`
     )
   }
-  if (result.rows.length === 0) notes.push(await explainEmpty(q, io, turn))
+  if (allRostered) {
+    notes.push('Every qualified row is rostered in the league: no free agent qualifies.')
+  } else if (result.rows.length === 0) notes.push(await explainEmpty(q, io, turn))
   const detail = detailOf(a)
   const player = m.entity === 'player'
   const lines = result.rows.slice(0, ROWS[detail]).map((r) => {
     const v = r.values[id]
     const rest = also
-      .slice(0, COLUMNS[detail] - 1)
+      .slice(0, COLUMNS[detail])
       .map((x) => valueText(r, x, turn, { transform: q.transform }))
       .filter(Boolean)
     return `${v?.rank ?? '–'}. ${who(r, player)} — ${[valueText(r, id, turn, { sample: true, percentile: true, transform: q.transform }), ...rest].join(' · ')}`
@@ -861,7 +868,7 @@ async function lineAndSplits(
     }
   }
   const detail = detailOf(a)
-  const shown = metrics.slice(0, COLUMNS[detail] + 2)
+  const shown = metrics.slice(0, COLUMNS[detail] + 1)
   const title = `${subject.label}, ${seasonsText(q.scope)}${situationText(q)}${by ? `, by ${by}` : ''}.`
   const notes = [...pre, ...leagueResult.notes, ...(splitResult?.notes ?? [])].filter(
     (n, i, all) => all.indexOf(n) === i
@@ -1063,7 +1070,7 @@ const compare: Handler = async (a, turn, io) => {
   const lines = rows.map(
     (r) =>
       `${who(r, players)}: ${metrics
-        .slice(0, COLUMNS[detail] + 2)
+        .slice(0, COLUMNS[detail] + 1)
         .map((x) => valueText(r, x, turn, { sample: true, percentile: true }))
         .filter(Boolean)
         .join(' · ')}`
@@ -1343,7 +1350,7 @@ const query: Handler = async (a, turn, io) => {
   const lines = result.rows.slice(0, ROWS[detail]).map((r) => {
     const g = q.groupBy?.map((x) => groupText(r, x)).join(', ')
     return `${r.values[q.metrics[0]]?.rank ?? '–'}. ${who(r, player)}${g ? ` [${g}]` : ''} — ${q.metrics
-      .slice(0, COLUMNS[detail])
+      .slice(0, COLUMNS[detail] + 1)
       .map((x) => valueText(r, x, turn, { sample: true, transform: q.transform }))
       .filter(Boolean)
       .join(' · ')}`

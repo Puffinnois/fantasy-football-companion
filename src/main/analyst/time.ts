@@ -131,6 +131,10 @@ export function resolveTime(question: string, now: Now): ResolvedTime {
     const k = n(m[1])
     out.weeks = [Math.max(1, through - k + 1), through]
     say(m[0].trim(), `weeks ${out.weeks[0]}–${out.weeks[1]} of ${inSeason}`)
+  } else if ((m = t.match(new RegExp(` (?:first|opening) ${num} (?:weeks|games) `)))) {
+    const k = n(m[1])
+    out.weeks = [1, Math.min(22, k)]
+    say(m[0].trim(), `weeks 1–${out.weeks[1]} of ${inSeason}`)
   } else if ((m = t.match(/ (?:since|after|from) week (\d+) /))) {
     const from = Number(m[1])
     out.weeks = [from, Math.max(from, through)]

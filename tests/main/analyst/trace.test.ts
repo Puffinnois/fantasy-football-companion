@@ -86,6 +86,9 @@ describe('traces (Ask spec §5.3)', () => {
     expect(maskQuestion(block('How does Ja’Marr Chase do against the Ravens in 2025?'))).toBe(
       'how does {player} do against the {opponent} in {season}'
     )
+    expect(maskQuestion(block('Bijan rushing yards in 2024 2025'))).toBe(
+      '{player} {metric} in {season} {season}'
+    )
   })
 })
 

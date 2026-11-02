@@ -91,6 +91,7 @@ describe('players', () => {
     expect(positionsIn('best TE by target share')).toEqual(['TE'])
     expect(positionsIn('who generates the most pressure on the quarterback')).toEqual([])
     expect(positionsIn('receivers vs man')).toEqual(['WR', 'TE', 'RB'])
+    expect(positionsIn('is he due to bounce back')).toEqual([])
   })
 })
 
@@ -123,6 +124,11 @@ describe('time', () => {
     expect(t('2019 and 2021').seasons).toEqual([2019, 2021])
     expect(t('2022-24').seasons).toEqual([2022, 2023, 2024])
     expect(t('Who is on pace for 2000 rushing yards?')).toEqual({ said: [] })
+  })
+
+  it('reads the first weeks of a season as weeks', () => {
+    expect(t('over the first 6 weeks')).toMatchObject({ seasons: [2026], weeks: [1, 6] })
+    expect(detectSlots('over the first 6 weeks').limit).toBeNull()
   })
 
   it('reads the postseason, but not in playoff odds, and flags seasons out of range', () => {

@@ -124,6 +124,6 @@ export function maskQuestion(b: ContextBlock): string {
     / (wrs?|rbs?|tes?|qbs?|wide receivers?|running backs?|tight ends?|quarterbacks?|receivers?) /g,
     ' {position} '
   )
-  t = t.replace(/ 20\d\d /g, ' {season} ').replace(/ \d+ /g, ' {n} ')
+  t = t.replace(/(?<= )20\d\d(?= )/g, '{season}').replace(/(?<= )\d+(?= )/g, '{n}')
   return t.trim().replace(/\s+/g, ' ')
 }
