@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { cropImage, cropRect, MIN_SNIP, rectBetween, type Rect } from '@/lib/dev/capture'
 
 interface SnipOverlayProps {
@@ -31,8 +31,10 @@ export function SnipOverlay({ source, onDone, onError }: SnipOverlayProps): Reac
     cropImage(source, crop).then(onDone, (err: Error) => onError(err.message))
   }, [sel, source, onDone, onError])
 
-  useEffect(() => {
-    // Capture phase: Esc must not also close a player file under the overlay.
+  // A layout effect, so the keys are heard from the commit that shows the overlay: a passive effect
+  // can run a task later, after the overlay is up. Capture phase: Esc must not also close a player
+  // file under the overlay.
+  useLayoutEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
         e.stopPropagation()
