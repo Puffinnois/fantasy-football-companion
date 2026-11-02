@@ -337,11 +337,28 @@ function situationOf(a: Args): {
   return { situation: s, scope }
 }
 
-function scopeOf(a: Args, turn: TurnContext): StatsQuery['scope'] {
+/**
+ * The scope of a call. The engine cannot take each player's own last N games with a situation
+ * filter or a play split: then the last games are read as the latest N weeks, and `notes` says so.
+ */
+function scopeOf(a: Args, turn: TurnContext, notes: string[] = []): StatsQuery['scope'] {
+  const seasons = (a.seasons as number[] | undefined) ?? [turn.now.season]
+  const plays =
+    Object.keys(situationOf(a).situation).length > 0 || PLAY_DIMS.includes(a.by as GroupBy)
+  const last = a.last_games ? Math.max(1, a.last_games as number) : null
+  let weeks = a.weeks as [number, number] | undefined
+  if (last !== null && plays && !weeks) {
+    const season = seasons.length === 1 ? seasons[0] : turn.now.season
+    const latest = season === turn.now.season && turn.now.seasonType === 'REG' ? turn.now.week : 18
+    weeks = [Math.max(1, latest - last + 1), latest]
+    notes.push(
+      `Situation filters and play splits cannot use each player’s own last ${last} games: weeks ${weeks[0]}–${weeks[1]} of ${season} instead.`
+    )
+  }
   return {
-    seasons: (a.seasons as number[] | undefined) ?? [turn.now.season],
-    ...(a.weeks ? { weeks: a.weeks as [number, number] } : {}),
-    ...(a.last_games ? { lastNGames: Math.max(1, a.last_games as number) } : {}),
+    seasons,
+    ...(weeks ? { weeks } : {}),
+    ...(last !== null && !(plays && weeks) ? { lastNGames: last } : {}),
     ...(a.season_type && a.season_type !== 'REG'
       ? { seasonType: a.season_type as 'POST' | 'ALL' }
       : {})
@@ -707,11 +724,12 @@ const leaderboard: Handler = async (a, turn, io) => {
     : []
   const worst = a.order === 'worst'
   const best = m.direction === 'lower' ? 'asc' : 'desc'
+  const pre: string[] = []
   const q: StatsQuery = {
     entity: m.entity,
     metrics: [id, ...also],
     scope: {
-      ...scopeOf(a, turn),
+      ...scopeOf(a, turn, pre),
       ...extra,
       ...(position ? { positions: [position as never] } : {}),
       ...(a.team ? { teams: [a.team as string] } : {}),
@@ -736,7 +754,7 @@ const leaderboard: Handler = async (a, turn, io) => {
   }
   const info = turn.catalogue.get(id)
   const title = `${info?.label ?? id} (${id})${position ? `, ${position}` : ''}, ${seasonsText(q.scope)}${situationText(q)}${rostered === 'free' ? ', free agents' : rostered === 'mine' ? ', my team' : ''}: ${worst ? 'worst' : 'best'} first, qualified only.`
-  const notes = [...result.notes]
+  const notes = [...pre, ...result.notes]
   if (result.rows.length === 0) notes.push(await explainEmpty(q, io, turn))
   const detail = detailOf(a)
   const player = m.entity === 'player'
@@ -783,11 +801,12 @@ async function lineAndSplits(
 ): Promise<Done> {
   const { situation, scope: extra } = situationOf(a)
   const by = a.by as GroupBy | undefined
+  const pre: string[] = []
   const q: StatsQuery = {
     entity: subject.entity,
     metrics,
     scope: {
-      ...scopeOf(a, turn),
+      ...scopeOf(a, turn, pre),
       ...extra,
       [subject.entity === 'player' ? 'players' : 'teams']: [subject.id],
       qualifiedOnly: false
@@ -805,7 +824,7 @@ async function lineAndSplits(
   const detail = detailOf(a)
   const shown = metrics.slice(0, COLUMNS[detail] + 2)
   const title = `${subject.label}, ${seasonsText(q.scope)}${situationText(q)}${by ? `, by ${by}` : ''}.`
-  const notes = [...leagueResult.notes, ...(splitResult?.notes ?? [])].filter(
+  const notes = [...pre, ...leagueResult.notes, ...(splitResult?.notes ?? [])].filter(
     (n, i, all) => all.indexOf(n) === i
   )
   const queries = by ? [q, league] : [league]

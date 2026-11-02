@@ -149,6 +149,29 @@ describe('leaderboard', () => {
     expect(r.queries).toEqual(queries)
   })
 
+  it('reads the last games as the latest weeks when a situation needs the plays', async () => {
+    const { out, queries } = await run('leaderboard', {
+      metric: 'targets',
+      red_zone: true,
+      last_games: 3
+    })
+    expect(queries[0].scope).toEqual({ seasons: [2026], weeks: [5, 7], qualifiedOnly: true })
+    expect(ok(out).notes).toContain(
+      'Situation filters and play splits cannot use each player’s own last 3 games: weeks 5–7 of 2026 instead.'
+    )
+    const split = await run('player_stats', {
+      player: BIJAN,
+      by: 'down',
+      last_games: 2,
+      metrics: ['carries']
+    })
+    expect(
+      split.queries.every(
+        (q) => q.scope.lastNGames === undefined && q.scope.weeks?.join() === '6,7'
+      )
+    ).toBe(true)
+  })
+
   it('reads the postseason when asked', async () => {
     const { out, queries } = await run('leaderboard', {
       metric: 'rush_yds',
