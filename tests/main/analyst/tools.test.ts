@@ -295,6 +295,43 @@ describe('player_stats and team_stats', () => {
     )
   })
 
+  it('ranks a player among the position he played in that scope, not his latest', async () => {
+    // Chase Brown is an RB now; say he played WR in 2025.
+    const brown = '00-0037200'
+    const stats = fake((q) => {
+      if (q.scope.players)
+        return [statsRow(brown, 'Chase Brown', { targets: { raw: 40 } }, { position: 'WR' })]
+      if (q.scope.positions?.includes('WR')) {
+        return [
+          statsRow(
+            brown,
+            'Chase Brown',
+            { targets: { raw: 40, percentile: 60 } },
+            { position: 'WR' }
+          )
+        ]
+      }
+      return []
+    })
+    const { out, queries } = await run(
+      'player_stats',
+      { player: brown, metrics: ['targets'], seasons: [2025] },
+      stats
+    )
+    expect(queries.map((q) => q.scope.positions ?? q.scope.players)).toEqual([
+      ['RB'],
+      [brown],
+      ['WR']
+    ])
+    expect(ok(out).text).toContain('Tgt 40, 60th pct (percentiles among WRs')
+    const compared = await run(
+      'compare',
+      { ids: [brown, CHASE], metrics: ['targets'], seasons: [2025] },
+      stats
+    )
+    expect((ok(compared.out).cards[0] as StatsCard).result.rows.map((r) => r.id)).toContain(brown)
+  })
+
   it('splits against the base: a difference, and whether it is beyond noise', async () => {
     const qualified = Array.from({ length: 10 }, (_, i) =>
       statsRow(`00-00400${10 + i}`, `WR ${i}`, { yprr: { raw: 1.5 + i * 0.1, sample: 400 } })

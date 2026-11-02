@@ -827,12 +827,23 @@ async function lineAndSplits(
     ...(by ? { groupBy: [by] } : {}),
     limit: 200
   }
-  const league = leagueQuery(q, subject.entity === 'player' ? subject.position : null)
-  const [leagueResult, splitResult] = await Promise.all([
+  let league = leagueQuery(q, subject.entity === 'player' ? subject.position : null)
+  const [first, splitResult] = await Promise.all([
     io.query(league),
     by ? io.query(q) : Promise.resolve(null)
   ])
-  const own = leagueResult.rows.find((r) => r.id === subject.id) ?? null
+  let leagueResult = first
+  let own = leagueResult.rows.find((r) => r.id === subject.id) ?? null
+  // A player who changed position group is ranked among the one he played in that scope.
+  if (!own && subject.entity === 'player') {
+    const alone = await io.query({ ...q, groupBy: undefined, limit: 1 })
+    const played = alone.rows[0]?.position ?? null
+    if (played && played !== subject.position) {
+      league = leagueQuery(q, played)
+      leagueResult = await io.query(league)
+      own = leagueResult.rows.find((r) => r.id === subject.id) ?? null
+    }
+  }
   const detail = detailOf(a)
   const shown = metrics.slice(0, COLUMNS[detail] + 2)
   const title = `${subject.label}, ${seasonsText(q.scope)}${situationText(q)}${by ? `, by ${by}` : ''}.`
@@ -848,7 +859,9 @@ async function lineAndSplits(
       )
     const result = { ...leagueResult, rows, total: rows.length }
     const among =
-      subject.entity === 'player' ? `among ${subject.position ?? 'his position'}s` : 'among the 32'
+      subject.entity === 'player'
+        ? `among ${own?.position ?? subject.position ?? 'his position'}s`
+        : 'among the 32'
     const lines = own
       ? [
           `${shown
@@ -1010,7 +1023,23 @@ const compare: Handler = async (a, turn, io) => {
     },
     limit: 5000
   }
-  const all = await io.query(q)
+  let all = await io.query(q)
+  // A player who changed position group: read his row under the one he played in that scope.
+  const absent = players ? ids.filter((x) => !all.rows.some((r) => r.id === x)) : []
+  if (absent.length > 0) {
+    const alone = await io.query({
+      ...q,
+      scope: { ...q.scope, positions: undefined, players: absent },
+      limit: absent.length
+    })
+    const extra = alone.rows
+      .map((r) => r.position)
+      .filter((p): p is string => !!p && !positions.includes(p))
+    if (extra.length > 0) {
+      positions.push(...new Set(extra))
+      all = await io.query({ ...q, scope: { ...q.scope, positions: positions as never[] } })
+    }
+  }
   const rows = ids.map((x) => all.rows.find((r) => r.id === x)).filter((r): r is StatsRow => !!r)
   const result = { ...all, rows, total: rows.length }
   const title = `${players ? people.map((p) => p.name).join(' vs ') : ids.join(' vs ')}, ${seasonsText(q.scope)}.`
