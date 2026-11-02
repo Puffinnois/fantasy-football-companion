@@ -172,6 +172,29 @@ describe('leaderboard', () => {
     ).toBe(true)
   })
 
+  it('writes values as the transform shapes them: per game, percentile, z-score', async () => {
+    const one =
+      (values: Record<string, { raw: number }>): AnalystStats['query'] =>
+      async () =>
+        statsResult([statsRow(CHASE, "Ja'Marr Chase", values)])
+    const perGame = fake()
+    perGame.stats.query = one({ receptions: { raw: 6.43 } })
+    expect(
+      ok((await run('leaderboard', { metric: 'receptions', per_game: true }, perGame)).out).text
+    ).toContain('Rec 6.4')
+    const pct = fake()
+    pct.stats.query = one({ catch_rate: { raw: 85.3 } })
+    const q = { entity: 'player', metrics: ['catch_rate'], scope: { seasons: [2025] } }
+    expect(
+      ok((await run('query', { query: { ...q, transform: 'percentile' } }, pct)).out).text
+    ).toMatch(/Ctch% 85$/m)
+    const z = fake()
+    z.stats.query = one({ catch_rate: { raw: -1.2 } })
+    expect(
+      ok((await run('query', { query: { ...q, transform: 'zScore' } }, z)).out).text
+    ).toContain('Ctch% -1.20')
+  })
+
   it('reads the postseason when asked', async () => {
     const { out, queries } = await run('leaderboard', {
       metric: 'rush_yds',

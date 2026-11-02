@@ -18,7 +18,8 @@ import {
   type MetricInfo,
   type StatsQuery,
   type StatsResult,
-  type StatsRow
+  type StatsRow,
+  type Transform
 } from '@shared/stats/types'
 import type { StatsClient } from '../stats/client'
 import { fmt } from './format'
@@ -483,12 +484,23 @@ function valueText(
   row: StatsRow,
   id: string,
   turn: TurnContext,
-  opts: { sample?: boolean; percentile?: boolean } = {}
+  opts: { sample?: boolean; percentile?: boolean; transform?: Transform } = {}
 ): string {
   const info = turn.catalogue.get(id)
   const v = row.values[id]
   if (!info || !v) return ''
-  let text = `${info.short} ${fmt(v.value, info.unit, info.decimals)}${v.estimated ? ' (est.)' : ''}`
+  // A percentile or a z-score is a plain number; a count per game keeps a decimal.
+  const t = opts.transform
+  const unit = t === 'percentile' || t === 'zScore' ? 'number' : info.unit
+  const decimals =
+    t === 'percentile'
+      ? 0
+      : t === 'zScore'
+        ? 2
+        : t === 'perGame' && info.kind === 'count'
+          ? Math.max(1, info.decimals)
+          : info.decimals
+  let text = `${info.short} ${fmt(v.value, unit, decimals)}${v.estimated ? ' (est.)' : ''}`
   if (opts.sample && info.kind === 'rate' && v.sample !== null) {
     text += ` on ${Math.round(v.sample)} ${info.sampleLabel}${v.qualified ? '' : ' (not qualified)'}`
   }
@@ -762,9 +774,9 @@ const leaderboard: Handler = async (a, turn, io) => {
     const v = r.values[id]
     const rest = also
       .slice(0, COLUMNS[detail] - 1)
-      .map((x) => valueText(r, x, turn))
+      .map((x) => valueText(r, x, turn, { transform: q.transform }))
       .filter(Boolean)
-    return `${v?.rank ?? '–'}. ${who(r, player)} — ${[valueText(r, id, turn, { sample: true, percentile: true }), ...rest].join(' · ')}`
+    return `${v?.rank ?? '–'}. ${who(r, player)} — ${[valueText(r, id, turn, { sample: true, percentile: true, transform: q.transform }), ...rest].join(' · ')}`
   })
   const card = statsCard(
     title,
@@ -1287,7 +1299,7 @@ const query: Handler = async (a, turn, io) => {
     const g = q.groupBy?.map((x) => groupText(r, x)).join(', ')
     return `${r.values[q.metrics[0]]?.rank ?? '–'}. ${who(r, player)}${g ? ` [${g}]` : ''} — ${q.metrics
       .slice(0, COLUMNS[detail])
-      .map((x) => valueText(r, x, turn, { sample: true }))
+      .map((x) => valueText(r, x, turn, { sample: true, transform: q.transform }))
       .filter(Boolean)
       .join(' · ')}`
   })
