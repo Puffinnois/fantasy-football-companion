@@ -209,9 +209,16 @@ export const METRIC_ALIASES: Readonly<Record<string, readonly string[]>> = {
   off_success_rate: ['offensive success rate', 'team success rate'],
   def_success_rate: ['defensive success rate', 'success rate allowed by the defense'],
   off_pass_epa: ['team passing epa', 'pass offense epa', 'passing offense'],
-  def_pass_epa: ['pass defense epa', 'passing epa allowed', 'pass defense'],
+  def_pass_epa: ['pass defense epa', 'passing epa allowed', 'pass defense', 'against the pass'],
   off_rush_epa: ['team rushing epa', 'run offense epa', 'rushing offense'],
-  def_rush_epa: ['run defense epa', 'rushing epa allowed', 'run defense', 'rush defense'],
+  def_rush_epa: [
+    'run defense epa',
+    'rushing epa allowed',
+    'run defense',
+    'rush defense',
+    'against the run',
+    'stopping the run'
+  ],
   off_pass_success: ['team dropback success', 'pass offense success rate'],
   def_pass_success: ['pass defense success rate', 'dropback success allowed'],
   off_rush_success: ['team rushing success', 'run offense success rate'],
