@@ -57,7 +57,10 @@ describe('the metric catalogue (stats-analysis spec §6)', () => {
   })
 
   it('lists its ids as the metric enum of the query schema (spec §10)', () => {
-    const schema = statsQuerySchema(CATALOGUE.map((m) => m.id)) as {
+    const schema = statsQuerySchema(
+      CATALOGUE.map((m) => m.id),
+      [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
+    ) as {
       required: string[]
       properties: Record<
         string,
@@ -67,6 +70,16 @@ describe('the metric catalogue (stats-analysis spec §6)', () => {
     expect(schema.required).toEqual(['entity', 'metrics', 'scope'])
     expect(schema.properties.metrics.items?.enum).toHaveLength(CATALOGUE.length)
     expect(Object.keys(schema.properties.situation.properties ?? {})).toContain('withOnField')
+  })
+
+  it('gives bounded numbers as enums, never minimum or maximum (Ask spec §3.2)', () => {
+    const schema = statsQuerySchema(['targets'], [2025, 2026])
+    const text = JSON.stringify(schema)
+    expect(text).not.toMatch(/"minimum"|"maximum"/)
+    const scope = (schema as { properties: { scope: { properties: Record<string, unknown> } } })
+      .properties.scope.properties
+    expect(scope.seasons).toMatchObject({ items: { enum: [2025, 2026] } })
+    expect(scope.weeks).toMatchObject({ items: { enum: expect.arrayContaining([1, 22]) } })
   })
 
   it('reads a defense’s sacks and pressures as its own, red-zone drives both ways', () => {

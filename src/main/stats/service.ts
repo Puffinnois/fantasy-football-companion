@@ -8,6 +8,7 @@ import type {
   GamesQuery,
   MetricInfo,
   OutlookQuery,
+  Person,
   PlayerBio,
   PlayerBioQuery,
   PlayerOutlook,
@@ -21,6 +22,7 @@ import { createDownloads } from './download'
 import { StatsQueryError, type CompileContext } from './engine/compile'
 import { gameForecasts } from './engine/games'
 import { playerOutlook } from './engine/outlook'
+import { people } from './engine/people'
 import { playerBio } from './engine/player'
 import { catalogueInfo, MODEL_SUMS, QUANTILES } from './engine/registry'
 import { runQuery } from './engine/run'
@@ -58,6 +60,8 @@ export interface StatsService {
   outlook(query: OutlookQuery): Promise<PlayerOutlook>
   /** Spec §9.4: a player's identity and status now. */
   player(query: PlayerBioQuery): Promise<PlayerBio>
+  /** Ask spec §4.1: everyone with a game since 2019, for the resolver. */
+  people(): Promise<Person[]>
   /**
    * Stops a refresh now: aborts its download, interrupts its statement, and starts no other step.
    * A process must not exit while DuckDB runs a statement (Electron aborts), so closing cancels first.
@@ -287,6 +291,11 @@ export async function openStatsService(
       })
     },
     player: (query) => read((conn) => playerBio(conn, query)),
+    people: () =>
+      read(async (conn) => {
+        if (await derivedStale(conn)) throw new StatsQueryError(BUILDING)
+        return people(conn)
+      }),
     status: () =>
       read(async (reader) => {
         const built = !(await derivedStale(reader))

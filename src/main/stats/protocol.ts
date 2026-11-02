@@ -46,7 +46,7 @@ export interface SelfTestResult {
 
 /**
  * Requests to the worker. `refresh`, `setLeague`, `selfTest` and `close` run one after another;
- * `query`, `catalogue`, `status`, `games`, `outlook` and `player` are reads and run at once, each on its own
+ * `query`, `catalogue`, `status`, `games`, `outlook`, `player` and `people` are reads and run at once, each on its own
  * connection (spec §2).
  */
 export type StatsRequest =
@@ -60,6 +60,7 @@ export type StatsRequest =
   | { id: number; kind: 'games'; query: GamesQuery }
   | { id: number; kind: 'outlook'; query: OutlookQuery }
   | { id: number; kind: 'player'; query: PlayerBioQuery }
+  | { id: number; kind: 'people' }
 
 /** The kinds that run at once instead of in turn. */
 export const READ_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
@@ -68,7 +69,8 @@ export const READ_REQUESTS: ReadonlySet<StatsRequest['kind']> = new Set([
   'status',
   'games',
   'outlook',
-  'player'
+  'player',
+  'people'
 ])
 
 export type StatsReply =

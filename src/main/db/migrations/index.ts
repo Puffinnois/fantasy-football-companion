@@ -9,6 +9,7 @@ import rosSnapshotsSql from './008_ros_snapshots.sql?raw'
 import waiversSql from './009_waivers.sql?raw'
 import sleeperStatsSql from './010_sleeper_stats.sql?raw'
 import statsViewsSql from './011_stats_views.sql?raw'
+import askExamplesSql from './012_ask_examples.sql?raw'
 
 export interface Migration {
   version: number
@@ -27,5 +28,6 @@ export const migrations: Migration[] = [
   { version: 8, name: 'ros_snapshots', sql: rosSnapshotsSql },
   { version: 9, name: 'waivers', sql: waiversSql },
   { version: 10, name: 'sleeper_stats', sql: sleeperStatsSql },
-  { version: 11, name: 'stats_views', sql: statsViewsSql }
+  { version: 11, name: 'stats_views', sql: statsViewsSql },
+  { version: 12, name: 'ask_examples', sql: askExamplesSql }
 ]

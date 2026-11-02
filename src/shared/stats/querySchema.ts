@@ -6,6 +6,10 @@ import { POSITION_GROUPS, type GroupBy, type StatsQuery, type Transform } from '
  * natural-language feature will hand an LLM, with the catalogue's ids as the metric enum. Every
  * `properties` object is typed `Record<keyof …, Schema>`, so the compiler fails when the type gains
  * or loses a field the schema does not.
+ *
+ * Bounded numbers are enums, never `minimum` / `maximum` (Ask spec §3.2 rule 7): a local model under
+ * grammar-constrained decoding wrote seasons like 2600 and 2126 that met `minimum: 2019`. The engine
+ * still validates every value.
  */
 const GROUP_BY: Record<GroupBy, true> = {
   season: true,
@@ -44,14 +48,19 @@ const list = (items: Schema, description: string): Schema => ({
   description
 })
 const team = { type: 'string', pattern: '^[A-Z]{2,3}$' }
+/** 1 … n as an enum. */
+const upTo = (n: number): Schema => ({ enum: Array.from({ length: n }, (_, i) => i + 1) })
+/** The regular season and the postseason: weeks 1–22. */
+const WEEKS = 22
 const gsis = { type: 'string', pattern: '^00-[0-9]{7}$' }
 
-export function statsQuerySchema(metricIds: string[]): Schema {
+/** `seasons`: the seasons the warehouse holds, oldest first (2019 to the current one). */
+export function statsQuerySchema(metricIds: string[], seasons: number[]): Schema {
   const scope: Record<keyof StatsQuery['scope'], Schema> = {
-    seasons: list({ type: 'integer', minimum: 2019 }, 'Seasons, 2019 to the current one.'),
+    seasons: list({ enum: seasons }, 'Seasons.'),
     seasonType: { enum: ['REG', 'POST', 'ALL'], description: 'Default REG.' },
-    weeks: range('First and last week, inclusive.'),
-    lastNGames: { type: 'integer', minimum: 1, description: 'Each row’s last N games in scope.' },
+    weeks: { ...range('First and last week, inclusive.'), items: upTo(WEEKS) },
+    lastNGames: { type: 'integer', description: 'Each row’s last N games in scope (1 or more).' },
     positions: list({ enum: [...POSITION_GROUPS] }, 'Position groups (players).'),
     teams: list(team, 'Team codes (nflverse: LA, LV, WAS, …).'),
     opponents: list(team, 'Opponent team codes.'),
@@ -63,9 +72,9 @@ export function statsQuerySchema(metricIds: string[]): Schema {
     qualifiedOnly: { type: 'boolean', description: 'Only rows over the metric’s minimum sample.' }
   }
   const situation: Record<keyof NonNullable<StatsQuery['situation']>, Schema> = {
-    down: list({ type: 'integer', minimum: 1, maximum: 4 }, 'Downs.'),
+    down: list(upTo(4), 'Downs.'),
     distance: range('Yards to go.'),
-    quarter: list({ type: 'integer', minimum: 1, maximum: 5 }, 'Quarters; 5 is overtime.'),
+    quarter: list(upTo(5), 'Quarters; 5 is overtime.'),
     fieldZone: { enum: ['redzone', 'inside10', 'inside5', 'own20'] },
     scoreMargin: range('Offense score minus defense score.'),
     winProbability: range('Offense win probability, 0–1.'),
@@ -126,7 +135,7 @@ export function statsQuerySchema(metricIds: string[]): Schema {
       required: ['metric', 'dir'],
       additionalProperties: false
     },
-    limit: { type: 'integer', minimum: 1, maximum: 5000 },
+    limit: { type: 'integer', description: 'Rows, 1–5000.' },
     scoring: {
       enum: [...SCORINGS],
       description: 'Fantasy scoring; league needs an imported league.'

@@ -352,6 +352,29 @@ export interface PlayerBio {
 }
 
 /**
+ * Ask spec §4.1: a person the resolver can name, from everyone with a regular-season game since
+ * 2019 (`stats.people`).
+ */
+export interface Person {
+  /** gsis id */
+  id: string
+  name: string
+  firstName: string | null
+  lastName: string | null
+  /** The latest position group (QB, RB, WR, TE, K, P, DL, LB, DB, OL). */
+  position: string | null
+  /** The latest team. */
+  team: string | null
+  firstSeason: number
+  lastSeason: number
+  /** Regular-season games since 2019. */
+  games: number
+  /** Games and PPR points in the current and prior season. */
+  recentGames: number
+  recentPoints: number
+}
+
+/**
  * The same player in both products (spec §9.4): his Sleeper id in Fantasy; his gsis id in Stats, or
  * the team's nflverse code for a team defense.
  */
