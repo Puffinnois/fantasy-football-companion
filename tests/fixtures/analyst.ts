@@ -1,4 +1,4 @@
-import type { Person } from '@shared/stats/types'
+import type { Person, StatsResult, StatsRow } from '@shared/stats/types'
 
 const person = (id: string, name: string, over: Partial<Person> = {}): Person => {
   const [first, ...rest] = name.split(' ')
@@ -68,3 +68,48 @@ export const PEOPLE: Person[] = [
 ]
 
 export const NOW = { season: 2026, week: 7, seasonType: 'REG' as const }
+
+/** A stats row for a fake engine answer. */
+export function statsRow(
+  id: string,
+  name: string,
+  values: Record<
+    string,
+    {
+      raw: number | null
+      sample?: number | null
+      qualified?: boolean
+      percentile?: number | null
+      rank?: number | null
+    }
+  >,
+  over: Partial<StatsRow> = {}
+): StatsRow {
+  return {
+    id,
+    name,
+    team: 'CIN',
+    position: 'WR',
+    group: {},
+    games: 7,
+    values: Object.fromEntries(
+      Object.entries(values).map(([k, v]) => [
+        k,
+        {
+          value: v.raw,
+          raw: v.raw,
+          sample: v.sample ?? null,
+          qualified: v.qualified ?? true,
+          percentile: v.percentile ?? null,
+          rank: v.rank ?? null,
+          estimated: false
+        }
+      ])
+    ),
+    ...over
+  }
+}
+
+export function statsResult(rows: StatsRow[], notes: string[] = []): StatsResult {
+  return { grain: 'season', columns: [], rows, total: rows.length, notes, ms: 1 }
+}
