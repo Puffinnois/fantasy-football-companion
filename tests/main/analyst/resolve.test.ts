@@ -214,6 +214,15 @@ describe('resolve (Ask spec §4.1)', () => {
     expect(a.decline).toMatch(/does not give advice/)
   })
 
+  it('keeps a full name that holds a team word a player, and the team word alone a team', () => {
+    const b = resolve('How many targets does Malik Washington have this season?', deps)
+    expect(b).toMatchObject({ type: 'player', tool: 'player_stats', teams: [] })
+    expect(b.players.map((p) => p.id)).toEqual(['00-0040300'])
+    expect(resolve('How good is Washington’s defense?', deps).teams.map((t) => t.code)).toEqual([
+      'WAS'
+    ])
+  })
+
   it('separates an opponent from the subject team', () => {
     const b = resolve('Which RBs have the most yards against the Ravens since 2023?', deps)
     expect(b).toMatchObject({ type: 'leaderboard', teams: [], opponents: [{ code: 'BAL' }] })

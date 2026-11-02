@@ -87,7 +87,15 @@ const DECLINE: Partial<Record<QuestionType, string>> = {
 
 export function resolve(question: string, deps: ResolveDeps): ContextBlock {
   const positions = positionsIn(question)
-  const teamsFound = findTeams(question)
+  // A full name can hold a team word ("Malik Washington"): full names first, then the teams
+  // outside them.
+  const fullNames = deps.people
+    .find(question, { positions })
+    .filter((m) => m.how !== 'first' && m.how !== 'last' && m.mention.includes(' '))
+    .map((m) => ` ${m.mention.toLowerCase()} `)
+  const teamsFound = findTeams(question).filter(
+    (t) => !fullNames.some((n) => n.includes(` ${t.mention.toLowerCase()} `))
+  )
   const subjectTeams = teamsFound.filter((t) => t.role === 'subject').map((t) => t.code)
   const matches = deps.people.find(question, {
     positions,

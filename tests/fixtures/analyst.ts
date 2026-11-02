@@ -64,7 +64,8 @@ export const PEOPLE: Person[] = [
     games: 100,
     recentPoints: 0
   }),
-  person('00-0032001', 'Chris Jones', { position: 'DB', team: 'ARI', games: 30, recentPoints: 0 })
+  person('00-0032001', 'Chris Jones', { position: 'DB', team: 'ARI', games: 30, recentPoints: 0 }),
+  person('00-0040300', 'Malik Washington', { position: 'WR', team: 'MIA', recentPoints: 90 })
 ]
 
 export const NOW = { season: 2026, week: 7, seasonType: 'REG' as const }
