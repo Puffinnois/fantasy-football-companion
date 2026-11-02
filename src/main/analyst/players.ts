@@ -123,14 +123,18 @@ const POSITION_WORDS: [RegExp, string[]][] = [
   [/\b(receivers?|pass catchers?)\b/, ['WR', 'TE', 'RB']],
   [/\b(kickers?)\b/, ['K']],
   [/\b(punters?)\b/, ['P']],
-  [/\b(edges?|edge rushers?|pass rushers?|defensive ends?|tackles)\b/, ['DL', 'LB']],
+  [/\b(edges?|edge rushers?|pass rushers?|defensive ends?)\b/, ['DL', 'LB']],
+  [/\b(dts?|defensive tackles?|d line|defensive line(men|man)?)\b/, ['DL']],
   [/\b(linebackers?|lbs?)\b/, ['LB']],
   [/\b(cornerbacks?|cbs?|corners?|safet(y|ies)|dbs?)\b/, ['DB']]
 ]
 
 export function positionsIn(question: string): string[] {
   // A position after "on the", "against" or "allowed to" is the object ("pressure on the quarterback").
-  const t = ` ${phraseKey(question)} `.replace(/ (on the|against the|against|allowed to) \w+/g, ' ')
+  const t = ` ${phraseKey(question)} `.replace(
+    / (on the|against the|against|allowed to|allows? to|allowing to) \w+/g,
+    ' '
+  )
   return [...new Set(POSITION_WORDS.filter(([rx]) => rx.test(t)).flatMap(([, p]) => p))]
 }
 

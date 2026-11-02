@@ -45,10 +45,10 @@ const ADVICE =
   / (should i|start or sit|who do i start|who should i start|who to start|sit or start|drop or|trade for|trade away|should i trade|worth a pick up|pick up or|is it worth starting|bench or) /
 const DEFINITION = / (what is|what are|what does|whats|define|definition of|explain|meaning of) /
 const GAMES =
-  / (schedule|who do they play|who does .* play|play next|playing next|kickoff|final score|box score|game preview|preview of|result of|won the game|elo vs vegas) /
+  / (schedule|who do they play|who does .* play|play next|playing next|kickoff|final score|box score|game preview|preview of|result of|who won|won the game|elo vs vegas|(games|matchups) (in|this|next) week|week \d+ (games|matchups)) /
 const SCHEDULE_METRIC = / (remaining|easiest|hardest|toughest|strength of|softest) schedule /
 const LEAGUE =
-  / (who owns|who has .* (rostered|on their team|on his team)|rostered by|my roster|show my team|my lineup|scoring settings|league scoring|how is .* scored|points per reception in my league) /
+  / (who owns|who has .* (rostered|on their team|on his team)|rostered by|my roster|show my team|my lineup|scoring settings|scoring set up|scoring rules|league scoring|how is .* scored|in my league) /
 const OUTLOOK =
   / (outlook|regression|due for|running hot|running cold|bounce back|forecast for|ceiling and floor|buy low|sell high) /
 const RANKING =
@@ -70,7 +70,7 @@ export function classify(
   if (ADVICE.test(t)) return 'advice'
   if (r.outOfRange) return 'out_of_range'
   const named = r.players + r.ambiguous
-  if (named === 0 && r.teams === 0 && DEFINITION.test(t)) return 'definition'
+  if (named === 0 && r.teams === 0 && DEFINITION.test(t) && !GAMES.test(t)) return 'definition'
   if (LEAGUE.test(t) && !(r.rostered === 'free' && r.metricHint)) return 'league'
   // "Easiest remaining schedule" and "strength of schedule" are rankings of a metric.
   if (GAMES.test(t) && !SCHEDULE_METRIC.test(t)) return 'games'

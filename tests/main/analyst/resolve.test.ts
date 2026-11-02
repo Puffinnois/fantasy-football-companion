@@ -40,9 +40,14 @@ describe('teams', () => {
     expect(findTeams('RB yards against the Ravens').map((t) => [t.code, t.role])).toEqual([
       ['BAL', 'opponent']
     ])
-    expect(findTeams('Kansas City vs NO').map((t) => [t.code, t.role])).toEqual([
+    expect(findTeams('How do the Chiefs play against NO?').map((t) => [t.code, t.role])).toEqual([
       ['KC', 'subject'],
       ['NO', 'opponent']
+    ])
+    // Two teams around "vs" are both the subject of a comparison.
+    expect(findTeams('Bills vs Chiefs: playoff odds').map((t) => [t.code, t.role])).toEqual([
+      ['BUF', 'subject'],
+      ['KC', 'subject']
     ])
     // "no" and "la" in a sentence are words; Los Angeles needs the nickname.
     expect(findTeams('no one in los angeles')).toEqual([])
@@ -119,10 +124,12 @@ describe('slots', () => {
     expect(detectSlots('most red-zone carries').flags).toEqual([])
     expect(detectSlots('Chase against man coverage').flags).toEqual(['man_coverage'])
     expect(detectSlots('which defenses blitz the most').flags).toEqual([])
-    expect(detectSlots('EPA when pressured on third down').flags).toEqual([
+    expect(detectSlots('completion rate when pressured on third down').flags).toEqual([
       'third_down',
       'pressure'
     ])
+    // EPA under pressure is a metric of its own.
+    expect(detectSlots('best EPA under pressure').flags).toEqual([])
   })
 
   it('detects groupings, rostered, a row count and the bottom of a ranking', () => {

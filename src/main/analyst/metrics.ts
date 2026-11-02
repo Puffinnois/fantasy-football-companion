@@ -24,10 +24,21 @@ const STOP = new Set(
   )
 )
 
+/** A light stem: plurals to singular ("touchdowns", "carries"), so either form matches. */
+export const stem = (t: string): string =>
+  t.length > 4 && t.endsWith('ies')
+    ? `${t.slice(0, -3)}y`
+    : t.length > 3 && t.endsWith('s') && !t.endsWith('ss')
+      ? t.slice(0, -1)
+      : t
+
+const stemmed = (key: string): string => key.split(' ').map(stem).join(' ')
+
 const tokens = (text: string): string[] =>
   phraseKey(text)
     .split(' ')
     .filter((t) => t.length > 0 && !STOP.has(t))
+    .map(stem)
 
 /** Whole phrases worth a bonus when the question says them: aliases, labels, short names. */
 interface Phrase {
@@ -61,9 +72,13 @@ export function lexicalRetriever(metrics: MetricDef[] = SHOWN): Retriever {
   const df = new Map<string, number>()
   for (const d of docs) for (const t of new Set(d)) df.set(t, (df.get(t) ?? 0) + 1)
   const phrases: Phrase[] = metrics.flatMap((m) => [
-    ...(METRIC_ALIASES[m.id] ?? []).map((a) => ({ key: phraseKey(a), id: m.id, bonus: 6 })),
-    { key: phraseKey(m.label), id: m.id, bonus: 5 },
-    ...(m.short.length >= 3 ? [{ key: phraseKey(m.short), id: m.id, bonus: 3 }] : [])
+    ...(METRIC_ALIASES[m.id] ?? []).map((a) => ({
+      key: stemmed(phraseKey(a)),
+      id: m.id,
+      bonus: 6
+    })),
+    { key: stemmed(phraseKey(m.label)), id: m.id, bonus: 5 },
+    ...(m.short.length >= 3 ? [{ key: stemmed(phraseKey(m.short)), id: m.id, bonus: 3 }] : [])
   ])
   const index = new Map(metrics.map((m, i) => [m.id, i]))
   return {
@@ -80,7 +95,7 @@ export function lexicalRetriever(metrics: MetricDef[] = SHOWN): Retriever {
         }
         return s
       })
-      const text = padded(question)
+      const text = ` ${stemmed(phraseKey(question))} `
       // The longest phrase said whole wins its bonus once per metric.
       const best = new Map<string, number>()
       for (const p of phrases) {
@@ -112,7 +127,7 @@ export function fits(
 ): (m: MetricDef) => boolean {
   // "His team's targets" is about a player: the possessive is dropped before "teams" is looked for.
   const t = padded(question.replace(/['’]s\b/g, '')).replace(
-    / (on the|against the|against|allowed to) \w+/g,
+    / (on the|against the|against|allowed to|allows? to|allowing to) \w+/g,
     ' '
   )
   const team =

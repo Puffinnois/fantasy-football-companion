@@ -131,6 +131,9 @@ export function resolveTime(question: string, now: Now): ResolvedTime {
     const w = Math.min(22, latestWeek + 1)
     out.weeks = [w, w]
     say('next week', `week ${w} of ${now.season}`)
+  } else if (/ (lately|recently|of late) /.test(t)) {
+    out.lastNGames = 4
+    say(t.match(/ (lately|recently|of late) /)![1], "each player's last 4 games")
   } else if (/ (last|this) week /.test(t)) {
     out.weeks = [latestWeek, latestWeek]
     say(t.match(/ (last|this) week /)![0].trim(), `week ${latestWeek} of ${now.season}`)

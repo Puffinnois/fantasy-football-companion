@@ -61,10 +61,14 @@ export interface TeamMention {
   role: 'subject' | 'opponent'
 }
 
-/** Teams named in the question, longest phrase first, each once. */
+/**
+ * Teams named in the question, longest phrase first, each once. A team after "vs", "against" or
+ * "facing" is an opponent ("RB yards against the Ravens"), except in "Bills vs Chiefs", where both
+ * teams are the subject of a comparison.
+ */
 export function findTeams(question: string): TeamMention[] {
   const ws: Word[] = words(question)
-  const found: TeamMention[] = []
+  const found: (TeamMention & { start: number; end: number; marker: string | null })[] = []
   const used = new Set<number>()
   for (let n = 3; n >= 1; n--) {
     for (let i = 0; i + n <= ws.length; i++) {
@@ -73,20 +77,29 @@ export function findTeams(question: string): TeamMention[] {
       const key = slice.map((w) => w.key).join(' ')
       let code = ALIASES.get(key)
       if (!code && n === 1 && CODES.has(slice[0].raw)) code = slice[0].raw
-      // A lower-case two-letter code is a word ("no", "la"); "kc" and "sf" are in the slang.
-      if (code && n === 1 && /^[a-z]{2}$/.test(slice[0].raw) && !SLANG[code]?.includes(key)) {
-        continue
-      }
       if (!code || found.some((t) => t.code === code)) continue
       // "against the Ravens": the word before "the" says it.
-      const before = ws[i - 1]?.key === 'the' ? ws[i - 2]?.key : ws[i - 1]?.key
+      const at = ws[i - 1]?.key === 'the' ? i - 2 : i - 1
+      const marker = ws[at] && OPPONENT_WORDS.has(ws[at].key) ? ws[at].key : null
       found.push({
         code,
         mention: slice.map((w) => w.raw).join(' '),
-        role: before && OPPONENT_WORDS.has(before) ? 'opponent' : 'subject'
+        role: marker ? 'opponent' : 'subject',
+        start: i,
+        end: i + n - 1,
+        marker: marker ? String(at) : null
       })
       for (let k = 0; k < n; k++) used.add(i + k)
     }
   }
+  // "Bills vs Chiefs": a team right before "vs" makes the one after it a second subject.
+  for (const t of found) {
+    if (t.role !== 'opponent' || t.marker === null) continue
+    const at = Number(t.marker)
+    if (!['vs', 'versus', 'v'].includes(ws[at].key)) continue
+    if (found.some((o) => o !== t && o.end === at - 1)) t.role = 'subject'
+  }
   return found
+    .sort((a, b) => a.start - b.start)
+    .map(({ code, mention, role }) => ({ code, mention, role }))
 }

@@ -74,7 +74,7 @@ const NAMED_IN_METRIC: [RegExp, Flag][] = [
   [/ (play action rate|play action usage)/, 'play_action'],
   [/ (third down conversion|third down defense|third down offense)/, 'third_down'],
   [
-    / (pressure rate|pressures|pressure on the|generates pressure|pressure generated|pressure allowed)/,
+    / (pressure rate|pressures|pressure on the|generates pressure|pressure generated|pressure allowed|epa (under|when) pressure)/,
     'pressure'
   ],
   [/ (neutral pass rate|neutral pace|neutral proe|neutral situation proe)/, 'neutral']
