@@ -1,6 +1,18 @@
 # Plan AF1 — Ask: the analyst tools, resolver and semantic model
 
-**Status:** written 2026-11-02 from a prototype; not started. The spec amendments below (spec §15, written by Task 10) need the user's approval before Task 1.
+**Status:** complete 2026-11-02. Merged to main as `66666d9` and tagged `v0.37.0` on `d3fbba9` (not pushed yet). Spec amendments A–K (§15) approved by the user 2026-11-02. Tasks 1–10 were applied from this text step by step: each task's tests were seen failing as the plan says, then passing, and the tree after Task 10 was identical to the prototype's. Counts (a clean checkout): 1,187 → 1,256, and 1,277 after the fixes below (the untracked `playerImage` tests add 3).
+
+Task 11: the gate passed on a copy of the warehouse through 2026 week 7 — references 141/141, tool 140/140, metric recall@5 107/107, players 64/64, ask or decline 12/12, and, added after the review, the resolver's slots 124/124; tool calls 18 ms median, 46 ms at the 90th percentile. The Windows Package check passed before the review fixes (1,256 passed, `"query":true`); the Release workflow runs it again.
+
+Fixes from the final review (fresh reviewer, Opus), test-first, each in its own commit:
+
+- (Critical) `2765eae`: the compact profile turned "lowest" into worst-first for every metric, so "cornerbacks with the lowest passer rating allowed" listed the worst; the order now follows the metric's direction, and "at least" is a threshold.
+- (Important) `bebe55e` a full name holding a team word ("Malik Washington") stays a player; `eeca4c7` "Bills defense" reads the defense; `8fa509a` the last games with a situation filter are read as the latest weeks (the engine refuses both); `c8862cf` season ranges stay inside 2019 to now, "2000 rushing yards" is not a season, "2019 and 2021" is a list; `d60ff82` values are written as the transform shapes them (per game, percentile, z-score); `773eb6a` a player who changed position group is ranked at the one he played; `1620e4f` a team metric is ranked among all 32 with the named team pointed out; `64e7936` the answer checks read whole numbers (no hyphen as a minus, no sample found inside a year, game logs not taken for splits).
+- (Minor) `4b5b055`: the compact `league` tool no longer offers a roster it cannot name; "the first 6 weeks" is time; an empty free-agent ranking says every qualified row is rostered; "bounce back" is not a position; consecutive years are masked; a wrong position lists the right ones; the cache key holds the league's scoring; the columns follow amendment J.
+- (Spec) `70d7881`: fantasy metrics use the league's scoring when a league exists (§3.1), an unqualified rate shows its shrunk value and a low-stability metric is called noisy (§3.3), the `query` tool checks a whole `StatsQuery` against its schema, and traces hash the tool definitions (§4.4).
+- (The gate) `e229f67`: the gate now checks the resolver's slots against the references, which found `55c13ce` (a pressure, coverage or personnel question with no season named reads the prior season: participation stops there) and two references that ranked the wrong end.
+
+Left open: the flaky `DevTools.test.tsx` snip test (a separate session is on it); Plan AG re-tests on newer models.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
