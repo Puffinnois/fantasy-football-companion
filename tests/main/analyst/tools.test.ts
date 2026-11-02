@@ -220,6 +220,26 @@ describe('leaderboard', () => {
     expect(ok(out).notes).toContain('Buffalo Bills (BUF) ranks 4th of 5.')
   })
 
+  it('reads participation filters in the prior season when no season is named', async () => {
+    const { out, queries } = await run('player_stats', {
+      player: CHASE,
+      coverage: 'man',
+      metrics: ['targets']
+    })
+    expect(queries[0].scope.seasons).toEqual([2025])
+    expect(ok(out).notes).toContain(
+      'Pressure, coverage, personnel, formation and on-field data are published through 2025: 2025 shown.'
+    )
+    // A season named is kept.
+    const named = await run('player_stats', {
+      player: CHASE,
+      coverage: 'man',
+      metrics: ['targets'],
+      seasons: [2026]
+    })
+    expect(named.queries[0].scope.seasons).toEqual([2026])
+  })
+
   it('reads the postseason when asked', async () => {
     const { out, queries } = await run('leaderboard', {
       metric: 'rush_yds',

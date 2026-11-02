@@ -373,8 +373,23 @@ function situationOf(a: Args): {
  * The scope of a call. The engine cannot take each player's own last N games with a situation
  * filter or a play split: then the last games are read as the latest N weeks, and `notes` says so.
  */
+/** Situation filters and splits from participation, published through the prior season. */
+const PARTICIPATION_ARGS = ['pressure', 'coverage', 'personnel', 'with_player', 'without_player']
+const PARTICIPATION_BY: GroupBy[] = ['coverage', 'personnel', 'formation']
+
 function scopeOf(a: Args, turn: TurnContext, notes: string[] = []): StatsQuery['scope'] {
-  const seasons = (a.seasons as number[] | undefined) ?? [turn.now.season]
+  // Participation stops with the prior season: with no season named, read that one.
+  const participation =
+    PARTICIPATION_ARGS.some((k) => a[k] !== undefined) || PARTICIPATION_BY.includes(a.by as GroupBy)
+  const prior = turn.now.season - 1
+  let seasons = a.seasons as number[] | undefined
+  if (!seasons && participation) {
+    seasons = [prior]
+    notes.push(
+      `Pressure, coverage, personnel, formation and on-field data are published through ${prior}: ${prior} shown.`
+    )
+  }
+  seasons ??= [turn.now.season]
   const plays =
     Object.keys(situationOf(a).situation).length > 0 || PLAY_DIMS.includes(a.by as GroupBy)
   const last = a.last_games ? Math.max(1, a.last_games as number) : null
