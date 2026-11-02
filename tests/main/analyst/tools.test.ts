@@ -195,6 +195,27 @@ describe('leaderboard', () => {
     ).toContain('Ctch% -1.20')
   })
 
+  it('ranks a team metric among all 32 and points out the team asked about', async () => {
+    const teams = ['KC', 'DET', 'BAL', 'BUF', 'SF'].map((t, i) =>
+      statsRow(t, t, {
+        off_epa_play: { raw: 0.2 - i * 0.02, rank: i + 1, percentile: 100 - i * 20 }
+      })
+    )
+    const { out, queries } = await run(
+      'leaderboard',
+      { metric: 'off_epa_play', team: 'BUF', limit: 2 },
+      fake(() => teams)
+    )
+    expect(queries[0].scope.teams).toBeUndefined()
+    const lines = ok(out).text.split('\n')
+    expect(lines.slice(1, 4)).toEqual([
+      '1. Kansas City Chiefs (KC) — EPA/play +0.200, 100th pct',
+      '2. Detroit Lions (DET) — EPA/play +0.180, 80th pct',
+      '4. Buffalo Bills (BUF) — EPA/play +0.140, 40th pct'
+    ])
+    expect(ok(out).notes).toContain('Buffalo Bills (BUF) ranks 4th of 5.')
+  })
+
   it('reads the postseason when asked', async () => {
     const { out, queries } = await run('leaderboard', {
       metric: 'rush_yds',

@@ -744,7 +744,8 @@ const leaderboard: Handler = async (a, turn, io) => {
       ...scopeOf(a, turn, pre),
       ...extra,
       ...(position ? { positions: [position as never] } : {}),
-      ...(a.team ? { teams: [a.team as string] } : {}),
+      // A team metric is ranked among all 32 (the named team is pointed out below).
+      ...(a.team && m.entity === 'player' ? { teams: [a.team as string] } : {}),
       ...(rostered === 'mine'
         ? {
             [m.entity === 'player' ? 'players' : 'teams']:
@@ -756,9 +757,16 @@ const leaderboard: Handler = async (a, turn, io) => {
     ...(Object.keys(situation).length > 0 ? { situation } : {}),
     ...(worst ? { sort: { metric: id, dir: best === 'asc' ? 'desc' : 'asc' } } : {}),
     ...(a.per_game ? { transform: 'perGame' as const } : {}),
-    limit: rostered === 'free' ? 300 : limit
+    limit: rostered === 'free' ? 300 : a.team && m.entity === 'team' ? 32 : limit
   }
   let result = await io.query(q)
+  const named = a.team && m.entity === 'team' ? (a.team as string) : null
+  const namedRow = named ? (result.rows.find((r) => r.id === named) ?? null) : null
+  if (named) {
+    const top = result.rows.slice(0, limit)
+    const rows = namedRow && !top.includes(namedRow) ? [...top, namedRow] : top
+    result = { ...result, rows }
+  }
   if (rostered === 'free' && owned) {
     const taken = m.entity === 'player' ? owned.players : owned.teams
     const rows = result.rows.filter((r) => !taken[r.id]).slice(0, limit)
@@ -767,6 +775,14 @@ const leaderboard: Handler = async (a, turn, io) => {
   const info = turn.catalogue.get(id)
   const title = `${info?.label ?? id} (${id})${position ? `, ${position}` : ''}, ${seasonsText(q.scope)}${situationText(q)}${rostered === 'free' ? ', free agents' : rostered === 'mine' ? ', my team' : ''}: ${worst ? 'worst' : 'best'} first, qualified only.`
   const notes = [...pre, ...result.notes]
+  if (named) {
+    const rank = namedRow?.values[id]?.rank
+    notes.push(
+      rank
+        ? `${TEAM_NAMES[named]} (${named}) ranks ${ordinal(rank)} of ${result.total}.`
+        : `${TEAM_NAMES[named]} (${named}) has no qualified value here.`
+    )
+  }
   if (result.rows.length === 0) notes.push(await explainEmpty(q, io, turn))
   const detail = detailOf(a)
   const player = m.entity === 'player'
