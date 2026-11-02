@@ -21,7 +21,15 @@ export interface AnswerCheck {
   severity: 'flag' | 'soft'
 }
 
-const NUMBER = /[-−+]?\d[\d,]*(?:\.\d+)?%?/g
+/** A number as written; a sign only where it cannot be a hyphen ("2019-2024", "won 31-17"). */
+const NUMBER = /(?:(?<![\w.])[-−+])?\d[\d,]*(?:\.\d+)?%?/g
+
+/** Where a value appears in the answer as a whole number, not inside another (26 in "2026"). */
+function find(answer: string, shown: string): number {
+  const escaped = shown.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const m = new RegExp(`(?<![\\d.])${escaped}(?![\\d])`).exec(answer)
+  return m ? m.index : -1
+}
 
 interface Num {
   value: number
@@ -92,8 +100,9 @@ export function checkAnswer(
   for (const m of answer.matchAll(NUMBER)) {
     const n = parse(m[0])
     if (!Number.isFinite(n.value)) continue
-    // Small whole numbers are prose ("the top 3", "2 of them").
+    // Small whole numbers are prose ("the top 3", "2 of them"); "top-12" and "top 24" are ranks.
     if (n.decimals === 0 && !n.pct && Math.abs(n.value) <= 10) continue
+    if (n.decimals === 0 && /top[- ]$/i.test(answer.slice(0, m.index))) continue
     if (ok.some((b) => rounds(n, b))) continue
     checks.push({
       kind: 'number',
@@ -106,16 +115,16 @@ export function checkAnswer(
 
   const cards = results.flatMap((r) => r.cards.filter((c): c is StatsCard => c.kind === 'stats'))
   for (const card of cards) {
-    // Sample: an unqualified rate quoted without its sample.
-    for (const row of card.result.rows) {
+    // Sample: an unqualified rate quoted without its sample (the split rows and the base).
+    for (const row of [...card.result.rows, ...(card.base ? [card.base] : [])]) {
       for (const [id, v] of Object.entries(row.values)) {
         const info = catalogue.get(id)
         if (!info || info.kind !== 'rate' || v.qualified || v.value === null || v.sample === null)
           continue
         const shown = fmt(v.value, info.unit, info.decimals).replace(/^\+/, '')
-        const at = answer.indexOf(shown)
+        const at = find(answer, shown)
         if (at < 0) continue
-        if (answer.includes(String(Math.round(v.sample)))) continue
+        if (find(answer, String(Math.round(v.sample))) >= 0) continue
         checks.push({
           kind: 'sample',
           text: shown,
@@ -125,8 +134,10 @@ export function checkAnswer(
         })
       }
     }
-    // Base: a split value quoted without the overall line.
-    if (card.base) {
+    // Base: a split value quoted without the overall line. A game log (by week or season) is a
+    // series, not a split.
+    const series = card.result.rows.some((r) => 'week' in r.group || 'season' in r.group)
+    if (card.base && !series) {
       const splitShown: [string, number][] = []
       const baseShown: string[] = []
       for (const [id, v] of Object.entries(card.base.values)) {
@@ -137,11 +148,11 @@ export function checkAnswer(
           const sv = row.values[id]
           if (!sv || sv.value === null) continue
           const s = fmt(sv.value, info.unit, info.decimals).replace(/^\+/, '')
-          const at = answer.indexOf(s)
+          const at = find(answer, s)
           if (at >= 0) splitShown.push([s, at])
         }
       }
-      if (splitShown.length > 0 && !baseShown.some((b) => answer.includes(b))) {
+      if (splitShown.length > 0 && !baseShown.some((b) => find(answer, b) >= 0)) {
         const [text, at] = splitShown[0]
         checks.push({
           kind: 'base',

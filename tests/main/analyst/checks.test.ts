@@ -118,6 +118,62 @@ describe('the answer checks (Ask spec §4.3)', () => {
   })
 })
 
+describe('the answer checks read whole numbers (review fixes)', () => {
+  it('reads a hyphen as a hyphen, and a "top-12" as a rank', () => {
+    const r = result({
+      result: statsResult([statsRow(CHASE, "Ja'Marr Chase", { targets: { raw: 31 } })])
+    })
+    expect(
+      checkAnswer('From 2019-2024 he was a top-12 WR; 31 targets.', [r], CATALOGUE, {
+        question: 'since 2019 to 2024'
+      })
+    ).toEqual([])
+  })
+
+  it('wants the sample itself, not a number that contains it', () => {
+    const thin = result({
+      result: statsResult([
+        statsRow(CHASE, "Ja'Marr Chase", { yprr: { raw: 3.1, sample: 26, qualified: false } })
+      ])
+    })
+    expect(
+      checkAnswer('In 2026 he is at 3.10 yards per route.', [thin], CATALOGUE, {
+        question: 'in 2026'
+      }).map((c) => c.kind)
+    ).toEqual(['sample'])
+  })
+
+  it('checks the base row’s sample, and leaves game logs alone', () => {
+    const base = result({
+      result: statsResult([
+        statsRow(
+          CHASE,
+          "Ja'Marr Chase",
+          { yprr: { raw: 1.8, sample: 20, qualified: false } },
+          { group: { coverage: 'man' } }
+        )
+      ]),
+      base: statsRow(CHASE, "Ja'Marr Chase", { yprr: { raw: 2.26, sample: 40, qualified: false } }),
+      splits: { man: { yprr: { diff: -0.46, interval: null, withinNoise: null } } }
+    })
+    expect(
+      checkAnswer('Overall 2.26, against man 1.80 on 20 routes.', [base], CATALOGUE, {
+        question: ''
+      }).map((c) => c.kind)
+    ).toEqual(['sample'])
+    const log = result({
+      result: statsResult([
+        statsRow(CHASE, "Ja'Marr Chase", { targets: { raw: 9 } }, { group: { week: 5 } })
+      ]),
+      base: statsRow(CHASE, "Ja'Marr Chase", { targets: { raw: 40 } }),
+      splits: { 5: { targets: { diff: null, interval: null, withinNoise: null } } }
+    })
+    expect(checkAnswer('He had 9 targets in week 5.', [log], CATALOGUE, { question: '' })).toEqual(
+      []
+    )
+  })
+})
+
 describe('the analyst brief (Ask spec §4.4)', () => {
   it('fills the data range, the week and the glossary; hashes the template', () => {
     const text = briefText('analyst', NOW)
