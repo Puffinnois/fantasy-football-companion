@@ -1,0 +1,51 @@
+[
+  { "q": "who leads WRs in yards per route run since week 5?", "gold": ["yprr"] },
+  { "q": "best YPRR among tight ends this year", "gold": ["yprr"] },
+  { "q": "which receivers earn a target on the highest share of their routes", "gold": ["tprr"] },
+  { "q": "TPRR leaders at TE", "gold": ["tprr"] },
+  { "q": "who has the deepest aDOT among wide receivers", "gold": ["rec_adot"] },
+  { "q": "how far downfield does Josh Allen throw on average", "gold": ["pass_adot"] },
+  { "q": "QBs ranked by completion percentage over expected", "gold": ["cpoe"] },
+  { "q": "who is the most accurate passer relative to expectation", "gold": ["cpoe"] },
+  { "q": "RBs with the most rushing yards over expected per carry", "gold": ["ryoe_att", "ryoe"] },
+  {
+    "q": "which running backs gain the most beyond what their blocking gives them",
+    "gold": ["ryoe", "ryoe_att"]
+  },
+  { "q": "WOPR leaders", "gold": ["wopr"] },
+  { "q": "who gets the biggest share of his team's targets", "gold": ["target_share"] },
+  { "q": "air yards share top 10", "gold": ["air_yards_share"] },
+  { "q": "best quarterback by EPA per dropback", "gold": ["qb_epa_db"] },
+  { "q": "which QB gets sacked the most often", "gold": ["sack_rate", "sacks_taken"] },
+  { "q": "top edge rushers by sacks", "gold": ["sacks"] },
+  {
+    "q": "who generates the most pressure on the quarterback",
+    "gold": ["pressures", "pressure_rate"]
+  },
+  { "q": "cornerbacks with the lowest passer rating allowed", "gold": ["coverage_rating"] },
+  { "q": "which teams pass more than expected", "gold": ["proe", "neutral_proe"] },
+  { "q": "which defenses blitz the most", "gold": ["def_blitz_rate"] },
+  { "q": "playoff chances for every team", "gold": ["playoff_pct"] },
+  { "q": "highest fantasy points per game among RBs", "gold": ["fantasy_ppg"] },
+  { "q": "who scores the most PPG at tight end", "gold": ["fantasy_ppg"] },
+  { "q": "expected fantasy points leaders", "gold": ["expected_points", "expected_ppg"] },
+  { "q": "which receivers have the most boom weeks", "gold": ["boom_rate"] },
+  { "q": "on what share of dropbacks is Puka running a route", "gold": ["route_participation"] },
+  { "q": "yards after contact per carry leaders", "gold": ["yac_att"] },
+  { "q": "who plays the most snaps at RB", "gold": ["snap_share", "off_snaps"] },
+  { "q": "goal line work: most carries inside the 5", "gold": ["i5_carries", "i10_carries"] },
+  { "q": "red zone carries leaders", "gold": ["rz_carries"] },
+  { "q": "best long-distance kicker", "gold": ["fg_pct_50p", "fg_made_50p"] },
+  { "q": "kickers ranked by field goals over expected", "gold": ["fgoe", "fgoe_pct"] },
+  {
+    "q": "which teams have the easiest remaining schedule",
+    "gold": ["sos_left_elo", "sos_left_adj"]
+  },
+  { "q": "QBs who get rid of the ball fastest", "gold": ["time_to_throw"] },
+  { "q": "which defenses play the most man coverage", "gold": ["def_man_rate"] },
+  { "q": "who gets the most separation from defenders", "gold": ["separation"] },
+  { "q": "high value touches for running backs", "gold": ["high_value_touches"] },
+  { "q": "who drops the most catchable passes", "gold": ["drop_rate", "drops"] },
+  { "q": "which offenses play fastest in neutral situations", "gold": ["neutral_pace"] },
+  { "q": "teams with the highest implied team total", "gold": ["implied_points"] }
+]

@@ -1,0 +1,242 @@
+[
+  {
+    "id": "L1",
+    "q": "Who leads WRs in yards per route run since week 5?",
+    "time": "'since week 5' = weeks [5, 7] of 2026",
+    "ref": {
+      "tool": "leaderboard",
+      "metric": ["yprr"],
+      "position": "WR",
+      "weeks": [5, 7]
+    },
+    "cands": ["yprr", "tprr", "boom_rate", "explosive_run_rate", "i5_carries"]
+  },
+  {
+    "id": "L2",
+    "q": "Best tight end by targets per route run this season",
+    "time": "'this season' = 2026",
+    "ref": {
+      "tool": "leaderboard",
+      "metric": ["tprr"],
+      "position": "TE"
+    },
+    "cands": ["tprr", "yprr", "ez_targets", "tprr_man", "targets"]
+  },
+  {
+    "id": "L3",
+    "q": "Which QBs had the best CPOE in 2025?",
+    "time": "2025",
+    "ref": {
+      "tool": "leaderboard",
+      "metric": ["cpoe"],
+      "position": "QB",
+      "seasons": [2025]
+    },
+    "cands": ["epa_cpoe_composite", "cpoe", "out_of_pocket_rate", "pass_att", "pass_cmp"]
+  },
+  {
+    "id": "L4",
+    "q": "Top 5 running backs in rush yards over expected per carry",
+    "ref": {
+      "tool": "leaderboard",
+      "metric": ["ryoe_att"],
+      "position": "RB"
+    },
+    "cands": ["rush_pct_over_expected", "ryoe_att", "rush_epa", "ryoe", "rush_ypc"]
+  },
+  {
+    "id": "L5",
+    "q": "Which defenses blitz the most?",
+    "ref": {
+      "tool": "leaderboard",
+      "metric": ["def_blitz_rate"],
+      "entity": "team"
+    },
+    "cands": ["def_blitz_rate", "adj_off_epa", "games_played", "wins", "losses"]
+  },
+  {
+    "id": "L6",
+    "q": "Which teams have the best playoff odds right now?",
+    "ref": {
+      "tool": "leaderboard",
+      "metric": ["playoff_pct"],
+      "entity": "team"
+    },
+    "cands": ["playoff_pct", "bye_pct", "games_left", "team_st_tds", "division_pct"]
+  },
+  {
+    "id": "L7",
+    "q": "Most red-zone carries among running backs last season",
+    "time": "'last season' = 2025",
+    "ref": {
+      "tool": "leaderboard",
+      "metric": ["rz_carries"],
+      "position": "RB",
+      "seasons": [2025]
+    },
+    "cands": ["rz_carries", "rz_opportunity_share", "rz_targets", "ez_targets", "i5_carries"]
+  },
+  {
+    "id": "L8",
+    "q": "Who has the highest target share among WRs over the last 3 weeks?",
+    "time": "'the last 3 weeks' = weeks [5, 7] of 2026",
+    "ref": {
+      "tool": "leaderboard",
+      "metric": ["target_share"],
+      "position": "WR",
+      "weeks": [5, 7]
+    },
+    "cands": ["cone_score", "cone", "target_share", "boom_rate", "bust_rate"]
+  },
+  {
+    "id": "S1",
+    "q": "How does Ja'Marr Chase do against man coverage this year?",
+    "players": ["00-0036900"],
+    "time": "'this year' = 2026",
+    "ref": {
+      "tool": "player_stats",
+      "player": "00-0036900",
+      "coverage": "man"
+    },
+    "cands": ["tprr_man", "yprr_man", "def_man_rate", "coverage_td", "coverage_int"]
+  },
+  {
+    "id": "S2",
+    "q": "Show me Bijan Robinson's game log this season",
+    "players": ["00-0038542"],
+    "time": "'this season' = 2026",
+    "ref": {
+      "tool": "player_stats",
+      "player": "00-0038542",
+      "by": "week"
+    },
+    "cands": ["off_pass_yds_game", "off_rush_yds_game", "expected_ppg", "games_left", "points_for"]
+  },
+  {
+    "id": "S3",
+    "q": "What is Josh Allen's EPA per dropback when he's pressured?",
+    "players": ["00-0034857"],
+    "ref": {
+      "tool": "player_stats",
+      "player": "00-0034857",
+      "metrics_any": ["qb_epa_db", "pressured_epa"],
+      "pressure_or_metric": true
+    },
+    "cands": [
+      "pressured_epa",
+      "off_pass_epa",
+      "adj_off_pass_epa",
+      "qb_epa_db",
+      "adj_recent_def_pass_epa"
+    ]
+  },
+  {
+    "id": "S4",
+    "q": "How many yards per carry does Derrick Henry average in the red zone?",
+    "players": ["00-0032764"],
+    "ref": {
+      "tool": "player_stats",
+      "player": "00-0032764",
+      "metrics_any": ["rush_ypc"],
+      "red_zone": true
+    },
+    "cands": ["rz_opportunity_share", "rz_carries", "rz_targets", "off_rz_td_pct", "def_rz_td_pct"]
+  },
+  {
+    "id": "S5",
+    "q": "Puka Nacua's target share by week",
+    "players": ["00-0039075"],
+    "ref": {
+      "tool": "player_stats",
+      "player": "00-0039075",
+      "metrics_any": ["target_share"],
+      "by": "week"
+    },
+    "cands": ["target_share", "catchable_pct", "rec_ypt", "rec_success", "fp_floor"]
+  },
+  {
+    "id": "S6",
+    "q": "Brock Bowers' yards per route run in 2025",
+    "players": ["00-0039338"],
+    "time": "2025",
+    "ref": {
+      "tool": "player_stats",
+      "player": "00-0039338",
+      "metrics_any": ["yprr"],
+      "seasons": [2025]
+    },
+    "cands": ["yprr", "tprr", "explosive_run_rate", "ryoe_att", "def_line_yards"]
+  },
+  {
+    "id": "T1",
+    "q": "How good is the Ravens' run defense this year?",
+    "teams": ["BAL"],
+    "time": "'this year' = 2026",
+    "ref": {
+      "tool": "team_stats",
+      "team": "BAL",
+      "metrics_any": [
+        "def_rush_epa",
+        "def_rush_success",
+        "def_rush_yds_game",
+        "adj_def_rush_epa",
+        "def_stuff_rate",
+        "def_line_yards"
+      ]
+    },
+    "cands": ["fpa_qb", "fpa_rb", "fpa_wr", "aggressiveness", "explosive_run_rate"]
+  },
+  {
+    "id": "T2",
+    "q": "Detroit's offensive EPA per play by week",
+    "teams": ["DET"],
+    "ref": {
+      "tool": "team_stats",
+      "team": "DET",
+      "metrics_any": ["off_epa_play"],
+      "by": "week"
+    },
+    "cands": ["adj_off_epa", "qbr", "off_epa_play", "on_field_epa", "adj_recent_off_epa"]
+  },
+  {
+    "id": "C1",
+    "q": "Compare Ja'Marr Chase and CeeDee Lamb in yards per route run",
+    "players": ["00-0036900", "00-0036358"],
+    "ref": {
+      "tool": "compare",
+      "ids": ["00-0036900", "00-0036358"],
+      "metrics_any": ["yprr"]
+    },
+    "cands": ["yprr", "tprr", "explosive_run_rate", "ryoe_att", "scrimmage_yds"]
+  },
+  {
+    "id": "C2",
+    "q": "Bijan vs Gibbs: fantasy points per game this season",
+    "players": ["00-0038542", "00-0039139"],
+    "time": "'this season' = 2026",
+    "ref": {
+      "tool": "compare",
+      "ids": ["00-0038542", "00-0039139"],
+      "metrics_any": ["fantasy_ppg"]
+    },
+    "cands": ["fantasy_ppg", "expected_ppg", "fpa_qb", "fpa_rb", "fpa_k"]
+  },
+  {
+    "id": "D1",
+    "q": "What does WOPR mean?",
+    "ref": {
+      "tool": "describe",
+      "metric": ["wopr"]
+    },
+    "cands": ["wopr", "pass_att", "pass_cmp", "fpa_wr", "neutral_proe"]
+  },
+  {
+    "id": "D2",
+    "q": "What is RYOE?",
+    "ref": {
+      "tool": "describe",
+      "metric": ["ryoe", "ryoe_att"]
+    },
+    "cands": ["ryoe_att", "ryoe", "pass_att", "sos_left_elo", "neutral_proe"]
+  }
+]

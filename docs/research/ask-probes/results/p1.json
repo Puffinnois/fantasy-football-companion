@@ -1,0 +1,680 @@
+{
+  "timing": {
+    "bge-m3": {
+      "docs_s": 22.74,
+      "per_query_ms": 13.8
+    },
+    "nomic-embed-text": {
+      "docs_s": 1.79,
+      "per_query_ms": 4.5
+    }
+  },
+  "nan_failures": {
+    "bge-m3": [
+      "TPRR vs zone: Targets per route against zone coverage (parti",
+      "YPRR vs man: Yards per route against man coverage (participa",
+      "YPRR vs zone: Yards per route against zone coverage (partici",
+      "Net punting average: Yards per punt after returns and touchb",
+      "Three-and-out rate: Share of drives ending in a punt after t",
+      "Average starting field position: Average yards from the oppo",
+      "11 personnel rate: Share of plays with one back and one tigh",
+      "12 personnel rate: Share of plays with one back and two tigh",
+      "21 personnel rate: Share of plays with two backs and one tig",
+      "Man coverage rate: Share of opponent dropbacks in man covera",
+      "EPA allowed in man: EPA per dropback allowed in man coverage",
+      "EPA allowed in zone: EPA per dropback allowed in zone covera"
+    ]
+  },
+  "methods": {
+    "lexical": {
+      "R@1": 0.5,
+      "R@3": 0.725,
+      "R@5": 0.85,
+      "R@10": 0.875,
+      "MRR": 0.649
+    },
+    "bge-m3": {
+      "R@1": 0.5,
+      "R@3": 0.675,
+      "R@5": 0.7,
+      "R@10": 0.75,
+      "MRR": 0.6
+    },
+    "nomic-embed-text": {
+      "R@1": 0.4,
+      "R@3": 0.575,
+      "R@5": 0.7,
+      "R@10": 0.775,
+      "MRR": 0.524
+    },
+    "lexical+bge-m3 (RRF)": {
+      "R@1": 0.625,
+      "R@3": 0.725,
+      "R@5": 0.75,
+      "R@10": 0.875,
+      "MRR": 0.699
+    },
+    "lexical+nomic (RRF)": {
+      "R@1": 0.45,
+      "R@3": 0.65,
+      "R@5": 0.8,
+      "R@10": 0.85,
+      "MRR": 0.594
+    },
+    "lexical+filter": {
+      "R@1": 0.625,
+      "R@3": 0.825,
+      "R@5": 0.825,
+      "R@10": 0.825,
+      "MRR": 0.72
+    },
+    "bge-m3+filter": {
+      "R@1": 0.525,
+      "R@3": 0.65,
+      "R@5": 0.7,
+      "R@10": 0.8,
+      "MRR": 0.621
+    },
+    "RRF(lex,bge)+filter": {
+      "R@1": 0.675,
+      "R@3": 0.775,
+      "R@5": 0.85,
+      "R@10": 0.9,
+      "MRR": 0.752
+    },
+    "lex top3 + bge top2, filtered": {
+      "R@1": 0.625,
+      "R@3": 0.825,
+      "R@5": 0.9,
+      "R@10": 0.9,
+      "MRR": 0.729
+    },
+    "lexical+filter v2": {
+      "R@1": 0.625,
+      "R@3": 0.85,
+      "R@5": 0.875,
+      "R@10": 0.875,
+      "MRR": 0.737
+    },
+    "RRF(lex,bge)+filter v2": {
+      "R@1": 0.7,
+      "R@3": 0.8,
+      "R@5": 0.875,
+      "R@10": 0.95,
+      "MRR": 0.78
+    },
+    "lex top3 + bge top2, filter v2": {
+      "R@1": 0.625,
+      "R@3": 0.85,
+      "R@5": 0.925,
+      "R@10": 0.95,
+      "MRR": 0.744
+    }
+  },
+  "misses": {
+    "lexical": [
+      {
+        "q": "which receivers earn a target on the highest share of their routes",
+        "gold": ["tprr"],
+        "pos": 13,
+        "top3": ["routes", "target_share", "catchable_pct"]
+      },
+      {
+        "q": "who is the most accurate passer relative to expectation",
+        "gold": ["cpoe"],
+        "pos": 22,
+        "top3": ["passer_rating", "coverage_rating", "elo_luck"]
+      },
+      {
+        "q": "which running backs gain the most beyond what their blocking gives them",
+        "gold": ["ryoe", "ryoe_att"],
+        "pos": 73,
+        "top3": ["personnel_21_rate", "carries", "created_receptions"]
+      },
+      {
+        "q": "best quarterback by EPA per dropback",
+        "gold": ["qb_epa_db"],
+        "pos": 7,
+        "top3": ["off_pass_epa", "sack_rate", "adj_off_pass_epa"]
+      },
+      {
+        "q": "best long-distance kicker",
+        "gold": ["fg_pct_50p", "fg_made_50p"],
+        "pos": 171,
+        "top3": ["kicker_epa", "fumble_recovery_pct", "fgoe"]
+      },
+      {
+        "q": "QBs who get rid of the ball fastest",
+        "gold": ["time_to_throw"],
+        "pos": 24,
+        "top3": ["fpa_qb", "separation", "tackle_depth"]
+      }
+    ],
+    "bge-m3": [
+      {
+        "q": "best YPRR among tight ends this year",
+        "gold": ["yprr"],
+        "pos": 45,
+        "top3": ["ryoe_att", "aggressiveness", "receptions"]
+      },
+      {
+        "q": "TPRR leaders at TE",
+        "gold": ["tprr"],
+        "pos": 69,
+        "top3": ["tprr_man", "rush_td", "rec_td"]
+      },
+      {
+        "q": "who has the deepest aDOT among wide receivers",
+        "gold": ["rec_adot"],
+        "pos": 21,
+        "top3": ["coverage_adot", "deep_targets", "aggressiveness"]
+      },
+      {
+        "q": "who is the most accurate passer relative to expectation",
+        "gold": ["cpoe"],
+        "pos": 11,
+        "top3": ["rush_pct_over_expected", "ryoe_att", "off_epa_play"]
+      },
+      {
+        "q": "best quarterback by EPA per dropback",
+        "gold": ["qb_epa_db"],
+        "pos": 10,
+        "top3": ["epa_cpoe_composite", "blitz_epa", "qb_success"]
+      },
+      {
+        "q": "top edge rushers by sacks",
+        "gold": ["sacks"],
+        "pos": 42,
+        "top3": ["off_sack_rate", "total_td", "rush_yds"]
+      },
+      {
+        "q": "who generates the most pressure on the quarterback",
+        "gold": ["pressures", "pressure_rate"],
+        "pos": 7,
+        "top3": ["p2s_rate", "qb_hits", "off_pressure_rate"]
+      },
+      {
+        "q": "highest fantasy points per game among RBs",
+        "gold": ["fantasy_ppg"],
+        "pos": 12,
+        "top3": ["fpa_rb", "bust_rate", "fpa_wr"]
+      },
+      {
+        "q": "who scores the most PPG at tight end",
+        "gold": ["fantasy_ppg"],
+        "pos": 275,
+        "top3": ["aggressiveness", "p2s_rate", "fg_made_50p"]
+      },
+      {
+        "q": "QBs who get rid of the ball fastest",
+        "gold": ["time_to_throw"],
+        "pos": 69,
+        "top3": ["qb_hits", "bust_rate", "out_of_pocket_rate"]
+      },
+      {
+        "q": "which defenses play the most man coverage",
+        "gold": ["def_man_rate"],
+        "pos": 324,
+        "top3": ["def_snaps", "box8_rate", "aggressiveness"]
+      },
+      {
+        "q": "teams with the highest implied team total",
+        "gold": ["implied_points"],
+        "pos": 11,
+        "top3": ["total_line", "proj_wins", "pythag_win_pct"]
+      }
+    ],
+    "nomic-embed-text": [
+      {
+        "q": "best YPRR among tight ends this year",
+        "gold": ["yprr"],
+        "pos": 25,
+        "top3": ["personnel_21_rate", "personnel_11_rate", "personnel_12_rate"]
+      },
+      {
+        "q": "TPRR leaders at TE",
+        "gold": ["tprr"],
+        "pos": 121,
+        "top3": ["def_stuffs", "contested_targets", "fg_made"]
+      },
+      {
+        "q": "who has the deepest aDOT among wide receivers",
+        "gold": ["rec_adot"],
+        "pos": 7,
+        "top3": ["cushion", "created_receptions", "tackle_depth"]
+      },
+      {
+        "q": "WOPR leaders",
+        "gold": ["wopr"],
+        "pos": 233,
+        "top3": ["fg_made", "games", "points_against"]
+      },
+      {
+        "q": "best quarterback by EPA per dropback",
+        "gold": ["qb_epa_db"],
+        "pos": 10,
+        "top3": ["sack_rate", "out_of_pocket_rate", "adj_off_pass_epa"]
+      },
+      {
+        "q": "top edge rushers by sacks",
+        "gold": ["sacks"],
+        "pos": 89,
+        "top3": ["def_sack_rate", "pass_att", "p2s_rate"]
+      },
+      {
+        "q": "highest fantasy points per game among RBs",
+        "gold": ["fantasy_ppg"],
+        "pos": 16,
+        "top3": ["expected_ppg", "expected_points", "fp_ceiling"]
+      },
+      {
+        "q": "who scores the most PPG at tight end",
+        "gold": ["fantasy_ppg"],
+        "pos": 280,
+        "top3": ["personnel_21_rate", "personnel_11_rate", "personnel_12_rate"]
+      },
+      {
+        "q": "which receivers have the most boom weeks",
+        "gold": ["boom_rate"],
+        "pos": 33,
+        "top3": ["created_receptions", "expected_receptions", "epa_cpoe_composite"]
+      },
+      {
+        "q": "goal line work: most carries inside the 5",
+        "gold": ["i5_carries", "i10_carries"],
+        "pos": 11,
+        "top3": ["rz_carries", "weighted_opportunities", "stuff_rate"]
+      },
+      {
+        "q": "QBs who get rid of the ball fastest",
+        "gold": ["time_to_throw"],
+        "pos": 10,
+        "top3": ["tprr", "yprr", "routes"]
+      },
+      {
+        "q": "teams with the highest implied team total",
+        "gold": ["implied_points"],
+        "pos": 18,
+        "top3": ["target_share", "elo", "srs"]
+      }
+    ],
+    "lexical+bge-m3 (RRF)": [
+      {
+        "q": "TPRR leaders at TE",
+        "gold": ["tprr"],
+        "pos": 8,
+        "top3": ["tprr_man", "pass_td", "fpa_te"]
+      },
+      {
+        "q": "who is the most accurate passer relative to expectation",
+        "gold": ["cpoe"],
+        "pos": 7,
+        "top3": ["passer_rating", "epa_cpoe_composite", "coverage_rating"]
+      },
+      {
+        "q": "which running backs gain the most beyond what their blocking gives them",
+        "gold": ["ryoe", "ryoe_att"],
+        "pos": 11,
+        "top3": ["routes", "ybc_att", "yprr"]
+      },
+      {
+        "q": "best quarterback by EPA per dropback",
+        "gold": ["qb_epa_db"],
+        "pos": 8,
+        "top3": ["adj_recent_off_pass_epa", "blitz_epa", "adj_off_pass_epa"]
+      },
+      {
+        "q": "top edge rushers by sacks",
+        "gold": ["sacks"],
+        "pos": 9,
+        "top3": ["off_sack_rate", "sacks_taken", "def_pass_rushers"]
+      },
+      {
+        "q": "who generates the most pressure on the quarterback",
+        "gold": ["pressures", "pressure_rate"],
+        "pos": 7,
+        "top3": ["p2s_rate", "off_pressure_rate", "qb_hits"]
+      },
+      {
+        "q": "who scores the most PPG at tight end",
+        "gold": ["fantasy_ppg"],
+        "pos": 30,
+        "top3": ["aggressiveness", "p2s_rate", "off_rz_td_pct"]
+      },
+      {
+        "q": "best long-distance kicker",
+        "gold": ["fg_pct_50p", "fg_made_50p"],
+        "pos": 15,
+        "top3": ["fgoe", "aggressiveness", "pass_td"]
+      },
+      {
+        "q": "QBs who get rid of the ball fastest",
+        "gold": ["time_to_throw"],
+        "pos": 26,
+        "top3": ["separation", "sack_rate", "pass_td"]
+      },
+      {
+        "q": "which defenses play the most man coverage",
+        "gold": ["def_man_rate"],
+        "pos": 23,
+        "top3": ["tprr_man", "coverage_td", "coverage_targets"]
+      }
+    ],
+    "lexical+nomic (RRF)": [
+      {
+        "q": "TPRR leaders at TE",
+        "gold": ["tprr"],
+        "pos": 15,
+        "top3": ["pass_att", "sacks_taken", "pass_int"]
+      },
+      {
+        "q": "which running backs gain the most beyond what their blocking gives them",
+        "gold": ["ryoe", "ryoe_att"],
+        "pos": 16,
+        "top3": ["routes", "yprr", "tprr"]
+      },
+      {
+        "q": "WOPR leaders",
+        "gold": ["wopr"],
+        "pos": 24,
+        "top3": ["pass_int", "pass_att", "sacks_taken"]
+      },
+      {
+        "q": "top edge rushers by sacks",
+        "gold": ["sacks"],
+        "pos": 13,
+        "top3": ["def_pass_rushers", "pass_att", "def_sack_rate"]
+      },
+      {
+        "q": "highest fantasy points per game among RBs",
+        "gold": ["fantasy_ppg"],
+        "pos": 8,
+        "top3": ["expected_ppg", "fpa_rb", "fpa_qb"]
+      },
+      {
+        "q": "who scores the most PPG at tight end",
+        "gold": ["fantasy_ppg"],
+        "pos": 27,
+        "top3": ["personnel_11_rate", "personnel_21_rate", "personnel_12_rate"]
+      },
+      {
+        "q": "goal line work: most carries inside the 5",
+        "gold": ["i5_carries", "i10_carries"],
+        "pos": 6,
+        "top3": ["rz_carries", "weighted_opportunities", "stuff_rate"]
+      },
+      {
+        "q": "best long-distance kicker",
+        "gold": ["fg_pct_50p", "fg_made_50p"],
+        "pos": 16,
+        "top3": ["fgoe", "pass_att", "pass_adot"]
+      }
+    ],
+    "lexical+filter": [
+      {
+        "q": "which receivers earn a target on the highest share of their routes",
+        "gold": ["tprr"],
+        "pos": 11,
+        "top3": ["routes", "target_share", "catchable_pct"]
+      },
+      {
+        "q": "who is the most accurate passer relative to expectation",
+        "gold": ["cpoe"],
+        "pos": 19,
+        "top3": ["passer_rating", "ras", "epa_cpoe_composite"]
+      },
+      {
+        "q": "which running backs gain the most beyond what their blocking gives them",
+        "gold": ["ryoe", "ryoe_att"],
+        "pos": 22,
+        "top3": ["carries", "created_receptions", "ybc_att"]
+      },
+      {
+        "q": "who gets the biggest share of his team's targets",
+        "gold": ["target_share"],
+        "pos": 124,
+        "top3": ["team_play_action_rate", "team_fg_pct", "team_punt_net_avg"]
+      },
+      {
+        "q": "who generates the most pressure on the quarterback",
+        "gold": ["pressures", "pressure_rate"],
+        "pos": 107,
+        "top3": ["p2s_rate", "qb_pressure_pfr", "sack_rate"]
+      },
+      {
+        "q": "best long-distance kicker",
+        "gold": ["fg_pct_50p", "fg_made_50p"],
+        "pos": 19,
+        "top3": ["kicker_epa", "fgoe", "games"]
+      },
+      {
+        "q": "QBs who get rid of the ball fastest",
+        "gold": ["time_to_throw"],
+        "pos": 20,
+        "top3": ["pass_att", "pass_cmp", "pass_cmp_pct"]
+      }
+    ],
+    "bge-m3+filter": [
+      {
+        "q": "best YPRR among tight ends this year",
+        "gold": ["yprr"],
+        "pos": 24,
+        "top3": ["receptions", "cushion", "drops"]
+      },
+      {
+        "q": "TPRR leaders at TE",
+        "gold": ["tprr"],
+        "pos": 25,
+        "top3": ["tprr_man", "rush_td", "rec_td"]
+      },
+      {
+        "q": "who has the deepest aDOT among wide receivers",
+        "gold": ["rec_adot"],
+        "pos": 11,
+        "top3": ["deep_targets", "rec_td", "cushion"]
+      },
+      {
+        "q": "who gets the biggest share of his team's targets",
+        "gold": ["target_share"],
+        "pos": 123,
+        "top3": ["shotgun_rate", "def_blitz_rate", "win_pct"]
+      },
+      {
+        "q": "best quarterback by EPA per dropback",
+        "gold": ["qb_epa_db"],
+        "pos": 6,
+        "top3": ["epa_cpoe_composite", "blitz_epa", "qb_success"]
+      },
+      {
+        "q": "top edge rushers by sacks",
+        "gold": ["sacks"],
+        "pos": 7,
+        "top3": ["tackles", "pressures", "def_stuffs"]
+      },
+      {
+        "q": "who generates the most pressure on the quarterback",
+        "gold": ["pressures", "pressure_rate"],
+        "pos": 107,
+        "top3": ["p2s_rate", "sack_rate", "qb_pressure_pfr"]
+      },
+      {
+        "q": "highest fantasy points per game among RBs",
+        "gold": ["fantasy_ppg"],
+        "pos": 7,
+        "top3": ["bust_rate", "boom_rate", "expected_ppg"]
+      },
+      {
+        "q": "who scores the most PPG at tight end",
+        "gold": ["fantasy_ppg"],
+        "pos": 85,
+        "top3": ["cushion", "total_td", "bust_rate"]
+      },
+      {
+        "q": "QBs who get rid of the ball fastest",
+        "gold": ["time_to_throw"],
+        "pos": 28,
+        "top3": ["bust_rate", "out_of_pocket_rate", "rush_td"]
+      },
+      {
+        "q": "which defenses play the most man coverage",
+        "gold": ["def_man_rate"],
+        "pos": 120,
+        "top3": ["def_explosive_rate", "def_box", "def_sack_rate"]
+      },
+      {
+        "q": "teams with the highest implied team total",
+        "gold": ["implied_points"],
+        "pos": 8,
+        "top3": ["total_line", "proj_wins", "pythag_win_pct"]
+      }
+    ],
+    "RRF(lex,bge)+filter": [
+      {
+        "q": "which running backs gain the most beyond what their blocking gives them",
+        "gold": ["ryoe", "ryoe_att"],
+        "pos": 9,
+        "top3": ["routes", "ybc_att", "yprr"]
+      },
+      {
+        "q": "who gets the biggest share of his team's targets",
+        "gold": ["target_share"],
+        "pos": 123,
+        "top3": ["shotgun_rate", "team_fg_pct", "def_blitz_rate"]
+      },
+      {
+        "q": "who generates the most pressure on the quarterback",
+        "gold": ["pressures", "pressure_rate"],
+        "pos": 108,
+        "top3": ["p2s_rate", "qb_pressure_pfr", "sack_rate"]
+      },
+      {
+        "q": "who scores the most PPG at tight end",
+        "gold": ["fantasy_ppg"],
+        "pos": 11,
+        "top3": ["rush_td", "ez_targets", "cushion"]
+      },
+      {
+        "q": "QBs who get rid of the ball fastest",
+        "gold": ["time_to_throw"],
+        "pos": 19,
+        "top3": ["sack_rate", "pass_td", "sacks_taken"]
+      },
+      {
+        "q": "which defenses play the most man coverage",
+        "gold": ["def_man_rate"],
+        "pos": 7,
+        "top3": ["def_explosive_rate", "def_epa_play", "def_early_down_epa"]
+      }
+    ],
+    "lex top3 + bge top2, filtered": [
+      {
+        "q": "who is the most accurate passer relative to expectation",
+        "gold": ["cpoe"],
+        "pos": 19,
+        "top3": ["passer_rating", "ras", "epa_cpoe_composite"]
+      },
+      {
+        "q": "who gets the biggest share of his team's targets",
+        "gold": ["target_share"],
+        "pos": 124,
+        "top3": ["team_play_action_rate", "team_fg_pct", "team_punt_net_avg"]
+      },
+      {
+        "q": "who generates the most pressure on the quarterback",
+        "gold": ["pressures", "pressure_rate"],
+        "pos": 108,
+        "top3": ["p2s_rate", "sack_rate", "qb_pressure_pfr"]
+      },
+      {
+        "q": "QBs who get rid of the ball fastest",
+        "gold": ["time_to_throw"],
+        "pos": 21,
+        "top3": ["bust_rate", "pass_att", "pass_cmp"]
+      }
+    ],
+    "lexical+filter v2": [
+      {
+        "q": "which receivers earn a target on the highest share of their routes",
+        "gold": ["tprr"],
+        "pos": 11,
+        "top3": ["routes", "target_share", "catchable_pct"]
+      },
+      {
+        "q": "who is the most accurate passer relative to expectation",
+        "gold": ["cpoe"],
+        "pos": 19,
+        "top3": ["passer_rating", "ras", "epa_cpoe_composite"]
+      },
+      {
+        "q": "which running backs gain the most beyond what their blocking gives them",
+        "gold": ["ryoe", "ryoe_att"],
+        "pos": 22,
+        "top3": ["carries", "created_receptions", "ybc_att"]
+      },
+      {
+        "q": "best long-distance kicker",
+        "gold": ["fg_pct_50p", "fg_made_50p"],
+        "pos": 19,
+        "top3": ["kicker_epa", "fgoe", "games"]
+      },
+      {
+        "q": "QBs who get rid of the ball fastest",
+        "gold": ["time_to_throw"],
+        "pos": 20,
+        "top3": ["pass_att", "pass_cmp", "pass_cmp_pct"]
+      }
+    ],
+    "RRF(lex,bge)+filter v2": [
+      {
+        "q": "which running backs gain the most beyond what their blocking gives them",
+        "gold": ["ryoe", "ryoe_att"],
+        "pos": 9,
+        "top3": ["routes", "ybc_att", "yprr"]
+      },
+      {
+        "q": "who generates the most pressure on the quarterback",
+        "gold": ["pressures", "pressure_rate"],
+        "pos": 7,
+        "top3": ["p2s_rate", "off_pressure_rate", "qb_hits"]
+      },
+      {
+        "q": "who scores the most PPG at tight end",
+        "gold": ["fantasy_ppg"],
+        "pos": 11,
+        "top3": ["rush_td", "ez_targets", "cushion"]
+      },
+      {
+        "q": "QBs who get rid of the ball fastest",
+        "gold": ["time_to_throw"],
+        "pos": 19,
+        "top3": ["sack_rate", "pass_td", "sacks_taken"]
+      },
+      {
+        "q": "which defenses play the most man coverage",
+        "gold": ["def_man_rate"],
+        "pos": 7,
+        "top3": ["def_explosive_rate", "def_epa_play", "def_early_down_epa"]
+      }
+    ],
+    "lex top3 + bge top2, filter v2": [
+      {
+        "q": "who is the most accurate passer relative to expectation",
+        "gold": ["cpoe"],
+        "pos": 19,
+        "top3": ["passer_rating", "ras", "epa_cpoe_composite"]
+      },
+      {
+        "q": "who generates the most pressure on the quarterback",
+        "gold": ["pressures", "pressure_rate"],
+        "pos": 7,
+        "top3": ["p2s_rate", "off_pressure_rate", "def_pressure_rate"]
+      },
+      {
+        "q": "QBs who get rid of the ball fastest",
+        "gold": ["time_to_throw"],
+        "pos": 21,
+        "top3": ["bust_rate", "pass_att", "pass_cmp"]
+      }
+    ]
+  }
+}

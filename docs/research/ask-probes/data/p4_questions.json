@@ -1,0 +1,236 @@
+[
+  {
+    "id": "Q1",
+    "q": "Top 5 WRs by yards per route run this season",
+    "time": "'this season' = 2026",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["yprr"],
+      "scope": {
+        "seasons": [2026],
+        "qualifiedOnly": true,
+        "positions": ["WR"]
+      },
+      "limit": 10
+    },
+    "kind": "lb"
+  },
+  {
+    "id": "Q2",
+    "q": "Which QBs had the best CPOE in 2025?",
+    "time": "2025",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["cpoe"],
+      "scope": {
+        "seasons": [2025],
+        "qualifiedOnly": true,
+        "positions": ["QB"]
+      },
+      "limit": 10
+    },
+    "kind": "lb"
+  },
+  {
+    "id": "Q3",
+    "q": "Best running backs in rush yards over expected per carry in 2025",
+    "time": "2025",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["ryoe_att"],
+      "scope": {
+        "seasons": [2025],
+        "qualifiedOnly": true,
+        "positions": ["RB"]
+      },
+      "limit": 10
+    },
+    "kind": "lb"
+  },
+  {
+    "id": "Q4",
+    "q": "Tight ends with the highest target share this season",
+    "time": "'this season' = 2026",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["target_share"],
+      "scope": {
+        "seasons": [2026],
+        "qualifiedOnly": true,
+        "positions": ["TE"]
+      },
+      "limit": 10
+    },
+    "kind": "lb"
+  },
+  {
+    "id": "Q5",
+    "q": "Best QBs by EPA per dropback since week 4",
+    "time": "'since week 4' = weeks [4, 7] of 2026",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["qb_epa_db"],
+      "scope": {
+        "seasons": [2026],
+        "qualifiedOnly": true,
+        "positions": ["QB"],
+        "weeks": [4, 7]
+      },
+      "limit": 10
+    },
+    "kind": "lb"
+  },
+  {
+    "id": "Q6",
+    "q": "Most receiving yards among WRs this season",
+    "time": "'this season' = 2026",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["rec_yds"],
+      "scope": {
+        "seasons": [2026],
+        "qualifiedOnly": true,
+        "positions": ["WR"]
+      },
+      "limit": 10
+    },
+    "kind": "lb"
+  },
+  {
+    "id": "Q7",
+    "q": "Most rushing TDs by running backs in 2025",
+    "time": "2025",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["rush_td"],
+      "scope": {
+        "seasons": [2025],
+        "qualifiedOnly": true,
+        "positions": ["RB"]
+      },
+      "limit": 10
+    },
+    "kind": "lb"
+  },
+  {
+    "id": "Q8",
+    "q": "Which defenses allow the lowest EPA per play this season?",
+    "time": "'this season' = 2026",
+    "ref_query": {
+      "entity": "team",
+      "metrics": ["def_epa_play"],
+      "scope": {
+        "seasons": [2026],
+        "qualifiedOnly": true
+      },
+      "limit": 10
+    },
+    "kind": "lb"
+  },
+  {
+    "id": "Q9",
+    "q": "Best offenses by EPA per play in 2025",
+    "time": "2025",
+    "ref_query": {
+      "entity": "team",
+      "metrics": ["off_epa_play"],
+      "scope": {
+        "seasons": [2025],
+        "qualifiedOnly": true
+      },
+      "limit": 10
+    },
+    "kind": "lb"
+  },
+  {
+    "id": "Q10",
+    "q": "WRs with the highest air yards share in 2025",
+    "time": "2025",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["air_yards_share"],
+      "scope": {
+        "seasons": [2025],
+        "qualifiedOnly": true,
+        "positions": ["WR"]
+      },
+      "limit": 10
+    },
+    "kind": "lb"
+  },
+  {
+    "id": "Q11",
+    "q": "How many passing TDs did Josh Allen throw in 2025?",
+    "players": ["00-0034857"],
+    "time": "2025",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["pass_td"],
+      "scope": {
+        "seasons": [2025],
+        "players": ["00-0034857"]
+      }
+    },
+    "kind": "lk"
+  },
+  {
+    "id": "Q12",
+    "q": "Bijan Robinson's rushing yards this season",
+    "players": ["00-0038542"],
+    "time": "'this season' = 2026",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["rush_yds"],
+      "scope": {
+        "seasons": [2026],
+        "players": ["00-0038542"]
+      }
+    },
+    "kind": "lk"
+  },
+  {
+    "id": "Q13",
+    "q": "How many receptions did CeeDee Lamb have in 2025?",
+    "players": ["00-0036358"],
+    "time": "2025",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["receptions"],
+      "scope": {
+        "seasons": [2025],
+        "players": ["00-0036358"]
+      }
+    },
+    "kind": "lk"
+  },
+  {
+    "id": "Q14",
+    "q": "Lamar Jackson's rushing yards in 2025",
+    "players": ["00-0034796"],
+    "time": "2025",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["rush_yds"],
+      "scope": {
+        "seasons": [2025],
+        "players": ["00-0034796"]
+      }
+    },
+    "kind": "lk"
+  },
+  {
+    "id": "Q15",
+    "q": "Brock Bowers' yards per route run in 2025",
+    "players": ["00-0039338"],
+    "time": "2025",
+    "ref_query": {
+      "entity": "player",
+      "metrics": ["yprr"],
+      "scope": {
+        "seasons": [2025],
+        "players": ["00-0039338"]
+      }
+    },
+    "kind": "lk"
+  }
+]
