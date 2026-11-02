@@ -51,24 +51,38 @@ export function resolveTime(question: string, now: Now): ResolvedTime {
   }
   const num = '(\\d+|one|two|three|four|five|six|seven|eight|nine|ten)'
 
-  // Seasons.
+  // Seasons. A range reaching before 2019 or past now is kept inside them, and says so; one wholly
+  // outside is out of range.
   let m: RegExpMatchArray | null
-  if ((m = t.match(/ (?:from )?(20\d\d) (?:to|through|thru|and|) ?(20\d\d|\d\d) /))) {
+  const range = (phrase: string, a: number, b: number): void => {
+    const from = Math.max(a, FIRST)
+    const to = Math.min(b, now.season)
+    if (from > to) {
+      out.outOfRange = a < FIRST ? a : b
+      return
+    }
+    out.seasons = span(from, to)
+    const cut =
+      a < FIRST
+        ? ' (the data starts in 2019)'
+        : b > now.season
+          ? ` (the data ends in ${now.season})`
+          : ''
+    say(phrase, `seasons ${from}–${to}${cut}`)
+  }
+  if (
+    (m = t.match(/ (?:from )?((?:19|20)\d\d) (?:to|through|thru|until) ((?:19|20)\d\d|\d\d) /)) ||
+    (m = t.match(/ (20\d\d) (\d\d) /))
+  ) {
     const a = year(m[1])
     const b = year(m[2])
-    if (b > a) {
-      out.seasons = span(a, b)
-      say(m[0].trim(), `seasons ${a}–${b}`)
-    }
+    if (b > a) range(m[0].trim(), a, b)
   }
-  if (!out.seasons && (m = t.match(/ since (20\d\d) /))) {
-    out.seasons = span(Number(m[1]), now.season)
-    say(m[0].trim(), `seasons ${m[1]}–${now.season}`)
+  if (!out.seasons && !out.outOfRange && (m = t.match(/ since ((?:19|20)\d\d) /))) {
+    range(m[0].trim(), Number(m[1]), now.season)
   }
   if (!out.seasons && (m = t.match(new RegExp(` (?:last|past) ${num} (?:seasons|years) `)))) {
-    const k = n(m[1])
-    out.seasons = span(now.season - k + 1, now.season)
-    say(m[0].trim(), `seasons ${now.season - k + 1}–${now.season}`)
+    range(m[0].trim(), now.season - n(m[1]) + 1, now.season)
   }
   if (!out.seasons && / (career|all time|every season|since 2019) /.test(t)) {
     out.seasons = span(FIRST, now.season)
@@ -82,7 +96,12 @@ export function resolveTime(question: string, now: Now): ResolvedTime {
     say(t.match(/ (last|previous|prior) (season|year) /)![0].trim(), `${now.season - 1}`)
   }
   if (!out.seasons) {
-    const years = [...t.matchAll(/ (19\d\d|20\d\d) /g)].map((x) => Number(x[1]))
+    // A number before yards or points is a number ("on pace for 2000 rushing yards").
+    const years = [
+      ...t.matchAll(
+        / (19\d\d|20\d\d)(?= (?!(?:(?:rushing|receiving|passing|scrimmage|total|fantasy|all purpose) )?(?:yards|yds|yard|points|pts)\b))/g
+      )
+    ].map((x) => Number(x[1]))
     const inRange = years.filter((y) => y >= FIRST && y <= now.season)
     const outside = years.find((y) => y < FIRST || y > now.season)
     if (outside !== undefined) out.outOfRange = outside

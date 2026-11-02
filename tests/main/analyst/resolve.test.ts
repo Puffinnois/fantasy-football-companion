@@ -109,6 +109,22 @@ describe('time', () => {
     expect(t('next week')).toMatchObject({ weeks: [8, 8] })
   })
 
+  it('keeps a range, "since" and "last N seasons" inside 2019 to now, and says so', () => {
+    expect(t('from 2017 to 2020')).toMatchObject({
+      seasons: [2019, 2020],
+      said: ["'from 2017 to 2020' = seasons 2019–2020 (the data starts in 2019)"]
+    })
+    expect(t('since 2017').seasons).toEqual([2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026])
+    expect(t('last 10 seasons').seasons?.[0]).toBe(2019)
+    expect(t('from 2010 to 2015').outOfRange).toBe(2010)
+  })
+
+  it('reads "and" as a list, and a number before yards or points as a number', () => {
+    expect(t('2019 and 2021').seasons).toEqual([2019, 2021])
+    expect(t('2022-24').seasons).toEqual([2022, 2023, 2024])
+    expect(t('Who is on pace for 2000 rushing yards?')).toEqual({ said: [] })
+  })
+
   it('reads the postseason, but not in playoff odds, and flags seasons out of range', () => {
     expect(t('in the playoffs').seasonType).toBe('POST')
     expect(t('best playoff odds').seasonType).toBeUndefined()
