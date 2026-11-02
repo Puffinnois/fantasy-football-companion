@@ -15,3 +15,4 @@ Windows desktop companion for a Sleeper fantasy football league: league sync, st
 - Release: `npm version <patch|minor|major>` (bumps `package.json`, commits `build: bump version to X.Y.Z`, tags `vX.Y.Z`) → `git push --follow-tags` → the `Release` workflow builds on Windows and uploads the installer to a **draft** GitHub release → add notes, press **Publish**.
 - Auto-update: packaged Windows builds check GitHub Releases at launch and hourly. A green **Update to X.Y.Z** button appears in the top bar once a newer version is found; it opens a popup with the release notes and **Update & restart** (silent install, relaunch). Installs ≤ 0.10.0 have no updater — reinstall once from the latest release. Windows **Smart App Control** blocks the unsigned installer; it has to be off (code signing is the proper fix, not done yet).
 - Tests: `npm test`
+- License: MIT (`LICENSE`)
