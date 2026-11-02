@@ -36,6 +36,8 @@ async function handle(request: StatsRequest): Promise<unknown> {
       return service.outlook(request.query)
     case 'player':
       return service.player(request.query)
+    case 'people':
+      return service.people()
     case 'close':
       await service.close()
       service = null

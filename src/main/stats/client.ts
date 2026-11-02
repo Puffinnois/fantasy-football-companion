@@ -7,6 +7,7 @@ import type {
   GamesQuery,
   MetricInfo,
   OutlookQuery,
+  Person,
   PlayerBio,
   PlayerBioQuery,
   PlayerOutlook,
@@ -41,6 +42,8 @@ export interface StatsClient {
   outlook(query: OutlookQuery): Promise<PlayerOutlook>
   /** Spec §9.4: a player's identity and status now. */
   player(query: PlayerBioQuery): Promise<PlayerBio>
+  /** Ask spec §4.1: everyone with a game since 2019, for the resolver. */
+  people(): Promise<Person[]>
   /** Stops a running refresh, closes the database and ends the worker (after `CLOSE_TIMEOUT_MS` at most). */
   close(): Promise<void>
 }
@@ -104,6 +107,7 @@ export function startStatsWorker(
     games: (query) => request<GameForecast[]>((id) => ({ id, kind: 'games', query })),
     outlook: (query) => request<PlayerOutlook>((id) => ({ id, kind: 'outlook', query })),
     player: (query) => request<PlayerBio>((id) => ({ id, kind: 'player', query })),
+    people: () => request<Person[]>((id) => ({ id, kind: 'people' })),
     async close() {
       if (!dead) {
         let timer: NodeJS.Timeout | undefined
