@@ -21,6 +21,10 @@ function fake(answer: (q: StatsQuery) => StatsRow[] = () => []): {
     [
       'yprr',
       { yearToYear: 0.6, pairs: 9, splitHalf: 0.7, prior: 300, reliability: 'high' as const }
+    ],
+    [
+      'drop_rate',
+      { yearToYear: 0.21, pairs: 9, splitHalf: 0.3, prior: 900, reliability: 'low' as const }
     ]
   ])
   const game = (week: number, home: string, away: string): GameForecast => ({
@@ -450,6 +454,61 @@ describe('player_stats and team_stats', () => {
     expect(queries[0].metrics).toEqual(['carries', 'rush_yds', 'rush_ypc', 'targets', 'rec_yds'])
     expect(err((await run('player_stats', { player: BIJAN, metrics: ['def_rush_epa'] })).out)).toBe(
       'def_rush_epa is a team metric; use team_stats'
+    )
+  })
+})
+
+describe('spec promises (review)', () => {
+  const withRules: LeagueReader = {
+    teams: () => [],
+    roster: () => [],
+    ownership: () => ({ players: {}, teams: {} }),
+    rules: () => ({ scoring: { rec: 0.5 }, positionOverrides: {} }) as unknown as Rules
+  }
+
+  it('reads fantasy metrics under the league’s scoring when a league exists, or as asked', async () => {
+    expect(
+      (await run('leaderboard', { metric: 'fantasy_ppg' }, fake(), withRules)).queries[0].scoring
+    ).toBe('league')
+    expect((await run('leaderboard', { metric: 'fantasy_ppg' })).queries[0].scoring).toBeUndefined()
+    expect(
+      (await run('leaderboard', { metric: 'fantasy_ppg', scoring: 'half' }, fake(), withRules))
+        .queries[0].scoring
+    ).toBe('half')
+    expect(
+      (await run('leaderboard', { metric: 'targets' }, fake(), withRules)).queries[0].scoring
+    ).toBeUndefined()
+  })
+
+  it('checks the query tool’s StatsQuery against its schema', async () => {
+    const q = { entity: 'player', metrics: ['nope'], scope: { seasons: [2025] } }
+    expect(err((await run('query', { query: q })).out)).toMatch(
+      /arguments\.query\.metrics\[0\] must be one of/
+    )
+    expect(
+      err(
+        (await run('query', { query: { ...q, metrics: ['targets'], scope: { seasons: [2600] } } }))
+          .out
+      )
+    ).toMatch(/arguments\.query\.scope\.seasons\[0\] must be one of/)
+  })
+
+  it('shows the shrunk value beside an unqualified rate', async () => {
+    const stats = fake(() => [
+      ...Array.from({ length: 5 }, (_, i) =>
+        statsRow(`00-00400${10 + i}`, `WR ${i}`, { yprr: { raw: 2, sample: 400 } })
+      ),
+      statsRow(CHASE, "Ja'Marr Chase", { yprr: { raw: 3.1, sample: 41, qualified: false } })
+    ])
+    const r = ok((await run('player_stats', { player: CHASE, metrics: ['yprr'] }, stats)).out)
+    // (41 × 3.1 + 300 × 2.0) / (41 + 300) = 2.13
+    expect(r.text).toContain('YPRR 3.10 on 41 routes (not qualified; shrunk 2.13)')
+  })
+
+  it('calls a metric that barely carries over noisy', async () => {
+    const r = ok((await run('leaderboard', { metric: 'drop_rate' })).out)
+    expect(r.notes).toContain(
+      'Drop rate barely carries over from one season to the next (year-to-year r 0.21): treat it as noisy.'
     )
   })
 })

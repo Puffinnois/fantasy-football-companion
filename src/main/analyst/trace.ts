@@ -29,8 +29,9 @@ export interface TraceCall {
 export interface Trace {
   at: string
   question: string
-  /** The brief's hash. */
+  /** The brief's hash, and the tool definitions' (`toolsHash`). */
   brief: string
+  tools: string
   profile: 'full' | 'compact'
   model: string | null
   mode: 'native' | 'structured' | null

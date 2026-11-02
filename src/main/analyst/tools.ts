@@ -8,10 +8,13 @@ import type {
   ToolOutcome,
   ToolResult
 } from '@shared/ask'
+import { createHash } from 'node:crypto'
 import { METRIC_ALIASES } from '@shared/stats/aliases'
 import { CATALOGUE, METRICS } from '@shared/stats/catalogue'
 import { DIMENSION_BY_ID } from '@shared/stats/dimensions'
 import { STATS_TEAMS, TEAM_NAMES } from '@shared/stats/nflTeams'
+import { statsQuerySchema } from '@shared/stats/querySchema'
+import { type Scoring, SCORINGS } from '@shared/stats/scoring'
 import {
   POSITION_GROUPS,
   type GroupBy,
@@ -103,6 +106,22 @@ const DETAIL: Schema = {
   enum: ['concise', 'full'],
   description: 'concise (default): up to 15 rows and 5 metrics; full: 50 rows and 12.'
 }
+const SCORING: Schema = {
+  enum: [...SCORINGS],
+  description: 'Fantasy scoring; the league’s by default when one is imported, PPR otherwise.'
+}
+/** The query tool takes a whole StatsQuery: its schema, every catalogue id (stored ones too). */
+const QUERY = (seasons: number[]): Schema => {
+  const schema = {
+    ...statsQuerySchema(
+      CATALOGUE.map((m) => m.id),
+      seasons
+    )
+  }
+  delete schema.$schema
+  delete schema.title
+  return schema as Schema
+}
 const CHART: Schema = {
   enum: ['table', 'bar', 'line', 'scatter'],
   description: 'A hint; the app decides.'
@@ -185,6 +204,7 @@ export function toolDefinitions(seasons: number[]): ToolDef[] {
           },
           ...SITUATION,
           order: { enum: ['best', 'worst'] },
+          scoring: SCORING,
           per_game: { type: 'boolean', description: 'Counts per game.' },
           limit: { type: 'integer', description: '1–50, default 10.' },
           ...view
@@ -201,6 +221,7 @@ export function toolDefinitions(seasons: number[]): ToolDef[] {
           metrics: METRIC_LIST(6),
           ...time,
           by: { enum: BY },
+          scoring: SCORING,
           ...SITUATION,
           ...view
         },
@@ -236,6 +257,7 @@ export function toolDefinitions(seasons: number[]): ToolDef[] {
           },
           metrics: METRIC_LIST(6),
           ...time,
+          scoring: SCORING,
           ...view
         },
         ['ids']
@@ -250,6 +272,7 @@ export function toolDefinitions(seasons: number[]): ToolDef[] {
           metric: METRIC,
           from: { enum: seasons },
           to: { enum: seasons },
+          scoring: SCORING,
           ...view
         },
         ['id', 'metric']
@@ -291,9 +314,17 @@ export function toolDefinitions(seasons: number[]): ToolDef[] {
     {
       name: 'query',
       description: 'Anything StatsQuery can express (the engine validates it).',
-      schema: object({ query: { type: 'object' } }, ['query'])
+      schema: object({ query: QUERY(seasons) }, ['query'])
     }
   ]
+}
+
+/** The tool definitions' hash, for traces (Ask spec §4.4): versioned with the briefs. */
+export function toolsHash(seasons: number[]): string {
+  return createHash('sha256')
+    .update(JSON.stringify(toolDefinitions(seasons)))
+    .digest('hex')
+    .slice(0, 12)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -416,6 +447,28 @@ function checkPosition(metric: string, position: string | undefined): void {
   fail(`${metric} applies to ${fits}, not ${position}; use one of those positions`)
 }
 
+/**
+ * The scoring of fantasy metrics (Ask spec §3.1): as asked, else the league's when one is imported
+ * and a metric depends on it.
+ */
+function scoringOf(a: Args, metrics: string[], turn: TurnContext): { scoring?: Scoring } {
+  if (a.scoring) return { scoring: a.scoring as Scoring }
+  const fantasy = metrics.some((id) => METRICS.get(id)?.scoring)
+  return fantasy && turn.league?.rules() ? { scoring: 'league' } : {}
+}
+
+/** Ask spec §3.3: a metric that barely carries over is called noisy. */
+function noisy(metrics: string[], turn: TurnContext): string[] {
+  return metrics.flatMap((id) => {
+    const info = turn.catalogue.get(id)
+    const s = info?.stability
+    if (!info || s?.reliability !== 'low' || s.yearToYear === null) return []
+    return [
+      `${info.label} barely carries over from one season to the next (year-to-year r ${s.yearToYear.toFixed(2)}): treat it as noisy.`
+    ]
+  })
+}
+
 // ---------------------------------------------------------------------------------------------
 // Text for the model
 
@@ -483,7 +536,12 @@ function valueText(
   row: StatsRow,
   id: string,
   turn: TurnContext,
-  opts: { sample?: boolean; percentile?: boolean; transform?: Transform } = {}
+  opts: {
+    sample?: boolean
+    percentile?: boolean
+    transform?: Transform
+    shrunk?: number | null
+  } = {}
 ): string {
   const info = turn.catalogue.get(id)
   const v = row.values[id]
@@ -501,10 +559,38 @@ function valueText(
           : info.decimals
   let text = `${info.short} ${fmt(v.value, unit, decimals)}${v.estimated ? ' (est.)' : ''}`
   if (opts.sample && info.kind === 'rate' && v.sample !== null) {
-    text += ` on ${Math.round(v.sample)} ${info.sampleLabel}${v.qualified ? '' : ' (not qualified)'}`
+    const shrunk =
+      !v.qualified && opts.shrunk !== undefined && opts.shrunk !== null
+        ? `; shrunk ${fmt(opts.shrunk, info.unit, info.decimals)}`
+        : ''
+    text += ` on ${Math.round(v.sample)} ${info.sampleLabel}${v.qualified ? '' : ` (not qualified${shrunk})`}`
   }
   if (opts.percentile && v.percentile !== null) text += `, ${ordinal(v.percentile)} pct`
   return text
+}
+
+/**
+ * Ask spec §3.3: an unqualified rate pulled toward the mean of the qualified rows it is ranked
+ * among, by its sample and the metric's prior: (n · v + k · m) / (n + k).
+ */
+function shrunkOf(rows: StatsRow[], row: StatsRow, id: string, turn: TurnContext): number | null {
+  const info = turn.catalogue.get(id)
+  const v = row.values[id]
+  const k = info?.stability?.prior ?? null
+  if (!info || info.kind !== 'rate' || !v || v.qualified || v.raw === null || !v.sample || !k) {
+    return null
+  }
+  let weighted = 0
+  let samples = 0
+  for (const r of rows) {
+    const x = r.values[id]
+    if (x?.qualified && x.raw !== null && x.sample) {
+      weighted += x.raw * x.sample
+      samples += x.sample
+    }
+  }
+  if (samples === 0) return null
+  return (v.sample * v.raw + k * (weighted / samples)) / (v.sample + k)
 }
 
 function groupText(row: StatsRow, by: GroupBy): string {
@@ -760,6 +846,7 @@ const leaderboard: Handler = async (a, turn, io) => {
     ...(Object.keys(situation).length > 0 ? { situation } : {}),
     ...(worst ? { sort: { metric: id, dir: best === 'asc' ? 'desc' : 'asc' } } : {}),
     ...(a.per_game ? { transform: 'perGame' as const } : {}),
+    ...scoringOf(a, [id, ...also], turn),
     limit: rostered === 'free' ? 300 : a.team && m.entity === 'team' ? 32 : limit
   }
   let result = await io.query(q)
@@ -779,7 +866,7 @@ const leaderboard: Handler = async (a, turn, io) => {
   }
   const info = turn.catalogue.get(id)
   const title = `${info?.label ?? id} (${id})${position ? `, ${position}` : ''}, ${seasonsText(q.scope)}${situationText(q)}${rostered === 'free' ? ', free agents' : rostered === 'mine' ? ', my team' : ''}: ${worst ? 'worst' : 'best'} first, qualified only.`
-  const notes = [...pre, ...result.notes]
+  const notes = [...pre, ...result.notes, ...noisy([id, ...also], turn)]
   if (named) {
     const rank = namedRow?.values[id]?.rank
     notes.push(
@@ -848,6 +935,7 @@ async function lineAndSplits(
     },
     ...(Object.keys(situation).length > 0 ? { situation } : {}),
     ...(by ? { groupBy: [by] } : {}),
+    ...scoringOf(a, metrics, turn),
     limit: 200
   }
   let league = leagueQuery(q, subject.entity === 'player' ? subject.position : null)
@@ -870,9 +958,12 @@ async function lineAndSplits(
   const detail = detailOf(a)
   const shown = metrics.slice(0, COLUMNS[detail] + 1)
   const title = `${subject.label}, ${seasonsText(q.scope)}${situationText(q)}${by ? `, by ${by}` : ''}.`
-  const notes = [...pre, ...leagueResult.notes, ...(splitResult?.notes ?? [])].filter(
-    (n, i, all) => all.indexOf(n) === i
-  )
+  const notes = [
+    ...pre,
+    ...leagueResult.notes,
+    ...(splitResult?.notes ?? []),
+    ...noisy(shown, turn)
+  ].filter((n, i, all) => all.indexOf(n) === i)
   const queries = by ? [q, league] : [league]
   if (!by) {
     const rows = own ? [own] : []
@@ -888,7 +979,13 @@ async function lineAndSplits(
     const lines = own
       ? [
           `${shown
-            .map((x) => valueText(own, x, turn, { sample: true, percentile: true }))
+            .map((x) =>
+              valueText(own, x, turn, {
+                sample: true,
+                percentile: true,
+                shrunk: shrunkOf(leagueResult.rows, own, x, turn)
+              })
+            )
             .filter(Boolean)
             .join(' · ')} (percentiles ${among}, qualified rows only)`
         ]
@@ -1044,6 +1141,7 @@ const compare: Handler = async (a, turn, io) => {
       ...(positions.length > 0 ? { positions: positions as never[] } : {}),
       qualifiedOnly: false
     },
+    ...scoringOf(a, metrics, turn),
     limit: 5000
   }
   let all = await io.query(q)
@@ -1075,7 +1173,7 @@ const compare: Handler = async (a, turn, io) => {
         .filter(Boolean)
         .join(' · ')}`
   )
-  const notes = [...all.notes]
+  const notes = [...all.notes, ...noisy(metrics, turn)]
   const missing = ids.filter((x) => !rows.some((r) => r.id === x))
   if (missing.length > 0) notes.push(`No rows for ${missing.join(', ')} in this scope.`)
   if (players && positions.length > 1)
@@ -1106,6 +1204,7 @@ const trend: Handler = async (a, turn, io) => {
     metrics: [metric],
     scope: { seasons, [player ? 'players' : 'teams']: [id], qualifiedOnly: false },
     groupBy: ['season'],
+    ...scoringOf(a, [metric], turn),
     limit: 50
   }
   const result = await io.query(q)
@@ -1115,7 +1214,7 @@ const trend: Handler = async (a, turn, io) => {
   const lines = rows.map(
     (r) => `${r.group.season}: ${valueText(r, metric, turn, { sample: true })}`
   )
-  const notes = [...result.notes]
+  const notes = [...result.notes, ...noisy([metric], turn)]
   if (rows.length === 0) notes.push('No rows: no season in this range has this metric for this id.')
   return done('trend', title, lines, [statsCard(title, { ...result, rows }, 'line')], notes, [q])
 }

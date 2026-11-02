@@ -7,6 +7,7 @@ import { migrate } from '@main/db/migrate'
 import { addAskExample, deleteAskExample, listAskExamples } from '@main/db/repos/askExamples'
 import { playerIndex } from '@main/analyst/players'
 import { resolve } from '@main/analyst/resolve'
+import { toolsHash } from '@main/analyst/tools'
 import {
   appendTrace,
   maskQuestion,
@@ -60,6 +61,7 @@ describe('traces (Ask spec §5.3)', () => {
       at: '2026-11-02T10:00:00Z',
       question: 'Puka or JSN?',
       brief: 'abc123abc123',
+      tools: toolsHash([2025, 2026]),
       profile: 'compact',
       model: 'qwen3:4b',
       mode: 'structured',
@@ -73,6 +75,9 @@ describe('traces (Ask spec §5.3)', () => {
     appendTrace(dir, trace)
     const lines = readFileSync(join(dir, 'log.jsonl'), 'utf8').trim().split('\n')
     expect(lines).toHaveLength(2)
+    // The tool definitions are versioned with the brief: a change to either shows in the hash.
+    expect(trace.tools).toMatch(/^[0-9a-f]{12}$/)
+    expect(toolsHash([2025, 2026])).not.toBe(toolsHash([2025, 2026, 2027]))
     expect(JSON.parse(lines[0]).resolver).toMatchObject({
       type: 'compare',
       players: ['00-0039075', '00-0038543']
