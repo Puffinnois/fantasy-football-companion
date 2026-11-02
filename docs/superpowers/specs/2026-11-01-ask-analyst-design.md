@@ -353,3 +353,22 @@ The open points were approved as written:
 3. Evaluation gates (§7): Claude 90 % pass^1 / 85 % pass^3; the recommended local model 70 % / 60 % and p50 ≤ 15 s.
 4. Free cloud presets (§6.2): Gemini, Groq and OpenRouter.
 5. AF is split into AF1 and AF2 (§11).
+
+## 15. Plan AF1 amendments (2026-11-02)
+
+Taken in Plan AF1 (`docs/superpowers/plans/2026-11-02-plan-af1-analyst-tools.md`), from its prototype and measurements:
+
+- **A. Aliases beside the catalogue (§4.2).** `src/shared/stats/aliases.ts` maps each metric id to its aliases, rather than a `MetricDef.aliases` field: the catalogue stays the formulas, this file the vocabulary. `MetricInfo` does not change.
+- **B. The YAML export is a function (§4.2).** `semanticModelYaml()` builds it from the TypeScript; the MCP server (AF2) serves it as a resource. No committed file and no script.
+- **C. The resolver in AF1 (§4.1).** Lexical matching with aliases, light stemming and the entity / position filter; embeddings (`bge-m3`) come with the local-server detection of Plan AG behind the same `Retriever`. Thread state (follow-ups) comes with the loop (AG); screen context with Ctrl+K (AH).
+- **D. The exact cache lives in the analyst layer (§5.3)**, in main, keyed on the query and cleared when the warehouse's `through` or `updatedAt` changes. The worker gains one read, `people` (the resolver's player index), and nothing else.
+- **E. Splits and empty results are explained in the analyst layer (§3.3)**, not the engine. A player's or team's line is read from a league query, so its rank and percentile are among his position (or the 32); a split adds the split query. A split's interval uses the metric's prior `k`, the variance and mean sample of the qualified rows of the league query, and both samples: SE = √(k·σ²_t·(1/n − 1/N)), σ²_t = σ²_obs / (1 + k/n̄); within noise when |diff| < 1.96·SE. An empty ranking runs once more without qualification to say why.
+- **F. The compact profile (§3.2)** also offers `outlook` (one slot, filled by the resolver), and a line's metrics offer `default` first (the position's usual line): without it, small models answered a game log with `other`.
+- **G. `open_in_app` moves to Plan AH**: it needs the renderer's navigation.
+- **H. The answer checks are one module (§9)**, `checks.ts`, a function per check.
+- **I. The question set (§7)**: 163 questions in 16 categories, 116 dev and 47 held out; paraphrases are generated and verified by execution in AG. The frozen database is a copy of `stats.duckdb` through 2026 week 7 (v0.36.0), named by `FFC_ASK_DB`; league questions wait for AG's league fixture.
+- **J. Tool text (§3.3)**: a line per row, at most 15 rows and the first metric plus 4 more (`concise`), 50 rows and 12 (`full`).
+- **K. Measured (2026-11-02, the frozen database and this laptop):**
+  - The resolver: the right tool for 140 of 140 questions, the named metric in the top 5 for 107 of 107, the players for 64 of 64, and every must-ask or must-decline question it can see (namesakes, advice, out-of-range seasons) caught; 40–50 ms a question.
+  - The tools: every one of 141 reference calls runs and returns rows; 16 ms median, 44 ms 90th percentile, under 0.2 s at most; a cache hit 0 ms.
+  - End to end (resolver → compact schema → model → tool), the probe's 20 questions on AC power: `qwen3:4b` 20 of 20 at 2.0 s median, `gemma3:4b` 19 of 20 at 1.4 s. On battery the GPU drops to its low power state and a call takes 3–4× as long: the evaluation (AG) records the power state and gates on AC.
