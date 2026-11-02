@@ -1,6 +1,6 @@
 # Ask — a personal data analyst — design
 
-**Date:** 2026-11-01, revised 2026-11-02 from the research · **Status:** draft, under review · **Plans:** AF1 (analyst tools, resolver, semantic model), AF2 (MCP server + bridge), AG (agent loop, providers, evaluation), AH (Ask screen + Ctrl+K)
+**Date:** 2026-11-01, revised 2026-11-02 from the research · **Status:** approved 2026-11-02 · **Plans:** AF1 (analyst tools, resolver, semantic model), AF2 (MCP server + bridge), AG (agent loop, providers, evaluation), AH (Ask screen + Ctrl+K)
 
 **Sources:**
 
@@ -344,9 +344,12 @@ The heart of the work for local models: a fixed test that every model, prompt or
 - **Wrong numbers in prose:** the number check (§4.3) and result cards rendered from rows keep the data honest.
 - **The field moves fast:** decisions rest on our own evaluation, not on leaderboards. Models, prompts and tool profiles are swappable and re-validated by the same evaluation (report §5, flexibility map).
 
-## 14. Open points for review
+## 14. Decided at approval (user, 2026-11-02)
 
-1. Reach: league data read only, no advice — as written in §1?
-2. MCP when the app is closed: the bridge starts the app minimised (§6.1), or answers "open FantasyCompanion first"?
-3. Evaluation gates (§7): Claude 90 % pass^1 / 85 % pass^3; the recommended local model 70 % / 60 % and 15 s.
-4. Free cloud presets (§6.2): Gemini, Groq and OpenRouter; any to add or drop?
+The open points were approved as written:
+
+1. Reach: league data read only, no advice (§1).
+2. MCP when the app is closed: the bridge starts the app minimised and waits up to 30 s (§6.1).
+3. Evaluation gates (§7): Claude 90 % pass^1 / 85 % pass^3; the recommended local model 70 % / 60 % and p50 ≤ 15 s.
+4. Free cloud presets (§6.2): Gemini, Groq and OpenRouter.
+5. AF is split into AF1 and AF2 (§11).
