@@ -2,16 +2,20 @@ import { connect } from 'node:net'
 import type { Readable, Writable } from 'node:stream'
 import { type JSONRPCMessage, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
-import { type McpEndpoint, readEndpoint } from './endpoint'
+import { isOff, type McpEndpoint, readEndpoint } from './endpoint'
 
 /**
  * The stdio bridge (Ask spec §6.1): Claude desktop speaks MCP over stdio, the app's server over
  * HTTP, so this forwards each message as it is, both ways. It runs as the app's own exe in Node mode
  * (`ELECTRON_RUN_AS_NODE`), reads the endpoint from `mcp.json`, and when the app is not running,
- * starts it through its shortcut (one start at a time) and waits for the server.
+ * starts it through its shortcut (one start at a time) and waits for the server. When Claude is
+ * turned off, it says so and starts nothing.
  */
 export const NOT_RUNNING =
   'FantasyCompanion is not running, or Claude is turned off in Stats › Ask. Open the app, turn it on, and try again.'
+
+export const TURNED_OFF =
+  'Claude is turned off in FantasyCompanion. Turn it on in Stats › Ask, then try again.'
 
 export interface BridgeOptions {
   /** The app's `userData` folder, where `mcp.json` is. */
@@ -54,7 +58,7 @@ function listening(url: string): Promise<boolean> {
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
 /** Where the app stands after a failed send. */
-type Revival = 'retry' | 'up' | 'down'
+type Revival = 'retry' | 'up' | 'off' | 'down'
 
 export async function runBridge(options: BridgeOptions): Promise<void> {
   const waitMs = options.waitMs ?? 30_000
@@ -112,12 +116,13 @@ export async function runBridge(options: BridgeOptions): Promise<void> {
 
   /**
    * After a failed send. The app runs: a retry helps only if it moved since (a restart on another
-   * port, a new key). The app is gone: start it, then retry.
+   * port, a new key). Claude is turned off: say so. The app is gone: start it, then retry.
    */
   async function revive(used: McpEndpoint | null, mayStart: boolean): Promise<Revival> {
     const now = readEndpoint(options.userData)
     if (now && (await listening(now.url)))
       return now.url !== used?.url || now.token !== used.token ? 'retry' : 'up'
+    if (isOff(options.userData)) return 'off'
     if (mayStart && options.start && (await startApp(options.start))) return 'retry'
     return 'down'
   }
@@ -148,7 +153,12 @@ export async function runBridge(options: BridgeOptions): Promise<void> {
             id: message.id,
             error: {
               code: -32000,
-              message: state === 'up' ? `FantasyCompanion could not answer: ${text}` : NOT_RUNNING
+              message:
+                state === 'up'
+                  ? `FantasyCompanion could not answer: ${text}`
+                  : state === 'off'
+                    ? TURNED_OFF
+                    : NOT_RUNNING
             }
           })
         return

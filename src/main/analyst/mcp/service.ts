@@ -6,7 +6,7 @@ import { listAskExamples } from '@main/db/repos/askExamples'
 import { getSetting, setSetting } from '@main/db/repos/settings'
 import type { Analyst } from '../tools'
 import { addToDesktop, type DesktopEntry, desktopConfigPath, desktopState } from './claudeDesktop'
-import { removeEndpoint, writeEndpoint } from './endpoint'
+import { markOff, removeEndpoint, writeEndpoint } from './endpoint'
 import { type McpHttp, startMcpHttp } from './http'
 import { createMcpServer, MCP_NAME } from './server'
 
@@ -149,8 +149,10 @@ export function createMcpService(deps: McpServiceDeps): McpService {
     }
   }
 
+  /** Stops the server. Claude on: the file goes, so the bridge may start the app; off: it says so. */
   async function close(): Promise<void> {
-    removeEndpoint(deps.userData)
+    if (enabled()) removeEndpoint(deps.userData)
+    else markOff(deps.userData)
     const open = http
     http = null
     await open?.close()

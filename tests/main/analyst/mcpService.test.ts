@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,7 +7,7 @@ import { openDatabase } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
 import { getSetting, setSetting } from '@main/db/repos/settings'
 import { CONFIG_FILE } from '@main/analyst/mcp/claudeDesktop'
-import { readEndpoint } from '@main/analyst/mcp/endpoint'
+import { ENDPOINT_FILE, isOff, readEndpoint } from '@main/analyst/mcp/endpoint'
 import {
   createMcpService,
   type McpService,
@@ -108,6 +108,24 @@ describe('the MCP service (Ask spec §6.1)', () => {
     const off = await mcp.setEnabled(false)
     expect(off).toMatchObject({ enabled: false, running: false })
     expect(readEndpoint(deps.userData)).toBeNull()
+  })
+
+  it('turned off: leaves a marker so the bridge does not start the app (amendment K)', async () => {
+    const { mcp, deps } = service()
+    await mcp.setEnabled(true)
+    // Quitting with Claude on removes the file: the bridge may start the app.
+    await mcp.stop()
+    expect(existsSync(join(deps.userData, ENDPOINT_FILE))).toBe(false)
+    await mcp.start()
+    await mcp.setEnabled(false)
+    expect(readEndpoint(deps.userData)).toBeNull()
+    expect(isOff(deps.userData)).toBe(true)
+    // Quitting with Claude off keeps it.
+    await mcp.stop()
+    expect(isOff(deps.userData)).toBe(true)
+    await mcp.setEnabled(true)
+    expect(isOff(deps.userData)).toBe(false)
+    expect(readEndpoint(deps.userData)).not.toBeNull()
   })
 
   it('moves to another port when its own is taken', async () => {

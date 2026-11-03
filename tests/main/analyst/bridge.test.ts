@@ -6,9 +6,10 @@ import { PassThrough } from 'node:stream'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Client } from '@modelcontextprotocol/client'
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio'
-import { NOT_RUNNING, runBridge } from '@main/analyst/mcp/bridge'
+import { NOT_RUNNING, runBridge, TURNED_OFF } from '@main/analyst/mcp/bridge'
 import {
   ENDPOINT_FILE,
+  markOff,
   readEndpoint,
   removeEndpoint,
   writeEndpoint
@@ -164,6 +165,20 @@ describe('the stdio bridge (Ask spec §6.1)', () => {
     expect(tools.tools).toHaveLength(11)
     expect(textOf(described)).toMatch(/^Yards per route run/)
     expect(s.launches).toBe(2)
+  })
+
+  it('says Claude is off at once, and does not start the app (amendment K)', async () => {
+    const dir = tempDir()
+    markOff(dir)
+    let launched = 0
+    const started = Date.now()
+    const s = await claude(dir, {
+      start: 'start-for-claude.lnk',
+      launch: () => launched++
+    }).catch((err: Error) => ({ error: err }))
+    expect('error' in s && s.error.message).toBe(TURNED_OFF)
+    expect(Date.now() - started).toBeLessThan(1_000)
+    expect(launched).toBe(0)
   })
 
   it('does not start the app when it runs but a call fails', async () => {
