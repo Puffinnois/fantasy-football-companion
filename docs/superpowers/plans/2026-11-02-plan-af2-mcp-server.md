@@ -1,6 +1,26 @@
 # Plan AF2 — Ask: Claude over MCP (server, bridge, Stats › Ask)
 
-**Status:** not started. Written 2026-11-02 from the prototype branch `proto/af2` (worktree `../ffc-af2-proto`, kept until AF2 is merged). Each task's code is that branch's commit for the task, and each commit was checked on its own: typecheck, lint and the suite (counts in each task). Spec amendments A–K below approved by the user 2026-11-02.
+**Status:** complete 2026-11-03. Merged to main as `f5d53e9` and tagged `v0.38.0` on `39d7873` (not pushed yet). Spec amendments A–K (§16) approved by the user 2026-11-02. Before Task 1, `origin/main` (the dompurify 3.4.17 and snip-key fixes) was merged into the branch (`fb28f8a`, the user's call). Tasks 1–9 were applied from this text step by step: each task's tests were seen failing as the plan says, then passing. Counts (a clean checkout): 1,277 → 1,310, and 1,315 after the fixes below (the untracked `playerImage` tests add 3).
+
+Task 10: on a copy of the warehouse through 2026 week 8, every reference call through MCP gave the direct call's text, 141/141 in both eras, 11 tools; 11 ms median and 15–16 ms at the 90th percentile over HTTP (9–10 ms and 12–13 ms after the fixes). The AF1 gate: references 141/141, tool 140/140, metric recall@5 107/107, players 64/64, ask or decline 12/12, slots 120/124. The four slot misses are "since week N" and "last 3 weeks" questions that now resolve through week 8, while the question set's references stop at week 7: not a regression, the set's relative weeks are tied to its frozen week.
+
+Task 11: Package check green twice (before and after the review fixes); the MCP self-test on the packaged build gave 11 tools and `Metric: yprr` in both eras.
+
+Task 12, on this PC with the user (the check build):
+
+- Claude desktop (Store app) answered from the tools ("who leads WRs in yards per route run": right list, right numbers).
+- No elicitation form in Claude desktop: for namesakes it got the list and Claude asked in the chat (amendment D's fallback). "Chris Jones" is not a namesake test on real data: only the KC lineman has played since 2025, so the resolver settles on him; "Byron Young" (LA LB, PHI DL) is.
+- Claude desktop wrote no MCP log (its `logs` folder has not changed since 2026-08-20), so the era it chose was not seen from its side; Claude Code's own client negotiated 2025-11-25 through the bridge.
+- App closed: the bridge started it `--minimized` through `explorer.exe` (its parent) on the kept port, about 1 s before `mcp.json` was rewritten; Claude's package `LocalCache` was unchanged against a listing taken before the restart.
+- A double-click while it ran left a single main process.
+- WSL: the copied command gave `fantasy-companion: ✔ Connected`; `claude -p` stopped on an expired Claude Code login, so an SDK client over the same command checked the tools instead (the RB EPA-per-carry leaderboard came back).
+
+Fixes from the final review (fresh reviewer, Opus), test-first, each in its own commit:
+
+- (Important) `a3eb7a2`: turned off, the app wrote nothing, so the bridge took Claude off for the app closed: Claude desktop started the app at every launch, or each call waited 30 s. Off now writes `{"off":true}` to `mcp.json` and the bridge answers at once (amendment K). `30f464a`: an update's installer stops every process run from the install folder, the bridges included; the Ask tab says to reopen Claude desktop after an update, and so must the release notes.
+- (Minor) `f2e2bf0` at launch with Claude off the marker replaces a crash's stale `mcp.json` (the token would have gone to whatever held the old port); `1239b35` a failed `mcp.json` write stops the server and says so; `2af2452` a Claude config whose `mcpServers` is not an object is refused; `dbbb8d6` no shortcut in a dev run (its exe is `electron.exe`).
+
+Left open: a bridge start in the seconds the app is quitting is lost (the dying instance holds the lock); the Claude Code (HTTP) command puts the token on the clipboard; backups are named to the second; a reply cut mid-stream when the app quits may go unanswered (not verified against the SDK); "outdated" compares the entry's key order; a sturdier bridge that survives updates (a copy outside the install folder). The prototype branch `proto/af2` and its worktree `../ffc-af2-proto` are still there. The check build `C:\Users\habie\ffc-af2-check` stays until Claude desktop and WSL Claude Code point at the installed v0.38.0.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
