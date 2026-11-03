@@ -44,6 +44,7 @@ import type {
   StatsView
 } from './stats/types'
 import type { DevNote, NewNote, NoteError, NoteStatus } from './devNotes'
+import type { McpCopy, McpStatus } from './ask'
 
 export interface FindLeaguesResult {
   userId: string
@@ -187,6 +188,19 @@ export interface Api {
     /** Asks where to save a table as CSV and writes it; resolves to the path, null if cancelled. */
     exportCsv(fileName: string, csv: string): Promise<string | null>
   }
+  /** Ask spec §6.1: Claude over MCP (Stats › Ask). */
+  ask: {
+    mcp: {
+      status(): Promise<McpStatus>
+      setEnabled(on: boolean): Promise<McpStatus>
+      /** A new token; a Claude Code command copied before stops working. */
+      resetToken(): Promise<McpStatus>
+      /** Asks first, then edits Claude desktop's config (with a backup); resolves to the new status. */
+      addToClaudeDesktop(): Promise<McpStatus>
+      /** Puts a command or config on the clipboard (the token stays in main). */
+      copy(kind: McpCopy): Promise<void>
+    }
+  }
 }
 
 export const IPC = {
@@ -250,5 +264,10 @@ export const IPC = {
   statsViews: 'stats:views',
   statsSaveView: 'stats:saveView',
   statsDeleteView: 'stats:deleteView',
-  statsExportCsv: 'stats:exportCsv'
+  statsExportCsv: 'stats:exportCsv',
+  askMcpStatus: 'ask:mcpStatus',
+  askMcpSetEnabled: 'ask:mcpSetEnabled',
+  askMcpResetToken: 'ask:mcpResetToken',
+  askMcpAddToClaudeDesktop: 'ask:mcpAddToClaudeDesktop',
+  askMcpCopy: 'ask:mcpCopy'
 } as const
