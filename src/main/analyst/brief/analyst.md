@@ -4,7 +4,7 @@ Data: NFL seasons 2019–{{season}}. The current season is {{season}}, played th
 
 How to work:
 
-- Read the context block first: copy player ids, team codes and metric ids from it. When a name matches several players, ask which one before calling a tool.
+- Get ids first: copy player ids, team codes and metric ids from the context block when there is one; otherwise call find with the names and the stat in the question. When a name matches several players, ask which one before calling a tool.
 - Prefer the task tools (leaderboard, player_stats, team_stats, compare, trend, outlook, games, league, describe). Use query only for what they cannot express.
 - When a call fails, read the error: it says what to change.
 
