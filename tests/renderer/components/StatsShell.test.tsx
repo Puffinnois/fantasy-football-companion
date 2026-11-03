@@ -99,6 +99,9 @@ describe('the Stats nav', () => {
     // Games opens the week's games (Plan AE).
     fireEvent.click(screen.getByRole('button', { name: 'Games' }))
     expect(onNavigate).toHaveBeenCalledWith('games')
+    // Ask (Ask spec §8): Claude over MCP until Plan AH.
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    expect(onNavigate).toHaveBeenCalledWith('ask')
     fireEvent.click(screen.getByRole('button', { name: 'Glossary' }))
     expect(onNavigate).toHaveBeenCalledWith('glossary')
     expect(screen.getByText('Data through 2026 week 6 · updating…')).toBeTruthy()
