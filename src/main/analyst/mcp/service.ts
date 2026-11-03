@@ -175,7 +175,13 @@ export function createMcpService(deps: McpServiceDeps): McpService {
 
   return {
     status,
-    start: () => serial(listen),
+    // Claude off at launch: the marker replaces whatever a crash left, so the bridge neither starts
+    // the app nor sends the token to whatever holds the old port now.
+    start: () =>
+      serial(async () => {
+        if (enabled()) await listen()
+        else markOff(deps.userData)
+      }),
     stop: () => serial(close),
     async setEnabled(on) {
       setSetting(deps.db, SETTING_MCP_ENABLED, on ? '1' : '0')

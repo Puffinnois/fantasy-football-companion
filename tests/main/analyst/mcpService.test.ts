@@ -7,7 +7,7 @@ import { openDatabase } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
 import { getSetting, setSetting } from '@main/db/repos/settings'
 import { CONFIG_FILE } from '@main/analyst/mcp/claudeDesktop'
-import { ENDPOINT_FILE, isOff, readEndpoint } from '@main/analyst/mcp/endpoint'
+import { ENDPOINT_FILE, isOff, readEndpoint, writeEndpoint } from '@main/analyst/mcp/endpoint'
 import {
   createMcpService,
   type McpService,
@@ -126,6 +126,19 @@ describe('the MCP service (Ask spec §6.1)', () => {
     await mcp.setEnabled(true)
     expect(isOff(deps.userData)).toBe(false)
     expect(readEndpoint(deps.userData)).not.toBeNull()
+  })
+
+  it('at launch with Claude off, replaces a stale mcp.json left by a crash', async () => {
+    const { mcp, deps } = service()
+    writeEndpoint(deps.userData, {
+      url: 'http://127.0.0.1:42246/mcp',
+      token: 'old',
+      pid: 1,
+      version: '0.38.0'
+    })
+    await mcp.start()
+    expect(readEndpoint(deps.userData)).toBeNull()
+    expect(isOff(deps.userData)).toBe(true)
   })
 
   it('moves to another port when its own is taken', async () => {
