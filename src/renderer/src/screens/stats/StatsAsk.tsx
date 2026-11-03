@@ -13,7 +13,7 @@ const DESKTOP: Record<McpStatus['claudeDesktop']['state'], string> = {
     'Claude desktop has an older entry for FantasyCompanion (the app moved or was updated).',
   absent: 'Not added yet.',
   unreadable:
-    'Claude desktop’s config is not valid JSON, so the app leaves it alone. Copy the entry and add it by hand.',
+    'Claude desktop’s config is not valid JSON, or its server list is not one, so the app leaves it alone. Copy the entry and add it by hand.',
   'not-found':
     'Claude desktop was not found on this computer. Copy the entry and paste it into its config (Settings › Developer › Edit config).'
 }
@@ -156,6 +156,12 @@ export function StatsAsk(): React.JSX.Element {
               Copy config entry
             </CopyButton>
           </div>
+          {desktop?.state === 'added' && (
+            <p className="m-0 text-[12px] leading-[1.45] text-fg-3">
+              After FantasyCompanion updates, quit and reopen Claude desktop: the update closes its
+              connection to the app.
+            </p>
+          )}
         </section>
       )}
 

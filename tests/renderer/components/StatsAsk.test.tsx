@@ -64,6 +64,10 @@ describe('Stats › Ask: Claude over MCP (Ask spec §6.1)', () => {
     expect(await screen.findByText(PATH)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Add to Claude desktop' }))
     await screen.findByText(/^Added\. Quit and reopen Claude desktop/)
+    // An update replaces the exe the bridge runs from (review, plan AF2).
+    expect(
+      screen.getByText(/After FantasyCompanion updates, quit and reopen Claude desktop/)
+    ).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Add to Claude desktop' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Copy command for WSL' }))
     await waitFor(() => expect(mcp.copy).toHaveBeenCalledWith('claude-code-wsl'))
