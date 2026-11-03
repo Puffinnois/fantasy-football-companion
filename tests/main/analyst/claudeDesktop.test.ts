@@ -98,4 +98,16 @@ describe('adding the server to Claude desktop', () => {
     expect(readFileSync(path, 'utf8')).toBe('{ "preferences": ')
     expect(existsSync(join(dir, `.${CONFIG_FILE}.tmp`))).toBe(false)
   })
+  it('refuses a config whose mcpServers is not an object', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ffc-claude-'))
+    const path = join(dir, CONFIG_FILE)
+    for (const servers of ['"x"', '[1]', 'null']) {
+      const text = `{ "preferences": {}, "mcpServers": ${servers} }`
+      writeFileSync(path, text)
+      expect(desktopState(path, ENTRY)).toBe('unreadable')
+      expect(() => addToDesktop(path, ENTRY, new Date())).toThrow(/not valid/)
+      expect(readFileSync(path, 'utf8')).toBe(text)
+    }
+    expect(readdirSync(dir)).toEqual([CONFIG_FILE])
+  })
 })
