@@ -12,11 +12,13 @@ export default defineConfig({
       rollupOptions: {
         external: ['node:sqlite'],
         // The trade and waiver searches (6b / 6c spec §6) and the stats database (stats-analysis
-        // spec §2) run in worker threads, bundled beside the main entry.
+        // spec §2) run in worker threads, bundled beside the main entry; so is the MCP bridge that
+        // Claude desktop runs (Ask spec §6.1).
         input: {
           index: resolve('src/main/index.ts'),
           engineWorker: resolve('src/main/engine/worker.ts'),
-          statsWorker: resolve('src/main/stats/worker.ts')
+          statsWorker: resolve('src/main/stats/worker.ts'),
+          mcpBridge: resolve('src/main/analyst/mcp/bridgeMain.ts')
         }
       }
     }
