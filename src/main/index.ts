@@ -285,8 +285,10 @@ function startMcp(ctx: AppContext): McpService {
     bridge: mcpBridgePath(),
     platform: process.platform,
     env: process.env,
+    // A dev run's exe is electron.exe, which needs the app's path: no shortcut, so the bridge only
+    // finds a running dev app and never starts the default Electron app.
     writeShortcut:
-      process.platform === 'win32'
+      process.platform === 'win32' && app.isPackaged
         ? (path) => {
             const ok = shell.writeShortcutLink(path, 'create', {
               target: process.execPath,
