@@ -1,10 +1,15 @@
 import { app, BrowserWindow, dialog, shell } from 'electron'
-import { existsSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
+import { companionLeague } from '@main/analyst/league'
+import { registerMcpHandlers } from '@main/analyst/mcp/ipc'
+import { mcpSelfTest } from '@main/analyst/mcp/selfTest'
+import { createMcpService, type McpService } from '@main/analyst/mcp/service'
+import { createAnalyst } from '@main/analyst/tools'
 import { openDatabase, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
@@ -24,6 +29,9 @@ import { installAutoUpdater } from '@main/updater'
 import { IPC } from '@shared/ipc'
 
 let mainWindow: BrowserWindow | null = null
+
+/** Ask spec §6.1: the shortcut the MCP bridge opens starts the app this way. */
+const MINIMIZED_FLAG = '--minimized'
 
 // Dev-mode spec §4: the recent-errors buffer runs from launch, whatever the mode.
 const errorLog = createErrorLog()
@@ -47,7 +55,10 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.on('ready-to-show', () => mainWindow?.show())
+  mainWindow.on('ready-to-show', () => {
+    if (process.argv.includes(MINIMIZED_FLAG)) mainWindow?.minimize()
+    else mainWindow?.show()
+  })
   mainWindow.on('closed', () => {
     mainWindow = null
   })
@@ -143,10 +154,57 @@ async function runStatsSelfTest(out: string): Promise<number> {
   return code
 }
 
+/**
+ * `--mcp-self-test=<file>` (Ask spec §10): the packaged app runs its MCP bridge as Node from the asar
+ * and calls a tool through it, writes the result as JSON to `<file>`, and exits 0 on success. CI runs
+ * it on the Windows build.
+ */
+const MCP_SELF_TEST_FLAG = '--mcp-self-test='
+
+/** Bundled beside the main entry by `electron.vite.config.ts`. */
+const mcpBridgePath = (): string => join(__dirname, 'mcpBridge.js')
+
+async function runMcpSelfTest(out: string): Promise<number> {
+  const dir = join(tmpdir(), `ffc-mcp-self-test-${process.pid}`)
+  mkdirSync(dir, { recursive: true })
+  const result = await mcpSelfTest({
+    exe: process.execPath,
+    bridge: mcpBridgePath(),
+    dir,
+    version: app.getVersion()
+  }).catch((err: unknown) => ({
+    ok: false,
+    error: err instanceof Error ? err.message : String(err)
+  }))
+  writeFileSync(out, JSON.stringify(result))
+  rmSync(dir, { recursive: true, force: true })
+  return result.ok ? 0 : 1
+}
+
+// Ask spec §6.1: one process holds the databases. A second launch (the MCP bridge's shortcut, or a
+// double-click) hands over to the first and quits; the self-tests run on their own.
+const selfTesting = process.argv.some(
+  (a) => a.startsWith(SELF_TEST_FLAG) || a.startsWith(MCP_SELF_TEST_FLAG)
+)
+const primary = selfTesting || app.requestSingleInstanceLock()
+if (!primary) app.quit()
+app.on('second-instance', (_event, argv) => {
+  if (!mainWindow || argv.includes(MINIMIZED_FLAG)) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
+})
+
 app.whenReady().then(async () => {
+  if (!primary) return
   const selfTest = process.argv.find((a) => a.startsWith(SELF_TEST_FLAG))
   if (selfTest) {
     app.exit(await runStatsSelfTest(selfTest.slice(SELF_TEST_FLAG.length)))
+    return
+  }
+  const mcpTest = process.argv.find((a) => a.startsWith(MCP_SELF_TEST_FLAG))
+  if (mcpTest) {
+    app.exit(await runMcpSelfTest(mcpTest.slice(MCP_SELF_TEST_FLAG.length)))
     return
   }
   electronApp.setAppUserModelId('com.yhabie.fantasycompanion')
@@ -169,6 +227,7 @@ app.whenReady().then(async () => {
     })
   }
   registerIpcHandlers(ctx)
+  const mcp = startMcp(ctx)
   registerDevHandlers({
     db: ctx.db,
     mode: createDevMode({ db: ctx.db, packaged: app.isPackaged, argv: process.argv }),
@@ -185,21 +244,65 @@ app.whenReady().then(async () => {
     startStats(ctx).catch((err) => console.error('stats refresh failed', err))
   }
   // Spec §2: the process must not exit while DuckDB runs a statement (Electron aborts), so the first
-  // quit closes the stats worker, which interrupts a running refresh, and then quits again.
-  let statsClosed = false
+  // quit stops the MCP server (Ask spec §6.1: `mcp.json` goes with it), closes the stats worker,
+  // which interrupts a running refresh, and then quits again.
+  let closed = false
   app.on('will-quit', (event) => {
-    if (statsClosed || !ctx.stats) return
+    if (closed) return
     event.preventDefault()
-    void ctx.stats.close().finally(() => {
-      statsClosed = true
-      app.quit()
-    })
+    void mcp
+      .stop()
+      .catch((err: unknown) => console.error('could not stop the MCP server', err))
+      .then(() => ctx.stats?.close())
+      .finally(() => {
+        closed = true
+        app.quit()
+      })
   })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+/** Ask spec §6.1: the analyst tools behind MCP, on when the user turned them on (Stats › Ask). */
+function startMcp(ctx: AppContext): McpService {
+  const analyst = ctx.stats
+    ? createAnalyst({
+        stats: ctx.stats,
+        league: () => {
+          const id = getSetting(ctx.db, SETTING_ACTIVE_LEAGUE)
+          return id ? companionLeague(ctx.db, id) : null
+        }
+      })
+    : null
+  const mcp = createMcpService({
+    db: ctx.db,
+    analyst,
+    userData: app.getPath('userData'),
+    version: app.getVersion(),
+    exe: process.execPath,
+    bridge: mcpBridgePath(),
+    platform: process.platform,
+    env: process.env,
+    // A dev run's exe is electron.exe, which needs the app's path: no shortcut, so the bridge only
+    // finds a running dev app and never starts the default Electron app.
+    writeShortcut:
+      process.platform === 'win32' && app.isPackaged
+        ? (path) => {
+            const ok = shell.writeShortcutLink(path, 'create', {
+              target: process.execPath,
+              args: MINIMIZED_FLAG,
+              description: 'Starts FantasyCompanion for Claude'
+            })
+            if (!ok) throw new Error(`could not write ${path}`)
+          }
+        : null
+  })
+  registerMcpHandlers(mcp, () => mainWindow)
+  mcp.start().catch((err) => console.error('could not start the MCP server', err))
+  return mcp
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

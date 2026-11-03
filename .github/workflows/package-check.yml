@@ -33,3 +33,23 @@ jobs:
           ./dist/win-unpacked/FantasyCompanion.exe --stats-self-test="$RUNNER_TEMP/stats-self-test.json"
           cat "$RUNNER_TEMP/stats-self-test.json"
           grep -q '"ok":true' "$RUNNER_TEMP/stats-self-test.json"
+
+      # Ask spec §10: Claude desktop runs the app's exe as Node (ELECTRON_RUN_AS_NODE) on the bundled
+      # MCP bridge inside the asar; a client on its stdio must list the tools and call one, in both
+      # protocol eras.
+      - name: Check the MCP bridge in the packaged app
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          ./dist/win-unpacked/FantasyCompanion.exe --mcp-self-test="$RUNNER_TEMP/mcp-self-test.json"
+          cat "$RUNNER_TEMP/mcp-self-test.json"
+          grep -q '"ok":true' "$RUNNER_TEMP/mcp-self-test.json"
+
+      # Ask spec §10: the bridge is also checked by hand with Claude desktop before a release (Plan
+      # AF2 Task 12); the unpacked app runs without installing.
+      - name: Keep the unpacked app
+        uses: actions/upload-artifact@v7
+        with:
+          name: FantasyCompanion-win-unpacked
+          path: dist/win-unpacked
+          retention-days: 3

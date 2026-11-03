@@ -14,6 +14,7 @@ import { defaultScope, type StatsScope } from '@/lib/stats/scope'
 import { defaultTeam, topScorerQuery, type TeamTab } from '@/lib/stats/team'
 import { DEFAULT_TRENDS, type TrendsState } from '@/lib/stats/trends'
 import { useStatsData, useStatsQuery } from '@/lib/stats/useStats'
+import { StatsAsk } from '@/screens/stats/StatsAsk'
 import { StatsExplore, type ExploreTab } from '@/screens/stats/StatsExplore'
 import { StatsGames } from '@/screens/stats/StatsGames'
 import { StatsGlossary } from '@/screens/stats/StatsGlossary'
@@ -399,6 +400,7 @@ export function StatsApp({
                 onOpenPlayer={openPlayer}
               />
             )}
+            {screen === 'ask' && <StatsAsk />}
             {screen === 'glossary' && <StatsGlossary catalogue={data.catalogue} />}
             {viewsError && <div className="px-8 pb-4 text-[12px] text-bad">{viewsError}</div>}
           </>

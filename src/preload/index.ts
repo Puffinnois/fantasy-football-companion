@@ -121,6 +121,15 @@ const api: Api = {
     saveView: (name, board) => ipcRenderer.invoke(IPC.statsSaveView, name, board),
     deleteView: (id) => ipcRenderer.invoke(IPC.statsDeleteView, id),
     exportCsv: (fileName, csv) => ipcRenderer.invoke(IPC.statsExportCsv, fileName, csv)
+  },
+  ask: {
+    mcp: {
+      status: () => ipcRenderer.invoke(IPC.askMcpStatus),
+      setEnabled: (on) => ipcRenderer.invoke(IPC.askMcpSetEnabled, on),
+      resetToken: () => ipcRenderer.invoke(IPC.askMcpResetToken),
+      addToClaudeDesktop: () => ipcRenderer.invoke(IPC.askMcpAddToClaudeDesktop),
+      copy: (kind) => ipcRenderer.invoke(IPC.askMcpCopy, kind)
+    }
   }
 }
 

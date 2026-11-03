@@ -76,3 +76,26 @@ export interface ToolError {
 }
 
 export type ToolOutcome = ToolResult | ToolError
+
+/**
+ * Stats › Ask, Claude over MCP (Ask spec §6.1): the server's state and where Claude desktop's config
+ * stands. The token never reaches the renderer; the copy buttons put the commands on the clipboard
+ * from main.
+ */
+export interface McpStatus {
+  enabled: boolean
+  /** Windows shows the Claude desktop and WSL parts. */
+  windows: boolean
+  /** The server listens on `url`. */
+  running: boolean
+  url: string | null
+  /** Why it is not running although it is on. */
+  error: string | null
+  claudeDesktop: {
+    path: string | null
+    state: 'added' | 'outdated' | 'absent' | 'unreadable' | 'not-found'
+  }
+}
+
+/** What a copy button puts on the clipboard. */
+export type McpCopy = 'claude-code' | 'claude-code-wsl' | 'claude-desktop'

@@ -19,7 +19,24 @@ What Plan AF1 built for Ask (spec `docs/superpowers/specs/2026-11-01-ask-analyst
 
 Shared: `src/shared/ask.ts` (tool results and cards), `src/shared/stats/aliases.ts`, `dimensions.ts`, `glossary.ts`, `semanticModel.ts`. The worker's `people` read (`src/main/stats/engine/people.ts`) feeds the player index. `companion.db` has `ask_examples` (migration 012, `src/main/db/repos/askExamples.ts`).
 
+## Claude over MCP (Plan AF2)
+
+`src/main/analyst/mcp/` puts the tools behind MCP, so Claude desktop and Claude Code answer from the app's data with your own Claude plan (spec §6.1, amendments §16).
+
+| File                         | What it does                                                                                                                                                                                                                                                                             |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server.ts`                  | `createMcpServer()`: the full profile's tools (metric ids left out of the listed schemas), the brief as instructions and an `analyst` prompt, the glossary, semantic model and examples as resources. Text results only. `find` asks "which one?" by elicitation for namesakes.          |
+| `http.ts`                    | Streamable HTTP on `127.0.0.1` at `/mcp`: bearer token, Host and Origin checked, both protocol eras (2026-07-28, and the stateless fallback for 2025 clients).                                                                                                                           |
+| `endpoint.ts`                | `mcp.json` in `userData` (URL, token, pid, version): written when the server listens, removed when it stops; `{"off":true}` while Claude is turned off, so the bridge says so and starts nothing.                                                                                        |
+| `bridge.ts`, `bridgeMain.ts` | The stdio bridge (`out/main/mcpBridge.js`), run as the app's exe with `ELECTRON_RUN_AS_NODE=1`: forwards each message both ways, follows `mcp.json` across restarts, and starts the app once through `start-for-claude.lnk` (opened by `explorer.exe`, outside Claude's MSIX container). |
+| `claudeDesktop.ts`           | Finds Claude desktop's config (the Store app's `%LOCALAPPDATA%\Claude-Data\claude_*`, the classic `%APPDATA%\Claude`, an older Store app's package) and adds the entry after a backup.                                                                                                   |
+| `service.ts`, `ipc.ts`       | On / off (off by default), the port and token kept in `app_settings`, the shortcut, the copy commands (Claude Code over HTTP, Claude Code in WSL through the bridge, Claude desktop's entry), `ask:mcp*` IPC.                                                                            |
+| `selfTest.ts`                | `--mcp-self-test=<file>`: the packaged exe runs the bridge from the asar and a client calls a tool through it, in both eras (CI, Windows).                                                                                                                                               |
+
+The screen is Stats › Ask (`src/renderer/src/screens/stats/StatsAsk.tsx`) until Plan AH builds Ask itself. The app holds a single-instance lock: a second launch (the bridge's shortcut, or a double-click) hands over to the running app.
+
 ## Checking it
 
 - `npm test` runs the unit tests (`tests/main/analyst/`, `tests/ask/questions.test.ts`).
-- `FFC_ASK_DB=<copy of stats.duckdb> npm run test:ask` runs every reference call of `tests/ask/questions.json` on that database (copied first) and measures the resolver on the whole set: the AF1 gate.
+- `FFC_ASK_DB=<copy of stats.duckdb> npm run test:ask` runs every reference call of `tests/ask/questions.json` on that database (copied first) and measures the resolver on the whole set: the AF1 gate. It also makes each reference call through the MCP server in both protocol eras and compares the text with the direct call: the AF2 gate.
+- `FantasyCompanion.exe --mcp-self-test=<file>` checks the bridge in a packaged build (the Package check and Release workflows run it).
