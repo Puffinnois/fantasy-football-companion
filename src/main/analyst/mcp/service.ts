@@ -132,14 +132,23 @@ export function createMcpService(deps: McpServiceDeps): McpService {
         return
       }
     }
-    error = null
     setSetting(deps.db, SETTING_MCP_PORT, String(http.port))
-    writeEndpoint(deps.userData, {
-      url: http.url,
-      token: key,
-      pid: process.pid,
-      version: deps.version
-    })
+    try {
+      writeEndpoint(deps.userData, {
+        url: http.url,
+        token: key,
+        pid: process.pid,
+        version: deps.version
+      })
+    } catch (err) {
+      // Without the file the bridge cannot find the server: stop it rather than show it running.
+      const open = http
+      http = null
+      await open.close()
+      error = `Claude cannot find the server: ${err instanceof Error ? err.message : String(err)}`
+      return
+    }
+    error = null
     if (shortcut) {
       try {
         deps.writeShortcut!(shortcut)

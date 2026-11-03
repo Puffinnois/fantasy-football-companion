@@ -141,6 +141,13 @@ describe('the MCP service (Ask spec §6.1)', () => {
     expect(isOff(deps.userData)).toBe(true)
   })
 
+  it('stops and says why when mcp.json cannot be written', async () => {
+    const { mcp } = service({ userData: join(tmpdir(), 'ffc-missing', 'nowhere') })
+    const s = await mcp.setEnabled(true)
+    expect(s).toMatchObject({ enabled: true, running: false, url: null })
+    expect(s.error).toMatch(/^Claude cannot find the server: /)
+  })
+
   it('moves to another port when its own is taken', async () => {
     const taken = createServer()
     await new Promise<void>((r) => taken.listen(0, '127.0.0.1', r))
