@@ -48,6 +48,17 @@ jobs:
           cat "$RUNNER_TEMP/stats-self-test.json"
           grep -q '"ok":true' "$RUNNER_TEMP/stats-self-test.json"
 
+      # Ask spec §10: Claude desktop runs the app's exe as Node (ELECTRON_RUN_AS_NODE) on the bundled
+      # MCP bridge inside the asar; a client on its stdio must list the tools and call one, in both
+      # protocol eras.
+      - name: Check the MCP bridge in the packaged app
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          ./dist/win-unpacked/FantasyCompanion.exe --mcp-self-test="$RUNNER_TEMP/mcp-self-test.json"
+          cat "$RUNNER_TEMP/mcp-self-test.json"
+          grep -q '"ok":true' "$RUNNER_TEMP/mcp-self-test.json"
+
       - name: Check release files
         shell: bash
         run: ls -l dist/FantasyCompanion-Setup-*.exe dist/FantasyCompanion-Setup-*.exe.blockmap dist/latest.yml
