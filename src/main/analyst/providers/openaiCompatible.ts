@@ -6,10 +6,10 @@ import {
   type ChatRequest,
   type Fetch,
   httpError,
-  lines,
   parseArgs,
   type Provider,
   ProviderError,
+  replyLines,
   type StopReason,
   stripThinking,
   thinkingFilter,
@@ -154,7 +154,7 @@ export function openAiCompatible(o: OpenAiOptions): Provider {
     // Reasoning in the text (`<think>`) is not streamed into the answer.
     const live = onText ? thinkingFilter(onText) : null
     const calls = new Map<number, { id: string; name: string; args: string }>()
-    for await (const line of lines(res.body)) {
+    for await (const line of replyLines(o.name, res.body, signal)) {
       if (!line.startsWith('data:')) continue
       const data = line.slice(5).trim()
       if (data === '[DONE]') break

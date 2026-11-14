@@ -5,9 +5,9 @@ import {
   type ChatRequest,
   type Fetch,
   httpError,
-  lines,
   type Provider,
   ProviderError,
+  replyLines,
   type StopReason,
   stripThinking,
   unreachable
@@ -109,7 +109,7 @@ export function ollama(o: OllamaOptions): Provider {
     let stop: StopReason = 'end'
     const usage = { input: 0, output: 0 }
     const calls: ChatReply['calls'] = []
-    for await (const raw of lines(res.body)) {
+    for await (const raw of replyLines('Ollama', res.body, signal)) {
       if (raw.trim() === '') continue
       let line: Line
       try {

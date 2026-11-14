@@ -140,6 +140,26 @@ export function unreachable(who: string, url: string, err: unknown): ProviderErr
   )
 }
 
+/**
+ * `lines`, with a body that fails while it is read (the connection dropped) as a provider error. An
+ * abort stays an abort: the loop reports it as stopped or timed out.
+ */
+export async function* replyLines(
+  who: string,
+  body: ReadableStream<Uint8Array>,
+  signal: AbortSignal
+): AsyncGenerator<string> {
+  try {
+    yield* lines(body)
+  } catch (err) {
+    if (signal.aborted || (err instanceof Error && err.name === 'AbortError')) throw err
+    throw new ProviderError(
+      'unreachable',
+      `${who} stopped answering mid-reply: ${err instanceof Error ? err.message : String(err)}`
+    )
+  }
+}
+
 /** Splits a fetch body into lines as they arrive (SSE and NDJSON). */
 export async function* lines(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
   const decoder = new TextDecoder()

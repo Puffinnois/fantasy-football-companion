@@ -4,7 +4,7 @@ import type { Schema } from '@main/analyst/schema'
 import { detectLocalServers, lmStudioModels } from '@main/analyst/providers/detect'
 import { ollama, ollamaModels } from '@main/analyst/providers/ollama'
 import { openAiCompatible } from '@main/analyst/providers/openaiCompatible'
-import { type ChatRequest, ProviderError } from '@main/analyst/providers/types'
+import { type ChatRequest, type Provider, ProviderError } from '@main/analyst/providers/types'
 
 /** A fake fetch: records each request and answers with `reply(url, body)`. */
 function fakeFetch(reply: (url: string, body: Record<string, unknown> | null) => Response): {
@@ -339,6 +339,63 @@ describe('the Ollama adapter', () => {
     expect(await ollamaModels('http://localhost:11434', signal(), f.fetch)).toEqual([
       { id: 'qwen3:4b', tools: true, thinking: true, context: 40960 }
     ])
+  })
+})
+
+describe('a reply cut off mid-stream', () => {
+  /** A body that sends one line, then fails with `err` (after `before`, e.g. an abort). */
+  const broken = (line: string, err: Error, before = (): void => {}): Response =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        start(c) {
+          c.enqueue(new TextEncoder().encode(line))
+          before()
+          c.error(err)
+        }
+      }),
+      { status: 200 }
+    )
+  const adapters = (body: () => Response): Provider[] => [
+    openAiCompatible({
+      name: 'Groq',
+      baseUrl: 'https://api.groq.com/openai/v1',
+      model: 'm',
+      key: 'k',
+      reasoning: false,
+      fetch: fakeFetch(body).fetch
+    }),
+    ollama({
+      baseUrl: 'http://localhost:11434',
+      model: 'm',
+      info: null,
+      context: 8192,
+      fetch: fakeFetch(body).fetch
+    })
+  ]
+  const OPENAI_LINE = sse([{ choices: [{ delta: { content: 'Puka' } }] }])
+  const OLLAMA_LINE = `${JSON.stringify({ message: { content: 'Puka' } })}\n`
+
+  it('is a provider error when the connection drops', async () => {
+    const [openai] = adapters(() => broken(OPENAI_LINE, new TypeError('terminated')))
+    const [, local] = adapters(() => broken(OLLAMA_LINE, new TypeError('terminated')))
+    for (const p of [openai, local])
+      await expect(p.chat(REQUEST, signal())).rejects.toMatchObject({
+        name: 'ProviderError',
+        kind: 'unreachable'
+      })
+  })
+
+  it('stays an abort when the turn is stopped', async () => {
+    for (const line of [OPENAI_LINE, OLLAMA_LINE]) {
+      const stop = new AbortController()
+      const abort = new DOMException('aborted', 'AbortError')
+      const p = adapters(() => broken(line, abort, () => stop.abort()))[
+        line === OPENAI_LINE ? 0 : 1
+      ]
+      const err = await p.chat(REQUEST, stop.signal).catch((e: unknown) => e)
+      expect(err).not.toBeInstanceOf(ProviderError)
+      expect(err).toMatchObject({ name: 'AbortError' })
+    }
   })
 })
 
