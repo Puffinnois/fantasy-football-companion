@@ -99,3 +99,111 @@ export interface McpStatus {
 
 /** What a copy button puts on the clipboard. */
 export type McpCopy = 'claude-code' | 'claude-code-wsl' | 'claude-desktop'
+
+// ---------------------------------------------------------------------------------------------
+// The in-app loop (Ask spec §5, §6.2; Plan AG1)
+
+/** Who answers: an Anthropic key, an OpenAI-compatible service, or a local server. */
+export type ProviderKind = 'anthropic' | 'openai' | 'ollama' | 'lmstudio'
+
+/** OpenAI-compatible presets (spec §6.2, §14 point 4); `custom` is any other base URL. */
+export type ProviderPreset = 'openai' | 'gemini' | 'groq' | 'openrouter' | 'mistral' | 'custom'
+
+/** Native tool calls, or one constrained JSON object per step (spec §5.2). */
+export type CallingMode = 'native' | 'structured'
+
+/** Every tool, or the classifier's tool with only the open slots (spec §3.2). */
+export type ToolProfile = 'full' | 'compact'
+
+/** One control for every provider (amendment C): Anthropic effort, OpenAI `reasoning_effort`, Ollama `think`. */
+export type Reasoning = 'off' | 'low' | 'high'
+
+/** A provider as the renderer sees it: never the key, only whether one is stored. */
+export interface ProviderSettings {
+  id: number
+  kind: ProviderKind
+  preset: ProviderPreset | null
+  label: string
+  baseUrl: string
+  model: string
+  profile: ToolProfile
+  mode: CallingMode
+  reasoning: Reasoning
+  hasKey: boolean
+  /** The provider Ask uses. */
+  active: boolean
+}
+
+/** What a new or changed provider sets; `key` only when it changes (`''` removes it). */
+export type ProviderInput = Omit<ProviderSettings, 'id' | 'hasKey' | 'active'> & {
+  key?: string
+}
+
+/** A model a server offers, with what it can do (spec §5.2: the calling mode defaults from it). */
+export interface ModelInfo {
+  id: string
+  tools: boolean
+  thinking: boolean
+  /** Its context window in tokens, when the server says. */
+  context: number | null
+}
+
+/** A local server found running (spec §6.2). */
+export interface LocalServer {
+  kind: 'ollama' | 'lmstudio'
+  baseUrl: string
+  models: ModelInfo[]
+}
+
+/** A tool call as the thread keeps it. */
+export interface AskCall {
+  tool: string
+  args: unknown
+}
+
+/** What the loop streams to the screen for one turn. */
+export type AskEvent =
+  | { type: 'status'; text: string }
+  | { type: 'call'; call: AskCall }
+  | { type: 'result'; outcome: ToolOutcome }
+  | { type: 'text'; delta: string }
+  | { type: 'done'; message: AskMessage }
+  | { type: 'error'; error: string }
+
+/** An answer check (spec §4.3) as the screen shows it. */
+export interface AskFlag {
+  kind: 'number' | 'sample' | 'base' | 'causal'
+  text: string
+  at: [number, number]
+  message: string
+  severity: 'flag' | 'soft'
+}
+
+export interface AskThread {
+  id: number
+  title: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AskMessage {
+  id: number
+  threadId: number
+  role: 'user' | 'assistant'
+  text: string
+  calls: AskCall[]
+  results: ToolOutcome[]
+  flags: AskFlag[]
+  /** How the turn ended: answered, asked back, declined, stopped, or failed. */
+  outcome: 'answer' | 'ask' | 'decline' | 'stopped' | 'error' | null
+  model: string | null
+  tokens: { input: number; output: number } | null
+  ms: number | null
+  createdAt: string
+}
+
+/** Ask's settings (amendment H): the example library and sample-k, both off by default. */
+export interface AskOptions {
+  examples: boolean
+  sampleK: boolean
+}

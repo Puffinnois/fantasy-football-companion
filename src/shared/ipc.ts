@@ -44,7 +44,18 @@ import type {
   StatsView
 } from './stats/types'
 import type { DevNote, NewNote, NoteError, NoteStatus } from './devNotes'
-import type { McpCopy, McpStatus } from './ask'
+import type {
+  AskEvent,
+  AskMessage,
+  AskOptions,
+  AskThread,
+  LocalServer,
+  McpCopy,
+  McpStatus,
+  ModelInfo,
+  ProviderInput,
+  ProviderSettings
+} from './ask'
 
 export interface FindLeaguesResult {
   userId: string
@@ -200,6 +211,28 @@ export interface Api {
       /** Puts a command or config on the clipboard (the token stays in main). */
       copy(kind: McpCopy): Promise<void>
     }
+    /** Ask spec §6.2 (Plan AG1): the model providers; a key goes in, never comes back. */
+    providers: {
+      list(): Promise<ProviderSettings[]>
+      save(input: ProviderInput & { id?: number }): Promise<ProviderSettings>
+      remove(id: number): Promise<void>
+      activate(id: number): Promise<void>
+      models(input: ProviderInput & { id?: number }): Promise<ModelInfo[]>
+      /** The local servers running now (Ollama, LM Studio) and their models. */
+      detect(): Promise<LocalServer[]>
+      test(id: number): Promise<{ ok: boolean; message: string; ms: number }>
+      /** Where each provider's keys and usage are (opened in the browser). */
+      openDashboard(id: number): Promise<void>
+    }
+    /** Asks in a thread (null: a new one); the answer streams to `onEvent`, then resolves. */
+    send(threadId: number | null, question: string): Promise<AskMessage>
+    stop(): Promise<void>
+    onEvent(listener: (event: AskEvent) => void): () => void
+    threads(): Promise<AskThread[]>
+    messages(threadId: number): Promise<AskMessage[]>
+    deleteThread(id: number): Promise<void>
+    options(): Promise<AskOptions>
+    setOptions(options: AskOptions): Promise<AskOptions>
   }
 }
 
@@ -269,5 +302,21 @@ export const IPC = {
   askMcpSetEnabled: 'ask:mcpSetEnabled',
   askMcpResetToken: 'ask:mcpResetToken',
   askMcpAddToClaudeDesktop: 'ask:mcpAddToClaudeDesktop',
-  askMcpCopy: 'ask:mcpCopy'
+  askMcpCopy: 'ask:mcpCopy',
+  askProviders: 'ask:providers',
+  askSaveProvider: 'ask:saveProvider',
+  askRemoveProvider: 'ask:removeProvider',
+  askActivateProvider: 'ask:activateProvider',
+  askModels: 'ask:models',
+  askDetect: 'ask:detect',
+  askTest: 'ask:test',
+  askOpenDashboard: 'ask:openDashboard',
+  askSend: 'ask:send',
+  askStop: 'ask:stop',
+  askEvent: 'ask:event',
+  askThreads: 'ask:threads',
+  askMessages: 'ask:messages',
+  askDeleteThread: 'ask:deleteThread',
+  askOptions: 'ask:options',
+  askSetOptions: 'ask:setOptions'
 } as const

@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IPC, type Api } from '@shared/ipc'
+import type { AskEvent } from '@shared/ask'
 import type { SuggestEvent, SyncLogEntry, UpdateState } from '@shared/types'
 
 const api: Api = {
@@ -129,7 +130,31 @@ const api: Api = {
       resetToken: () => ipcRenderer.invoke(IPC.askMcpResetToken),
       addToClaudeDesktop: () => ipcRenderer.invoke(IPC.askMcpAddToClaudeDesktop),
       copy: (kind) => ipcRenderer.invoke(IPC.askMcpCopy, kind)
-    }
+    },
+    providers: {
+      list: () => ipcRenderer.invoke(IPC.askProviders),
+      save: (input) => ipcRenderer.invoke(IPC.askSaveProvider, input),
+      remove: (id) => ipcRenderer.invoke(IPC.askRemoveProvider, id),
+      activate: (id) => ipcRenderer.invoke(IPC.askActivateProvider, id),
+      models: (input) => ipcRenderer.invoke(IPC.askModels, input),
+      detect: () => ipcRenderer.invoke(IPC.askDetect),
+      test: (id) => ipcRenderer.invoke(IPC.askTest, id),
+      openDashboard: (id) => ipcRenderer.invoke(IPC.askOpenDashboard, id)
+    },
+    send: (threadId, question) => ipcRenderer.invoke(IPC.askSend, threadId, question),
+    stop: () => ipcRenderer.invoke(IPC.askStop),
+    onEvent: (listener) => {
+      const handler = (_e: IpcRendererEvent, event: AskEvent): void => listener(event)
+      ipcRenderer.on(IPC.askEvent, handler)
+      return () => {
+        ipcRenderer.removeListener(IPC.askEvent, handler)
+      }
+    },
+    threads: () => ipcRenderer.invoke(IPC.askThreads),
+    messages: (threadId) => ipcRenderer.invoke(IPC.askMessages, threadId),
+    deleteThread: (id) => ipcRenderer.invoke(IPC.askDeleteThread, id),
+    options: () => ipcRenderer.invoke(IPC.askOptions),
+    setOptions: (options) => ipcRenderer.invoke(IPC.askSetOptions, options)
   }
 }
 
