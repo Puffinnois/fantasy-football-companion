@@ -9,16 +9,18 @@ import type {
   ToolProfile,
   ToolResult
 } from '@shared/ask'
+import type { AskExample } from '@main/db/repos/askExamples'
 import { type BriefKind, briefHash, briefText } from './brief'
 import { checkAnswer } from './checks'
 import { type CompactAnswer, compactAnswer, compactCall } from './compact'
+import { examplesText } from './examples'
 import { type FollowState, followUp, isFollowUp, lastTurnText } from './followup'
 import { type ProviderError, ProviderError as ProviderErrorClass } from './providers/types'
 import type { ChatMessage, ChatReply, ChatRequest, Provider, ToolReply } from './providers/types'
 import { type ContextBlock, contextText, resolve } from './resolve'
 import { check, listedSchema, type Schema } from './schema'
 import { type Analyst, toolsHash, type TurnContext } from './tools'
-import { resolverTrace, type Trace, traceCall } from './trace'
+import { maskQuestion, resolverTrace, type Trace, traceCall } from './trace'
 
 /**
  * The agent loop (Ask spec §5.1): one loop for every model, with the planning and the checking in
@@ -70,6 +72,10 @@ export interface LoopInput {
   history: ChatMessage[]
   /** The thread's last question and call (follow-ups). */
   last: FollowState | null
+  /** The example library (off: null). */
+  examples: ((masked: string, tool: string | null) => AskExample[]) | null
+  /** Re-sample an invalid first call instead of re-prompting (spec §5.1; off by default). */
+  sampleK: boolean
   limits?: Partial<LoopLimits>
   signal: AbortSignal
   emit: (event: AskEvent) => void
@@ -279,6 +285,7 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
     let cc = compactCall(block)!
     let widened = false
     let feedback: string | null = null
+    let sampled = false
     let outcome: ToolOutcome | null = null
     while (outcome === null || !outcome.ok) {
       if (failures >= limits.failures)
@@ -288,6 +295,11 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
       if (Object.keys(props).length > 0) {
         const given = await compactArgs(cc, feedback)
         if (typeof given === 'string') {
+          // An invalid reply: re-sample once when asked to, otherwise say what was wrong.
+          if (input.sampleK && !sampled) {
+            sampled = true
+            continue
+          }
           failures++
           feedback = given
           continue
@@ -339,9 +351,13 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
     cc: NonNullable<ReturnType<typeof compactCall>>,
     feedback: string | null
   ): Promise<Record<string, unknown> | string> {
+    const examples = input.examples
+      ? examplesText(input.examples(maskQuestion(block), cc.tool))
+      : ''
     const user = [
       contextText(block),
       follow ? lastTurnText(input.last!) : '',
+      examples,
       `Question: ${input.question}`,
       feedback ?? ''
     ]

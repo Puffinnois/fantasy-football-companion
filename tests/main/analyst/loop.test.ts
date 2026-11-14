@@ -88,6 +88,8 @@ async function ask(
     reasoning: 'off',
     history: [],
     last: null,
+    examples: null,
+    sampleK: false,
     signal: new AbortController().signal,
     emit: (e) => events.push(e),
     ...over
@@ -165,6 +167,17 @@ describe('the compact profile', () => {
     expect(p.requests).toHaveLength(3)
     const last = p.requests[2].messages[0]
     expect(last.role === 'user' && last.text).toContain('Your reply did not fit')
+  })
+
+  it('re-samples an invalid first reply with sample-k on', async () => {
+    const p = scripted([
+      { text: 'oops' },
+      json({ thought: '', args: { metric: 'yprr', position: 'WR' } }),
+      { text: 'Puka leads.' }
+    ])
+    const { out } = await ask(LEADERS, p, { sampleK: true })
+    expect(out.outcome).toBe('answer')
+    expect(p.requests[1].messages).toEqual(p.requests[0].messages)
   })
 
   it('answers from the result when the model runs out of room', async () => {
