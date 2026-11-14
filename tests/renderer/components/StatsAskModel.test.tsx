@@ -101,6 +101,7 @@ describe('Stats › Ask › Model (Plan AG1)', () => {
       'structured'
     )
     expect(screen.getByText(/Nothing leaves this computer/)).toBeTruthy()
+    expect(screen.getByText(/sometimes picks the wrong stat/)).toBeTruthy()
     expect(screen.queryByLabelText('API key')).toBeNull()
   })
 

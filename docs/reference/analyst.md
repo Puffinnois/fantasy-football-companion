@@ -62,3 +62,21 @@ The app also answers a question itself, with the model you set up: an Anthropic 
 - `FFC_ASK_DB=<copy of stats.duckdb> npm run test:ask` runs every reference call of `tests/ask/questions.json` on that database (copied first) and measures the resolver on the whole set: the AF1 gate. It also makes each reference call through the MCP server in both protocol eras and compares the text with the direct call: the AF2 gate. It also reads the follow-ups of the question set with a perfect model.
 - `FFC_ASK_DB=~/ffc-ask/stats.duckdb FFC_ASK_LIVE=ollama:qwen3:4b,ollama:gemma3:4b npm run test:ask` also runs the probe's 20 questions through the real loop with those models, on AC power: the AG1 gate. `FFC_ASK_PROFILE` and `FFC_ASK_MODE` pick the way to call them; `FFC_ASK_RECORD=1` writes the recordings.
 - `FantasyCompanion.exe --mcp-self-test=<file>` checks the bridge in a packaged build (the Package check and Release workflows run it).
+
+## Models we measured
+
+The AG1 gate's 20 questions, compact tools and structured calling, on an RTX 4060 Laptop (8 GB) on AC power with Ollama 0.40.14, on 2026-11-14. One run each, except `gemma3:4b` (three). A small local model is not always right: the Model form says so, and each answer shows the call it made.
+
+| Model            | Size   | Right      | Median call | Median turn | Misses                |
+| ---------------- | ------ | ---------- | ----------- | ----------- | --------------------- |
+| `qwen3.5:4b`     | 3.3 GB | 20/20      | 1.8 s       | 3.5 s       |                       |
+| `bonsai-2:9b`    | 3.2 GB | 20/20      | 2.0 s       | 3.6 s       |                       |
+| `granite4.2:8b`  | 5.3 GB | 20/20      | 2.1 s       | 4.5 s       |                       |
+| `qwen3:4b`       | 2.5 GB | 20/20      | 2.1 s       | 18.4 s      |                       |
+| `gemma4:e4b`     | 6.6 GB | 19/20      | 1.2 s       | 2.1 s       | S4                    |
+| `gemma3:4b`      | 3.4 GB | 18, 19, 19 | 1.0 s       | 2.5 s       | T2 every run, S4 once |
+| `qwen3.5:9b`     | 6.6 GB | 19/20      | 3.5 s       | 6.2 s       | S4                    |
+| `ministral-3:8b` | 6.0 GB | 19/20      | 2.6 s       | 5.7 s       | S4                    |
+| `lfm3:1.7b`      | 1.1 GB | 17/20      | 1.0 s       | 2.6 s       | L4, S1, S4            |
+
+Every miss is a wrong metric or a missing filter in the call, not a crash. Five models missed S4 ("Most red-zone carries among running backs last season"), so its grading is to be looked at in AG2. The three largest ran 8–12 % on the CPU at 8 GB.

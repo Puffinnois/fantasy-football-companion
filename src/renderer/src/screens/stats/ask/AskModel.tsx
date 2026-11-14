@@ -59,6 +59,13 @@ const LEAVES: Record<ProviderKind, string> = {
   lmstudio: 'Nothing leaves this computer: the model runs here.'
 }
 
+/**
+ * What a user should know before picking a model that runs on the PC: the small ones are not
+ * always right. The scores are the AG1 gate's (docs/reference/analyst.md, "Models we measured").
+ */
+const LOCAL_ACCURACY =
+  'Local models differ in accuracy: a small one sometimes picks the wrong stat or filter, so check the call shown with each answer. On our 20 test questions, qwen3.5:4b, bonsai-2:9b and granite4.2:8b got 20 right; gemma3:4b, the lightest and fastest, got 18 or 19.'
+
 const local = (k: ProviderKind): boolean => k === 'ollama' || k === 'lmstudio'
 
 /** A new provider's defaults: small local models get the compact profile in structured mode. */
@@ -400,6 +407,9 @@ export function AskModel({
             </Field>
           </div>
           <p className="m-0 text-[12px] leading-[1.45] text-fg-3">{LEAVES[form.kind]}</p>
+          {local(form.kind) && (
+            <p className="m-0 text-[12px] leading-[1.45] text-fg-3">{LOCAL_ACCURACY}</p>
+          )}
           <div className="flex gap-2">
             <StatsButton
               disabled={busy || !form.model.trim() || !form.baseUrl.trim()}
