@@ -131,7 +131,8 @@ export function createAskService(deps: AskServiceDeps): AskService {
         question = message.text
         continue
       }
-      if (turn.transcript && turn.writer === writer)
+      // A turn with no model call has an empty transcript: it goes as text.
+      if (turn.transcript?.length && turn.writer === writer)
         history.push(...(turn.transcript as ChatMessage[]))
       else if (question !== null)
         history.push(

@@ -227,6 +227,20 @@ describe('asking', () => {
     }
   })
 
+  it('resends a turn with no model call as text', async () => {
+    const s = server(['Second answer.'])
+    const { ask } = service(s.fetch)
+    ask.saveProvider({ ...GROQ, profile: 'full', mode: 'native', key: 'k' })
+    const Q = 'Should I start Bijan Robinson this week?'
+    const declined = await ask.send(null, Q, () => {})
+    expect(declined.outcome).toBe('decline')
+    await ask.send(declined.threadId, 'Who leads WRs in yards per route run?', () => {})
+    expect((s.bodies[0].messages as unknown[]).slice(1, 3)).toEqual([
+      { role: 'user', content: Q },
+      { role: 'assistant', content: declined.text }
+    ])
+  })
+
   it('stops a running turn', async () => {
     const s = server(['hang'])
     const { ask } = service(s.fetch)
