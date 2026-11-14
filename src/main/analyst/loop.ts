@@ -165,8 +165,12 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
   const turn: TurnContext = await analyst.turn()
   const deps = { people: turn.people, now: turn.now }
   const fresh = resolve(input.question, deps)
-  const follow = input.last !== null && isFollowUp(fresh)
-  let block = follow ? followUp(input.question, input.last!, deps) : fresh
+  // A turn that made no call (it asked back or declined) leaves nothing to follow: the new question
+  // is read on its own, and so is one whose follow-up reading names no tool.
+  const followed =
+    input.last?.call && isFollowUp(fresh) ? followUp(input.question, input.last, deps) : null
+  const follow = followed !== null && followed.tool !== null
+  let block = follow ? followed : fresh
 
   const calls: AskCall[] = []
   const results: ToolOutcome[] = []
@@ -303,7 +307,13 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
   // The compact profile
 
   async function compactTurn(): Promise<string> {
-    let cc = compactCall(block)!
+    const first = compactCall(block)
+    if (!first)
+      throw new TurnEnd(
+        'error',
+        'The app could not tell what to look up; ask the question in full.'
+      )
+    let cc = first
     let widened = false
     let feedback: string | null = null
     let sampled = false

@@ -207,6 +207,20 @@ describe('the compact profile', () => {
     })
     expect(out.state.question).toBe('Who leads WRs in yards per route run this season?')
   })
+
+  it('reads a question after an ask-back or a decline on its own', async () => {
+    for (const [before, question] of [
+      ["Chris Jones's sacks this season", 'and Bijan Robinson?'],
+      ['Should I start Bijan Robinson this week?', 'and Puka Nacua?']
+    ]) {
+      const p = scripted([{ text: 'not json' }])
+      const { out } = await ask(question, p, { last: { question: before, call: null } })
+      expect(out.state.question).toBe(question)
+      expect(p.requests.length).toBeGreaterThan(0)
+      const first = p.requests[0].messages[0]
+      expect(first.role === 'user' && first.text).not.toContain(before)
+    }
+  })
 })
 
 describe('the full profile, native tools', () => {
