@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { anthropic, thinkingParams } from '@main/analyst/providers/anthropic'
 import { openAiCompatible } from '@main/analyst/providers/openaiCompatible'
 import { type ChatRequest, ProviderError } from '@main/analyst/providers/types'
 
@@ -227,5 +228,169 @@ describe('the OpenAI-compatible adapter', () => {
     const err = await p.chat(REQUEST, signal()).catch((e: unknown) => e)
     expect(err).toBeInstanceOf(ProviderError)
     expect((err as ProviderError).kind).toBe('unreachable')
+  })
+})
+
+describe('the Anthropic adapter', () => {
+  const events = (blocks: unknown[], stop: string): unknown[] => [
+    {
+      type: 'message_start',
+      message: {
+        id: 'msg_1',
+        type: 'message',
+        role: 'assistant',
+        model: 'claude-opus-5-5',
+        content: [],
+        stop_reason: null,
+        usage: { input_tokens: 2100, output_tokens: 1 }
+      }
+    },
+    ...blocks,
+    { type: 'message_delta', delta: { stop_reason: stop }, usage: { output_tokens: 42 } },
+    { type: 'message_stop' }
+  ]
+  const anthropicSse = (evs: unknown[]): string =>
+    evs
+      .map((e) => `event: ${(e as { type: string }).type}\ndata: ${JSON.stringify(e)}\n\n`)
+      .join('')
+
+  const TOOL_USE = [
+    {
+      type: 'content_block_start',
+      index: 0,
+      content_block: { type: 'thinking', thinking: '', signature: '' }
+    },
+    {
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'signature_delta', signature: 'sig-1' }
+    },
+    { type: 'content_block_stop', index: 0 },
+    {
+      type: 'content_block_start',
+      index: 1,
+      content_block: { type: 'tool_use', id: 'toolu_1', name: 'leaderboard', input: {} }
+    },
+    {
+      type: 'content_block_delta',
+      index: 1,
+      delta: { type: 'input_json_delta', partial_json: '{"metric":' }
+    },
+    {
+      type: 'content_block_delta',
+      index: 1,
+      delta: { type: 'input_json_delta', partial_json: '"yprr"}' }
+    },
+    { type: 'content_block_stop', index: 1 }
+  ]
+
+  it('reads a tool call and keeps the turn for the next request', async () => {
+    const f = fakeFetch(() => stream(anthropicSse(events(TOOL_USE, 'tool_use'))))
+    const p = anthropic({ model: 'claude-opus-5-5', key: 'sk-ant', fetch: f.fetch })
+    const reply = await p.chat(REQUEST, signal())
+    expect(reply.calls).toEqual([{ id: 'toolu_1', name: 'leaderboard', args: { metric: 'yprr' } }])
+    expect(reply.stop).toBe('tool')
+    expect(reply.usage).toEqual({ input: 2100, output: 42 })
+    expect(reply.native?.by).toBe('anthropic:claude-opus-5-5')
+    const body = f.calls[0].body!
+    expect(body).not.toHaveProperty('temperature')
+    expect(body).not.toHaveProperty('tool_choice')
+    expect(body.thinking).toEqual({
+      type: 'adaptive',
+      block_binding: { prefix_mismatch_behavior: 'drop_block' }
+    })
+    expect(body.output_config).toEqual({ effort: 'low' })
+    expect(body.fallbacks).toBe('default')
+    expect(f.calls[0].headers.get('anthropic-beta')).toContain('server-side-fallback-2026-07-01')
+
+    // The next request sends the assistant turn back unchanged (the thinking block with it).
+    const g = fakeFetch(() =>
+      stream(
+        anthropicSse(
+          events(
+            [
+              { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+              {
+                type: 'content_block_delta',
+                index: 0,
+                delta: { type: 'text_delta', text: 'Puka leads.' }
+              },
+              { type: 'content_block_stop', index: 0 }
+            ],
+            'end_turn'
+          )
+        )
+      )
+    )
+    const q = anthropic({ model: 'claude-opus-5-5', key: 'sk-ant', fetch: g.fetch })
+    const answer = await q.chat(
+      {
+        ...REQUEST,
+        messages: [
+          ...REQUEST.messages,
+          { role: 'assistant', text: reply.text, calls: reply.calls, native: reply.native },
+          {
+            role: 'tool',
+            results: [{ id: 'toolu_1', name: 'leaderboard', text: 'rows', error: false }]
+          }
+        ]
+      },
+      signal()
+    )
+    expect(answer.text).toBe('Puka leads.')
+    const sent = g.calls[0].body!.messages as {
+      role: string
+      content: { type: string; signature?: string }[]
+    }[]
+    expect(sent[1].content[0]).toMatchObject({ type: 'thinking', signature: 'sig-1' })
+    expect(sent[2]).toEqual({
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: 'rows' }]
+    })
+  })
+
+  it('asks for structured output with output_config.format, never a forced tool', async () => {
+    const f = fakeFetch(() =>
+      stream(
+        anthropicSse(
+          events(
+            [
+              { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+              { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: '{}' } },
+              { type: 'content_block_stop', index: 0 }
+            ],
+            'end_turn'
+          )
+        )
+      )
+    )
+    await anthropic({ model: 'claude-sonnet-5-5', key: 'k', fetch: f.fetch }).chat(
+      { ...REQUEST, tools: undefined, json: { name: 'call', schema: { type: 'object' } } },
+      signal()
+    )
+    const body = f.calls[0].body!
+    expect(body.output_config).toEqual({
+      format: { type: 'json_schema', schema: { type: 'object' } }
+    })
+    expect(body.thinking).toEqual({ type: 'between_tools' })
+    expect(body).not.toHaveProperty('tools')
+  })
+
+  it('ends the turn on a refusal', async () => {
+    const f = fakeFetch(() => stream(anthropicSse(events([], 'refusal'))))
+    await expect(
+      anthropic({ model: 'claude-opus-5-5', key: 'k', fetch: f.fetch }).chat(REQUEST, signal())
+    ).rejects.toMatchObject({ kind: 'refusal' })
+  })
+
+  it('maps reasoning to each family', () => {
+    expect(thinkingParams('claude-opus-5-5', 'high')).toMatchObject({
+      output_config: { effort: 'high' }
+    })
+    expect(thinkingParams('claude-haiku-5-5', 'off')).toEqual({
+      thinking: { type: 'disabled' },
+      betas: []
+    })
+    expect(thinkingParams('claude-3-haiku', 'off')).toEqual({})
   })
 })
