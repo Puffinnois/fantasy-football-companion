@@ -173,7 +173,7 @@ export function createAskService(deps: AskServiceDeps): AskService {
     activate: (id) => activateAskProvider(deps.db, id),
 
     async models(input) {
-      const key = input.key ?? savedKeyFor(input.id, input)
+      const key = input.key?.trim() ?? savedKeyFor(input.id, input)
       const p = await createProvider(input, key || null, doFetch)
       return p.models(AbortSignal.timeout(15_000))
     },

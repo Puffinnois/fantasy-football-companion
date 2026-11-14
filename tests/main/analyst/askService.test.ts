@@ -118,7 +118,10 @@ describe('providers and keys', () => {
   it('lists models with the key being typed, or the saved one', async () => {
     const s = server([])
     const { ask } = service(s.fetch)
-    expect((await ask.models({ ...GROQ, key: 'typed' })).map((m) => m.id)).toEqual(['m-0', 'm-1'])
+    expect((await ask.models({ ...GROQ, key: ' typed\n' })).map((m) => m.id)).toEqual([
+      'm-0',
+      'm-1'
+    ])
     const p = ask.saveProvider({ ...GROQ, key: 'saved' })
     await ask.models({ ...GROQ, id: p.id })
     expect(s.auth).toEqual(['Bearer typed', 'Bearer saved'])
