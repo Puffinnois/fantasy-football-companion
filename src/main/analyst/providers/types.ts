@@ -180,11 +180,6 @@ export async function* lines(body: ReadableStream<Uint8Array>): AsyncGenerator<s
 export type Fetch = typeof fetch
 
 /**
- * The answer without the model's reasoning. Some local models reason in the text even with
- * reasoning off (a thinking-only model, such as Ollama's `qwen3:4b` today): everything up to the
- * last `</think>` is reasoning, and so is a `<think>` block.
- */
-/**
  * Streamed text without `<think>…</think>` spans, for `onText`: text inside a span is never emitted,
  * and a tag split across chunks is held back until it is whole. Leading blank space is skipped, as
  * `stripThinking` trims it.
@@ -235,6 +230,11 @@ export function thinkingFilter(emit: (delta: string) => void): {
   }
 }
 
+/**
+ * The answer without the model's reasoning. Some local models reason in the text even with
+ * reasoning off (a thinking-only model, such as Ollama's `qwen3:4b` today): everything up to the
+ * last `</think>` is reasoning, and so is a `<think>` block.
+ */
 export function stripThinking(text: string): string {
   const end = text.lastIndexOf('</think>')
   const after = end >= 0 ? text.slice(end + '</think>'.length) : text
