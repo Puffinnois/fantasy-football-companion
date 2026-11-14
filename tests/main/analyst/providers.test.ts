@@ -147,6 +147,39 @@ describe('the OpenAI-compatible adapter', () => {
     expect(f.calls[0].headers.get('authorization')).toBeNull()
   })
 
+  it('streams no thinking, even with its tags split across chunks', async () => {
+    const parts = [
+      '<thi',
+      'nk>I should rank',
+      ' by yprr</th',
+      'ink>\n\nPuka <b>le',
+      'ads</b>',
+      ' <',
+      '.'
+    ]
+    const f = fakeFetch(() =>
+      stream(
+        sse([
+          ...parts.map((content) => ({ choices: [{ delta: { content } }] })),
+          { choices: [{ delta: {}, finish_reason: 'stop' }] }
+        ])
+      )
+    )
+    const deltas: string[] = []
+    const p = openAiCompatible({
+      name: 'LM Studio',
+      baseUrl: 'http://localhost:1234/v1',
+      model: 'm',
+      key: null,
+      reasoning: false,
+      fetch: f.fetch
+    })
+    const reply = await p.chat({ ...REQUEST, tools: undefined }, signal(), (d) => deltas.push(d))
+    expect(reply.text).toBe('Puka <b>leads</b> <.')
+    expect(deltas.join('')).toBe(reply.text)
+    expect(deltas.join('')).not.toContain('rank')
+  })
+
   it('sends tool results back in the conversation', async () => {
     const f = fakeFetch(() =>
       stream(sse([{ choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }] }]))

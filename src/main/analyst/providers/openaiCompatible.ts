@@ -12,6 +12,7 @@ import {
   ProviderError,
   type StopReason,
   stripThinking,
+  thinkingFilter,
   type ToolCall,
   unreachable
 } from './types'
@@ -150,6 +151,8 @@ export function openAiCompatible(o: OpenAiOptions): Provider {
     let text = ''
     let stop: StopReason = 'end'
     const usage = { input: 0, output: 0 }
+    // Reasoning in the text (`<think>`) is not streamed into the answer.
+    const live = onText ? thinkingFilter(onText) : null
     const calls = new Map<number, { id: string; name: string; args: string }>()
     for await (const line of lines(res.body)) {
       if (!line.startsWith('data:')) continue
@@ -167,7 +170,7 @@ export function openAiCompatible(o: OpenAiOptions): Provider {
         const d = choice.delta
         if (d?.content) {
           text += d.content
-          onText?.(d.content)
+          live?.push(d.content)
         }
         for (const t of d?.tool_calls ?? []) {
           const c = calls.get(t.index) ?? { id: '', name: '', args: '' }
@@ -183,6 +186,7 @@ export function openAiCompatible(o: OpenAiOptions): Provider {
         usage.output = chunk.usage.completion_tokens ?? usage.output
       }
     }
+    live?.end()
     const toolCalls: ToolCall[] = [...calls.entries()]
       .sort(([a], [b]) => a - b)
       .map(([i, c]) => ({ id: c.id || `call_${i}`, name: c.name, args: parseArgs(c.args) }))

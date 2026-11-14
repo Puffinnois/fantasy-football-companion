@@ -164,6 +164,57 @@ export type Fetch = typeof fetch
  * reasoning off (a thinking-only model, such as Ollama's `qwen3:4b` today): everything up to the
  * last `</think>` is reasoning, and so is a `<think>` block.
  */
+/**
+ * Streamed text without `<think>…</think>` spans, for `onText`: text inside a span is never emitted,
+ * and a tag split across chunks is held back until it is whole. Leading blank space is skipped, as
+ * `stripThinking` trims it.
+ */
+export function thinkingFilter(emit: (delta: string) => void): {
+  push: (delta: string) => void
+  end: () => void
+} {
+  const OPEN = '<think>'
+  const CLOSE = '</think>'
+  let pending = ''
+  let inside = false
+  let started = false
+  const out = (text: string): void => {
+    const t = started ? text : text.trimStart()
+    if (t === '') return
+    started = true
+    emit(t)
+  }
+  /** How many characters at the end of `s` could start `tag`. */
+  const partial = (s: string, tag: string): number => {
+    for (let k = Math.min(tag.length - 1, s.length); k > 0; k--)
+      if (s.endsWith(tag.slice(0, k))) return k
+    return 0
+  }
+  return {
+    push(delta) {
+      pending += delta
+      for (;;) {
+        const tag = inside ? CLOSE : OPEN
+        const at = pending.indexOf(tag)
+        if (at >= 0) {
+          if (!inside) out(pending.slice(0, at))
+          pending = pending.slice(at + tag.length)
+          inside = !inside
+          continue
+        }
+        const keep = partial(pending, tag)
+        if (!inside) out(pending.slice(0, pending.length - keep))
+        pending = pending.slice(pending.length - keep)
+        return
+      }
+    },
+    end() {
+      if (!inside) out(pending)
+      pending = ''
+    }
+  }
+}
+
 export function stripThinking(text: string): string {
   const end = text.lastIndexOf('</think>')
   const after = end >= 0 ? text.slice(end + '</think>'.length) : text
