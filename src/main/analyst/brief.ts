@@ -13,10 +13,13 @@ import type { Now } from './time'
  */
 export type BriefKind = 'analyst' | 'compact-call' | 'compact-answer'
 
+/** A Windows checkout gives the files CRLF line ends: the text and its hash must not depend on that. */
+const lf = (text: string): string => text.replace(/\r\n/g, '\n')
+
 const TEMPLATES: Record<BriefKind, string> = {
-  analyst,
-  'compact-call': compactCall,
-  'compact-answer': compactAnswer
+  analyst: lf(analyst),
+  'compact-call': lf(compactCall),
+  'compact-answer': lf(compactAnswer)
 }
 
 /** The first 12 hex digits of the template's SHA-256. */
