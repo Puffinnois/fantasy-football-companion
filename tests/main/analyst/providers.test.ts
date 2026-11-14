@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { anthropic, thinkingParams } from '@main/analyst/providers/anthropic'
+import { anthropic, anthropicSchema, thinkingParams } from '@main/analyst/providers/anthropic'
+import type { Schema } from '@main/analyst/schema'
 import { detectLocalServers, lmStudioModels } from '@main/analyst/providers/detect'
 import { ollama, ollamaModels } from '@main/analyst/providers/ollama'
 import { openAiCompatible } from '@main/analyst/providers/openaiCompatible'
@@ -469,16 +470,80 @@ describe('the Anthropic adapter', () => {
         )
       )
     )
+    const schema = {
+      type: 'object' as const,
+      properties: {
+        thought: { type: 'string' as const, maxLength: 300 },
+        args: {
+          type: 'object' as const,
+          properties: {
+            metrics: {
+              type: 'array' as const,
+              items: { enum: ['a', 'b'] },
+              minItems: 1,
+              maxItems: 3
+            }
+          }
+        }
+      },
+      required: ['thought', 'args'],
+      additionalProperties: false
+    }
     await anthropic({ model: 'claude-sonnet-5-5', key: 'k', fetch: f.fetch }).chat(
-      { ...REQUEST, tools: undefined, json: { name: 'call', schema: { type: 'object' } } },
+      { ...REQUEST, tools: undefined, json: { name: 'call', schema } },
       signal()
     )
     const body = f.calls[0].body!
+    // Only what Anthropic's structured outputs take: the loop checks the rest itself.
     expect(body.output_config).toEqual({
-      format: { type: 'json_schema', schema: { type: 'object' } }
+      format: {
+        type: 'json_schema',
+        schema: {
+          type: 'object',
+          properties: {
+            thought: { type: 'string' },
+            args: {
+              type: 'object',
+              properties: { metrics: { type: 'array', items: { enum: ['a', 'b'] }, minItems: 1 } },
+              additionalProperties: false
+            }
+          },
+          required: ['thought', 'args'],
+          additionalProperties: false
+        }
+      }
     })
     expect(body.thinking).toEqual({ type: 'between_tools' })
     expect(body).not.toHaveProperty('tools')
+  })
+
+  it('refuses free-form arguments in structured mode, with no request', async () => {
+    const f = fakeFetch(() => stream(anthropicSse(events([], 'end_turn'))))
+    await expect(
+      anthropic({ model: 'claude-opus-5-5', key: 'k', fetch: f.fetch }).chat(
+        {
+          ...REQUEST,
+          tools: undefined,
+          json: {
+            name: 'step',
+            schema: { ...CLOSED, properties: { ...CLOSED.properties, args: { type: 'object' } } }
+          }
+        },
+        signal()
+      )
+    ).rejects.toMatchObject({ kind: 'request', message: expect.stringContaining('native') })
+    expect(f.calls).toHaveLength(0)
+  })
+
+  it('keeps minItems 0 or 1 and drops larger ones', () => {
+    const arr = (minItems: number): Schema => ({
+      type: 'array',
+      items: { type: 'string' },
+      minItems
+    })
+    expect(anthropicSchema(arr(0))).toEqual(arr(0))
+    expect(anthropicSchema(arr(1))).toEqual(arr(1))
+    expect(anthropicSchema(arr(2))).toEqual({ type: 'array', items: { type: 'string' } })
   })
 
   it('ends the turn on a refusal', async () => {

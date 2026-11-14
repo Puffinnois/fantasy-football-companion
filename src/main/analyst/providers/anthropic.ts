@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ModelInfo, Reasoning } from '@shared/ask'
+import type { Schema } from '../schema'
 import {
   type ChatMessage,
   type ChatReply,
@@ -78,6 +79,35 @@ export function thinkingParams(
       ...fallbacks
     }
   return { thinking: { type: 'disabled' }, betas: betas.filter((b) => b !== BETA_BINDING) }
+}
+
+/**
+ * The schema as Anthropic's structured outputs take it (claude-api reference, 2026-11): no
+ * `minLength`/`maxLength`, no `maxItems`, `minItems` only 0 or 1, and every object closed with
+ * `additionalProperties: false`. The loop checks each reply against the whole schema, so the
+ * constraints left out here still hold. An object with no properties is free-form and cannot be
+ * closed (the full profile's structured step, whose `args` depend on the tool): that is refused
+ * with a readable error rather than sent to fail.
+ */
+export function anthropicSchema(schema: Schema): Schema {
+  const out: Schema = { ...schema }
+  delete out.maxLength
+  delete out.maxItems
+  if (out.minItems !== undefined && out.minItems > 1) delete out.minItems
+  if (out.items) out.items = anthropicSchema(out.items)
+  if (out.properties)
+    out.properties = Object.fromEntries(
+      Object.entries(out.properties).map(([k, v]) => [k, anthropicSchema(v)])
+    )
+  if (out.type === 'object') {
+    if (Object.keys(out.properties ?? {}).length === 0)
+      throw new ProviderError(
+        'request',
+        'Anthropic’s structured mode cannot take free-form tool arguments: use native tool calls (Anthropic’s default) or the compact profile.'
+      )
+    out.additionalProperties = false
+  }
+  return out
 }
 
 function wire(by: string, messages: ChatMessage[]): Anthropic.Beta.Messages.BetaMessageParam[] {
@@ -183,7 +213,10 @@ export function anthropic(o: AnthropicOptions): Provider {
     if (req.json)
       params.output_config = {
         ...params.output_config,
-        format: { type: 'json_schema', schema: req.json.schema as Record<string, unknown> }
+        format: {
+          type: 'json_schema',
+          schema: anthropicSchema(req.json.schema) as Record<string, unknown>
+        }
       }
     let message: Anthropic.Beta.Messages.BetaMessage
     try {
