@@ -19,6 +19,7 @@ import type { AskExample } from '@main/db/repos/askExamples'
 import { briefText } from '../brief'
 import type { Now } from '../time'
 import { type Analyst, toolDefinitions, type TurnContext } from '../tools'
+import { listedSchema } from '../schema'
 
 /**
  * The MCP server (Ask spec §6.1): the analyst tools of the full profile, the analyst brief as the
@@ -67,27 +68,6 @@ const LET_THROUGH: jsonSchemaValidator = {
 function fallbackSeasons(): number[] {
   const year = new Date().getFullYear()
   return Array.from({ length: year - 2019 + 1 }, (_, i) => 2019 + i)
-}
-
-/** An enum longer than this is a list of metric ids. */
-const LONG_ENUM = 40
-const METRIC_HINT = 'A metric id, such as yprr or rush_epa; find gives the ids for a stat’s name.'
-
-/**
- * The schema Claude reads: the full profile's, without the lists of metric ids. Those are about 300
- * ids, seven times over: 34 of the 51 KB the tools take, some 9,000 tokens in every conversation.
- * `find` gives the ids, and the analyst still checks each call against the full schema and names
- * the nearest ids when one is wrong.
- */
-export function listedSchema(schema: unknown): unknown {
-  if (Array.isArray(schema)) return schema.map(listedSchema)
-  if (!schema || typeof schema !== 'object') return schema
-  const node = schema as Record<string, unknown>
-  if (Array.isArray(node.enum) && node.enum.length > LONG_ENUM) {
-    const description = [node.description, METRIC_HINT].filter(Boolean).join(' ')
-    return { type: 'string', description }
-  }
-  return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, listedSchema(v)]))
 }
 
 const text = (t: string, isError = false): CallToolResult => ({
