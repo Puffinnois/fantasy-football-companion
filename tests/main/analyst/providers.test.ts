@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { anthropic, thinkingParams } from '@main/analyst/providers/anthropic'
+import { detectLocalServers, lmStudioModels } from '@main/analyst/providers/detect'
+import { ollama, ollamaModels } from '@main/analyst/providers/ollama'
 import { openAiCompatible } from '@main/analyst/providers/openaiCompatible'
 import { type ChatRequest, ProviderError } from '@main/analyst/providers/types'
 
@@ -228,6 +230,109 @@ describe('the OpenAI-compatible adapter', () => {
     const err = await p.chat(REQUEST, signal()).catch((e: unknown) => e)
     expect(err).toBeInstanceOf(ProviderError)
     expect((err as ProviderError).kind).toBe('unreachable')
+  })
+})
+
+describe('the Ollama adapter', () => {
+  const ndjson = (lines: unknown[]): Response =>
+    stream(lines.map((l) => JSON.stringify(l)).join('\n') + '\n', 'application/x-ndjson')
+
+  it('sets the context size, the schema and think, and reads a tool call', async () => {
+    const f = fakeFetch(() =>
+      ndjson([
+        {
+          message: {
+            content: '',
+            tool_calls: [{ function: { name: 'leaderboard', arguments: { metric: 'yprr' } } }]
+          },
+          done: false
+        },
+        {
+          message: { content: '' },
+          done: true,
+          done_reason: 'stop',
+          prompt_eval_count: 950,
+          eval_count: 30
+        }
+      ])
+    )
+    const p = ollama({
+      baseUrl: 'http://localhost:11434',
+      model: 'qwen3:4b',
+      info: { id: 'qwen3:4b', tools: true, thinking: true, context: 40960 },
+      context: 8192,
+      fetch: f.fetch
+    })
+    const reply = await p.chat(REQUEST, signal())
+    expect(reply.calls).toEqual([{ id: 'call_0', name: 'leaderboard', args: { metric: 'yprr' } }])
+    expect(reply.stop).toBe('tool')
+    expect(reply.usage).toEqual({ input: 950, output: 30 })
+    expect(f.calls[0].url).toBe('http://localhost:11434/api/chat')
+    expect(f.calls[0].body).toMatchObject({
+      think: false,
+      keep_alive: '10m',
+      options: { num_ctx: 8192, num_predict: 800 }
+    })
+  })
+
+  it('leaves think out for a model without it, and passes the schema as format', async () => {
+    const f = fakeFetch(() =>
+      ndjson([{ message: { content: '{"a":1}' }, done: true, done_reason: 'stop' }])
+    )
+    const p = ollama({
+      baseUrl: 'http://localhost:11434',
+      model: 'gemma3:4b',
+      info: { id: 'gemma3:4b', tools: false, thinking: false, context: null },
+      context: 8192,
+      fetch: f.fetch
+    })
+    const reply = await p.chat(
+      { ...REQUEST, tools: undefined, json: { name: 'call', schema: { type: 'object' } } },
+      signal()
+    )
+    expect(reply.text).toBe('{"a":1}')
+    expect(f.calls[0].body).not.toHaveProperty('think')
+    expect(f.calls[0].body?.format).toEqual({ type: 'object' })
+  })
+
+  it('lists chat models with their capabilities, embeddings left out', async () => {
+    const f = fakeFetch((url, body) => {
+      if (url.endsWith('/api/tags'))
+        return Response.json({ models: [{ name: 'qwen3:4b' }, { name: 'bge-m3:latest' }] })
+      const caps = body?.model === 'qwen3:4b' ? ['completion', 'tools', 'thinking'] : ['embedding']
+      return Response.json({ capabilities: caps, model_info: { 'qwen3.context_length': 40960 } })
+    })
+    expect(await ollamaModels('http://localhost:11434', signal(), f.fetch)).toEqual([
+      { id: 'qwen3:4b', tools: true, thinking: true, context: 40960 }
+    ])
+  })
+})
+
+describe('local server detection', () => {
+  it('reads LM Studio capabilities', async () => {
+    const f = fakeFetch(() =>
+      Response.json({
+        data: [
+          {
+            id: 'qwen/qwen3.5-9b',
+            type: 'llm',
+            capabilities: ['tool_use'],
+            max_context_length: 32768
+          },
+          { id: 'text-embedding-nomic', type: 'embeddings' }
+        ]
+      })
+    )
+    expect(await lmStudioModels('http://localhost:1234', signal(), f.fetch)).toEqual([
+      { id: 'qwen/qwen3.5-9b', tools: true, thinking: false, context: 32768 }
+    ])
+  })
+
+  it('skips servers that are not running', async () => {
+    const f = (async () => {
+      throw new TypeError('fetch failed')
+    }) as unknown as typeof fetch
+    expect(await detectLocalServers(f)).toEqual([])
   })
 })
 
