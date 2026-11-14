@@ -89,6 +89,12 @@ export interface AskService {
 const NOT_AVAILABLE =
   'The stats database could not be opened on this computer, so there is nothing to ask about.'
 
+/**
+ * What writes a turn's transcript: the provider's kind, model and calling mode. Only the same three
+ * can be sent that transcript back; a row's id is reused after a removal and kept across an edit.
+ */
+const writerOf = (s: ProviderSettings): string => `${s.kind} ${s.model} ${s.mode}`
+
 /** A thread's title: the question's start. */
 const titleOf = (q: string): string => (q.length <= 60 ? q : `${q.slice(0, 57).trimEnd()}…`)
 
@@ -115,7 +121,7 @@ export function createAskService(deps: AskServiceDeps): AskService {
   /** The thread's earlier turns as this provider resends them, and its last question and call. */
   function threadState(
     threadId: number,
-    providerId: number
+    writer: string
   ): { history: ChatMessage[]; last: FollowState | null } {
     const history: ChatMessage[] = []
     let last: FollowState | null = null
@@ -125,7 +131,7 @@ export function createAskService(deps: AskServiceDeps): AskService {
         question = message.text
         continue
       }
-      if (turn.transcript && turn.providerId === providerId)
+      if (turn.transcript && turn.writer === writer)
         history.push(...(turn.transcript as ChatMessage[]))
       else if (question !== null)
         history.push(
@@ -210,7 +216,8 @@ export function createAskService(deps: AskServiceDeps): AskService {
       const q = question.trim()
       if (!q) throw new Error('Ask a question first.')
       const thread = threadId ?? createAskThread(deps.db, titleOf(q), now().toISOString()).id
-      const { history, last } = threadState(thread, settings.id)
+      const writer = writerOf(settings)
+      const { history, last } = threadState(thread, writer)
       addAskMessage(deps.db, {
         threadId: thread,
         role: 'user',
@@ -259,7 +266,7 @@ export function createAskService(deps: AskServiceDeps): AskService {
             ms: out.ms,
             createdAt: now().toISOString()
           },
-          { providerId: settings.id, transcript: out.transcript, state: out.state }
+          { writer, transcript: out.transcript, state: out.state }
         )
         emit({ type: 'done', message })
         return message

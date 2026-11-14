@@ -196,6 +196,35 @@ describe('asking', () => {
     const sent = s.bodies[1].messages as { role: string; content: string | null }[]
     expect(sent.map((m) => m.role)).toEqual(['system', 'user', 'assistant', 'user'])
     expect(sent[2].content).toBe('First answer.')
+    // The transcript itself, not the question as text.
+    expect(sent[1].content).toContain('Question: Who leads WRs')
+  })
+
+  it('reads the thread as text to a model that did not write it', async () => {
+    const FULL = { ...GROQ, profile: 'full' as const, mode: 'native' as const, key: 'k' }
+    const Q = 'Who leads WRs in yards per route run?'
+    const asText = [
+      { role: 'user', content: Q },
+      { role: 'assistant', content: 'First answer.' }
+    ]
+    // Another provider.
+    let s = server(['First answer.', 'Second answer.'])
+    let { ask } = service(s.fetch)
+    ask.saveProvider(FULL)
+    const first = await ask.send(null, Q, () => {})
+    ask.activate(ask.saveProvider({ ...FULL, model: 'm-0' }).id)
+    await ask.send(first.threadId, 'Who leads TEs in targets per route run?', () => {})
+    expect((s.bodies[1].messages as unknown[]).slice(1, 3)).toEqual(asText)
+    // The same row edited in place (another model, then another mode).
+    for (const change of [{ model: 'm-0' }, { mode: 'structured' as const }]) {
+      s = server(['First answer.', 'Second answer.'])
+      ;({ ask } = service(s.fetch))
+      const p = ask.saveProvider(FULL)
+      const t = await ask.send(null, Q, () => {})
+      ask.saveProvider({ ...FULL, id: p.id, ...change })
+      await ask.send(t.threadId, 'Who leads TEs in targets per route run?', () => {})
+      expect((s.bodies[1].messages as unknown[]).slice(1, 3)).toEqual(asText)
+    }
   })
 
   it('stops a running turn', async () => {

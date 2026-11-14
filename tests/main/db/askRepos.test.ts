@@ -67,13 +67,13 @@ describe('ask threads', () => {
     const d = db()
     const t = createAskThread(d, 'q', '2026-11-03T10:00:00Z')
     addAskMessage(d, message(t.id, '2026-11-03T10:00:01Z'), {
-      providerId: 4,
+      writer: 'openai m-1 native',
       transcript: [{ role: 'assistant', content: [{ type: 'thinking', thinking: '' }] }],
       state: { last: { tool: 'leaderboard' } }
     })
     const [{ message: m, turn }] = listAskTurns(d, t.id)
     expect(Object.keys(m)).not.toContain('transcript')
-    expect(turn.providerId).toBe(4)
+    expect(turn.writer).toBe('openai m-1 native')
     expect(turn.transcript).toHaveLength(1)
     expect(turn.state).toEqual({ last: { tool: 'leaderboard' } })
   })

@@ -7,8 +7,11 @@ import type { Db } from '../connection'
  * (Plan AG1, amendment G); neither reaches the renderer.
  */
 export interface StoredTurn {
-  /** The provider that wrote `transcript`; another provider reads the thread as text. */
-  providerId: number | null
+  /**
+   * What wrote `transcript`: the provider's kind, model and calling mode (`askService`'s writer).
+   * Another provider, model or mode reads the thread as text.
+   */
+  writer: string | null
   transcript: unknown[] | null
   state: unknown
 }
@@ -30,7 +33,7 @@ interface MessageRow {
   flags_json: string
   outcome: AskMessage['outcome']
   model: string | null
-  provider_id: number | null
+  writer: string | null
   transcript_json: string | null
   state_json: string | null
   input_tokens: number | null
@@ -104,12 +107,12 @@ export function deleteAskThread(db: Db, id: number): void {
 export function addAskMessage(
   db: Db,
   m: Omit<AskMessage, 'id'>,
-  turn: StoredTurn = { providerId: null, transcript: null, state: null }
+  turn: StoredTurn = { writer: null, transcript: null, state: null }
 ): AskMessage {
   const r = db
     .prepare(
       `INSERT INTO ask_messages (thread_id, role, text, calls_json, results_json, flags_json, outcome,
-         model, provider_id, transcript_json, state_json, input_tokens, output_tokens, ms, created_at)
+         model, writer, transcript_json, state_json, input_tokens, output_tokens, ms, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`
     )
     .get(
@@ -121,7 +124,7 @@ export function addAskMessage(
       JSON.stringify(m.flags),
       m.outcome,
       m.model,
-      turn.providerId,
+      turn.writer,
       turn.transcript === null ? null : JSON.stringify(turn.transcript),
       turn.state === null || turn.state === undefined ? null : JSON.stringify(turn.state),
       m.tokens?.input ?? null,
@@ -152,7 +155,7 @@ export function listAskTurns(
   return rows.map((r) => ({
     message: message(r),
     turn: {
-      providerId: r.provider_id,
+      writer: r.writer,
       transcript: parsed<unknown[] | null>(r.transcript_json, null),
       state: parsed<unknown>(r.state_json, null)
     }
