@@ -85,3 +85,18 @@ export function check(schema: Schema, value: unknown, path = 'arguments'): strin
       return null
   }
 }
+
+/**
+ * The schema fits strict structured output (OpenAI's `strict: true`): every object closes its
+ * properties and requires all of them. Other schemas are sent without `strict`.
+ */
+export function strictCompatible(schema: Schema): boolean {
+  if (schema.type === 'object') {
+    const keys = Object.keys(schema.properties ?? {})
+    if (schema.additionalProperties !== false || keys.length === 0) return false
+    if (!keys.every((k) => schema.required?.includes(k))) return false
+    return keys.every((k) => strictCompatible(schema.properties![k]))
+  }
+  if (schema.type === 'array') return schema.items ? strictCompatible(schema.items) : false
+  return true
+}
