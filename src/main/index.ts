@@ -1,15 +1,18 @@
-import { app, BrowserWindow, dialog, shell } from 'electron'
+import { app, BrowserWindow, dialog, safeStorage, shell } from 'electron'
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
+import { registerAskHandlers } from '@main/analyst/askIpc'
+import { createAskService } from '@main/analyst/askService'
+import { safeStorageKeys } from '@main/analyst/keys'
 import { companionLeague } from '@main/analyst/league'
 import { registerMcpHandlers } from '@main/analyst/mcp/ipc'
 import { mcpSelfTest } from '@main/analyst/mcp/selfTest'
 import { createMcpService, type McpService } from '@main/analyst/mcp/service'
-import { createAnalyst } from '@main/analyst/tools'
+import { type Analyst, createAnalyst } from '@main/analyst/tools'
 import { openDatabase, type Db } from '@main/db/connection'
 import { migrate } from '@main/db/migrate'
 import { getSetting, SETTING_ACTIVE_LEAGUE } from '@main/db/repos/settings'
@@ -227,10 +230,16 @@ app.whenReady().then(async () => {
     })
   }
   registerIpcHandlers(ctx)
-  const mcp = startMcp(ctx)
+  // One analyst for Claude over MCP and the in-app loop: one cache, one player index.
+  const analyst = ctx.stats
+    ? createAnalyst({ stats: ctx.stats, league: () => leagueOf(ctx) })
+    : null
+  const mcp = startMcp(ctx, analyst)
+  const devMode = createDevMode({ db: ctx.db, packaged: app.isPackaged, argv: process.argv })
+  startAsk(ctx, analyst, () => devMode.get())
   registerDevHandlers({
     db: ctx.db,
-    mode: createDevMode({ db: ctx.db, packaged: app.isPackaged, argv: process.argv }),
+    mode: devMode,
     errors: errorLog,
     getWindow: () => mainWindow
   })
@@ -266,16 +275,7 @@ app.whenReady().then(async () => {
 })
 
 /** Ask spec §6.1: the analyst tools behind MCP, on when the user turned them on (Stats › Ask). */
-function startMcp(ctx: AppContext): McpService {
-  const analyst = ctx.stats
-    ? createAnalyst({
-        stats: ctx.stats,
-        league: () => {
-          const id = getSetting(ctx.db, SETTING_ACTIVE_LEAGUE)
-          return id ? companionLeague(ctx.db, id) : null
-        }
-      })
-    : null
+function startMcp(ctx: AppContext, analyst: Analyst | null): McpService {
   const mcp = createMcpService({
     db: ctx.db,
     analyst,
@@ -302,6 +302,24 @@ function startMcp(ctx: AppContext): McpService {
   registerMcpHandlers(mcp, () => mainWindow)
   mcp.start().catch((err) => console.error('could not start the MCP server', err))
   return mcp
+}
+
+/** Ask in the app (Plan AG1): the loop over the analyst, with the user's model. */
+function startAsk(ctx: AppContext, analyst: Analyst | null, dev: () => boolean): void {
+  const ask = createAskService({
+    db: ctx.db,
+    analyst,
+    keys: safeStorageKeys(safeStorage),
+    userData: app.getPath('userData'),
+    devMode: dev
+  })
+  registerAskHandlers(ask, () => mainWindow)
+}
+
+/** The imported league, read only, for the analyst's league tool. */
+function leagueOf(ctx: AppContext): ReturnType<typeof companionLeague> | null {
+  const id = getSetting(ctx.db, SETTING_ACTIVE_LEAGUE)
+  return id ? companionLeague(ctx.db, id) : null
 }
 
 app.on('window-all-closed', () => {
