@@ -4,6 +4,7 @@ import {
   type ChatMessage,
   type ChatReply,
   type ChatRequest,
+  DECLINED,
   type Fetch,
   type Provider,
   ProviderError,
@@ -194,8 +195,7 @@ export function anthropic(o: AnthropicOptions): Provider {
       throw sdkError(err)
     }
     const stop = STOPS[message.stop_reason ?? 'end_turn'] ?? 'end'
-    if (stop === 'refusal')
-      throw new ProviderError('refusal', 'The model declined to answer this question.')
+    if (stop === 'refusal') throw new ProviderError('refusal', DECLINED)
     const text = message.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')
     const calls: ToolCall[] = message.content.flatMap((b) =>
       b.type === 'tool_use' ? [{ id: b.id, name: b.name, args: b.input }] : []

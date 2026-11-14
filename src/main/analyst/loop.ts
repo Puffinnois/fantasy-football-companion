@@ -15,7 +15,11 @@ import { checkAnswer } from './checks'
 import { type CompactAnswer, compactAnswer, compactCall } from './compact'
 import { examplesText } from './examples'
 import { type FollowState, followUp, isFollowUp, lastTurnText } from './followup'
-import { type ProviderError, ProviderError as ProviderErrorClass } from './providers/types'
+import {
+  DECLINED,
+  type ProviderError,
+  ProviderError as ProviderErrorClass
+} from './providers/types'
 import type { ChatMessage, ChatReply, ChatRequest, Provider, ToolReply } from './providers/types'
 import { type ContextBlock, contextText, resolve } from './resolve'
 import { check, listedSchema, type Schema } from './schema'
@@ -237,6 +241,8 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
     }
     tokens.input += reply.usage.input
     tokens.output += reply.usage.output
+    // A refusal (an OpenAI-compatible `content_filter`) ends the turn, as Anthropic's does (§17 K).
+    if (reply.stop === 'refusal') throw new TurnEnd('error', DECLINED)
     return reply
   }
 
@@ -261,12 +267,18 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
 
   const okResults = (): ToolResult[] => results.filter((r): r is ToolResult => r.ok)
 
-  /** The model's answer; when it wrote none, the last result's first lines say it instead. */
-  const answerOr = (text: string): string => {
-    const answer = text.trim()
-    if (answer) return answer
+  /** The model's answer; when it was cut off or empty, the last result's first lines say it. */
+  const answerOf = (reply: ChatReply): string => {
+    const answer = reply.text.trim()
+    if (answer && reply.stop !== 'length') return answer
     const last = okResults().at(-1)
-    if (!last) throw new TurnEnd('error', 'The model did not write an answer.')
+    if (!last)
+      throw new TurnEnd(
+        'error',
+        reply.stop === 'length'
+          ? 'The model ran out of room before it finished its answer.'
+          : 'The model did not write an answer.'
+      )
     return fallbackAnswer(last)
   }
 
@@ -434,7 +446,7 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
       if (stopping && reply.calls.length > 0) {
         // Calls on the last step are not run: the transcript must not keep them unanswered (the
         // next turn would resend them), so it keeps the answer the user got instead.
-        const answer = answerOr(reply.text)
+        const answer = answerOf(reply)
         transcript.push({ role: 'assistant', text: answer, calls: [] })
         return answer
       }
@@ -444,7 +456,7 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
         calls: reply.calls,
         native: reply.native
       })
-      if (reply.calls.length === 0) return reply.text.trim()
+      if (reply.calls.length === 0) return answerOf(reply)
       const replies: ToolReply[] = await Promise.all(
         reply.calls.map(async (c): Promise<ToolReply> => {
           if (calls.length >= limits.calls)
@@ -520,6 +532,6 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
       true
     )
     transcript.push({ role: 'assistant', text: reply.text, calls: [] })
-    return reply.text.trim()
+    return answerOf(reply)
   }
 }

@@ -265,6 +265,36 @@ describe('the full profile, native tools', () => {
     expect(out.transcript.at(-1)).not.toHaveProperty('native')
   })
 
+  it('answers from the result when the answer is cut off or empty', async () => {
+    const call = {
+      calls: [{ id: 'c1', name: 'leaderboard', args: { metric: 'yprr', position: 'WR' } }]
+    }
+    for (const last of [{ text: 'Okay, so the user', stop: 'length' as const }, { text: ' ' }]) {
+      const { out } = await ask(LEADERS, scripted([call, last]), {
+        profile: 'full',
+        mode: 'native'
+      })
+      expect(out.outcome).toBe('answer')
+      expect(out.text).toContain('Puka Nacua')
+      expect(out.text).toContain('did not finish its answer')
+    }
+  })
+
+  it('ends the turn when the model declines, with no retry', async () => {
+    for (const over of [
+      { profile: 'full', mode: 'native' },
+      { profile: 'full', mode: 'structured' },
+      { profile: 'compact', mode: 'structured' },
+      { profile: 'compact', mode: 'native' }
+    ] as const) {
+      const p = scripted([{ text: 'I cannot help with that.', stop: 'refusal' }])
+      const { out } = await ask(LEADERS, p, over)
+      expect(out.outcome).toBe('error')
+      expect(out.text).toBe('The model declined to answer this question.')
+      expect(p.requests).toHaveLength(1)
+    }
+  })
+
   it('ends on a provider error with its message', async () => {
     const p = scripted([
       new ProviderError('refusal', 'The model declined to answer this question.')
@@ -298,6 +328,18 @@ describe('the full profile, structured mode', () => {
     expect(out.calls.map((c) => c.tool)).toEqual(['leaderboard'])
     expect(p.requests[0].json?.name).toBe('step')
     expect(p.requests[2].json).toBeUndefined()
+  })
+
+  it('answers from the result when the answer is cut off', async () => {
+    const p = scripted([
+      json({ thought: 'rank', tool: 'leaderboard', args: { metric: 'yprr', position: 'WR' } }),
+      json({ thought: 'enough', tool: 'answer', args: {} }),
+      { text: 'Okay, so the user', stop: 'length' }
+    ])
+    const { out } = await ask(LEADERS, p, { profile: 'full', mode: 'structured' })
+    expect(out.outcome).toBe('answer')
+    expect(out.text).toContain('Puka Nacua')
+    expect(out.text).toContain('did not finish its answer')
   })
 })
 

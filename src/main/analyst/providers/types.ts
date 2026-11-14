@@ -76,6 +76,9 @@ export interface Provider {
   models(signal: AbortSignal): Promise<ModelInfo[]>
 }
 
+/** How a turn ends when the model refuses (Ask spec §17 K): never as an answer, never retried. */
+export const DECLINED = 'The model declined to answer this question.'
+
 /** A failure the user can act on: a bad key, a rate limit, a server that is not running. */
 export type ProviderErrorKind = 'auth' | 'rate' | 'unreachable' | 'server' | 'request' | 'refusal'
 
