@@ -261,6 +261,15 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
 
   const okResults = (): ToolResult[] => results.filter((r): r is ToolResult => r.ok)
 
+  /** The model's answer; when it wrote none, the last result's first lines say it instead. */
+  const answerOr = (text: string): string => {
+    const answer = text.trim()
+    if (answer) return answer
+    const last = okResults().at(-1)
+    if (!last) throw new TurnEnd('error', 'The model did not write an answer.')
+    return fallbackAnswer(last)
+  }
+
   const checked = (text: string): LoopOutput => {
     const flags = checkAnswer(text, okResults(), turn.catalogue, {
       question: input.question,
@@ -422,13 +431,20 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
         { system, messages: [...input.history, ...transcript], tools },
         true
       )
+      if (stopping && reply.calls.length > 0) {
+        // Calls on the last step are not run: the transcript must not keep them unanswered (the
+        // next turn would resend them), so it keeps the answer the user got instead.
+        const answer = answerOr(reply.text)
+        transcript.push({ role: 'assistant', text: answer, calls: [] })
+        return answer
+      }
       transcript.push({
         role: 'assistant',
         text: reply.text,
         calls: reply.calls,
         native: reply.native
       })
-      if (reply.calls.length === 0 || stopping) return reply.text.trim()
+      if (reply.calls.length === 0) return reply.text.trim()
       const replies: ToolReply[] = await Promise.all(
         reply.calls.map(async (c): Promise<ToolReply> => {
           if (calls.length >= limits.calls)

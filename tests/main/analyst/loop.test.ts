@@ -242,6 +242,29 @@ describe('the full profile, native tools', () => {
     expect(last).toMatchObject({ role: 'user', text: expect.stringContaining('Answer now') })
   })
 
+  it('leaves no unanswered call when the model calls on the last step', async () => {
+    const call = {
+      calls: [{ id: 'c1', name: 'leaderboard', args: { metric: 'yprr', position: 'WR' } }],
+      native: { by: 'x', content: ['tool_use'] }
+    }
+    const p = scripted([call, { ...call, calls: [{ ...call.calls[0], id: 'c2' }] }])
+    const { out } = await ask(LEADERS, p, {
+      profile: 'full',
+      mode: 'native',
+      limits: { calls: 1 }
+    })
+    expect(out.outcome).toBe('answer')
+    expect(out.text).toContain('Puka Nacua')
+    expect(out.text).toContain('did not finish its answer')
+    // Every assistant message with calls is followed by their results.
+    out.transcript.forEach((m, i) => {
+      if (m.role === 'assistant' && m.calls.length > 0)
+        expect(out.transcript[i + 1]).toMatchObject({ role: 'tool' })
+    })
+    expect(out.transcript.at(-1)).toMatchObject({ role: 'assistant', calls: [] })
+    expect(out.transcript.at(-1)).not.toHaveProperty('native')
+  })
+
   it('ends on a provider error with its message', async () => {
     const p = scripted([
       new ProviderError('refusal', 'The model declined to answer this question.')
