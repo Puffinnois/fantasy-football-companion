@@ -1,0 +1,1762 @@
+{
+  "model": "gemma3:4b",
+  "profile": "compact",
+  "mode": "structured",
+  "through": {
+    "season": 2026,
+    "week": 8,
+    "seasonType": "REG"
+  },
+  "people": [
+    {
+      "id": "00-0036900",
+      "name": "Ja'Marr Chase",
+      "firstName": "Ja'Marr",
+      "lastName": "Chase",
+      "position": "WR",
+      "team": "CIN",
+      "firstSeason": 2021,
+      "lastSeason": 2026,
+      "games": 85,
+      "recentGames": 23,
+      "recentPoints": 441.8
+    },
+    {
+      "id": "00-0038542",
+      "name": "Bijan Robinson",
+      "firstName": "Bijan",
+      "lastName": "Robinson",
+      "position": "RB",
+      "team": "ATL",
+      "firstSeason": 2023,
+      "lastSeason": 2026,
+      "games": 59,
+      "recentGames": 25,
+      "recentPoints": 524.1
+    },
+    {
+      "id": "00-0034857",
+      "name": "Josh Allen",
+      "firstName": "Joshua",
+      "lastName": "Allen",
+      "position": "QB",
+      "team": "BUF",
+      "firstSeason": 2019,
+      "lastSeason": 2026,
+      "games": 123,
+      "recentGames": 24,
+      "recentPoints": 567.4
+    },
+    {
+      "id": "00-0032764",
+      "name": "Derrick Henry",
+      "firstName": "Derrick",
+      "lastName": "Henry",
+      "position": "RB",
+      "team": "BAL",
+      "firstSeason": 2019,
+      "lastSeason": 2026,
+      "games": 114,
+      "recentGames": 25,
+      "recentPoints": 416.2
+    },
+    {
+      "id": "00-0039075",
+      "name": "Puka Nacua",
+      "firstName": "Puka",
+      "lastName": "Nacua",
+      "position": "WR",
+      "team": "LA",
+      "firstSeason": 2023,
+      "lastSeason": 2026,
+      "games": 50,
+      "recentGames": 22,
+      "recentPoints": 513.6
+    },
+    {
+      "id": "00-0039338",
+      "name": "Brock Bowers",
+      "firstName": "Brock",
+      "lastName": "Bowers",
+      "position": "TE",
+      "team": "LV",
+      "firstSeason": 2024,
+      "lastSeason": 2026,
+      "games": 35,
+      "recentGames": 18,
+      "recentPoints": 299.9
+    },
+    {
+      "id": "00-0036358",
+      "name": "CeeDee Lamb",
+      "firstName": "Cedarian",
+      "lastName": "Lamb",
+      "position": "WR",
+      "team": "DAL",
+      "firstSeason": 2020,
+      "lastSeason": 2026,
+      "games": 103,
+      "recentGames": 22,
+      "recentPoints": 369.2
+    },
+    {
+      "id": "00-0039139",
+      "name": "Jahmyr Gibbs",
+      "firstName": "Jahmyr",
+      "lastName": "Gibbs",
+      "position": "RB",
+      "team": "DET",
+      "firstSeason": 2023,
+      "lastSeason": 2026,
+      "games": 56,
+      "recentGames": 24,
+      "recentPoints": 562.7
+    }
+  ],
+  "recordings": [
+    {
+      "model": "gemma3:4b",
+      "question": "Who leads WRs in yards per route run since week 5?",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: leaderboard — Rank playe",
+            "tools": [],
+            "json": "leaderboard",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"Rank WRs by yprr since week 5\", \"args\": {\"metric\": \"yprr\", \"position\": \"WR\"}}",
+            "calls": [],
+            "usage": {
+              "input": 437,
+              "output": 35
+            },
+            "stop": "end"
+          },
+          "ms": 1202
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Adonai Mitchell leads WRs in yards per route run since week 5 with 3.94, based on 36 routes. Jaxon Smith-Njigba is second with 3.75, having run 103 routes. Within noise, Luther Burden III is third with 3.58, having run 76 routes.",
+            "calls": [],
+            "usage": {
+              "input": 622,
+              "output": 77
+            },
+            "stop": "end"
+          },
+          "ms": 1653
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "leaderboard",
+            "args": {
+              "metric": "yprr",
+              "seasons": [2026],
+              "weeks": [5, 8],
+              "position": "WR"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "leaderboard",
+          "title": "Yards per route run (yprr), WR, 2026 weeks 5–8: best first, qualified only.",
+          "text": "Yards per route run (yprr), WR, 2026 weeks 5–8: best first, qualified only.\n1. Adonai Mitchell (00-0039890, WR, NYJ) — YPRR 3.94 (est.) on 36 routes, 100th pct\n2. Jaxon Smith-Njigba (00-0038543, WR, SEA) — YPRR 3.75 (est.) on 103 routes, 99th pct\n3. Luther Burden III (00-0040735, WR, CHI) — YPRR 3.58 (est.) on 76 routes, 98th pct\n4. Amon-Ra St. Brown (00-0036963, WR, DET) — YPRR 3.53 (est.) on 76 routes, 97th pct\n5. Jaylin Noel (00-0040138, WR, HOU) — YPRR 3.45 (est.) on 42 routes, 96th pct\n6. Malik Nabers (00-0039337, WR, NYG) — YPRR 3.36 (est.) on 118 routes, 96th pct\n7. Tee Higgins (00-0036410, WR, CIN) — YPRR 3.32 (est.) on 98 routes, 95th pct\n8. DeMario Douglas (00-0038621, WR, NE) — YPRR 3.13 (est.) on 80 routes, 94th pct\n9. Christian Watson (00-0038124, WR, GB) — YPRR 3.07 (est.) on 123 routes, 93rd pct\n10. Omar Cooper Jr. (00-0041511, WR, NYJ) — YPRR 2.91 (est.) on 75 routes, 92nd pct",
+          "cards": [],
+          "notes": [],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["yprr"],
+              "scope": {
+                "seasons": [2026],
+                "weeks": [5, 8],
+                "positions": ["WR"],
+                "qualifiedOnly": true
+              },
+              "limit": 10
+            }
+          ],
+          "ms": 0,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Best tight end by targets per route run this season",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: leaderboard — Rank playe",
+            "tools": [],
+            "json": "leaderboard",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"Rank tight ends by tprr\", \"args\": {\"metric\": \"tprr\", \"position\": \"TE\"}}",
+            "calls": [],
+            "usage": {
+              "input": 391,
+              "output": 29
+            },
+            "stop": "end"
+          },
+          "ms": 1130
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Isaiah Likely leads the tight ends with a TPRR of 31.2% on 202 routes. Brock Bowers is second with 30.3% on 201 routes. Within noise, Dalton Schultz is third with 27.2% on 158 routes.",
+            "calls": [],
+            "usage": {
+              "input": 609,
+              "output": 64
+            },
+            "stop": "end"
+          },
+          "ms": 1514
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "leaderboard",
+            "args": {
+              "metric": "tprr",
+              "seasons": [2026],
+              "position": "TE"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "leaderboard",
+          "title": "Targets per route run (tprr), TE, 2026: best first, qualified only.",
+          "text": "Targets per route run (tprr), TE, 2026: best first, qualified only.\n1. Isaiah Likely (00-0037838, TE, NYG) — TPRR 31.2% (est.) on 202 routes, 100th pct\n2. Brock Bowers (00-0039338, TE, LV) — TPRR 30.3% (est.) on 201 routes, 99th pct\n3. Dalton Schultz (00-0034383, TE, HOU) — TPRR 27.2% (est.) on 158 routes, 97th pct\n4. Trey McBride (00-0037744, TE, ARI) — TPRR 26.6% (est.) on 323 routes, 96th pct\n5. George Kittle (00-0033288, TE, SF) — TPRR 25.4% (est.) on 181 routes, 94th pct\n6. T.J. Hockenson (00-0035229, TE, MIN) — TPRR 24.3% (est.) on 152 routes, 93rd pct\n7. Kenyon Sadiq (00-0041032, TE, NYJ) — TPRR 23.9% (est.) on 113 routes, 91st pct\n8. Mark Andrews (00-0034753, TE, BAL) — TPRR 23.6% (est.) on 174 routes, 90th pct\n9. Tyler Warren (00-0040128, TE, IND) — TPRR 23.1% (est.) on 199 routes, 89th pct\n10. Dalton Kincaid (00-0038933, TE, BUF) — TPRR 22.3% (est.) on 157 routes, 87th pct",
+          "cards": [],
+          "notes": [],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["tprr"],
+              "scope": {
+                "seasons": [2026],
+                "positions": ["TE"],
+                "qualifiedOnly": true
+              },
+              "limit": 10
+            }
+          ],
+          "ms": 0,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Which QBs had the best CPOE in 2025?",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: leaderboard — Rank playe",
+            "tools": [],
+            "json": "leaderboard",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"Rank QBs by CPOE in 2025.\", \"args\": {\"metric\": \"cpoe\", \"position\": \"QB\"}}",
+            "calls": [],
+            "usage": {
+              "input": 414,
+              "output": 36
+            },
+            "stop": "end"
+          },
+          "ms": 1268
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Drake Maye led the quarterbacks with a CPOE of +10.8 on 472 attempts. Brock Purdy followed with a CPOE of +7.2 on 272 attempts, while Jordan Love posted a CPOE of +5.5 on 411 attempts.",
+            "calls": [],
+            "usage": {
+              "input": 600,
+              "output": 63
+            },
+            "stop": "end"
+          },
+          "ms": 1361
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "leaderboard",
+            "args": {
+              "metric": "cpoe",
+              "seasons": [2025],
+              "position": "QB"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "leaderboard",
+          "title": "Completion % over expected (cpoe), QB, 2025: best first, qualified only.",
+          "text": "Completion % over expected (cpoe), QB, 2025: best first, qualified only.\n1. Drake Maye (00-0039851, QB, NE) — CPOE +10.8 on 472 attempts with a completion model, 100th pct\n2. Brock Purdy (00-0037834, QB, SF) — CPOE +7.2 on 272 attempts with a completion model, 97th pct\n3. Jordan Love (00-0036264, QB, GB) — CPOE +5.5 on 411 attempts with a completion model, 94th pct\n4. Sam Darnold (00-0034869, QB, SEA) — CPOE +5.2 on 451 attempts with a completion model, 91st pct\n5. Joe Burrow (00-0036442, QB, CIN) — CPOE +4.7 on 248 attempts with a completion model, 88th pct\n6. Mac Jones (00-0036972, QB, SF) — CPOE +3.7 on 278 attempts with a completion model, 84th pct\n7. Josh Allen (00-0034857, QB, BUF) — CPOE +3.5 on 445 attempts with a completion model, 81st pct\n8. Jalen Hurts (00-0036389, QB, PHI) — CPOE +3.2 on 427 attempts with a completion model, 78th pct\n9. Spencer Rattler (00-0039376, QB, NO) — CPOE +2.4 on 245 attempts with a completion model, 75th pct\n10. Daniel Jones (00-0035710, QB, IND) — CPOE +2.3 on 373 attempts with a completion model, 72nd pct",
+          "cards": [],
+          "notes": [],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["cpoe"],
+              "scope": {
+                "seasons": [2025],
+                "positions": ["QB"],
+                "qualifiedOnly": true
+              },
+              "limit": 10
+            }
+          ],
+          "ms": 0,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Top 5 running backs in rush yards over expected per carry",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: leaderboard — Rank playe",
+            "tools": [],
+            "json": "leaderboard",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"The question asks for the top 5 running backs ranked by RYOE per carry.\", \"args\": {\"metric\": \"ryoe_att\", \"position\": \"RB\"}}",
+            "calls": [],
+            "usage": {
+              "input": 379,
+              "output": 42
+            },
+            "stop": "end"
+          },
+          "ms": 1346
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Based on Next Gen Stats, Jaylen Warren leads with 1.87 RYOE per attempt on 119 carries. Kenneth Walker III is second at 1.76 RYOE/att on 141 carries, while Kenny Gainwell has 1.32 RYOE/att on 58 carries.",
+            "calls": [],
+            "usage": {
+              "input": 424,
+              "output": 73
+            },
+            "stop": "end"
+          },
+          "ms": 1479
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "leaderboard",
+            "args": {
+              "metric": "ryoe_att",
+              "position": "RB",
+              "limit": 5
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "leaderboard",
+          "title": "RYOE per attempt (ryoe_att), RB, 2026: best first, qualified only.",
+          "text": "RYOE per attempt (ryoe_att), RB, 2026: best first, qualified only.\n1. Jaylen Warren (00-0037228, RB, PIT) — RYOE/att 1.87 on 119 Next Gen Stats carries, 100th pct\n2. Kenneth Walker III (00-0038134, RB, KC) — RYOE/att 1.76 on 141 Next Gen Stats carries, 98th pct\n3. Kenny Gainwell (00-0036919, RB, TB) — RYOE/att 1.32 on 58 Next Gen Stats carries, 95th pct\n4. Braelon Allen (00-0039794, RB, NYJ) — RYOE/att 1.18 on 112 Next Gen Stats carries, 93rd pct\n5. Bijan Robinson (00-0038542, RB, ATL) — RYOE/att 1.16 on 150 Next Gen Stats carries, 90th pct\nNotes: RYOE per attempt barely carries over from one season to the next (year-to-year r 0.20): treat it as noisy.",
+          "cards": [],
+          "notes": [
+            "RYOE per attempt barely carries over from one season to the next (year-to-year r 0.20): treat it as noisy."
+          ],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["ryoe_att"],
+              "scope": {
+                "seasons": [2026],
+                "positions": ["RB"],
+                "qualifiedOnly": true
+              },
+              "limit": 5
+            }
+          ],
+          "ms": 0,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Which defenses blitz the most?",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: leaderboard — Rank playe",
+            "tools": [],
+            "json": "leaderboard",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"I need to rank defenses by their blitz rate.\", \"args\": {\"metric\": \"def_blitz_rate\"}}",
+            "calls": [],
+            "usage": {
+              "input": 383,
+              "output": 29
+            },
+            "stop": "end"
+          },
+          "ms": 966
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "The Minnesota Vikings led the league with a blitz rate of 71.4% on 206 charted dropbacks faced. The Washington Commanders were second with 45.5% on 246 charted dropbacks faced, and the New York Giants ranked third with 41.9% on 241 charted dropbacks faced.",
+            "calls": [],
+            "usage": {
+              "input": 469,
+              "output": 74
+            },
+            "stop": "end"
+          },
+          "ms": 1505
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "leaderboard",
+            "args": {
+              "metric": "def_blitz_rate"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "leaderboard",
+          "title": "Blitz rate (def_blitz_rate), 2026: best first, qualified only.",
+          "text": "Blitz rate (def_blitz_rate), 2026: best first, qualified only.\n1. Minnesota Vikings (MIN) — Blitz% 71.4% on 206 charted dropbacks faced, 100th pct\n2. Washington Commanders (WAS) — Blitz% 45.5% on 246 charted dropbacks faced, 97th pct\n3. New York Giants (NYG) — Blitz% 41.9% on 241 charted dropbacks faced, 94th pct\n4. Tampa Bay Buccaneers (TB) — Blitz% 41.0% on 268 charted dropbacks faced, 90th pct\n5. Chicago Bears (CHI) — Blitz% 40.6% on 224 charted dropbacks faced, 87th pct\n6. New England Patriots (NE) — Blitz% 39.0% on 251 charted dropbacks faced, 84th pct\n7. New York Jets (NYJ) — Blitz% 38.4% on 250 charted dropbacks faced, 81st pct\n8. Denver Broncos (DEN) — Blitz% 35.6% on 295 charted dropbacks faced, 77th pct\n9. Buffalo Bills (BUF) — Blitz% 35.5% on 262 charted dropbacks faced, 74th pct\n10. New Orleans Saints (NO) — Blitz% 34.6% on 257 charted dropbacks faced, 71st pct",
+          "cards": [],
+          "notes": [],
+          "queries": [
+            {
+              "entity": "team",
+              "metrics": ["def_blitz_rate"],
+              "scope": {
+                "seasons": [2026],
+                "qualifiedOnly": true
+              },
+              "limit": 10
+            }
+          ],
+          "ms": 0,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Which teams have the best playoff odds right now?",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: leaderboard — Rank playe",
+            "tools": [],
+            "json": "leaderboard",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"The question asks about playoff odds, and 'playoff_pct' is the appropriate metric.\", \"args\": {\"metric\": \"playoff_pct\"}}",
+            "calls": [],
+            "usage": {
+              "input": 374,
+              "output": 36
+            },
+            "stop": "end"
+          },
+          "ms": 1109
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "As of now, the Buffalo Bills have the highest playoff odds at 96.8%, based on 7 games. The Denver Broncos and Jacksonville Jaguars are close behind with 93.4% and 93.3% respectively, both having played 8 and 7 games, respectively. Within noise, the San Francisco 49ers are also at 93.3% with 7 games played.",
+            "calls": [],
+            "usage": {
+              "input": 464,
+              "output": 88
+            },
+            "stop": "end"
+          },
+          "ms": 1766
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "leaderboard",
+            "args": {
+              "metric": "playoff_pct"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "leaderboard",
+          "title": "Playoff odds (playoff_pct), 2026: best first, qualified only.",
+          "text": "Playoff odds (playoff_pct), 2026: best first, qualified only.\n1. Buffalo Bills (BUF) — Playoff% 96.8% on 7 games, 100th pct\n2. Denver Broncos (DEN) — Playoff% 93.4% on 8 games, 97th pct\n3. Jacksonville Jaguars (JAX) — Playoff% 93.3% on 7 games, 90th pct\n3. San Francisco 49ers (SF) — Playoff% 93.3% on 7 games, 90th pct\n5. Minnesota Vikings (MIN) — Playoff% 91.4% on 7 games, 87th pct\n6. Pittsburgh Steelers (PIT) — Playoff% 82.5% on 8 games, 84th pct\n7. Cincinnati Bengals (CIN) — Playoff% 80.8% on 7 games, 81st pct\n8. New England Patriots (NE) — Playoff% 79.4% on 8 games, 77th pct\n9. Seattle Seahawks (SEA) — Playoff% 78.8% on 7 games, 74th pct\n10. Detroit Lions (DET) — Playoff% 75.9% on 7 games, 71st pct\nNotes: Playoff odds barely carries over from one season to the next (year-to-year r 0.24): treat it as noisy.",
+          "cards": [],
+          "notes": [
+            "Playoff odds barely carries over from one season to the next (year-to-year r 0.24): treat it as noisy."
+          ],
+          "queries": [
+            {
+              "entity": "team",
+              "metrics": ["playoff_pct"],
+              "scope": {
+                "seasons": [2026],
+                "qualifiedOnly": true
+              },
+              "limit": 10
+            }
+          ],
+          "ms": 0,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Most red-zone carries among running backs last season",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: leaderboard — Rank playe",
+            "tools": [],
+            "json": "leaderboard",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"Rank RB by red-zone carries\", \"args\": {\"metric\": \"rz_carries\", \"position\": \"RB\"}}",
+            "calls": [],
+            "usage": {
+              "input": 396,
+              "output": 31
+            },
+            "stop": "end"
+          },
+          "ms": 1088
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Christian McCaffrey led the way with 75 red-zone carries. Jonathan Taylor and Derrick Henry tied for second with 70 and 63 red-zone carries respectively. Within noise, James Cook, Javonte Williams, Travis Etienne, Kyren Williams, Jahmyr Gibbs, Josh Jacobs, and Zach Charbonnet all had 51-52 red-zone carries.",
+            "calls": [],
+            "usage": {
+              "input": 498,
+              "output": 82
+            },
+            "stop": "end"
+          },
+          "ms": 1717
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "leaderboard",
+            "args": {
+              "metric": "rz_carries",
+              "seasons": [2025],
+              "position": "RB"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "leaderboard",
+          "title": "Red-zone carries (rz_carries), RB, 2025: best first, qualified only.",
+          "text": "Red-zone carries (rz_carries), RB, 2025: best first, qualified only.\n1. Christian McCaffrey (00-0033280, RB, SF) — RZ Car 75, 100th pct\n2. Jonathan Taylor (00-0036223, RB, IND) — RZ Car 70, 99th pct\n3. Derrick Henry (00-0032764, RB, BAL) — RZ Car 63, 99th pct\n4. James Cook (00-0037248, RB, BUF) — RZ Car 56, 98th pct\n5. Javonte Williams (00-0036997, RB, DAL) — RZ Car 54, 97th pct\n5. Travis Etienne (00-0036973, RB, JAX) — RZ Car 54, 97th pct\n7. Kyren Williams (00-0037840, RB, LA) — RZ Car 53, 96th pct\n8. Jahmyr Gibbs (00-0039139, RB, DET) — RZ Car 52, 95th pct\n8. Josh Jacobs (00-0035700, RB, GB) — RZ Car 52, 95th pct\n10. Zach Charbonnet (00-0039165, RB, SEA) — RZ Car 51, 95th pct",
+          "cards": [],
+          "notes": [],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["rz_carries"],
+              "scope": {
+                "seasons": [2025],
+                "positions": ["RB"],
+                "qualifiedOnly": true
+              },
+              "limit": 10
+            }
+          ],
+          "ms": 0,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Who has the highest target share among WRs over the last 3 weeks?",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: leaderboard — Rank playe",
+            "tools": [],
+            "json": "leaderboard",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"Rank WRs by target share over the last 3 weeks.\", \"args\": {\"metric\": \"target_share\", \"position\": \"WR\"}}",
+            "calls": [],
+            "usage": {
+              "input": 415,
+              "output": 36
+            },
+            "stop": "end"
+          },
+          "ms": 1285
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Emeka Egbuka has the highest target share among WRs over the last 3 weeks at 39.0%, with 16 targets. Jaxon Smith-Njigba is second at 38.4% on 28 targets, and CeeDee Lamb is third at 38.0% on 41 targets.",
+            "calls": [],
+            "usage": {
+              "input": 600,
+              "output": 75
+            },
+            "stop": "end"
+          },
+          "ms": 1730
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "leaderboard",
+            "args": {
+              "metric": "target_share",
+              "seasons": [2026],
+              "weeks": [6, 8],
+              "position": "WR"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "leaderboard",
+          "title": "Target share (target_share), WR, 2026 weeks 6–8: best first, qualified only.",
+          "text": "Target share (target_share), WR, 2026 weeks 6–8: best first, qualified only.\n1. Emeka Egbuka (00-0040129, WR, TB) — Tgt% 39.0% on 16 targets, 100th pct\n2. Jaxon Smith-Njigba (00-0038543, WR, SEA) — Tgt% 38.4% on 28 targets, 99th pct\n3. CeeDee Lamb (00-0036358, WR, DAL) — Tgt% 38.0% on 41 targets, 98th pct\n4. Malik Nabers (00-0039337, WR, NYG) — Tgt% 34.3% on 24 targets, 97th pct\n5. Amon-Ra St. Brown (00-0036963, WR, DET) — Tgt% 33.9% on 19 targets, 96th pct\n6. Puka Nacua (00-0039075, WR, LA) — Tgt% 33.7% on 29 targets, 94th pct\n7. DeVonta Smith (00-0036912, WR, PHI) — Tgt% 31.8% on 14 targets, 93rd pct\n8. Matthew Golden (00-0040667, WR, GB) — Tgt% 31.4% on 38 targets, 92nd pct\n9. Justin Jefferson (00-0036322, WR, MIN) — Tgt% 30.8% on 16 targets, 91st pct\n10. Ja'Marr Chase (00-0036900, WR, CIN) — Tgt% 30.7% on 23 targets, 90th pct",
+          "cards": [],
+          "notes": [],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["target_share"],
+              "scope": {
+                "seasons": [2026],
+                "weeks": [6, 8],
+                "positions": ["WR"],
+                "qualifiedOnly": true
+              },
+              "limit": 10
+            }
+          ],
+          "ms": 1,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "How does Ja'Marr Chase do against man coverage this year?",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: player_stats — One playe",
+            "tools": [],
+            "json": "player_stats",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"Let's analyze Ja'Marr Chase's performance against man coverage this year.\", \"args\": {\"metrics\": [\"tprr_man\", \"yprr_man\"], \"filters\": [\"man_coverage\"]}}",
+            "calls": [],
+            "usage": {
+              "input": 433,
+              "output": 54
+            },
+            "stop": "end"
+          },
+          "ms": 1633
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Ja’Marr Chase has a TPRR of 00-0036900 vs man coverage through 2025. YPRR vs man coverage through 2025 is also published. The data is within noise.",
+            "calls": [],
+            "usage": {
+              "input": 232,
+              "output": 54
+            },
+            "stop": "end"
+          },
+          "ms": 1017
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "player_stats",
+            "args": {
+              "player": "00-0036900",
+              "metrics": ["tprr_man", "yprr_man"],
+              "seasons": [2026],
+              "coverage": "man"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "player_stats",
+          "title": "Ja'Marr Chase (00-0036900, WR, CIN), 2026, vs man.",
+          "text": "Ja'Marr Chase (00-0036900, WR, CIN), 2026, vs man.\nNotes: Pressure, coverage, personnel, formation and on-field filters use participation data, published through the prior season. TPRR vs man: published through 2025. YPRR vs man: published through 2025. No rows: nothing in this scope for this player or team (no game, or the metric starts later).",
+          "cards": [],
+          "notes": [
+            "Pressure, coverage, personnel, formation and on-field filters use participation data, published through the prior season.",
+            "TPRR vs man: published through 2025.",
+            "YPRR vs man: published through 2025.",
+            "No rows: nothing in this scope for this player or team (no game, or the metric starts later)."
+          ],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["tprr_man", "yprr_man"],
+              "scope": {
+                "seasons": [2026],
+                "qualifiedOnly": false,
+                "positions": ["WR"]
+              },
+              "situation": {
+                "coverage": "man"
+              },
+              "limit": 5000
+            }
+          ],
+          "ms": 94,
+          "cached": false
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Show me Bijan Robinson's game log this season",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: player_stats — One playe",
+            "tools": [],
+            "json": "player_stats",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"The user wants the game log for Bijan Robinson this season.\", \"args\": {\"metrics\": [\"games\"], \"by\": \"week\"}}",
+            "calls": [],
+            "usage": {
+              "input": 307,
+              "output": 34
+            },
+            "stop": "end"
+          },
+          "ms": 1100
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Bijan Robinson appeared in 8 games this season. He played in Weeks 1 through 8 of the season. The remaining weeks were not qualified.",
+            "calls": [],
+            "usage": {
+              "input": 223,
+              "output": 32
+            },
+            "stop": "end"
+          },
+          "ms": 759
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "player_stats",
+            "args": {
+              "player": "00-0038542",
+              "metrics": ["games"],
+              "seasons": [2026],
+              "by": "week"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "player_stats",
+          "title": "Bijan Robinson (00-0038542, RB, ATL), 2026, by week.",
+          "text": "Bijan Robinson (00-0038542, RB, ATL), 2026, by week.\nAll: G 8\nWeek 1: G 1\nWeek 2: G 1\nWeek 3: G 1\nWeek 4: G 1\nWeek 5: G 1\nWeek 6: G 1\nWeek 7: G 1\nWeek 8: G 1",
+          "cards": [],
+          "notes": [],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["games"],
+              "scope": {
+                "seasons": [2026],
+                "players": ["00-0038542"],
+                "qualifiedOnly": false
+              },
+              "groupBy": ["week"],
+              "limit": 200
+            },
+            {
+              "entity": "player",
+              "metrics": ["games"],
+              "scope": {
+                "seasons": [2026],
+                "qualifiedOnly": false,
+                "positions": ["RB"]
+              },
+              "limit": 5000
+            }
+          ],
+          "ms": 1,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "What is Josh Allen's EPA per dropback when he's pressured?",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: player_stats — One playe",
+            "tools": [],
+            "json": "player_stats",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"The question asks for Josh Allen's EPA when pressured, so I'll use pressured_epa.\", \"args\": {\"metrics\": [\"pressured_epa\"], \"filters\": [\"pressure\"]}}",
+            "calls": [],
+            "usage": {
+              "input": 420,
+              "output": 48
+            },
+            "stop": "end"
+          },
+          "ms": 1494
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Josh Allen had -0.382 EPA per dropback when under pressure on 146 dropbacks. This represents the 66th percentile among quarterbacks, and the result is not qualified.",
+            "calls": [],
+            "usage": {
+              "input": 246,
+              "output": 43
+            },
+            "stop": "end"
+          },
+          "ms": 916
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "player_stats",
+            "args": {
+              "player": "00-0034857",
+              "metrics": ["pressured_epa"],
+              "pressure": true
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "player_stats",
+          "title": "Josh Allen (00-0034857, QB, BUF), 2025, under pressure.",
+          "text": "Josh Allen (00-0034857, QB, BUF), 2025, under pressure.\nPrss EPA -0.382 on 146 pressured dropbacks, 66th pct (percentiles among QBs, qualified rows only)\nNotes: Pressure, coverage, personnel, formation and on-field data are published through 2025: 2025 shown. Pressure, coverage, personnel, formation and on-field filters use participation data, published through the prior season.",
+          "cards": [],
+          "notes": [
+            "Pressure, coverage, personnel, formation and on-field data are published through 2025: 2025 shown.",
+            "Pressure, coverage, personnel, formation and on-field filters use participation data, published through the prior season."
+          ],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["pressured_epa"],
+              "scope": {
+                "seasons": [2025],
+                "qualifiedOnly": false,
+                "positions": ["QB"]
+              },
+              "situation": {
+                "pressure": true
+              },
+              "limit": 5000
+            }
+          ],
+          "ms": 0,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "How many yards per carry does Derrick Henry average in the red zone?",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: player_stats — One playe",
+            "tools": [],
+            "json": "player_stats",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"Let's find Derrick Henry's yards per carry specifically when he's in the red zone.\", \"args\": {\"metrics\": [\"rz_opportunity_share\"], \"filters\": [\"red_zone\"]}}",
+            "calls": [],
+            "usage": {
+              "input": 397,
+              "output": 49
+            },
+            "stop": "end"
+          },
+          "ms": 1432
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: player_stats — One playe",
+            "tools": [],
+            "json": "player_stats",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"Let's find Derrick Henry's yards per carry specifically in the red zone.\", \"args\": {\"metrics\": [\"rz_carries\", \"rush_ypc\"], \"filters\": [\"red_zone\"]}}",
+            "calls": [],
+            "usage": {
+              "input": 426,
+              "output": 51
+            },
+            "stop": "end"
+          },
+          "ms": 1348
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Derrick Henry averages 3.4 yards per carry in the red zone, based on 40 carries. This rate is considered within noise, as it’s a percentile ranking among RBs with qualified rows only.",
+            "calls": [],
+            "usage": {
+              "input": 231,
+              "output": 46
+            },
+            "stop": "end"
+          },
+          "ms": 921
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "player_stats",
+            "args": {
+              "player": "00-0032764",
+              "metrics": ["rz_opportunity_share"],
+              "red_zone": true
+            }
+          },
+          {
+            "tool": "player_stats",
+            "args": {
+              "player": "00-0032764",
+              "metrics": ["rz_carries", "rush_ypc"],
+              "red_zone": true
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": false,
+          "tool": "player_stats",
+          "error": "\"rz_opportunity_share\" cannot be split by situation: it does not come from plays",
+          "ms": 5
+        },
+        {
+          "ok": true,
+          "tool": "player_stats",
+          "title": "Derrick Henry (00-0032764, RB, BAL), 2026, red zone.",
+          "text": "Derrick Henry (00-0032764, RB, BAL), 2026, red zone.\nRZ Car 40, 100th pct · YPC 3.4 on 40 carries, 87th pct (percentiles among RBs, qualified rows only)\nNotes: Yards per carry barely carries over from one season to the next (year-to-year r 0.31): treat it as noisy.",
+          "cards": [],
+          "notes": [
+            "Yards per carry barely carries over from one season to the next (year-to-year r 0.31): treat it as noisy."
+          ],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["rz_carries", "rush_ypc"],
+              "scope": {
+                "seasons": [2026],
+                "qualifiedOnly": false,
+                "positions": ["RB"]
+              },
+              "situation": {
+                "fieldZone": "redzone"
+              },
+              "limit": 5000
+            }
+          ],
+          "ms": 50,
+          "cached": false
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Puka Nacua's target share by week",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: player_stats — One playe",
+            "tools": [],
+            "json": "player_stats",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"The user wants to see Puka Nacua’s target share for each week.\", \"args\": {\"metrics\": [ \"target_share\"], \"by\": \"week\"}}",
+            "calls": [],
+            "usage": {
+              "input": 422,
+              "output": 41
+            },
+            "stop": "end"
+          },
+          "ms": 1241
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Puka Nacua achieved a target percentage of 34.1% across 74 targets. His target percentage fluctuated throughout the weeks, peaking at 44.4% in Week 5 and 48.0% in Week 8, with other weeks within noise.",
+            "calls": [],
+            "usage": {
+              "input": 254,
+              "output": 61
+            },
+            "stop": "end"
+          },
+          "ms": 1125
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "player_stats",
+            "args": {
+              "player": "00-0039075",
+              "metrics": ["target_share"],
+              "by": "week"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "player_stats",
+          "title": "Puka Nacua (00-0039075, WR, LA), 2026, by week.",
+          "text": "Puka Nacua (00-0039075, WR, LA), 2026, by week.\nAll: Tgt% 34.1% on 74 targets\nWeek 1: Tgt% 33.3%\nWeek 4: Tgt% 24.0%\nWeek 5: Tgt% 44.4%\nWeek 6: Tgt% 21.9%\nWeek 7: Tgt% 34.5%\nWeek 8: Tgt% 48.0%",
+          "cards": [],
+          "notes": [],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["target_share"],
+              "scope": {
+                "seasons": [2026],
+                "players": ["00-0039075"],
+                "qualifiedOnly": false
+              },
+              "groupBy": ["week"],
+              "limit": 200
+            },
+            {
+              "entity": "player",
+              "metrics": ["target_share"],
+              "scope": {
+                "seasons": [2026],
+                "qualifiedOnly": false,
+                "positions": ["WR"]
+              },
+              "limit": 5000
+            }
+          ],
+          "ms": 0,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Brock Bowers' yards per route run in 2025",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: player_stats — One playe",
+            "tools": [],
+            "json": "player_stats",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"Provide the player's YPRR metric for the specified year.\", \"args\": {\"metrics\": [\"yprr\", \"routes\", \"tprr\"]}}",
+            "calls": [],
+            "usage": {
+              "input": 452,
+              "output": 40
+            },
+            "stop": "end"
+          },
+          "ms": 1292
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Brock Bowers’ yards per route run in 2025 was 1.66 on 409 routes. This rate was 88th percentile among tight ends (qualified rows only).",
+            "calls": [],
+            "usage": {
+              "input": 217,
+              "output": 43
+            },
+            "stop": "end"
+          },
+          "ms": 927
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "player_stats",
+            "args": {
+              "player": "00-0039338",
+              "metrics": ["yprr", "routes", "tprr"],
+              "seasons": [2025]
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "player_stats",
+          "title": "Brock Bowers (00-0039338, TE, LV), 2025.",
+          "text": "Brock Bowers (00-0039338, TE, LV), 2025.\nYPRR 1.66 on 409 routes, 88th pct · Rts 409, 89th pct · TPRR 21.0% on 409 routes, 92nd pct (percentiles among TEs, qualified rows only)",
+          "cards": [],
+          "notes": [],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["yprr", "routes", "tprr"],
+              "scope": {
+                "seasons": [2025],
+                "qualifiedOnly": false,
+                "positions": ["TE"]
+              },
+              "limit": 5000
+            }
+          ],
+          "ms": 26,
+          "cached": false
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "How good is the Ravens' run defense this year?",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: team_stats — One team’s ",
+            "tools": [],
+            "json": "team_stats",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"Let's analyze the Ravens' run defense performance this year.\", \"args\": { \"metrics\": [\"def_rush_epa\", \"def_stuff_rate\", \"def_line_yards\"]}}",
+            "calls": [],
+            "usage": {
+              "input": 419,
+              "output": 48
+            },
+            "stop": "end"
+          },
+          "ms": 1513
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "The Ravens’ run defense allows an average of -0.080 EPA per carry on 219 carries faced. Their stuff rate is 20.1% across 219 carries faced, ranking them 71st. Line yards allowed are 2.64 on 194 designed runs faced, placing them 77th.",
+            "calls": [],
+            "usage": {
+              "input": 283,
+              "output": 77
+            },
+            "stop": "end"
+          },
+          "ms": 1481
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "team_stats",
+            "args": {
+              "team": "BAL",
+              "metrics": ["def_rush_epa", "def_stuff_rate", "def_line_yards"],
+              "seasons": [2026],
+              "side": "defense"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "team_stats",
+          "title": "Baltimore Ravens (BAL), 2026.",
+          "text": "Baltimore Ravens (BAL), 2026.\nRush EPA All -0.080 on 219 carries faced, 52nd pct · Stuff% All 20.1% on 219 carries faced, 71st pct · Line Yds All 2.64 on 194 designed runs faced, 77th pct (percentiles among the 32, qualified rows only)\nNotes: EPA per carry allowed barely carries over from one season to the next (year-to-year r 0.23): treat it as noisy. Stuff rate allowed barely carries over from one season to the next (year-to-year r 0.35): treat it as noisy.",
+          "cards": [],
+          "notes": [
+            "EPA per carry allowed barely carries over from one season to the next (year-to-year r 0.23): treat it as noisy.",
+            "Stuff rate allowed barely carries over from one season to the next (year-to-year r 0.35): treat it as noisy."
+          ],
+          "queries": [
+            {
+              "entity": "team",
+              "metrics": ["def_rush_epa", "def_stuff_rate", "def_line_yards"],
+              "scope": {
+                "seasons": [2026],
+                "qualifiedOnly": false
+              },
+              "limit": 5000
+            }
+          ],
+          "ms": 16,
+          "cached": false
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Detroit's offensive EPA per play by week",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: team_stats — One team’s ",
+            "tools": [],
+            "json": "team_stats",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"The user wants to see Detroit's offensive EPA per play by week.\", \"args\": {\"metrics\": [\"adj_off_epa\"], \"by\": \"week\"}}",
+            "calls": [],
+            "usage": {
+              "input": 409,
+              "output": 42
+            },
+            "stop": "end"
+          },
+          "ms": 1354
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Through 7 games, the Detroit Lions have accumulated an average of +0.067 adjusted EPA per play. Their EPA per play has steadily increased, peaking at +0.084 in Week 5, and remaining at +0.067 in Week 8.",
+            "calls": [],
+            "usage": {
+              "input": 243,
+              "output": 60
+            },
+            "stop": "end"
+          },
+          "ms": 1236
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "team_stats",
+            "args": {
+              "team": "DET",
+              "metrics": ["adj_off_epa"],
+              "side": "offense",
+              "by": "week"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "team_stats",
+          "title": "Detroit Lions (DET), 2026, by week.",
+          "text": "Detroit Lions (DET), 2026, by week.\nAll: Adj EPA +0.067 on 7 games\nWeek 1: Adj EPA +0.014\nWeek 2: Adj EPA +0.030\nWeek 3: Adj EPA +0.056\nWeek 4: Adj EPA +0.065\nWeek 5: Adj EPA +0.084\nWeek 7: Adj EPA +0.071\nWeek 8: Adj EPA +0.067",
+          "cards": [],
+          "notes": [],
+          "queries": [
+            {
+              "entity": "team",
+              "metrics": ["adj_off_epa"],
+              "scope": {
+                "seasons": [2026],
+                "teams": ["DET"],
+                "qualifiedOnly": false
+              },
+              "groupBy": ["week"],
+              "limit": 200
+            },
+            {
+              "entity": "team",
+              "metrics": ["adj_off_epa"],
+              "scope": {
+                "seasons": [2026],
+                "qualifiedOnly": false
+              },
+              "limit": 5000
+            }
+          ],
+          "ms": 25,
+          "cached": false
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Compare Ja'Marr Chase and CeeDee Lamb in yards per route run",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: compare — Two to four pl",
+            "tools": [],
+            "json": "compare",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"Comparing yprr for Chase and Lamb.\", \"args\": {\"metrics\": [\"yprr\", \"yprr\"]}}",
+            "calls": [],
+            "usage": {
+              "input": 464,
+              "output": 32
+            },
+            "stop": "end"
+          },
+          "ms": 1239
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Ja’Marr Chase has a YPRR of 2.17 on 227 routes, ranking 75th in percentile. CeeDee Lamb has a YPRR of 2.72 on 261 routes, ranking 89th in percentile. The results within noise.",
+            "calls": [],
+            "usage": {
+              "input": 234,
+              "output": 67
+            },
+            "stop": "end"
+          },
+          "ms": 1421
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "compare",
+            "args": {
+              "ids": ["00-0036900", "00-0036358"],
+              "metrics": ["yprr"]
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "compare",
+          "title": "Ja'Marr Chase vs CeeDee Lamb, 2026.",
+          "text": "Ja'Marr Chase vs CeeDee Lamb, 2026.\nJa'Marr Chase (00-0036900, WR, CIN): YPRR 2.17 (est.) on 227 routes, 75th pct\nCeeDee Lamb (00-0036358, WR, DAL): YPRR 2.72 (est.) on 261 routes, 89th pct",
+          "cards": [],
+          "notes": [],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["yprr"],
+              "scope": {
+                "seasons": [2026],
+                "positions": ["WR"],
+                "qualifiedOnly": false
+              },
+              "limit": 5000
+            }
+          ],
+          "ms": 0,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "Bijan vs Gibbs: fantasy points per game this season",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: compare — Two to four pl",
+            "tools": [],
+            "json": "compare",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"Comparing fantasy points per game for Bijan Robinson and Jahmyr Gibbs this season.\", \"args\": {\"metrics\": [\"fantasy_ppg\"]}}",
+            "calls": [],
+            "usage": {
+              "input": 436,
+              "output": 36
+            },
+            "stop": "end"
+          },
+          "ms": 1222
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "Bijan Robinson has averaged 19.2 fantasy points per game over 8 games, ranking 98th in the league. Jahmyr Gibbs has averaged 28.0 fantasy points per game over 7 games, ranking 100th in the league. Within noise, the two RBs are fairly comparable.",
+            "calls": [],
+            "usage": {
+              "input": 217,
+              "output": 70
+            },
+            "stop": "end"
+          },
+          "ms": 1402
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "compare",
+            "args": {
+              "ids": ["00-0038542", "00-0039139"],
+              "metrics": ["fantasy_ppg"],
+              "seasons": [2026]
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "compare",
+          "title": "Bijan Robinson vs Jahmyr Gibbs, 2026.",
+          "text": "Bijan Robinson vs Jahmyr Gibbs, 2026.\nBijan Robinson (00-0038542, RB, ATL): FP/G 19.2 on 8 games, 98th pct\nJahmyr Gibbs (00-0039139, RB, DET): FP/G 28.0 on 7 games, 100th pct",
+          "cards": [],
+          "notes": [],
+          "queries": [
+            {
+              "entity": "player",
+              "metrics": ["fantasy_ppg"],
+              "scope": {
+                "seasons": [2026],
+                "positions": ["RB"],
+                "qualifiedOnly": false
+              },
+              "limit": 5000
+            }
+          ],
+          "ms": 1,
+          "cached": true
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "What does WOPR mean?",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: describe — What a metric",
+            "tools": [],
+            "json": "describe",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"The question asks for a definition of WOPR.\", \"args\": {\"metric\": \"wopr\"}}",
+            "calls": [],
+            "usage": {
+              "input": 394,
+              "output": 26
+            },
+            "stop": "end"
+          },
+          "ms": 897
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "WOPR, or Weighted Opportunity Rating, is a metric that predicts receiving fantasy output for RBs, WRs, and TEs. It’s calculated as 1.5 times target share plus 0.7 times air-yards share, with a sample size of 30 over 17 games. The rating is higher is better, and shows a high level of stability with a correlation of 0.70.",
+            "calls": [],
+            "usage": {
+              "input": 232,
+              "output": 90
+            },
+            "stop": "end"
+          },
+          "ms": 1623
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "describe",
+            "args": {
+              "metric": "wopr"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "describe",
+          "title": "WOPR (wopr).",
+          "text": "WOPR (wopr).\nWeighted opportunity rating: 1.5 × target share + 0.7 × air-yards share. Predicts receiving fantasy output.\nUnit: number; higher is better. Sample: targets, qualified at 30 over 17 games.\nPositions: RB, WR, TE. Seasons: 2019 on. Sources: nflverse play-by-play.\nStability: year-to-year r 0.70 (high), half signal at 8 targets.",
+          "cards": [],
+          "notes": [],
+          "queries": [],
+          "ms": 0,
+          "cached": false
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "question": "What is RYOE?",
+      "calls": [
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. The app has read the question and chosen the tool: describe — What a metric",
+            "tools": [],
+            "json": "describe",
+            "turns": 1
+          },
+          "reply": {
+            "text": "{\"thought\": \"The question asks for a definition of RYOE, so I'll select the metric that directly represents it.\", \"args\": {\"metric\": \"ryoe\"}}",
+            "calls": [],
+            "usage": {
+              "input": 287,
+              "output": 38
+            },
+            "stop": "end"
+          },
+          "ms": 1026
+        },
+        {
+          "shape": {
+            "system": "You are FantasyCompanion's NFL data analyst. Answer the question in two or three sentences from the tool result below.",
+            "tools": [],
+            "json": null,
+            "turns": 1
+          },
+          "reply": {
+            "text": "RYOE, or Rush yards over expected, measures rushing yards above what Next Gen Stats expects from a handoff. The unit is count, and a higher number is better, with a sample of games. The stability is low, with a correlation of 0.28 year-to-year across — games.",
+            "calls": [],
+            "usage": {
+              "input": 218,
+              "output": 65
+            },
+            "stop": "end"
+          },
+          "ms": 1267
+        }
+      ],
+      "expect": {
+        "outcome": "answer",
+        "calls": [
+          {
+            "tool": "describe",
+            "args": {
+              "metric": "ryoe"
+            }
+          }
+        ]
+      },
+      "outcomes": [
+        {
+          "ok": true,
+          "tool": "describe",
+          "title": "Rush yards over expected (ryoe).",
+          "text": "Rush yards over expected (ryoe).\nRushing yards above what Next Gen Stats expects from the blockers’ and defenders’ positions at the handoff: credits the runner, not the line.\nUnit: count; higher is better. Sample: games.\nPositions: RB. Seasons: 2019 on. Sources: NFL Next Gen Stats (nflverse).\nStability: year-to-year r 0.28 (low), half signal at — games.",
+          "cards": [],
+          "notes": [],
+          "queries": [],
+          "ms": 0,
+          "cached": false
+        }
+      ]
+    }
+  ]
+}

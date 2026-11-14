@@ -145,9 +145,10 @@ export function compactAnswer(
   const a = { ...given }
   const metrics = ([] as unknown[]).concat(a.metric ?? [], a.metrics ?? [])
   if (metrics.includes('other')) return { kind: 'other' }
-  // `default` alone leaves the line to the tool; beside named metrics it is dropped.
+  // `default` alone leaves the line to the tool; beside named metrics it is dropped. Small models
+  // repeat a metric (["yprr", "yprr"]), which the engine refuses: each is kept once.
   if (Array.isArray(a.metrics)) {
-    const named = (a.metrics as string[]).filter((m) => m !== 'default')
+    const named = [...new Set(a.metrics as string[])].filter((m) => m !== 'default')
     if (named.length > 0) a.metrics = named
     else delete a.metrics
   }
