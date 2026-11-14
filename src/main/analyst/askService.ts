@@ -34,7 +34,7 @@ import type { FollowState } from './followup'
 import { type KeyStore, NO_KEY_STORE } from './keys'
 import { askTurn } from './loop'
 import { detectLocalServers } from './providers/detect'
-import { createProvider } from './providers/index'
+import { createProvider, endpointOf } from './providers/index'
 import type { ChatMessage, Fetch, Provider } from './providers/types'
 import type { Analyst } from './tools'
 import { appendTrace } from './trace'
@@ -102,6 +102,12 @@ export function createAskService(deps: AskServiceDeps): AskService {
     return cipher ? deps.keys.decrypt(cipher) : null
   }
 
+  /** The saved key of provider `id`, only for the endpoint it was saved for (never another host). */
+  function savedKeyFor(id: number | undefined, s: ProviderInput): string | null {
+    const saved = id !== undefined ? getAskProvider(deps.db, id) : null
+    return saved && endpointOf(saved) === endpointOf(s) ? keyOf(saved.id) : null
+  }
+
   async function providerOf(s: ProviderSettings): Promise<Provider> {
     return createProvider(s, keyOf(s.id), doFetch)
   }
@@ -145,7 +151,10 @@ export function createAskService(deps: AskServiceDeps): AskService {
     saveProvider(input) {
       const { key, ...settings } = input
       let cipher: Uint8Array | null | undefined
-      if (key === '') cipher = null
+      const saved = settings.id !== undefined ? getAskProvider(deps.db, settings.id) : null
+      // A key saved for one endpoint is not kept for another (kind or address changed).
+      if (key === '' || (key === undefined && saved && endpointOf(saved) !== endpointOf(settings)))
+        cipher = null
       else if (key !== undefined) {
         if (!deps.keys.available()) throw new Error(NO_KEY_STORE)
         cipher = deps.keys.encrypt(key.trim())
@@ -157,7 +166,7 @@ export function createAskService(deps: AskServiceDeps): AskService {
     activate: (id) => activateAskProvider(deps.db, id),
 
     async models(input) {
-      const key = input.key ?? (input.id !== undefined ? keyOf(input.id) : null)
+      const key = input.key ?? savedKeyFor(input.id, input)
       const p = await createProvider(input, key || null, doFetch)
       return p.models(AbortSignal.timeout(15_000))
     },

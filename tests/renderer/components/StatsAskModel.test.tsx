@@ -111,6 +111,18 @@ describe('Stats › Ask › Model (Plan AG1)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Test' }))
     await screen.findByText(/Groq refused the key/)
   })
+
+  it('promises to keep a saved key only for the same address', async () => {
+    providers.list.mockResolvedValue([GROQ])
+    render(<AskModel />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }))
+    expect(screen.getByText('API key (leave empty to keep it)')).toBeTruthy()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Address' }), {
+      target: { value: 'https://elsewhere.example/v1' }
+    })
+    expect(screen.queryByText('API key (leave empty to keep it)')).toBeNull()
+    expect(screen.getByText('API key')).toBeTruthy()
+  })
 })
 
 describe('Stats › Ask › Try a question', () => {

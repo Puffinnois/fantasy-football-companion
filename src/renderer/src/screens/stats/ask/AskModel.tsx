@@ -163,6 +163,13 @@ export function AskModel({
 
   const set = (patch: Partial<ProviderInput>): void => setForm((f) => (f ? { ...f, ...patch } : f))
 
+  /** Main keeps a saved key only for the kind and address it was saved for. */
+  const saved = form ? providers.find((p) => p.id === form.id) : undefined
+  const keepsKey =
+    saved?.hasKey === true &&
+    saved.kind === form?.kind &&
+    saved.baseUrl.replace(/\/+$/, '') === form.baseUrl.replace(/\/+$/, '')
+
   return (
     <section className="flex flex-col gap-3 rounded-[10px] border border-line bg-panel px-5 py-4">
       <SectionHead title="Ask in the app" note="Model" />
@@ -327,7 +334,7 @@ export function AskModel({
               />
             </Field>
             {!local(form.kind) && (
-              <Field label={form.id !== undefined ? 'API key (leave empty to keep it)' : 'API key'}>
+              <Field label={keepsKey ? 'API key (leave empty to keep it)' : 'API key'}>
                 <input
                   className={INPUT}
                   type="password"

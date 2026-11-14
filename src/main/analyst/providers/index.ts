@@ -2,7 +2,7 @@ import type { ModelInfo, ProviderInput, ProviderSettings } from '@shared/ask'
 import { anthropic } from './anthropic'
 import { ollama, ollamaModel } from './ollama'
 import { openAiCompatible } from './openaiCompatible'
-import { PRESETS } from '@shared/askPresets'
+import { ANTHROPIC_BASE_URL, PRESETS } from '@shared/askPresets'
 import type { Fetch, Provider } from './types'
 
 /**
@@ -17,6 +17,15 @@ export type ProviderSpec = Pick<
 
 /** The context Ollama loads a model with: the full profile's tools need room (spec §3.2). */
 export const OLLAMA_CONTEXT = { compact: 8192, full: 32768 } as const
+
+/**
+ * Where a provider's requests go: its kind and the base URL as `createProvider` uses it (Anthropic's
+ * empty address is the SDK's default). A saved key may only be sent to the endpoint it was saved for.
+ */
+export function endpointOf(s: Pick<ProviderSpec, 'kind' | 'baseUrl'>): string {
+  const base = s.baseUrl.replace(/\/+$/, '')
+  return `${s.kind} ${s.kind === 'anthropic' && !base ? ANTHROPIC_BASE_URL : base}`
+}
 
 export async function createProvider(
   s: ProviderSpec,

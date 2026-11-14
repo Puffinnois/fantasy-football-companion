@@ -123,6 +123,38 @@ describe('providers and keys', () => {
     await ask.models({ ...GROQ, id: p.id })
     expect(s.auth).toEqual(['Bearer typed', 'Bearer saved'])
   })
+
+  it('never sends a saved key to another address', async () => {
+    const s = server([])
+    const { ask } = service(s.fetch)
+    const p = ask.saveProvider({ ...GROQ, key: 'saved' })
+    await ask.models({ ...GROQ, id: p.id, baseUrl: 'https://elsewhere.example/v1' })
+    await ask.models({ ...GROQ, id: p.id, preset: 'custom', baseUrl: 'https://x.example/v1' })
+    await ask.models({ ...GROQ, id: p.id, kind: 'lmstudio', baseUrl: 'http://localhost:1234' })
+    expect(s.auth).toEqual([null, null, null])
+    // A key typed in the form is still used; the same address (trailing slash aside) keeps it.
+    await ask.models({ ...GROQ, id: p.id, baseUrl: 'https://x.example/v1', key: 'typed' })
+    await ask.models({ ...GROQ, id: p.id, baseUrl: `${GROQ.baseUrl}/` })
+    expect(s.auth.slice(3)).toEqual(['Bearer typed', 'Bearer saved'])
+  })
+
+  it('drops the saved key when the address or kind changes', () => {
+    const { ask, db } = service(server([]).fetch)
+    const p = ask.saveProvider({ ...GROQ, key: 'saved' })
+    expect(ask.saveProvider({ ...GROQ, id: p.id, model: 'm-2' }).hasKey).toBe(true)
+    const moved = ask.saveProvider({ ...GROQ, id: p.id, baseUrl: 'https://elsewhere.example/v1' })
+    expect(moved.hasKey).toBe(false)
+    expect(getAskProviderKey(db, p.id)).toBeNull()
+    const q = ask.saveProvider({ ...GROQ, key: 'saved' })
+    expect(ask.saveProvider({ ...GROQ, id: q.id, kind: 'anthropic', preset: null }).hasKey).toBe(
+      false
+    )
+    // A new key given with the change is kept.
+    const r = ask.saveProvider({ ...GROQ, key: 'saved' })
+    expect(
+      ask.saveProvider({ ...GROQ, id: r.id, baseUrl: 'https://y.example', key: 'new' }).hasKey
+    ).toBe(true)
+  })
 })
 
 describe('asking', () => {
