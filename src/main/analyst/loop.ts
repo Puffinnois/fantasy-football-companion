@@ -12,6 +12,7 @@ import type {
 import { type BriefKind, briefHash, briefText } from './brief'
 import { checkAnswer } from './checks'
 import { type CompactAnswer, compactAnswer, compactCall } from './compact'
+import { type FollowState, followUp, isFollowUp, lastTurnText } from './followup'
 import { type ProviderError, ProviderError as ProviderErrorClass } from './providers/types'
 import type { ChatMessage, ChatReply, ChatRequest, Provider, ToolReply } from './providers/types'
 import { type ContextBlock, contextText, resolve } from './resolve'
@@ -23,7 +24,7 @@ import { resolverTrace, type Trace, traceCall } from './trace'
  * The agent loop (Ask spec §5.1): one loop for every model, with the planning and the checking in
  * code. A turn:
  *
- *   1. the resolver reads the question; an ambiguous name is
+ *   1. the resolver reads the question (and, for a follow-up, the last one); an ambiguous name is
  *      asked back and advice or an out-of-range season declined, with no model call;
  *   2. the model gets the brief, the context block and the tools of its profile;
  *   3. the calls run (in parallel when a step makes several); a failed call goes back to the model
@@ -67,6 +68,8 @@ export interface LoopInput {
   reasoning: Reasoning
   /** The thread's earlier turns, as the full profile resends them. */
   history: ChatMessage[]
+  /** The thread's last question and call (follow-ups). */
+  last: FollowState | null
   limits?: Partial<LoopLimits>
   signal: AbortSignal
   emit: (event: AskEvent) => void
@@ -82,6 +85,7 @@ export interface LoopOutput {
   ms: number
   /** This turn's messages, for the next turn's history. */
   transcript: ChatMessage[]
+  state: FollowState
   trace: Trace
 }
 
@@ -150,7 +154,9 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
   const { provider, analyst, emit } = input
   const turn: TurnContext = await analyst.turn()
   const deps = { people: turn.people, now: turn.now }
-  let block = resolve(input.question, deps)
+  const fresh = resolve(input.question, deps)
+  const follow = input.last !== null && isFollowUp(fresh)
+  let block = follow ? followUp(input.question, input.last!, deps) : fresh
 
   const calls: AskCall[] = []
   const results: ToolOutcome[] = []
@@ -165,6 +171,7 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
     outcome: LoopOutput['outcome'],
     flags: AskFlag[] = []
   ): LoopOutput => {
+    const last = calls.length > 0 ? calls[calls.length - 1] : (input.last?.call ?? null)
     return {
       text,
       outcome,
@@ -174,6 +181,7 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
       tokens,
       ms: Date.now() - started,
       transcript,
+      state: { question: follow ? input.last!.question : input.question, call: last },
       trace: {
         at: new Date(started).toISOString(),
         question: input.question,
@@ -296,7 +304,7 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
         // Ask spec §3.2 rule 5: re-resolve with the top 10 and ask once more.
         widened = true
         const wide = { ...deps, k: 10 }
-        block = resolve(input.question, wide)
+        block = follow ? followUp(input.question, input.last!, wide) : resolve(input.question, wide)
         cc = compactCall(block) ?? cc
         continue
       }
@@ -331,7 +339,12 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
     cc: NonNullable<ReturnType<typeof compactCall>>,
     feedback: string | null
   ): Promise<Record<string, unknown> | string> {
-    const user = [contextText(block), `Question: ${input.question}`, feedback ?? '']
+    const user = [
+      contextText(block),
+      follow ? lastTurnText(input.last!) : '',
+      `Question: ${input.question}`,
+      feedback ?? ''
+    ]
       .filter(Boolean)
       .join('\n\n')
     const argsSchema = cc.schema.properties!.args as Schema
@@ -371,7 +384,11 @@ export async function askTurn(input: LoopInput): Promise<LoopOutput> {
   // The full profile
 
   function firstMessage(): ChatMessage {
-    const parts = [contextText(block), `Question: ${input.question}`]
+    const parts = [
+      contextText(block),
+      follow ? lastTurnText(input.last!) : '',
+      `Question: ${input.question}`
+    ]
     return { role: 'user', text: parts.filter(Boolean).join('\n\n') }
   }
 

@@ -87,6 +87,7 @@ async function ask(
     mode: 'structured',
     reasoning: 'off',
     history: [],
+    last: null,
     signal: new AbortController().signal,
     emit: (e) => events.push(e),
     ...over
@@ -130,6 +131,7 @@ describe('the compact profile', () => {
     expect(events.map((e) => e.type)).toEqual(['call', 'result', 'text'])
     expect(out.trace.profile).toBe('compact')
     expect(out.trace.calls[0].ok).toBe(true)
+    expect(out.state).toEqual({ question: LEADERS, call: out.calls[0] })
   })
 
   it('flags a number that is not in the data', async () => {
@@ -173,6 +175,24 @@ describe('the compact profile', () => {
     const { out } = await ask(LEADERS, p)
     expect(out.text).toContain('Puka Nacua')
     expect(out.text).toContain('did not finish its answer')
+  })
+
+  it('carries a follow-up from the last call', async () => {
+    const p = scripted([
+      json({ thought: '', args: { metric: 'yprr', position: 'WR' } }),
+      { text: 'In 2024, Puka leads.' }
+    ])
+    const { out } = await ask('now 2024', p, {
+      last: {
+        question: 'Who leads WRs in yards per route run this season?',
+        call: { tool: 'leaderboard', args: { metric: 'yprr', position: 'WR', seasons: [2026] } }
+      }
+    })
+    expect(out.calls[0]).toEqual({
+      tool: 'leaderboard',
+      args: { metric: 'yprr', position: 'WR', seasons: [2024] }
+    })
+    expect(out.state.question).toBe('Who leads WRs in yards per route run this season?')
   })
 })
 
