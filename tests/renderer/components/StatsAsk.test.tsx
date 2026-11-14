@@ -14,7 +14,20 @@ vi.mock('@/lib/api', () => ({
         resetToken: vi.fn(),
         addToClaudeDesktop: vi.fn(),
         copy: vi.fn()
-      }
+      },
+      providers: {
+        list: vi.fn(async () => []),
+        save: vi.fn(),
+        remove: vi.fn(),
+        activate: vi.fn(),
+        models: vi.fn(),
+        detect: vi.fn(),
+        test: vi.fn(),
+        openDashboard: vi.fn()
+      },
+      send: vi.fn(),
+      stop: vi.fn(),
+      onEvent: vi.fn(() => () => {})
     }
   }
 }))
