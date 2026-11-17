@@ -111,7 +111,47 @@ describe('the OpenAI-compatible adapter', () => {
       { role: 'system', content: 'You are the analyst.' },
       { role: 'user', content: 'Who leads WRs in YPRR?' }
     ])
-    expect(f.calls[0].body).not.toHaveProperty('reasoning_effort')
+    // Reasoning off is said out loud: a model that thinks by default would think to the cap.
+    expect(f.calls[0].body?.reasoning_effort).toBe('none')
+  })
+
+  it('drops "reasoning off" for a server that refuses it, and remembers', async () => {
+    const f = fakeFetch((_url, body) =>
+      body && 'reasoning_effort' in body
+        ? new Response(JSON.stringify({ error: { message: 'unknown reasoning_effort' } }), {
+            status: 400
+          })
+        : stream(sse([{ choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }] }]))
+    )
+    const p = openAiCompatible({
+      name: 'Custom',
+      baseUrl: 'http://localhost:9/v1',
+      model: 'm',
+      key: null,
+      reasoning: false,
+      fetch: f.fetch
+    })
+    expect((await p.chat(REQUEST, signal())).text).toBe('ok')
+    expect(f.calls.map((c) => c.body?.reasoning_effort)).toEqual(['none', undefined])
+    expect((await p.chat(REQUEST, signal())).text).toBe('ok')
+    expect(f.calls).toHaveLength(3)
+    expect(f.calls[2].body).not.toHaveProperty('reasoning_effort')
+  })
+
+  it('gives the server\'s own error when it is not about reasoning', async () => {
+    const f = fakeFetch(
+      () => new Response(JSON.stringify({ error: { message: 'no such model' } }), { status: 400 })
+    )
+    const p = openAiCompatible({
+      name: 'Custom',
+      baseUrl: 'http://localhost:9/v1',
+      model: 'm',
+      key: null,
+      reasoning: false,
+      fetch: f.fetch
+    })
+    await expect(p.chat(REQUEST, signal())).rejects.toThrow(/no such model/)
+    expect(f.calls).toHaveLength(2)
   })
 
   it('streams text and asks for a JSON schema in structured mode', async () => {

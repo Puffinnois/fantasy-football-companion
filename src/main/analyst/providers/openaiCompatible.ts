@@ -106,6 +106,9 @@ export function openAiCompatible(o: OpenAiOptions): Provider {
     ...(o.key ? { Authorization: `Bearer ${o.key}` } : {})
   })
 
+  /** The server answered 400 to `reasoning_effort: "none"`: it is no longer sent. */
+  let offRefused = false
+
   async function chat(
     req: ChatRequest,
     signal: AbortSignal,
@@ -132,18 +135,30 @@ export function openAiCompatible(o: OpenAiOptions): Provider {
           ...(strictCompatible(req.json.schema) ? { strict: true } : {})
         }
       }
-    if (o.reasoning && req.reasoning !== 'off') body.reasoning_effort = req.reasoning
+    // "Off" is said too: a model that thinks by default (qwen3.5 on a local server) would
+    // otherwise think up to the token cap and answer nothing.
+    const saysOff = req.reasoning === 'off' && !offRefused
+    if (saysOff) body.reasoning_effort = 'none'
+    else if (o.reasoning && req.reasoning !== 'off') body.reasoning_effort = req.reasoning
     const url = `${base}/chat/completions`
-    let res: Response
-    try {
-      res = await doFetch(url, {
-        method: 'POST',
-        headers: headers(),
-        body: JSON.stringify(body),
-        signal
-      })
-    } catch (err) {
-      throw unreachable(o.name, url, err)
+    const post = async (): Promise<Response> => {
+      try {
+        return await doFetch(url, {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify(body),
+          signal
+        })
+      } catch (err) {
+        throw unreachable(o.name, url, err)
+      }
+    }
+    let res = await post()
+    if (res.status === 400 && saysOff) {
+      // A server that does not take "none": ask again without it, and not again for this model.
+      offRefused = true
+      delete body.reasoning_effort
+      res = await post()
     }
     if (!res.ok || !res.body)
       throw httpError(o.name, res.status, await res.text(), res.headers.get('retry-after'))
