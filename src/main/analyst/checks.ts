@@ -1,4 +1,4 @@
-import type { StatsCard, ToolResult } from '@shared/ask'
+import type { AskFlag, StatsCard, ToolResult } from '@shared/ask'
 import type { MetricInfo } from '@shared/stats/types'
 import { fmt } from './format'
 
@@ -12,14 +12,7 @@ import { fmt } from './format'
  *   base   — a split's value given without the overall line;
  *   causal — "because", "due to" … (soft: underlined, not blocked).
  */
-export interface AnswerCheck {
-  kind: 'number' | 'sample' | 'base' | 'causal'
-  /** The words it is about, and where they are in the answer. */
-  text: string
-  at: [number, number]
-  message: string
-  severity: 'flag' | 'soft'
-}
+export type AnswerCheck = AskFlag
 
 /** A number as written; a sign only where it cannot be a hyphen ("2019-2024", "won 31-17"). */
 const NUMBER = /(?:(?<![\w.])[-−+])?\d[\d,]*(?:\.\d+)?%?/g

@@ -6,6 +6,8 @@ import { api } from '@/lib/api'
 import { errorMessage } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { McpCopy, McpStatus } from '@shared/ask'
+import { AskModel } from './ask/AskModel'
+import { AskTry } from './ask/AskTry'
 
 const DESKTOP: Record<McpStatus['claudeDesktop']['state'], string> = {
   added: 'Added. Quit and reopen Claude desktop if it was open, then ask it about your stats.',
@@ -39,14 +41,17 @@ function CopyButton({
 }
 
 /**
- * Stats › Ask (Ask spec §6.1, §8): until Ask itself comes (Plan AH), this is where you let Claude read
- * the app's stats over MCP: on or off, Claude desktop's config, and the commands for Claude Code.
+ * Stats › Ask (Ask spec §6, §8): until Ask itself comes (Plan AH), this is where you pick the model
+ * that answers in the app and try a question (Plan AG1), and let Claude read the app's stats over
+ * MCP: on or off, Claude desktop's config, and the commands for Claude Code.
  */
 export function StatsAsk(): React.JSX.Element {
   const [status, setStatus] = useState<McpStatus | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<McpCopy | null>(null)
+  /** A model is set up for Ask in the app. */
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     void api.ask.mcp
@@ -84,10 +89,13 @@ export function StatsAsk(): React.JSX.Element {
       <header className="flex flex-col gap-2">
         <h1 className="m-0 text-[28px] leading-none font-bold tracking-[-0.03em]">Ask</h1>
         <div className="text-[13px] leading-[1.45] text-fg-2">
-          Ask questions about the app’s stats in Claude, with your own Claude plan. Asking from
-          inside the app comes in a later version.
+          Ask questions about the app’s stats: in Claude, with your own Claude plan, or here in the
+          app with a model you pick. The full Ask screen comes in a later version.
         </div>
       </header>
+
+      <AskModel onChange={(list) => setReady(list.some((p) => p.active))} />
+      <AskTry ready={ready} />
 
       <section className="flex flex-col gap-3 rounded-[10px] border border-line bg-panel px-5 py-4">
         <SectionHead title="Use Claude" note="MCP" />

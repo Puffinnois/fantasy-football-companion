@@ -85,3 +85,39 @@ export function check(schema: Schema, value: unknown, path = 'arguments'): strin
       return null
   }
 }
+
+/** An enum longer than this is a list of metric ids. */
+const LONG_ENUM = 40
+const METRIC_HINT = 'A metric id, such as yprr or rush_epa; find gives the ids for a stat’s name.'
+
+/**
+ * The schema Claude reads: the full profile's, without the lists of metric ids. Those are about 300
+ * ids, seven times over: 34 of the 51 KB the tools take, some 9,000 tokens in every conversation.
+ * `find` gives the ids, and the analyst still checks each call against the full schema and names
+ * the nearest ids when one is wrong.
+ */
+export function listedSchema(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(listedSchema)
+  if (!schema || typeof schema !== 'object') return schema
+  const node = schema as Record<string, unknown>
+  if (Array.isArray(node.enum) && node.enum.length > LONG_ENUM) {
+    const description = [node.description, METRIC_HINT].filter(Boolean).join(' ')
+    return { type: 'string', description }
+  }
+  return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, listedSchema(v)]))
+}
+
+/**
+ * The schema fits strict structured output (OpenAI's `strict: true`): every object closes its
+ * properties and requires all of them. Other schemas are sent without `strict`.
+ */
+export function strictCompatible(schema: Schema): boolean {
+  if (schema.type === 'object') {
+    const keys = Object.keys(schema.properties ?? {})
+    if (schema.additionalProperties !== false || keys.length === 0) return false
+    if (!keys.every((k) => schema.required?.includes(k))) return false
+    return keys.every((k) => strictCompatible(schema.properties![k]))
+  }
+  if (schema.type === 'array') return schema.items ? strictCompatible(schema.items) : false
+  return true
+}

@@ -10,6 +10,8 @@ import waiversSql from './009_waivers.sql?raw'
 import sleeperStatsSql from './010_sleeper_stats.sql?raw'
 import statsViewsSql from './011_stats_views.sql?raw'
 import askExamplesSql from './012_ask_examples.sql?raw'
+import askThreadsSql from './013_ask_threads.sql?raw'
+import askWriterSql from './014_ask_writer.sql?raw'
 
 export interface Migration {
   version: number
@@ -29,5 +31,7 @@ export const migrations: Migration[] = [
   { version: 9, name: 'waivers', sql: waiversSql },
   { version: 10, name: 'sleeper_stats', sql: sleeperStatsSql },
   { version: 11, name: 'stats_views', sql: statsViewsSql },
-  { version: 12, name: 'ask_examples', sql: askExamplesSql }
+  { version: 12, name: 'ask_examples', sql: askExamplesSql },
+  { version: 13, name: 'ask_threads', sql: askThreadsSql },
+  { version: 14, name: 'ask_writer', sql: askWriterSql }
 ]
