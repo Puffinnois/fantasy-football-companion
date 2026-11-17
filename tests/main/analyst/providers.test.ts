@@ -138,7 +138,7 @@ describe('the OpenAI-compatible adapter', () => {
     expect(f.calls[2].body).not.toHaveProperty('reasoning_effort')
   })
 
-  it('gives the server\'s own error when it is not about reasoning', async () => {
+  it("gives the server's own error when it is not about reasoning", async () => {
     const f = fakeFetch(
       () => new Response(JSON.stringify({ error: { message: 'no such model' } }), { status: 400 })
     )
